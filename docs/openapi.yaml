@@ -1,0 +1,10 @@
+# Placeholder. Generated from FastAPI's runtime schema:
+#   uv run x4c serve  # in one shell
+#   curl http://127.0.0.1:8765/api/openapi.json > docs/openapi.yaml
+#
+# Commit the generated file. The TS client codegen reads from here.
+openapi: 3.1.0
+info:
+  title: x4-api
+  version: 0.0.1
+paths: {}

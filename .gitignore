@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# uv
+.uv/
+
+# Data artifacts (extracted XML, SQLite DBs, icons, save cache)
+packages/x4-api/data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Frontend
+node_modules/
+packages/x4-dashboard/dist/
+packages/x4-dashboard/.vite/
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log

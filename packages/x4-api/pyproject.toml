@@ -1,0 +1,36 @@
+[project]
+name = "x4-api"
+version = "0.0.1"
+description = "Extraction and REST API layer for X4: Foundations game and save data"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [{ name = "x4-companion contributors" }]
+keywords = ["x4", "x4-foundations", "egosoft", "modding"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Developers",
+    "Topic :: Games/Entertainment",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "lxml>=5.3",
+    "pydantic>=2.9",
+    "pydantic-settings>=2.6",
+    "typer>=0.13",
+    "networkx>=3.4",
+    "texture2ddecoder>=0.1; platform_system != 'Darwin'",
+    "Pillow>=11.0",
+]
+
+[project.scripts]
+x4c = "x4_api.cli:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/x4_api"]
