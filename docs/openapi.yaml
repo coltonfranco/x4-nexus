@@ -1813,6 +1813,67 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/economy/wares:
+    get:
+      tags:
+      - economy
+      summary: List Ware Market
+      description: Universe-wide ware supply/demand/price summary. Most under-supplied first.
+      operationId: list_ware_market_api_v1_economy_wares_get
+      parameters:
+      - name: classification
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - enum:
+            - shortage
+            - balanced
+            - surplus
+            type: string
+          - type: 'null'
+          description: Filter to shortages, surpluses, or balanced wares
+          title: Classification
+        description: Filter to shortages, surpluses, or balanced wares
+      - name: sort
+        in: query
+        required: false
+        schema:
+          enum:
+          - net_demand
+          - price_index
+          - sell_qty
+          - buy_qty
+          type: string
+          description: Sort key (descending)
+          default: net_demand
+          title: Sort
+        description: Sort key (descending)
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 2000
+          minimum: 1
+          default: 200
+          title: Limit
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WareMarketRow'
+                title: Response List Ware Market Api V1 Economy Wares Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
     AgentRank:
@@ -4481,6 +4542,80 @@ components:
       - tier
       - priority
       title: WareGroup
+    WareMarketRow:
+      properties:
+        ware_id:
+          type: string
+          title: Ware Id
+        ware_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Ware Name
+        group_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Group Id
+        ref_price:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Ref Price
+        sell_offers:
+          type: integer
+          title: Sell Offers
+        sell_qty:
+          type: integer
+          title: Sell Qty
+        best_buy_price:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Best Buy Price
+        buy_offers:
+          type: integer
+          title: Buy Offers
+        buy_qty:
+          type: integer
+          title: Buy Qty
+        best_sell_price:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Best Sell Price
+        avg_price:
+          type: integer
+          title: Avg Price
+        net_demand:
+          type: integer
+          title: Net Demand
+        price_index:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Price Index
+        classification:
+          type: string
+          title: Classification
+      additionalProperties: false
+      type: object
+      required:
+      - ware_id
+      - ware_name
+      - group_id
+      - ref_price
+      - sell_offers
+      - sell_qty
+      - best_buy_price
+      - buy_offers
+      - buy_qty
+      - best_sell_price
+      - avg_price
+      - net_demand
+      - price_index
+      - classification
+      title: WareMarketRow
     WareSummary:
       properties:
         ware_id:

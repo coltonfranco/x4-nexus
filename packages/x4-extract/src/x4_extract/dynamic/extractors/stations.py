@@ -181,7 +181,10 @@ class StationsCollector:
                 station_id=station_id,
                 ware_id=ware_id,
                 side=side,
-                price=int(price_s),
+                # Saves store trade prices in centi-credits (ore 5092 = 50.92 cr); the
+                # static ware catalog (price_avg) is in credits. Normalize to credits so
+                # routes/economy compare apples to apples. See docs/save-structure.md.
+                price=round(int(price_s) / 100),
                 quantity=int(amount_s),
                 last_seen_tick=None,
             )

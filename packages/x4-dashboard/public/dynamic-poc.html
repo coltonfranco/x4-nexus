@@ -61,6 +61,7 @@
     <div class="card"><h2>Player</h2><div id="player"></div></div>
     <div class="card"><h2>Holdings</h2><div id="holdings"></div></div>
     <div class="card"><h2>Fleet (player)</h2><div id="fleetSummary"></div></div>
+    <div class="card" style="grid-column: 1 / -1"><h2>Supply shortages (universe-wide)</h2><div id="shortages" class="scroll"></div></div>
     <div class="card" style="grid-column: 1 / -1"><h2>Top trade routes (cargo 8000, speed 420)</h2><div id="routes" class="scroll"></div></div>
     <div class="card" style="grid-column: 1 / -1"><h2>Player relations — initial vs current</h2><div id="relations"></div></div>
     <div class="card" style="grid-column: 1 / -1"><h2>Live stations</h2><div id="stations" class="scroll"></div></div>
@@ -126,6 +127,20 @@ async function refresh() {
       Object.entries(byClass).sort().map(([c, n]) =>
         `<div class="row"><span class="muted">${c}</span><span>${n}</span></div>`).join("");
   } catch { $("fleetSummary").innerHTML = `<span class="muted">—</span>`; }
+
+  // Supply shortages (universe-wide demand vs supply)
+  try {
+    const sh = await api("/economy/wares?classification=shortage&limit=20");
+    $("shortages").innerHTML = sh.length ? `<table>
+      <tr><th>Ware</th><th class="num">Net demand</th><th class="num">Supply</th>` +
+      `<th class="num">Demand</th><th class="num">Buy @</th><th class="num">Sell @</th></tr>` +
+      sh.map((m) =>
+        `<tr><td>${m.ware_name ?? m.ware_id}</td><td class="num neg">${fmt(m.net_demand)}</td>` +
+        `<td class="num">${fmt(m.sell_qty)}</td><td class="num">${fmt(m.buy_qty)}</td>` +
+        `<td class="num">${m.best_buy_price == null ? "—" : fmt(m.best_buy_price)}</td>` +
+        `<td class="num pos">${m.best_sell_price == null ? "—" : fmt(m.best_sell_price)}</td></tr>`).join("") + `</table>`
+      : `<span class="muted">No data — needs save offers.</span>`;
+  } catch { $("shortages").innerHTML = `<span class="muted">—</span>`; }
 
   // Top trade routes (the headline economy feature)
   try {

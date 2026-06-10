@@ -13,7 +13,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from x4_api import __version__
-from x4_api.api.v1 import diplomacy, drops, equip_mods, factions, fleet, health, loadouts, map, modules, npc_stations, player, routes, saves, ships, stations, terraform, ware_groups, wares
+from x4_api.api.v1 import diplomacy, drops, economy, equip_mods, factions, fleet, health, loadouts, map, modules, npc_stations, player, routes, saves, ships, stations, terraform, ware_groups, wares
 from x4_api.config import settings
 
 
@@ -45,6 +45,7 @@ def app() -> FastAPI:
     fast.include_router(stations.router, prefix="/api/v1", tags=["stations"])
     fast.include_router(fleet.router, prefix="/api/v1", tags=["fleet"])
     fast.include_router(routes.router, prefix="/api/v1", tags=["routes"])
+    fast.include_router(economy.router, prefix="/api/v1", tags=["economy"])
 
     icons_dir = settings.data_dir / "icons"
     if icons_dir.exists():

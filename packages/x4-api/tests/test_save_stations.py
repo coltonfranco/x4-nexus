@@ -67,10 +67,11 @@ def test_dispatch_offer_sides(data_dir: Path, fixtures_dir: Path) -> None:
     buy = next(r for r in rows if r["side"] == "buy")
     sell = next(r for r in rows if r["side"] == "sell")
 
+    # Prices normalized from centi-credits → credits (fixture 1500/50000 → 15/500).
     assert buy["ware_id"] == "energycells"
-    assert buy["price"] == 1500
+    assert buy["price"] == 15
     assert buy["quantity"] == 500
 
     assert sell["ware_id"] == "microchips"
-    assert sell["price"] == 50000
+    assert sell["price"] == 500
     assert sell["quantity"] == 200
