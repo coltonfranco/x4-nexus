@@ -13,6 +13,10 @@ type Cluster = {
   x: number | null;
   y: number | null;
   z: number | null;
+  qx: number | null;
+  qy: number | null;
+  qz: number | null;
+  qw: number | null;
 };
 
 type Sector = {
@@ -31,6 +35,8 @@ type Sector = {
   z: number | null;
   qx: number | null;
   qy: number | null;
+  qz: number | null;
+  qw: number | null;
 };
 
 type Zone = {
@@ -259,17 +265,17 @@ export default function MapPage() {
     gridOrigin: [number, number];
   }>(() => {
     const empty = { sectorCoords: new Map(), hexSize: 36, gridOrigin: [MAP_W / 2, MAP_H / 2] as [number, number] };
-    if (sectors.length === 0) return empty;
+    if (sectors.length === 0 || clusters.length === 0) return empty;
 
-    const hasHexGrid = sectors.some((s) => s.qx != null && s.qy != null);
+    const hasHexGrid = clusters.some((c) => c.qx != null && c.qy != null);
 
     if (hasHexGrid) {
       // ── Exact hex-grid layout (qx/qy from DB) ──
       const size = 60;
       let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-      sectors.forEach((s) => {
-        if (s.qx == null || s.qy == null) return;
-        const [px, rawPy] = axialToPixel(s.qx, s.qy, size);
+      clusters.forEach((c) => {
+        if (c.qx == null || c.qy == null) return;
+        const [px, rawPy] = axialToPixel(c.qx, c.qy, size);
         const py = -rawPy;
         if (px < minX) minX = px; if (px > maxX) maxX = px;
         if (py < minY) minY = py; if (py > maxY) maxY = py;
@@ -278,47 +284,97 @@ export default function MapPage() {
       const scaleF = Math.min((MAP_W - PAD * 2) / (maxX - minX || 1), (MAP_H - PAD * 2) / (maxY - minY || 1));
       const ox = PAD + (MAP_W - PAD * 2) / 2 - ((minX + maxX) / 2) * scaleF;
       const oy = PAD + (MAP_H - PAD * 2) / 2 - ((minY + maxY) / 2) * scaleF;
-      const coords = new Map<string, [number, number]>();
-      sectors.forEach((s) => {
-        if (s.qx == null || s.qy == null) return;
-        const [px, rawPy] = axialToPixel(s.qx, s.qy, size);
-        coords.set(s.sector_id, [ox + px * scaleF, oy + (-rawPy) * scaleF]);
+      const cCoords = new Map<string, [number, number]>();
+      clusters.forEach((c) => {
+        if (c.qx == null || c.qy == null) return;
+        const [px, rawPy] = axialToPixel(c.qx, c.qy, size);
+        cCoords.set(c.cluster_id, [ox + px * scaleF, oy + (-rawPy) * scaleF]);
       });
-      return { sectorCoords: coords, hexSize: Math.max(14, Math.min(80, size * scaleF)), gridOrigin: [ox, oy] };
+
+      const hs = size * scaleF;
+      const sCoords = new Map<string, [number, number]>();
+      const hasZ = clusters.some((c) => Math.abs(c.z ?? 0) > 1);
+
+      clusters.forEach((c) => {
+        const cPos = cCoords.get(c.cluster_id);
+        if (!cPos) return;
+
+        const clusterSecs = sectors.filter((s) => s.cluster_id === c.cluster_id);
+        if (clusterSecs.length === 1) {
+          sCoords.set(clusterSecs[0].sector_id, cPos);
+        } else if (clusterSecs.length > 1) {
+          const xs = clusterSecs.map(s => s.x ?? 0);
+          const zs = clusterSecs.map(s => hasZ ? (s.z ?? 0) : (s.y ?? 0));
+          const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
+          const cz = (Math.min(...zs) + Math.max(...zs)) / 2;
+
+          // Calculate angle for each sector relative to the centroid
+          // Note: SVG Y is down, but game Z+ is North (Up).
+          // We use atan2(x, z) to get the angle in the XZ plane.
+          const secAngles = clusterSecs.map((s) => {
+            let sx = (s.x ?? 0) - cx, sz = (hasZ ? (s.z ?? 0) : (s.y ?? 0)) - cz;
+            if (c.qw != null) {
+              const qx = c.qx ?? 0, qy = c.qy ?? 0, qz = c.qz ?? 0, qw = c.qw;
+              const xx = qx * qx, yy = qy * qy, zz = qz * qz;
+              const xz = qx * qz, yw = qy * qw;
+              const m00 = 1 - 2 * (yy + zz), m02 = 2 * (xz + yw);
+              const m20 = 2 * (xz - yw), m22 = 1 - 2 * (xx + yy);
+              const rx = sx * m00 + sz * m02;
+              const rz = sx * m20 + sz * m22;
+              sx = rx; sz = rz;
+            }
+            return { s, angle: Math.atan2(sz, sx) };
+          });
+
+          // Sort by angle.
+          secAngles.sort((a, b) => b.angle - a.angle);
+
+          // Assign to UI wedge offsets
+          // In SVG, Y increases downward.
+          const r = hs * 0.43;
+          secAngles.forEach(({ s }, idx) => {
+            let ox = 0, oy = 0;
+            if (clusterSecs.length === 2) {
+              // Top and Bottom
+              if (idx === 0) { ox = 0; oy = -r * 0.866; } // Top
+              else { ox = 0; oy = r * 0.866; }            // Bottom
+            } else if (clusterSecs.length === 3) {
+              // Top-Left, Top-Right, Bottom
+              if (idx === 0) { ox = -r; oy = -r * 0.57735; }     // Top-Left
+              else if (idx === 1) { ox = r; oy = -r * 0.57735; } // Top-Right
+              else { ox = 0; oy = r * 1.1547; }                  // Bottom
+            } else {
+              // Fallback for 4+
+              const a = (idx / clusterSecs.length) * Math.PI * 2;
+              ox = Math.cos(a) * r;
+              oy = Math.sin(a) * r;
+            }
+            sCoords.set(s.sector_id, [cPos[0] + ox, cPos[1] + oy]);
+          });
+        }
+      });
+      return { sectorCoords: sCoords, hexSize: hs, gridOrigin: [ox, oy] };
     }
 
     // ── Fallback: convert galaxy (x,z) → axial using X4's exact hex grid formula ──
-    //
-    // From enenra's X4 modding wiki (Universe Creation):
-    //   Adjacent sector centers: (±15000, ±8660) and (0, ±17320) in kM.
-    //   This is a flat-top hex with circumradius s = 10000 kM.
-    //   Flat-top axial inverse:
-    //     q = (2/3) × gx / s
-    //     r = (−gx/3 + √3/3 × gz) / s
-    //   Z+ is north/up → we negate py at render time (SVG y increases downward).
+    const hasZ = clusters.some((c) => Math.abs(c.z ?? 0) > 1);
 
-    const hasZ = sectors.some((s) => Math.abs(s.z ?? 0) > 1) || clusters.some((c) => Math.abs(c.z ?? 0) > 1);
-
-    // Compute absolute galaxy positions (game units, unscaled).
-    type GalPt = { id: string; cluster_id: string | null; gx: number; gz: number };
-    const galPts: GalPt[] = sectors.map((s) => {
-      const cl = s.cluster_id ? clusterMap.get(s.cluster_id) : null;
-      return {
-        id: s.sector_id,
-        cluster_id: s.cluster_id,
-        // Scale down intra-cluster offsets so sectors of the same cluster clump tightly.
-        gx: (cl?.x ?? 0) + (s.x ?? 0) * 0.02,
-        gz: hasZ ? ((cl?.z ?? 0) + (s.z ?? 0) * 0.02) : ((cl?.y ?? 0) + (s.y ?? 0) * 0.02),
-      };
-    });
+    type GalPt = { id: string; gx: number; gz: number };
+    const galPts: GalPt[] = clusters.map((c) => ({
+      id: c.cluster_id,
+      gx: c.x ?? 0,
+      gz: hasZ ? (c.z ?? 0) : (c.y ?? 0),
+    }));
     const galMap = new Map(galPts.map((p) => [p.id, p]));
 
-    // Infer hex size in game units from connected-sector distances.
+    // Infer hex size in game units from connected-cluster distances.
     const rawDists: number[] = [];
     connections.forEach((c) => {
-      const a = galMap.get(c.from_sector_id), b = galMap.get(c.to_sector_id);
-      if (a && b && a.cluster_id !== b.cluster_id) {
-        rawDists.push(Math.sqrt((a.gx - b.gx) ** 2 + (a.gz - b.gz) ** 2));
+      const sA = sectors.find((s) => s.sector_id === c.from_sector_id);
+      const sB = sectors.find((s) => s.sector_id === c.to_sector_id);
+      if (sA && sB && sA.cluster_id && sB.cluster_id && sA.cluster_id !== sB.cluster_id) {
+        const cA = galMap.get(sA.cluster_id), cB = galMap.get(sB.cluster_id);
+        if (cA && cB) rawDists.push(Math.sqrt((cA.gx - cB.gx) ** 2 + (cA.gz - cB.gz) ** 2));
       }
     });
     rawDists.sort((a, b) => a - b);
@@ -326,11 +382,15 @@ export default function MapPage() {
     if (medianDist < 1) return empty;
     const hexSizeGame = medianDist / SQRT3;
 
-    // Convert each sector to exact axial coords, resolve rare collisions via BFS.
+    // Convert each cluster to exact axial coords, resolve rare collisions via BFS.
     const degree = new Map<string, number>();
     connections.forEach((c) => {
-      degree.set(c.from_sector_id, (degree.get(c.from_sector_id) ?? 0) + 1);
-      degree.set(c.to_sector_id, (degree.get(c.to_sector_id) ?? 0) + 1);
+      const sA = sectors.find((s) => s.sector_id === c.from_sector_id);
+      const sB = sectors.find((s) => s.sector_id === c.to_sector_id);
+      if (sA && sB && sA.cluster_id && sB.cluster_id && sA.cluster_id !== sB.cluster_id) {
+        degree.set(sA.cluster_id, (degree.get(sA.cluster_id) ?? 0) + 1);
+        degree.set(sB.cluster_id, (degree.get(sB.cluster_id) ?? 0) + 1);
+      }
     });
     const sortedIds = galPts.map((p) => p.id).sort((a, b) => (degree.get(b) ?? 0) - (degree.get(a) ?? 0));
 
@@ -339,10 +399,8 @@ export default function MapPage() {
 
     sortedIds.forEach((id) => {
       const { gx, gz } = galMap.get(id)!;
-      // Exact flat-top axial conversion (wiki formula).
       const q0 = Math.round((2 / 3) * gx / hexSizeGame);
       const r0 = Math.round((-gx / 3 + SQRT3 / 3 * gz) / hexSizeGame);
-      // Expand outward only if there's a collision (rare for well-formed data).
       for (let ring = 0; ring <= 3; ring++) {
         const cells = hexRing(q0, r0, ring);
         for (const [q, r] of cells) {
@@ -357,10 +415,10 @@ export default function MapPage() {
       axialPos.set(id, [q0, r0]);
     });
 
-    // Scale axial positions to fill the SVG canvas, preserving Y-flip.
+    // Scale axial positions to fill the SVG canvas
     const unitPts = Array.from(axialPos.values()).map(([q, r]) => {
       const [px, py] = axialToPixel(q, r, 1);
-      return [px, -py] as [number, number]; // flip Y: Z+ → up
+      return [px, -py] as [number, number];
     });
     const uXs = unitPts.map(([x]) => x), uYs = unitPts.map(([, y]) => y);
     const uMinX = Math.min(...uXs), uMaxX = Math.max(...uXs);
@@ -374,13 +432,65 @@ export default function MapPage() {
     const gox = PAD + (MAP_W - PAD * 2) / 2 - ((uMinX + uMaxX) / 2) * hs;
     const goy = PAD + (MAP_H - PAD * 2) / 2 - ((uMinY + uMaxY) / 2) * hs;
 
-    const coords = new Map<string, [number, number]>();
+    const cCoords = new Map<string, [number, number]>();
     axialPos.forEach(([q, r], id) => {
       const [px, py] = axialToPixel(q, r, hs);
-      coords.set(id, [gox + px, goy + (-py)]); // flip Y
+      cCoords.set(id, [gox + px, goy + (-py)]);
     });
 
-    return { sectorCoords: coords, hexSize: hs, gridOrigin: [gox, goy] };
+    // Compute sectorCoords by mapping intra-cluster offsets
+    const sCoords = new Map<string, [number, number]>();
+    clusters.forEach((c) => {
+      const cPos = cCoords.get(c.cluster_id);
+      if (!cPos) return;
+
+      const clusterSecs = sectors.filter((s) => s.cluster_id === c.cluster_id);
+      if (clusterSecs.length === 1) {
+        sCoords.set(clusterSecs[0].sector_id, cPos);
+      } else if (clusterSecs.length > 1) {
+        const xs = clusterSecs.map(s => s.x ?? 0);
+        const zs = clusterSecs.map(s => hasZ ? (s.z ?? 0) : (s.y ?? 0));
+        const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
+        const cz = (Math.min(...zs) + Math.max(...zs)) / 2;
+
+        const secAngles = clusterSecs.map((s) => {
+          let sx = (s.x ?? 0) - cx, sz = (hasZ ? (s.z ?? 0) : (s.y ?? 0)) - cz;
+          if (c.qw != null) {
+            const qx = c.qx ?? 0, qy = c.qy ?? 0, qz = c.qz ?? 0, qw = c.qw;
+            const xx = qx * qx, yy = qy * qy, zz = qz * qz;
+            const xz = qx * qz, yw = qy * qw;
+            const m00 = 1 - 2 * (yy + zz), m02 = 2 * (xz + yw);
+            const m20 = 2 * (xz - yw), m22 = 1 - 2 * (xx + yy);
+            const rx = sx * m00 + sz * m02;
+            const rz = sx * m20 + sz * m22;
+            sx = rx; sz = rz;
+          }
+          return { s, angle: Math.atan2(sz, sx) };
+        });
+
+        secAngles.sort((a, b) => b.angle - a.angle);
+
+        const r = hs * 0.43;
+        secAngles.forEach(({ s }, idx) => {
+          let ox = 0, oy = 0;
+          if (clusterSecs.length === 2) {
+            if (idx === 0) { ox = 0; oy = -r * 0.866; }
+            else { ox = 0; oy = r * 0.866; }
+          } else if (clusterSecs.length === 3) {
+            if (idx === 0) { ox = -r; oy = -r * 0.57735; }
+            else if (idx === 1) { ox = r; oy = -r * 0.57735; }
+            else { ox = 0; oy = r * 1.1547; }
+          } else {
+            const a = (idx / clusterSecs.length) * Math.PI * 2;
+            ox = Math.cos(a) * r;
+            oy = Math.sin(a) * r;
+          }
+          sCoords.set(s.sector_id, [cPos[0] + ox, cPos[1] + oy]);
+        });
+      }
+    });
+
+    return { sectorCoords: sCoords, hexSize: hs, gridOrigin: [gox, goy] };
   }, [sectors, clusters, clusterMap, connections]);
 
   // ─── Background grid cells ────────────────────────────────────────────────────
@@ -588,6 +698,10 @@ export default function MapPage() {
                 const effectiveFaction = ownerFaction ?? clusterFaction;
                 const color = showFactionColors ? (effectiveFaction?.color_hex ?? "#2d3748") : "#2d3748";
 
+                const siblings = sector.cluster_id ? sectors.filter((s) => s.cluster_id === sector.cluster_id) : [sector];
+                const isSubSector = siblings.length > 1;
+                const renderedHexSize = isSubSector ? hexSize * 0.43 : hexSize;
+
                 const isSelected = sector.sector_id === selectedSectorId;
                 const isHovered = sector.sector_id === hoveredSectorId;
 
@@ -596,10 +710,10 @@ export default function MapPage() {
                   : new Set<string>();
                 const activeRes = RESOURCE_ORDER.filter((r) => clusterRes.has(r));
 
-                const fontSize = Math.max(6, Math.min(12, hexSize * 0.28));
-                const dotR = Math.max(1.8, hexSize * 0.085);
+                const fontSize = Math.max(6, Math.min(12, renderedHexSize * 0.28));
+                const dotR = Math.max(1.8, renderedHexSize * 0.085);
                 const dotSpacing = dotR * 2.5;
-                const markerR = Math.max(2.5, hexSize * 0.075);
+                const markerR = Math.max(2.5, renderedHexSize * 0.075);
                 const sectorZones = sectorZoneMap.get(sector.sector_id) ?? [];
 
                 return (
@@ -609,11 +723,11 @@ export default function MapPage() {
                     onMouseLeave={() => setHoveredSectorId(null)}>
 
                     {isSelected && (
-                      <polygon points={hexPoints(cx, cy, hexSize + 4)}
+                      <polygon points={hexPoints(cx, cy, renderedHexSize + 4)}
                         fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth={2} />
                     )}
 
-                    <polygon points={hexPoints(cx, cy, hexSize)}
+                    <polygon points={hexPoints(cx, cy, renderedHexSize)}
                       fill={`${color}2a`}
                       stroke={isSelected || isHovered ? color : `${color}80`}
                       strokeWidth={isSelected ? 2 : 1.2} />

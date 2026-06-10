@@ -134,6 +134,24 @@ paths:
                   $ref: '#/components/schemas/FactionSummary'
                 type: array
                 title: Response List Factions Api V1 Factions Get
+  /api/v1/factions/strength:
+    get:
+      tags:
+      - factions
+      summary: Faction Strength
+      description: Relative strength metrics for all non-legacy factions, normalized
+        0-100.
+      operationId: faction_strength_api_v1_factions_strength_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/FactionStrength'
+                type: array
+                title: Response Faction Strength Api V1 Factions Strength Get
   /api/v1/factions/{faction_id}:
     get:
       tags:
@@ -367,7 +385,7 @@ paths:
         required: false
         schema:
           type: integer
-          maximum: 2000
+          maximum: 10000
           minimum: 1
           default: 500
           title: Limit
@@ -415,7 +433,7 @@ paths:
         required: false
         schema:
           type: integer
-          maximum: 2000
+          maximum: 10000
           minimum: 1
           default: 500
           title: Limit
@@ -637,7 +655,7 @@ paths:
         required: false
         schema:
           type: integer
-          maximum: 2000
+          maximum: 10000
           minimum: 1
           default: 500
           title: Limit
@@ -665,6 +683,62 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/map/sector-connections:
+    get:
+      tags:
+      - map
+      summary: List Sector Connections
+      description: Return all sector-to-sector connections (gate and superhighway,
+        deduplicated).
+      operationId: list_sector_connections_api_v1_map_sector_connections_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/SectorConnection'
+                type: array
+                title: Response List Sector Connections Api V1 Map Sector Connections
+                  Get
+  /api/v1/map/connections:
+    get:
+      tags:
+      - map
+      summary: List Cluster Connections
+      description: Return all cluster-to-cluster connections (gate and superhighway,
+        deduplicated).
+      operationId: list_cluster_connections_api_v1_map_connections_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/ClusterConnection'
+                type: array
+                title: Response List Cluster Connections Api V1 Map Connections Get
+  /api/v1/map/cluster-resources:
+    get:
+      tags:
+      - map
+      summary: List Cluster Resources
+      description: Return best resource yield per ware per cluster, for map overlay
+        display.
+      operationId: list_cluster_resources_api_v1_map_cluster_resources_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/ClusterResourceEntry'
+                type: array
+                title: Response List Cluster Resources Api V1 Map Cluster Resources
+                  Get
   /api/v1/modules:
     get:
       tags:
@@ -1499,6 +1573,44 @@ components:
       - ware_tags
       - amount
       title: BribeWare
+    ClusterConnection:
+      properties:
+        from_cluster_id:
+          type: string
+          title: From Cluster Id
+        to_cluster_id:
+          type: string
+          title: To Cluster Id
+        kind:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Kind
+      additionalProperties: false
+      type: object
+      required:
+      - from_cluster_id
+      - to_cluster_id
+      - kind
+      title: ClusterConnection
+    ClusterResourceEntry:
+      properties:
+        cluster_id:
+          type: string
+          title: Cluster Id
+        ware:
+          type: string
+          title: Ware
+        yield_level:
+          type: string
+          title: Yield Level
+      additionalProperties: false
+      type: object
+      required:
+      - cluster_id
+      - ware
+      - yield_level
+      title: ClusterResourceEntry
     ClusterSummary:
       properties:
         cluster_id:
@@ -1564,6 +1676,21 @@ components:
           - type: number
           - type: 'null'
           title: Z
+        qx:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Qx
+        qy:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Qy
+        qw:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Qw
       additionalProperties: false
       type: object
       required:
@@ -1674,6 +1801,11 @@ components:
         ware_id:
           type: string
           title: Ware Id
+        ware_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Ware Name
         spawn_chance:
           anyOf:
           - type: integer
@@ -2069,6 +2201,74 @@ components:
       - other_faction_id
       - initial_relation
       title: FactionRelation
+    FactionStrength:
+      properties:
+        faction_id:
+          type: string
+          title: Faction Id
+        name:
+          type: string
+          title: Name
+        color_hex:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Color Hex
+        military_score:
+          type: number
+          title: Military Score
+        economic_score:
+          type: number
+          title: Economic Score
+        diplomatic_score:
+          type: number
+          title: Diplomatic Score
+        territory_score:
+          type: number
+          title: Territory Score
+        fight_ship_count:
+          type: integer
+          title: Fight Ship Count
+        trade_ship_count:
+          type: integer
+          title: Trade Ship Count
+        mine_ship_count:
+          type: integer
+          title: Mine Ship Count
+        military_station_count:
+          type: integer
+          title: Military Station Count
+        economic_station_count:
+          type: integer
+          title: Economic Station Count
+        sector_count:
+          type: integer
+          title: Sector Count
+        cluster_count:
+          type: integer
+          title: Cluster Count
+        avg_relation:
+          type: number
+          title: Avg Relation
+      additionalProperties: false
+      type: object
+      required:
+      - faction_id
+      - name
+      - color_hex
+      - military_score
+      - economic_score
+      - diplomatic_score
+      - territory_score
+      - fight_ship_count
+      - trade_ship_count
+      - mine_ship_count
+      - military_station_count
+      - economic_station_count
+      - sector_count
+      - cluster_count
+      - avg_relation
+      title: FactionStrength
     FactionSummary:
       properties:
         faction_id:
@@ -2618,6 +2818,26 @@ components:
       - ware
       - yield_level
       title: ResourceEntry
+    SectorConnection:
+      properties:
+        from_sector_id:
+          type: string
+          title: From Sector Id
+        to_sector_id:
+          type: string
+          title: To Sector Id
+        kind:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Kind
+      additionalProperties: false
+      type: object
+      required:
+      - from_sector_id
+      - to_sector_id
+      - kind
+      title: SectorConnection
     SectorSummary:
       properties:
         sector_id:
@@ -2693,6 +2913,16 @@ components:
           - type: number
           - type: 'null'
           title: Z
+        qx:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Qx
+        qy:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Qy
       additionalProperties: false
       type: object
       required:

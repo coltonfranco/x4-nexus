@@ -30,9 +30,10 @@ class ClusterSummary(PublicModel):
     x: float | None = None
     y: float | None = None
     z: float | None = None
-    # Hex-grid layout coordinates — populated when the grid normalizer runs.
+    # Hex-grid layout coordinates
     qx: float | None = None
     qy: float | None = None
+    qz: float | None = None
     qw: float | None = None
 
 
@@ -52,9 +53,11 @@ class SectorSummary(PublicModel):
     x: float | None = None
     y: float | None = None
     z: float | None = None
-    # Hex-grid layout coordinates — populated when the grid normalizer runs.
+    # Hex-grid layout coordinates
     qx: float | None = None
     qy: float | None = None
+    qz: float | None = None
+    qw: float | None = None
 
 
 class ZoneSummary(PublicModel):
@@ -98,7 +101,7 @@ def list_clusters(
     offset: int = Query(0, ge=0),
 ) -> list[ClusterSummary]:
     sql = [
-        "SELECT cluster_id, name AS macro_id, dlc, name_id AS name, description_id AS description, owner_faction, environment, sun_class, population_id, max_population, x, y, z, qx, qy, qw",
+        "SELECT cluster_id, name AS macro_id, dlc, name_id AS name, description_id AS description, owner_faction, environment, sun_class, population_id, max_population, x, y, z, qx, qy, qz, qw",
         "FROM s.clusters WHERE 1=1",
     ]
     params: dict[str, object] = {"limit": limit, "offset": offset}
@@ -120,7 +123,7 @@ def list_sectors(
     offset: int = Query(0, ge=0),
 ) -> list[SectorSummary]:
     sql = [
-        "SELECT sector_id, cluster_id, name AS macro_id, owner_faction, dlc, name_id AS name, description_id AS description, sunlight, economy, security, tags, access_licence, x, y, z, qx, qy "
+        "SELECT sector_id, cluster_id, name AS macro_id, owner_faction, dlc, name_id AS name, description_id AS description, sunlight, economy, security, tags, access_licence, x, y, z, qx, qy, qz, qw "
         "FROM s.sectors WHERE 1=1"
     ]
     params: dict[str, object] = {"limit": limit, "offset": offset}
@@ -142,7 +145,7 @@ def get_sector(
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
 ) -> SectorSummary:
     row = conn.execute(
-        "SELECT sector_id, cluster_id, name AS macro_id, owner_faction, dlc, name_id AS name, description_id AS description, sunlight, economy, security, tags, access_licence, x, y, z, qx, qy "
+        "SELECT sector_id, cluster_id, name AS macro_id, owner_faction, dlc, name_id AS name, description_id AS description, sunlight, economy, security, tags, access_licence, x, y, z, qx, qy, qz, qw "
         "FROM s.sectors WHERE sector_id = :id",
         {"id": sector_id},
     ).fetchone()

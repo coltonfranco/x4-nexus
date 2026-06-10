@@ -95,6 +95,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/factions/strength": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Faction Strength
+         * @description Relative strength metrics for all non-legacy factions, normalized 0-100.
+         */
+        get: operations["faction_strength_api_v1_factions_strength_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/factions/{faction_id}": {
         parameters: {
             query?: never;
@@ -326,6 +346,66 @@ export interface paths {
         };
         /** List Superhighways */
         get: operations["list_superhighways_api_v1_map_superhighways_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/map/sector-connections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Sector Connections
+         * @description Return all sector-to-sector connections (gate and superhighway, deduplicated).
+         */
+        get: operations["list_sector_connections_api_v1_map_sector_connections_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/map/connections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Cluster Connections
+         * @description Return all cluster-to-cluster connections (gate and superhighway, deduplicated).
+         */
+        get: operations["list_cluster_connections_api_v1_map_connections_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/map/cluster-resources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Cluster Resources
+         * @description Return best resource yield per ware per cluster, for map overlay display.
+         */
+        get: operations["list_cluster_resources_api_v1_map_cluster_resources_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -797,6 +877,24 @@ export interface components {
             /** Amount */
             amount: number | null;
         };
+        /** ClusterConnection */
+        ClusterConnection: {
+            /** From Cluster Id */
+            from_cluster_id: string;
+            /** To Cluster Id */
+            to_cluster_id: string;
+            /** Kind */
+            kind: string | null;
+        };
+        /** ClusterResourceEntry */
+        ClusterResourceEntry: {
+            /** Cluster Id */
+            cluster_id: string;
+            /** Ware */
+            ware: string;
+            /** Yield Level */
+            yield_level: string;
+        };
         /** ClusterSummary */
         ClusterSummary: {
             /** Cluster Id */
@@ -825,6 +923,12 @@ export interface components {
             y?: number | null;
             /** Z */
             z?: number | null;
+            /** Qx */
+            qx?: number | null;
+            /** Qy */
+            qy?: number | null;
+            /** Qw */
+            qw?: number | null;
         };
         /** DiploAction */
         DiploAction: {
@@ -868,6 +972,8 @@ export interface components {
         DropEntry: {
             /** Ware Id */
             ware_id: string;
+            /** Ware Name */
+            ware_name?: string | null;
             /** Spawn Chance */
             spawn_chance: number | null;
             /** Item Chance */
@@ -1022,6 +1128,39 @@ export interface components {
             other_faction_id: string;
             /** Initial Relation */
             initial_relation: number;
+        };
+        /** FactionStrength */
+        FactionStrength: {
+            /** Faction Id */
+            faction_id: string;
+            /** Name */
+            name: string;
+            /** Color Hex */
+            color_hex: string | null;
+            /** Military Score */
+            military_score: number;
+            /** Economic Score */
+            economic_score: number;
+            /** Diplomatic Score */
+            diplomatic_score: number;
+            /** Territory Score */
+            territory_score: number;
+            /** Fight Ship Count */
+            fight_ship_count: number;
+            /** Trade Ship Count */
+            trade_ship_count: number;
+            /** Mine Ship Count */
+            mine_ship_count: number;
+            /** Military Station Count */
+            military_station_count: number;
+            /** Economic Station Count */
+            economic_station_count: number;
+            /** Sector Count */
+            sector_count: number;
+            /** Cluster Count */
+            cluster_count: number;
+            /** Avg Relation */
+            avg_relation: number;
         };
         /** FactionSummary */
         FactionSummary: {
@@ -1247,6 +1386,15 @@ export interface components {
             /** Yield Level */
             yield_level: string;
         };
+        /** SectorConnection */
+        SectorConnection: {
+            /** From Sector Id */
+            from_sector_id: string;
+            /** To Sector Id */
+            to_sector_id: string;
+            /** Kind */
+            kind: string | null;
+        };
         /** SectorSummary */
         SectorSummary: {
             /** Sector Id */
@@ -1279,6 +1427,10 @@ export interface components {
             y?: number | null;
             /** Z */
             z?: number | null;
+            /** Qx */
+            qx?: number | null;
+            /** Qy */
+            qy?: number | null;
         };
         /** ShipDetail */
         ShipDetail: {
@@ -1746,6 +1898,26 @@ export interface operations {
             };
         };
     };
+    faction_strength_api_v1_factions_strength_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FactionStrength"][];
+                };
+            };
+        };
+    };
     get_faction_api_v1_factions__faction_id__get: {
         parameters: {
             query?: never;
@@ -2162,6 +2334,66 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_sector_connections_api_v1_map_sector_connections_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SectorConnection"][];
+                };
+            };
+        };
+    };
+    list_cluster_connections_api_v1_map_connections_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClusterConnection"][];
+                };
+            };
+        };
+    };
+    list_cluster_resources_api_v1_map_cluster_resources_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClusterResourceEntry"][];
                 };
             };
         };
