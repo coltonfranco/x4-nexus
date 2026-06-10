@@ -13,7 +13,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from x4_api import __version__
-from x4_api.api.v1 import health, wares
+from x4_api.api.v1 import diplomacy, drops, equip_mods, factions, health, loadouts, map, modules, npc_stations, ships, terraform, ware_groups, wares
 from x4_api.config import settings
 
 
@@ -28,6 +28,17 @@ def app() -> FastAPI:
 
     fast.include_router(health.router, prefix="/api/v1", tags=["health"])
     fast.include_router(wares.router, prefix="/api/v1", tags=["wares"])
+    fast.include_router(factions.router, prefix="/api/v1", tags=["factions"])
+    fast.include_router(map.router, prefix="/api/v1", tags=["map"])
+    fast.include_router(modules.router, prefix="/api/v1", tags=["modules"])
+    fast.include_router(ships.router, prefix="/api/v1", tags=["ships"])
+    fast.include_router(npc_stations.router, prefix="/api/v1", tags=["npc-stations"])
+    fast.include_router(loadouts.router, prefix="/api/v1", tags=["loadouts"])
+    fast.include_router(equip_mods.router, prefix="/api/v1", tags=["equipment-mods"])
+    fast.include_router(terraform.router, prefix="/api/v1", tags=["terraform"])
+    fast.include_router(ware_groups.router, prefix="/api/v1", tags=["ware-groups"])
+    fast.include_router(diplomacy.router, prefix="/api/v1", tags=["diplomacy"])
+    fast.include_router(drops.router, prefix="/api/v1", tags=["drops"])
 
     icons_dir = settings.data_dir / "icons"
     if icons_dir.exists():

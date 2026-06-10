@@ -1,10 +1,3549 @@
-# Placeholder. Generated from FastAPI's runtime schema:
-#   uv run x4c serve  # in one shell
-#   curl http://127.0.0.1:8765/api/openapi.json > docs/openapi.yaml
-#
-# Commit the generated file. The TS client codegen reads from here.
 openapi: 3.1.0
 info:
   title: x4-api
   version: 0.0.1
-paths: {}
+paths:
+  /api/v1/health:
+    get:
+      tags:
+      - health
+      summary: Health
+      operationId: health_api_v1_health_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+  /api/v1/wares:
+    get:
+      tags:
+      - wares
+      summary: List Wares
+      operationId: list_wares_api_v1_wares_get
+      parameters:
+      - name: group
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Group
+      - name: transport
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Transport
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 2000
+          minimum: 1
+          default: 500
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WareSummary'
+                title: Response List Wares Api V1 Wares Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/wares/{ware_id}:
+    get:
+      tags:
+      - wares
+      summary: Get Ware
+      operationId: get_ware_api_v1_wares__ware_id__get
+      parameters:
+      - name: ware_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Ware Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WareDetail'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/faction-relations:
+    get:
+      tags:
+      - factions
+      summary: List All Faction Relations
+      description: "List every faction-to-faction relation pair at gamestart \u2014\
+        \ avoids N+1 queries."
+      operationId: list_all_faction_relations_api_v1_faction_relations_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/AllFactionRelation'
+                type: array
+                title: Response List All Faction Relations Api V1 Faction Relations
+                  Get
+  /api/v1/factions:
+    get:
+      tags:
+      - factions
+      summary: List Factions
+      description: List all factions in the game catalog.
+      operationId: list_factions_api_v1_factions_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/FactionSummary'
+                type: array
+                title: Response List Factions Api V1 Factions Get
+  /api/v1/factions/{faction_id}:
+    get:
+      tags:
+      - factions
+      summary: Get Faction
+      description: Get detailed information for a specific faction.
+      operationId: get_faction_api_v1_factions__faction_id__get
+      parameters:
+      - name: faction_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Faction Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FactionDetail'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/factions/{faction_id}/relations:
+    get:
+      tags:
+      - factions
+      summary: List Faction Relations
+      description: List initial diplomatic relations for a faction (gamestart values
+        only).
+      operationId: list_faction_relations_api_v1_factions__faction_id__relations_get
+      parameters:
+      - name: faction_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Faction Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FactionRelation'
+                title: Response List Faction Relations Api V1 Factions  Faction Id  Relations
+                  Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/licences:
+    get:
+      tags:
+      - factions
+      summary: List Licences
+      description: List all faction licences, optionally filtered by faction_id.
+      operationId: list_licences_api_v1_licences_get
+      parameters:
+      - name: faction_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Faction Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FactionLicence'
+                title: Response List Licences Api V1 Licences Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/map/clusters:
+    get:
+      tags:
+      - map
+      summary: List Clusters
+      operationId: list_clusters_api_v1_map_clusters_get
+      parameters:
+      - name: owner_faction
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Owner Faction
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 2000
+          minimum: 1
+          default: 500
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ClusterSummary'
+                title: Response List Clusters Api V1 Map Clusters Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/map/sectors:
+    get:
+      tags:
+      - map
+      summary: List Sectors
+      operationId: list_sectors_api_v1_map_sectors_get
+      parameters:
+      - name: cluster_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Cluster Id
+      - name: owner_faction
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Owner Faction
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 2000
+          minimum: 1
+          default: 500
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SectorSummary'
+                title: Response List Sectors Api V1 Map Sectors Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/map/sectors/{sector_id}:
+    get:
+      tags:
+      - map
+      summary: Get Sector
+      operationId: get_sector_api_v1_map_sectors__sector_id__get
+      parameters:
+      - name: sector_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Sector Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SectorSummary'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/map/gates:
+    get:
+      tags:
+      - map
+      summary: List Gates
+      operationId: list_gates_api_v1_map_gates_get
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 2000
+          minimum: 1
+          default: 500
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GateSummary'
+                title: Response List Gates Api V1 Map Gates Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/map/zones:
+    get:
+      tags:
+      - map
+      summary: List Zones
+      operationId: list_zones_api_v1_map_zones_get
+      parameters:
+      - name: sector_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Sector Id
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 2000
+          minimum: 1
+          default: 500
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ZoneSummary'
+                title: Response List Zones Api V1 Map Zones Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/map/sectors/{sector_id}/zones:
+    get:
+      tags:
+      - map
+      summary: Get Sector Zones
+      description: List all zones available in a specific sector.
+      operationId: get_sector_zones_api_v1_map_sectors__sector_id__zones_get
+      parameters:
+      - name: sector_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Sector Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ZoneSummary'
+                title: Response Get Sector Zones Api V1 Map Sectors  Sector Id  Zones
+                  Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/map/resources:
+    get:
+      tags:
+      - map
+      summary: List Resources
+      description: List resource region entries. Filter by ware to find where a resource
+        spawns.
+      operationId: list_resources_api_v1_map_resources_get
+      parameters:
+      - name: ware
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filter by ware (ore, silicon, nividium, hydrogen, helium, methane,
+            ice)
+          title: Ware
+        description: Filter by ware (ore, silicon, nividium, hydrogen, helium, methane,
+          ice)
+      - name: sector_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filter by sector macro ID
+          title: Sector Id
+        description: Filter by sector macro ID
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 2000
+          minimum: 1
+          default: 500
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ResourceEntry'
+                title: Response List Resources Api V1 Map Resources Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/map/sectors/{sector_id}/resources:
+    get:
+      tags:
+      - map
+      summary: Get Sector Resources
+      description: List all resources available in a specific sector.
+      operationId: get_sector_resources_api_v1_map_sectors__sector_id__resources_get
+      parameters:
+      - name: sector_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Sector Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ResourceEntry'
+                title: Response Get Sector Resources Api V1 Map Sectors  Sector Id  Resources
+                  Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/map/regions:
+    get:
+      tags:
+      - map
+      summary: List Regions
+      operationId: list_regions_api_v1_map_regions_get
+      parameters:
+      - name: cluster_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Cluster Id
+      - name: sector_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Sector Id
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 2000
+          minimum: 1
+          default: 500
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RegionSummary'
+                title: Response List Regions Api V1 Map Regions Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/map/superhighways:
+    get:
+      tags:
+      - map
+      summary: List Superhighways
+      operationId: list_superhighways_api_v1_map_superhighways_get
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 2000
+          minimum: 1
+          default: 500
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SuperhighwaySummary'
+                title: Response List Superhighways Api V1 Map Superhighways Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/modules:
+    get:
+      tags:
+      - modules
+      summary: List Modules
+      operationId: list_modules_api_v1_modules_get
+      parameters:
+      - name: kind
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: 'Filter by kind: production, habitation, storage, dock, defence,
+            connectionmodule'
+          title: Kind
+        description: 'Filter by kind: production, habitation, storage, dock, defence,
+          connectionmodule'
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 2000
+          minimum: 1
+          default: 500
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ModuleSummary'
+                title: Response List Modules Api V1 Modules Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/modules/{module_id}:
+    get:
+      tags:
+      - modules
+      summary: Get Module
+      operationId: get_module_api_v1_modules__module_id__get
+      parameters:
+      - name: module_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Module Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModuleDetail'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/ships:
+    get:
+      tags:
+      - ships
+      summary: List Ships
+      description: List all ships in the game catalog.
+      operationId: list_ships_api_v1_ships_get
+      parameters:
+      - name: class_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Class Id
+      - name: faction_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Faction Id
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 2000
+          minimum: 1
+          default: 500
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ShipSummary'
+                title: Response List Ships Api V1 Ships Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/ships/{ship_id}:
+    get:
+      tags:
+      - ships
+      summary: Get Ship
+      description: Get detailed stats for a specific ship.
+      operationId: get_ship_api_v1_ships__ship_id__get
+      parameters:
+      - name: ship_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Ship Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShipDetail'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/npc-stations:
+    get:
+      tags:
+      - npc-stations
+      summary: List Npc Stations
+      description: List NPC stations in the universe, optionally filtered by owner,
+        tag, or sector.
+      operationId: list_npc_stations_api_v1_npc_stations_get
+      parameters:
+      - name: owner
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filter by owner faction ID
+          title: Owner
+        description: Filter by owner faction ID
+      - name: tag
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filter by tag, e.g. shipyard, wharf, equipmentdock
+          title: Tag
+        description: Filter by tag, e.g. shipyard, wharf, equipmentdock
+      - name: sector
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filter by location_sector (case-insensitive)
+          title: Sector
+        description: Filter by location_sector (case-insensitive)
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/NpcStationSummary'
+                title: Response List Npc Stations Api V1 Npc Stations Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/npc-stations/{station_id}:
+    get:
+      tags:
+      - npc-stations
+      summary: Get Npc Station
+      description: Get full details for a specific NPC station including coordinates.
+      operationId: get_npc_station_api_v1_npc_stations__station_id__get
+      parameters:
+      - name: station_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Station Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NpcStationDetail'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/loadouts:
+    get:
+      tags:
+      - loadouts
+      summary: List Loadouts
+      description: List loadout presets with full equipment. Filter by ship_macro
+        to see loadouts for a specific ship.
+      operationId: list_loadouts_api_v1_loadouts_get
+      parameters:
+      - name: ship_macro
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filter by ship macro ID
+          title: Ship Macro
+        description: Filter by ship macro ID
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 2000
+          minimum: 1
+          default: 500
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LoadoutDetail'
+                title: Response List Loadouts Api V1 Loadouts Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/loadouts/{loadout_id}:
+    get:
+      tags:
+      - loadouts
+      summary: Get Loadout
+      description: Get a specific loadout with its full equipment list.
+      operationId: get_loadout_api_v1_loadouts__loadout_id__get
+      parameters:
+      - name: loadout_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Loadout Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoadoutDetail'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/equipment-mods:
+    get:
+      tags:
+      - equipment-mods
+      summary: List Equip Mods
+      operationId: list_equip_mods_api_v1_equipment_mods_get
+      parameters:
+      - name: category
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: 'Filter by category: weapon, engine, shield, ship'
+          title: Category
+        description: 'Filter by category: weapon, engine, shield, ship'
+      - name: stat
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filter by stat type e.g. damage, cooling
+          title: Stat
+        description: Filter by stat type e.g. damage, cooling
+      - name: quality
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          description: "Filter by quality tier 1\u20133"
+          title: Quality
+        description: "Filter by quality tier 1\u20133"
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 2000
+          minimum: 1
+          default: 500
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EquipModSummary'
+                title: Response List Equip Mods Api V1 Equipment Mods Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/equipment-mods/{ware_id}:
+    get:
+      tags:
+      - equipment-mods
+      summary: Get Equip Mod
+      operationId: get_equip_mod_api_v1_equipment_mods__ware_id__get
+      parameters:
+      - name: ware_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Ware Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EquipModDetail'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/terraform/stats:
+    get:
+      tags:
+      - terraform
+      summary: List Terraform Stats
+      operationId: list_terraform_stats_api_v1_terraform_stats_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/TerraformStat'
+                type: array
+                title: Response List Terraform Stats Api V1 Terraform Stats Get
+  /api/v1/terraform/project-groups:
+    get:
+      tags:
+      - terraform
+      summary: List Terraform Project Groups
+      operationId: list_terraform_project_groups_api_v1_terraform_project_groups_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/TerraformProjectGroup'
+                type: array
+                title: Response List Terraform Project Groups Api V1 Terraform Project
+                  Groups Get
+  /api/v1/terraform/projects:
+    get:
+      tags:
+      - terraform
+      summary: List Terraform Projects
+      operationId: list_terraform_projects_api_v1_terraform_projects_get
+      parameters:
+      - name: group_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Group Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TerraformProjectSummary'
+                title: Response List Terraform Projects Api V1 Terraform Projects
+                  Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/terraform/projects/{project_id}:
+    get:
+      tags:
+      - terraform
+      summary: Get Terraform Project
+      operationId: get_terraform_project_api_v1_terraform_projects__project_id__get
+      parameters:
+      - name: project_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Project Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TerraformProjectDetail'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/ware-groups:
+    get:
+      tags:
+      - ware-groups
+      summary: List Ware Groups
+      description: List all ware groups with display metadata.
+      operationId: list_ware_groups_api_v1_ware_groups_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/WareGroup'
+                type: array
+                title: Response List Ware Groups Api V1 Ware Groups Get
+  /api/v1/ware-groups/{group_id}:
+    get:
+      tags:
+      - ware-groups
+      summary: Get Ware Group
+      operationId: get_ware_group_api_v1_ware_groups__group_id__get
+      parameters:
+      - name: group_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Group Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WareGroup'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/diplomacy/actions:
+    get:
+      tags:
+      - diplomacy
+      summary: List Diplo Actions
+      description: List all diplomatic agent actions.
+      operationId: list_diplo_actions_api_v1_diplomacy_actions_get
+      parameters:
+      - name: category
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: 'Filter by category: negotiation | espionage | interference'
+          title: Category
+        description: 'Filter by category: negotiation | espionage | interference'
+      - name: include_hidden
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Include Hidden
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DiploAction'
+                title: Response List Diplo Actions Api V1 Diplomacy Actions Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/diplomacy/actions/{action_id}:
+    get:
+      tags:
+      - diplomacy
+      summary: Get Diplo Action
+      operationId: get_diplo_action_api_v1_diplomacy_actions__action_id__get
+      parameters:
+      - name: action_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Action Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiploAction'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/diplomacy/gifts:
+    get:
+      tags:
+      - diplomacy
+      summary: List Diplo Gifts
+      description: List faction gift preferences. Filter by faction_id to find what
+        a faction likes.
+      operationId: list_diplo_gifts_api_v1_diplomacy_gifts_get
+      parameters:
+      - name: faction_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Faction Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DiploGift'
+                title: Response List Diplo Gifts Api V1 Diplomacy Gifts Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/diplomacy/agent-ranks:
+    get:
+      tags:
+      - diplomacy
+      summary: List Agent Ranks
+      description: List agent rank thresholds and bonuses.
+      operationId: list_agent_ranks_api_v1_diplomacy_agent_ranks_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/AgentRank'
+                type: array
+                title: Response List Agent Ranks Api V1 Diplomacy Agent Ranks Get
+  /api/v1/drops/lists:
+    get:
+      tags:
+      - drops
+      summary: List Drop Lists
+      description: List all named drop tables.
+      operationId: list_drop_lists_api_v1_drops_lists_get
+      parameters:
+      - name: category
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: ship | lockbox | asteroid | crystal | story | masstraffic |
+            other
+          title: Category
+        description: ship | lockbox | asteroid | crystal | story | masstraffic | other
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DropList'
+                title: Response List Drop Lists Api V1 Drops Lists Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/drops/lists/{list_id}:
+    get:
+      tags:
+      - drops
+      summary: Get Drop List
+      description: Get a specific drop table with all its resolved ware entries.
+      operationId: get_drop_list_api_v1_drops_lists__list_id__get
+      parameters:
+      - name: list_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: List Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DropListDetail'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/drops/wares/{ware_id}:
+    get:
+      tags:
+      - drops
+      summary: Get Ware Drop Sources
+      description: Find all drop tables that can yield a specific ware (reverse lookup).
+      operationId: get_ware_drop_sources_api_v1_drops_wares__ware_id__get
+      parameters:
+      - name: ware_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Ware Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DropSource'
+                title: Response Get Ware Drop Sources Api V1 Drops Wares  Ware Id  Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+components:
+  schemas:
+    AgentRank:
+      properties:
+        min_value:
+          type: integer
+          title: Min Value
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+        event_bonus:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Event Bonus
+        icon:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon
+      additionalProperties: false
+      type: object
+      required:
+      - min_value
+      - name
+      - event_bonus
+      - icon
+      title: AgentRank
+    AllFactionRelation:
+      properties:
+        faction_id:
+          type: string
+          title: Faction Id
+        other_faction_id:
+          type: string
+          title: Other Faction Id
+        initial_relation:
+          type: number
+          title: Initial Relation
+      additionalProperties: false
+      type: object
+      required:
+      - faction_id
+      - other_faction_id
+      - initial_relation
+      title: AllFactionRelation
+    BribeWare:
+      properties:
+        ware_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Ware Id
+        ware_tags:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Ware Tags
+        amount:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Amount
+      additionalProperties: false
+      type: object
+      required:
+      - ware_id
+      - ware_tags
+      - amount
+      title: BribeWare
+    ClusterSummary:
+      properties:
+        cluster_id:
+          type: string
+          title: Cluster Id
+        macro_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Macro Id
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        owner_faction:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Owner Faction
+        dlc:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dlc
+        environment:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Environment
+        sun_class:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Sun Class
+        population_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Population Id
+        max_population:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Max Population
+        x:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: X
+        y:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Y
+        z:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Z
+      additionalProperties: false
+      type: object
+      required:
+      - cluster_id
+      title: ClusterSummary
+    DiploAction:
+      properties:
+        action_id:
+          type: string
+          title: Action Id
+        category:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Category
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        hidden:
+          type: integer
+          title: Hidden
+        cost_influence:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Cost Influence
+        cost_money:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Cost Money
+        success_chance:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Success Chance
+        duration_sec:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Duration Sec
+        cooldown_sec:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Cooldown Sec
+        agent_type:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Agent Type
+        agent_experience:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Agent Experience
+        risk:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Risk
+        bribe_wares:
+          items:
+            $ref: '#/components/schemas/BribeWare'
+          type: array
+          title: Bribe Wares
+      additionalProperties: false
+      type: object
+      required:
+      - action_id
+      - category
+      - name
+      - description
+      - hidden
+      - cost_influence
+      - cost_money
+      - success_chance
+      - duration_sec
+      - cooldown_sec
+      - agent_type
+      - agent_experience
+      - risk
+      - bribe_wares
+      title: DiploAction
+    DiploGift:
+      properties:
+        ware_id:
+          type: string
+          title: Ware Id
+        faction_id:
+          type: string
+          title: Faction Id
+      additionalProperties: false
+      type: object
+      required:
+      - ware_id
+      - faction_id
+      title: DiploGift
+    DropEntry:
+      properties:
+        ware_id:
+          type: string
+          title: Ware Id
+        spawn_chance:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Spawn Chance
+        item_chance:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Item Chance
+        min_amount:
+          type: integer
+          title: Min Amount
+        max_amount:
+          type: integer
+          title: Max Amount
+        source_basket:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Source Basket
+      additionalProperties: false
+      type: object
+      required:
+      - ware_id
+      - spawn_chance
+      - item_chance
+      - min_amount
+      - max_amount
+      - source_basket
+      title: DropEntry
+    DropList:
+      properties:
+        list_id:
+          type: string
+          title: List Id
+        category:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Category
+      additionalProperties: false
+      type: object
+      required:
+      - list_id
+      - category
+      title: DropList
+    DropListDetail:
+      properties:
+        list_id:
+          type: string
+          title: List Id
+        category:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Category
+        wares:
+          items:
+            $ref: '#/components/schemas/DropEntry'
+          type: array
+          title: Wares
+      additionalProperties: false
+      type: object
+      required:
+      - list_id
+      - category
+      - wares
+      title: DropListDetail
+    DropSource:
+      properties:
+        list_id:
+          type: string
+          title: List Id
+        category:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Category
+        spawn_chance:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Spawn Chance
+        item_chance:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Item Chance
+        min_amount:
+          type: integer
+          title: Min Amount
+        max_amount:
+          type: integer
+          title: Max Amount
+        source_basket:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Source Basket
+      additionalProperties: false
+      type: object
+      required:
+      - list_id
+      - category
+      - spawn_chance
+      - item_chance
+      - min_amount
+      - max_amount
+      - source_basket
+      title: DropSource
+    EquipModDetail:
+      properties:
+        ware_id:
+          type: string
+          title: Ware Id
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+        shortname:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Shortname
+        category:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Category
+        stat:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Stat
+        quality:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Quality
+        min_factor:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Min Factor
+        max_factor:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Max Factor
+        price_avg:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Price Avg
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        price_min:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Price Min
+        price_max:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Price Max
+        production_time:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Production Time
+      additionalProperties: false
+      type: object
+      required:
+      - ware_id
+      - name
+      - shortname
+      - category
+      - stat
+      - quality
+      - min_factor
+      - max_factor
+      - price_avg
+      - description
+      - price_min
+      - price_max
+      - production_time
+      title: EquipModDetail
+    EquipModSummary:
+      properties:
+        ware_id:
+          type: string
+          title: Ware Id
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+        shortname:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Shortname
+        category:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Category
+        stat:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Stat
+        quality:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Quality
+        min_factor:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Min Factor
+        max_factor:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Max Factor
+        price_avg:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Price Avg
+      additionalProperties: false
+      type: object
+      required:
+      - ware_id
+      - name
+      - shortname
+      - category
+      - stat
+      - quality
+      - min_factor
+      - max_factor
+      - price_avg
+      title: EquipModSummary
+    FactionDetail:
+      properties:
+        faction_id:
+          type: string
+          title: Faction Id
+        name:
+          type: string
+          title: Name
+        color_hex:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Color Hex
+        short_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Short Name
+        prefix_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Prefix Name
+        space_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Space Name
+        home_space_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Home Space Name
+        police_faction:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Police Faction
+        icon_active:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon Active
+        icon_inactive:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon Inactive
+        icon_banner:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon Banner
+        icon_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon Url
+        primary_race:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Primary Race
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        behaviour_set:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Behaviour Set
+        tags:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Tags
+      additionalProperties: false
+      type: object
+      required:
+      - faction_id
+      - name
+      - color_hex
+      - primary_race
+      title: FactionDetail
+    FactionLicence:
+      properties:
+        licence_type:
+          type: string
+          title: Licence Type
+        faction_id:
+          type: string
+          title: Faction Id
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        icon:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon
+        precursor:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Precursor
+        price:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Price
+        min_relation:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Min Relation
+      additionalProperties: false
+      type: object
+      required:
+      - licence_type
+      - faction_id
+      title: FactionLicence
+    FactionRelation:
+      properties:
+        other_faction_id:
+          type: string
+          title: Other Faction Id
+        initial_relation:
+          type: number
+          title: Initial Relation
+      additionalProperties: false
+      type: object
+      required:
+      - other_faction_id
+      - initial_relation
+      title: FactionRelation
+    FactionSummary:
+      properties:
+        faction_id:
+          type: string
+          title: Faction Id
+        name:
+          type: string
+          title: Name
+        color_hex:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Color Hex
+        short_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Short Name
+        prefix_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Prefix Name
+        space_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Space Name
+        home_space_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Home Space Name
+        police_faction:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Police Faction
+        icon_active:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon Active
+        icon_inactive:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon Inactive
+        icon_banner:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon Banner
+        icon_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon Url
+      additionalProperties: false
+      type: object
+      required:
+      - faction_id
+      - name
+      - color_hex
+      title: FactionSummary
+    GateSummary:
+      properties:
+        from_zone_id:
+          type: string
+          title: From Zone Id
+        to_zone_id:
+          type: string
+          title: To Zone Id
+        kind:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Kind
+      additionalProperties: false
+      type: object
+      required:
+      - from_zone_id
+      - to_zone_id
+      - kind
+      title: GateSummary
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    HealthResponse:
+      properties:
+        ok:
+          type: boolean
+          title: Ok
+        api_version:
+          type: string
+          title: Api Version
+        save_age_sec:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Save Age Sec
+        game_version:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Game Version
+      additionalProperties: false
+      type: object
+      required:
+      - ok
+      - api_version
+      - save_age_sec
+      - game_version
+      title: HealthResponse
+    LoadoutDetail:
+      properties:
+        loadout_id:
+          type: string
+          title: Loadout Id
+        ship_macro:
+          type: string
+          title: Ship Macro
+        equipment:
+          items:
+            $ref: '#/components/schemas/LoadoutEquipmentItem'
+          type: array
+          title: Equipment
+      additionalProperties: false
+      type: object
+      required:
+      - loadout_id
+      - ship_macro
+      - equipment
+      title: LoadoutDetail
+    LoadoutEquipmentItem:
+      properties:
+        slot_path:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Slot Path
+        macro:
+          type: string
+          title: Macro
+        kind:
+          type: string
+          title: Kind
+        optional:
+          type: boolean
+          title: Optional
+        quantity:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Quantity
+      additionalProperties: false
+      type: object
+      required:
+      - slot_path
+      - macro
+      - kind
+      - optional
+      - quantity
+      title: LoadoutEquipmentItem
+    ModuleDetail:
+      properties:
+        module_id:
+          type: string
+          title: Module Id
+        name:
+          type: string
+          title: Name
+        dlc:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dlc
+        kind:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Kind
+        size:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Size
+        produces_ware_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Produces Ware Id
+        storage_capacity:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Storage Capacity
+        storage_type:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Storage Type
+        drone_capacity:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Drone Capacity
+        workforce_capacity:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Workforce Capacity
+        icon_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon Url
+        hull:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Hull
+        explosiondamage:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Explosiondamage
+        turrets_s:
+          type: integer
+          title: Turrets S
+        turrets_m:
+          type: integer
+          title: Turrets M
+        turrets_l:
+          type: integer
+          title: Turrets L
+        turrets_xl:
+          type: integer
+          title: Turrets Xl
+        shields_s:
+          type: integer
+          title: Shields S
+        shields_m:
+          type: integer
+          title: Shields M
+        shields_l:
+          type: integer
+          title: Shields L
+        shields_xl:
+          type: integer
+          title: Shields Xl
+      additionalProperties: false
+      type: object
+      required:
+      - module_id
+      - name
+      - dlc
+      - kind
+      - size
+      - produces_ware_id
+      - storage_capacity
+      - storage_type
+      - drone_capacity
+      - workforce_capacity
+      - icon_url
+      - hull
+      - explosiondamage
+      - turrets_s
+      - turrets_m
+      - turrets_l
+      - turrets_xl
+      - shields_s
+      - shields_m
+      - shields_l
+      - shields_xl
+      title: ModuleDetail
+    ModuleSummary:
+      properties:
+        module_id:
+          type: string
+          title: Module Id
+        name:
+          type: string
+          title: Name
+        dlc:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dlc
+        kind:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Kind
+        size:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Size
+        produces_ware_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Produces Ware Id
+        storage_capacity:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Storage Capacity
+        storage_type:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Storage Type
+        drone_capacity:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Drone Capacity
+        workforce_capacity:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Workforce Capacity
+        icon_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon Url
+      additionalProperties: false
+      type: object
+      required:
+      - module_id
+      - name
+      - dlc
+      - kind
+      - size
+      - produces_ware_id
+      - storage_capacity
+      - storage_type
+      - drone_capacity
+      - workforce_capacity
+      - icon_url
+      title: ModuleSummary
+    NpcStationDetail:
+      properties:
+        station_id:
+          type: string
+          title: Station Id
+        owner_faction:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Owner Faction
+        race:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Race
+        tags:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Tags
+        location_sector:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Location Sector
+        location_zone:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Location Zone
+        x:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: X
+        y:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Y
+        z:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Z
+      additionalProperties: false
+      type: object
+      required:
+      - station_id
+      - owner_faction
+      - race
+      - tags
+      - location_sector
+      - location_zone
+      - x
+      - y
+      - z
+      title: NpcStationDetail
+    NpcStationSummary:
+      properties:
+        station_id:
+          type: string
+          title: Station Id
+        owner_faction:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Owner Faction
+        race:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Race
+        tags:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Tags
+        location_sector:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Location Sector
+      additionalProperties: false
+      type: object
+      required:
+      - station_id
+      - owner_faction
+      - race
+      - tags
+      - location_sector
+      title: NpcStationSummary
+    ProductionInput:
+      properties:
+        ware_id:
+          type: string
+          title: Ware Id
+        amount:
+          type: integer
+          title: Amount
+      additionalProperties: false
+      type: object
+      required:
+      - ware_id
+      - amount
+      title: ProductionInput
+    ProductionMethod:
+      properties:
+        method:
+          type: string
+          title: Method
+        time_sec:
+          type: number
+          title: Time Sec
+        amount:
+          type: integer
+          title: Amount
+        workforce:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Workforce
+        inputs:
+          items:
+            $ref: '#/components/schemas/ProductionInput'
+          type: array
+          title: Inputs
+      additionalProperties: false
+      type: object
+      required:
+      - method
+      - time_sec
+      - amount
+      - workforce
+      - inputs
+      title: ProductionMethod
+    RegionSummary:
+      properties:
+        region_id:
+          type: string
+          title: Region Id
+        cluster_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Cluster Id
+        sector_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Sector Id
+        x:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: X
+        y:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Y
+        z:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Z
+      additionalProperties: false
+      type: object
+      required:
+      - region_id
+      title: RegionSummary
+    ResourceEntry:
+      properties:
+        region_name:
+          type: string
+          title: Region Name
+        sector_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Sector Id
+        ware:
+          type: string
+          title: Ware
+        yield_level:
+          type: string
+          title: Yield Level
+      additionalProperties: false
+      type: object
+      required:
+      - region_name
+      - sector_id
+      - ware
+      - yield_level
+      title: ResourceEntry
+    SectorSummary:
+      properties:
+        sector_id:
+          type: string
+          title: Sector Id
+        cluster_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Cluster Id
+        macro_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Macro Id
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        owner_faction:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Owner Faction
+        dlc:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dlc
+        sunlight:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Sunlight
+        economy:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Economy
+        security:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Security
+        tags:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Tags
+        access_licence:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Access Licence
+        x:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: X
+        y:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Y
+        z:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Z
+      additionalProperties: false
+      type: object
+      required:
+      - sector_id
+      - cluster_id
+      - owner_faction
+      title: SectorSummary
+    ShipDetail:
+      properties:
+        ship_id:
+          type: string
+          title: Ship Id
+        name:
+          type: string
+          title: Name
+        dlc:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dlc
+        class_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Class Id
+        ship_type:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Ship Type
+        faction_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Faction Id
+        role:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Role
+        hull:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Hull
+        cargo_volume:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Cargo Volume
+        speed_max:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Speed Max
+        icon_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon Url
+        image_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Image Url
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        basename:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Basename
+        secrecy_level:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Secrecy Level
+        mass:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Mass
+        drag_forward:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Drag Forward
+        drag_reverse:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Drag Reverse
+        drag_horizontal:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Drag Horizontal
+        drag_vertical:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Drag Vertical
+        drag_pitch:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Drag Pitch
+        drag_yaw:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Drag Yaw
+        drag_roll:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Drag Roll
+        inertia_pitch:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Inertia Pitch
+        inertia_yaw:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Inertia Yaw
+        inertia_roll:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Inertia Roll
+        people_capacity:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: People Capacity
+        missile_storage:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Missile Storage
+        drone_storage:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Drone Storage
+        countermeasure_storage:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Countermeasure Storage
+        deployable_storage:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Deployable Storage
+        weapons_s:
+          type: integer
+          title: Weapons S
+        weapons_m:
+          type: integer
+          title: Weapons M
+        weapons_l:
+          type: integer
+          title: Weapons L
+        weapons_xl:
+          type: integer
+          title: Weapons Xl
+        turrets_s:
+          type: integer
+          title: Turrets S
+        turrets_m:
+          type: integer
+          title: Turrets M
+        turrets_l:
+          type: integer
+          title: Turrets L
+        turrets_xl:
+          type: integer
+          title: Turrets Xl
+        shields_s:
+          type: integer
+          title: Shields S
+        shields_m:
+          type: integer
+          title: Shields M
+        shields_l:
+          type: integer
+          title: Shields L
+        shields_xl:
+          type: integer
+          title: Shields Xl
+        engines_s:
+          type: integer
+          title: Engines S
+        engines_m:
+          type: integer
+          title: Engines M
+        engines_l:
+          type: integer
+          title: Engines L
+        engines_xl:
+          type: integer
+          title: Engines Xl
+        software:
+          items:
+            $ref: '#/components/schemas/ShipSoftware'
+          type: array
+          title: Software
+        drop_list_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Drop List Id
+      additionalProperties: false
+      type: object
+      required:
+      - ship_id
+      - name
+      - dlc
+      - class_id
+      - ship_type
+      - faction_id
+      - role
+      - hull
+      - cargo_volume
+      - speed_max
+      - icon_url
+      - image_url
+      - description
+      - basename
+      - secrecy_level
+      - mass
+      - drag_forward
+      - drag_reverse
+      - drag_horizontal
+      - drag_vertical
+      - drag_pitch
+      - drag_yaw
+      - drag_roll
+      - inertia_pitch
+      - inertia_yaw
+      - inertia_roll
+      - people_capacity
+      - missile_storage
+      - drone_storage
+      - countermeasure_storage
+      - deployable_storage
+      - weapons_s
+      - weapons_m
+      - weapons_l
+      - weapons_xl
+      - turrets_s
+      - turrets_m
+      - turrets_l
+      - turrets_xl
+      - shields_s
+      - shields_m
+      - shields_l
+      - shields_xl
+      - engines_s
+      - engines_m
+      - engines_l
+      - engines_xl
+      - software
+      - drop_list_id
+      title: ShipDetail
+    ShipSoftware:
+      properties:
+        ware_id:
+          type: string
+          title: Ware Id
+        compatible:
+          type: integer
+          title: Compatible
+        is_default:
+          type: integer
+          title: Is Default
+      additionalProperties: false
+      type: object
+      required:
+      - ware_id
+      - compatible
+      - is_default
+      title: ShipSoftware
+    ShipSummary:
+      properties:
+        ship_id:
+          type: string
+          title: Ship Id
+        name:
+          type: string
+          title: Name
+        dlc:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dlc
+        class_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Class Id
+        ship_type:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Ship Type
+        faction_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Faction Id
+        role:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Role
+        hull:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Hull
+        cargo_volume:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Cargo Volume
+        speed_max:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Speed Max
+        icon_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon Url
+        image_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Image Url
+      additionalProperties: false
+      type: object
+      required:
+      - ship_id
+      - name
+      - dlc
+      - class_id
+      - ship_type
+      - faction_id
+      - role
+      - hull
+      - cargo_volume
+      - speed_max
+      - icon_url
+      - image_url
+      title: ShipSummary
+    SuperhighwaySummary:
+      properties:
+        from_zone_id:
+          type: string
+          title: From Zone Id
+        to_zone_id:
+          type: string
+          title: To Zone Id
+      additionalProperties: false
+      type: object
+      required:
+      - from_zone_id
+      - to_zone_id
+      title: SuperhighwaySummary
+    TerraformDelivery:
+      properties:
+        ship_macro:
+          type: string
+          title: Ship Macro
+        amount:
+          type: integer
+          title: Amount
+        build_duration:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Build Duration
+      additionalProperties: false
+      type: object
+      required:
+      - ship_macro
+      - amount
+      - build_duration
+      title: TerraformDelivery
+    TerraformEffect:
+      properties:
+        stat:
+          type: string
+          title: Stat
+        change:
+          type: integer
+          title: Change
+        min_val:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Min Val
+      additionalProperties: false
+      type: object
+      required:
+      - stat
+      - change
+      - min_val
+      title: TerraformEffect
+    TerraformProjectDetail:
+      properties:
+        project_id:
+          type: string
+          title: Project Id
+        group_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Group Id
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        duration:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Duration
+        repeat_cooldown:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Repeat Cooldown
+        resilient:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Resilient
+        resource_credits:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Resource Credits
+        effects:
+          items:
+            $ref: '#/components/schemas/TerraformEffect'
+          type: array
+          title: Effects
+        resources:
+          items:
+            $ref: '#/components/schemas/TerraformResource'
+          type: array
+          title: Resources
+        deliveries:
+          items:
+            $ref: '#/components/schemas/TerraformDelivery'
+          type: array
+          title: Deliveries
+      additionalProperties: false
+      type: object
+      required:
+      - project_id
+      - group_id
+      - name
+      - description
+      - duration
+      - repeat_cooldown
+      - resilient
+      - resource_credits
+      - effects
+      - resources
+      - deliveries
+      title: TerraformProjectDetail
+    TerraformProjectGroup:
+      properties:
+        group_id:
+          type: string
+          title: Group Id
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+      additionalProperties: false
+      type: object
+      required:
+      - group_id
+      - name
+      title: TerraformProjectGroup
+    TerraformProjectSummary:
+      properties:
+        project_id:
+          type: string
+          title: Project Id
+        group_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Group Id
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        duration:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Duration
+        repeat_cooldown:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Repeat Cooldown
+        resilient:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Resilient
+        resource_credits:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Resource Credits
+      additionalProperties: false
+      type: object
+      required:
+      - project_id
+      - group_id
+      - name
+      - description
+      - duration
+      - repeat_cooldown
+      - resilient
+      - resource_credits
+      title: TerraformProjectSummary
+    TerraformResource:
+      properties:
+        ware_id:
+          type: string
+          title: Ware Id
+        amount:
+          type: integer
+          title: Amount
+      additionalProperties: false
+      type: object
+      required:
+      - ware_id
+      - amount
+      title: TerraformResource
+    TerraformStat:
+      properties:
+        stat_id:
+          type: string
+          title: Stat Id
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+        icon:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon
+        default_val:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Default Val
+      additionalProperties: false
+      type: object
+      required:
+      - stat_id
+      - name
+      - icon
+      - default_val
+      title: TerraformStat
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError
+    WareDetail:
+      properties:
+        ware_id:
+          type: string
+          title: Ware Id
+        name:
+          type: string
+          title: Name
+        group_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Group Id
+        transport:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Transport
+        volume:
+          type: number
+          title: Volume
+        price_avg:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Price Avg
+        tags:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Tags
+        icon_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon Url
+        price_min:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Price Min
+        price_max:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Price Max
+        storage_class:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Storage Class
+        restriction_licence:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Restriction Licence
+        use_threshold:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Use Threshold
+        owners:
+          items:
+            type: string
+          type: array
+          title: Owners
+        illegal_factions:
+          items:
+            type: string
+          type: array
+          title: Illegal Factions
+        production:
+          items:
+            $ref: '#/components/schemas/ProductionMethod'
+          type: array
+          title: Production
+      additionalProperties: false
+      type: object
+      required:
+      - ware_id
+      - name
+      - group_id
+      - transport
+      - volume
+      - price_avg
+      - tags
+      - icon_url
+      - price_min
+      - price_max
+      - storage_class
+      - owners
+      - illegal_factions
+      - production
+      title: WareDetail
+    WareGroup:
+      properties:
+        group_id:
+          type: string
+          title: Group Id
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+        tags:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Tags
+        factory_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Factory Name
+        icon:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon
+        factory_map_icon:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Factory Map Icon
+        factory_hud_icon:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Factory Hud Icon
+        tier:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Tier
+        priority:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Priority
+      additionalProperties: false
+      type: object
+      required:
+      - group_id
+      - name
+      - tags
+      - factory_name
+      - icon
+      - factory_map_icon
+      - factory_hud_icon
+      - tier
+      - priority
+      title: WareGroup
+    WareSummary:
+      properties:
+        ware_id:
+          type: string
+          title: Ware Id
+        name:
+          type: string
+          title: Name
+        group_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Group Id
+        transport:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Transport
+        volume:
+          type: number
+          title: Volume
+        price_avg:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Price Avg
+        tags:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Tags
+        icon_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon Url
+      additionalProperties: false
+      type: object
+      required:
+      - ware_id
+      - name
+      - group_id
+      - transport
+      - volume
+      - price_avg
+      - tags
+      - icon_url
+      title: WareSummary
+    ZoneSummary:
+      properties:
+        zone_id:
+          type: string
+          title: Zone Id
+        sector_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Sector Id
+        x:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: X
+        y:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Y
+        z:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Z
+      additionalProperties: false
+      type: object
+      required:
+      - zone_id
+      - sector_id
+      title: ZoneSummary

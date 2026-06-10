@@ -19,6 +19,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from x4_api.api.deps import get_db
+from x4_api.api.icons import get_icon_url
 from x4_api.api.schemas import PublicModel
 
 router = APIRouter()
@@ -33,6 +34,7 @@ class WareSummary(PublicModel):
     transport: str | None
     volume: float
     price_avg: int | None
+    tags: str | None
     icon_url: str | None
 
 
@@ -41,7 +43,7 @@ class ProductionMethod(PublicModel):
     time_sec: float
     amount: int
     workforce: int | None
-    inputs: list["ProductionInput"]
+    inputs: list[ProductionInput]
 
 
 class ProductionInput(PublicModel):
@@ -53,6 +55,10 @@ class WareDetail(WareSummary):
     price_min: int | None
     price_max: int | None
     storage_class: str | None
+    restriction_licence: str | None = None
+    use_threshold: float | None = None
+    owners: list[str]
+    illegal_factions: list[str]
     production: list[ProductionMethod]
 
 
@@ -65,7 +71,7 @@ def list_wares(
     offset: int = Query(0, ge=0),
 ) -> list[WareSummary]:
     sql = [
-        "SELECT ware_id, name, group_id, transport, volume, price_avg, icon_path",
+        "SELECT ware_id, name, group_id, transport, volume, price_avg, tags, icon_path",
         "FROM s.wares WHERE 1=1",
     ]
     params: dict[str, object] = {"limit": limit, "offset": offset}
@@ -86,7 +92,8 @@ def list_wares(
             transport=r["transport"],
             volume=r["volume"],
             price_avg=r["price_avg"],
-            icon_url=_icon_url(r["icon_path"]),
+            tags=r["tags"],
+            icon_url=get_icon_url(r["icon_path"]),
         )
         for r in rows
     ]
@@ -100,7 +107,8 @@ def get_ware(
     row = conn.execute(
         """
         SELECT ware_id, name, group_id, transport, volume,
-               price_min, price_avg, price_max, storage_class, icon_path
+               price_min, price_avg, price_max, storage_class,
+               tags, restriction_licence, use_threshold, icon_path
         FROM s.wares WHERE ware_id = :id
         """,
         {"id": ware_id},
@@ -108,6 +116,14 @@ def get_ware(
     if row is None:
         raise HTTPException(status_code=404, detail=f"Unknown ware_id: {ware_id}")
 
+    owner_rows = conn.execute(
+        "SELECT faction_id FROM s.ware_owners WHERE ware_id = :id ORDER BY faction_id",
+        {"id": ware_id},
+    ).fetchall()
+    illegal_rows = conn.execute(
+        "SELECT faction_id FROM s.ware_illegal WHERE ware_id = :id ORDER BY faction_id",
+        {"id": ware_id},
+    ).fetchall()
     prod_rows = conn.execute(
         "SELECT method, time_sec, amount, workforce FROM s.ware_production WHERE ware_id = :id",
         {"id": ware_id},
@@ -133,7 +149,12 @@ def get_ware(
         price_avg=row["price_avg"],
         price_max=row["price_max"],
         storage_class=row["storage_class"],
-        icon_url=_icon_url(row["icon_path"]),
+        tags=row["tags"],
+        restriction_licence=row["restriction_licence"],
+        use_threshold=row["use_threshold"],
+        owners=[r["faction_id"] for r in owner_rows],
+        illegal_factions=[r["faction_id"] for r in illegal_rows],
+        icon_url=get_icon_url(row["icon_path"]),
         production=[
             ProductionMethod(
                 method=pr["method"],
@@ -147,5 +168,4 @@ def get_ware(
     )
 
 
-def _icon_url(icon_path: str | None) -> str | None:
-    return f"{ICON_BASE}/{icon_path}.png" if icon_path else None
+

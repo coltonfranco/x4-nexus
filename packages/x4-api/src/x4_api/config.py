@@ -10,38 +10,22 @@ from __future__ import annotations
 from pathlib import Path
 
 from pydantic import Field, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from x4_extract.config import ExtractSettings
 
 
-class Settings(BaseSettings):
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        env_prefix="X4C_",
-        extra="ignore",
-    )
-
-    install_path: Path = Field(
-        ...,
-        description="Folder containing X4.exe and the .cat/.dat archives.",
+class Settings(ExtractSettings):
+    # Override data_dir default with a path relative to this package's layout.
+    data_dir: Path = Field(
+        default=Path(__file__).resolve().parents[2] / "data",
+        description="Where static.db, dynamic.db, extracted XML cache, and icons live.",
     )
     save_path: Path | None = Field(
         default=None,
         description="Folder containing *.xml.gz save files. If unset, resolve() tries defaults.",
     )
-    data_dir: Path = Field(
-        # Resolves to packages/x4-api/data/ when running from the workspace.
-        default=Path(__file__).resolve().parents[2] / "data",
-        description="Where static.db, dynamic.db, extracted XML cache, and icons live.",
-    )
     host: str = "127.0.0.1"
     port: int = 8765
     poll_interval_sec: int = 60
-
-    @field_validator("install_path", "data_dir")
-    @classmethod
-    def _expand(cls, v: Path) -> Path:
-        return Path(v).expanduser().resolve()
 
     @field_validator("save_path")
     @classmethod

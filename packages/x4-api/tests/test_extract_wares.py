@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from x4_api.extract import wares
+from x4_extract.static import wares
 
 TINY_WARES_XML = b"""<?xml version="1.0" encoding="utf-8"?>
 <wares>

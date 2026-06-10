@@ -22,21 +22,11 @@ def open_db(data_dir: Path, *, read_only: bool = False) -> sqlite3.Connection:
 
     if read_only:
         uri = f"file:{dynamic_path}?mode=ro"
-        conn = sqlite3.connect(uri, uri=True)
+        conn = sqlite3.connect(uri, uri=True, check_same_thread=False)
     else:
-        conn = sqlite3.connect(dynamic_path)
+        conn = sqlite3.connect(dynamic_path, check_same_thread=False)
 
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     conn.execute(f"ATTACH DATABASE '{static_path.as_posix()}' AS s")
     return conn
-
-
-def apply_schema(data_dir: Path, schema_name: str) -> None:
-    """Apply one of the bundled schema_*.sql files. Idempotent (uses IF NOT EXISTS)."""
-    schema_path = Path(__file__).parent / f"schema_{schema_name}.sql"
-    sql = schema_path.read_text()
-    db_path = data_dir / f"{schema_name}.db"
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-    with sqlite3.connect(db_path) as conn:
-        conn.executescript(sql)

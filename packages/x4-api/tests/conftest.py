@@ -9,12 +9,16 @@ Patterns:
 
 from __future__ import annotations
 
+import os
+
+# Satisfy pydantic-settings during test collection
+os.environ.setdefault("X4C_INSTALL_PATH", "C:/fake/x4")
+
 import sqlite3
 from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
-
 from x4_api.db.migrate import migrate_all
 
 FIXTURES = Path(__file__).parent / "fixtures"

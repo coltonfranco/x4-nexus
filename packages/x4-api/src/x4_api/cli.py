@@ -18,7 +18,7 @@ from x4_api import __version__
 app = typer.Typer(add_completion=False, help="X4: Foundations companion CLI.")
 
 
-def _load_settings() -> "Settings":  # noqa: F821 — forward ref to deferred import
+def _load_settings() -> Settings:  # noqa: F821 — forward ref to deferred import
     from x4_api.config import Settings
 
     try:
@@ -80,15 +80,23 @@ def doctor() -> None:
 @app.command("rebuild-static")
 def rebuild_static() -> None:
     """Extract game XML → static.db. No-op if game files unchanged."""
-    from x4_api.ingest.static_pipeline import run as run_static
+    from x4_extract.static.pipeline import run as run_static
 
     run_static(_load_settings())
+
+
+@app.command("rebuild-datalake")
+def rebuild_datalake() -> None:
+    """Extract raw metadata XMLs into raw_files table in raw.db."""
+    from x4_extract.static.crawler import run_crawler
+
+    run_crawler(_load_settings())
 
 
 @app.command("rebuild-icons")
 def rebuild_icons() -> None:
     """Extract icon DDS files → PNGs under data/icons/."""
-    from x4_api.extract.icons import run as run_icons
+    from x4_extract.static.icons import run as run_icons
 
     run_icons(_load_settings())
 

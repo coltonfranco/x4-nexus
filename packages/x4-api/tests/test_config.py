@@ -12,7 +12,6 @@ import gzip
 from pathlib import Path
 
 import pytest
-
 from x4_api.config import latest_save, resolve_save_path
 
 
@@ -45,7 +44,8 @@ def test_latest_save_returns_most_recently_modified(tmp_path: Path) -> None:
     newer = tmp_path / "save_002.xml.gz"
     older.write_bytes(b"")
     newer.write_bytes(b"")
-    import os, time
+    import os
+    import time
 
     past = time.time() - 60
     os.utime(older, (past, past))

@@ -1,0 +1,227 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<savegame>
+<info>
+<save name="#001" date="1780939674"/>
+<game id="X4" version="800" build="590967" modified="1" time="35233.018" code="688644" original="800" originalbuild="590967" start="x4ep1_gamestart_terran1" seed="3884557050" guid="349F7A48-CCFD-4C6E-B170-7E192ED4C2B7"/>
+<player name="Colton Franco" location="{20004,390011}" money="1204710"/>
+<patches>
+<patch extension="ego_dlc_split" version="800" name="Split Vendetta"/>
+<patch extension="ego_dlc_pirate" version="800" name="Tides of Avarice"/>
+<patch extension="ego_dlc_terran" version="800" name="Cradle of Humanity"/>
+<patch extension="ego_dlc_boron" version="800" name="Kingdom End"/>
+<history>
+<patch extension="ego_dlc_split" version="800" name="Split Vendetta"/>
+<patch extension="ego_dlc_pirate" version="800" name="Tides of Avarice"/>
+<patch extension="ego_dlc_terran" version="800" name="Cradle of Humanity"/>
+<patch extension="ego_dlc_boron" version="800" name="Kingdom End"/>
+</history>
+</patches>
+<versions>
+<history>
+<version version="800" build="590967" time="30109.937" modified="1"/>
+</history>
+</versions>
+</info>
+<universe>
+<factions>
+<faction id="khaak">
+<relations locked="1">
+<relation faction="player" relation="-1"/>
+<relation faction="alliance" relation="-1"/>
+<relation faction="antigone" relation="-1"/>
+<relation faction="argon" relation="-1"/>
+<relation faction="buccaneers" relation="-1"/>
+<relation faction="civilian" relation="-1"/>
+<relation faction="criminal" relation="-1"/>
+<relation faction="hatikvah" relation="-1"/>
+<relation faction="holyorder" relation="-1"/>
+<relation faction="holyorderfanatic" relation="-1"/>
+<relation faction="ministry" relation="-1"/>
+<relation faction="outlaw" relation="-0.032"/>
+<relation faction="paranid" relation="-1"/>
+<relation faction="scaleplate" relation="-1"/>
+<relation faction="smuggler" relation="-1"/>
+<relation faction="teladi" relation="-1"/>
+<relation faction="trinity" relation="-1"/>
+<relation faction="visitor" relation="-1"/>
+<relation faction="visitor001" relation="-1"/>
+<relation faction="visitor002" relation="-1"/>
+<relation faction="visitor003" relation="-1"/>
+<relation faction="visitor004" relation="-1"/>
+<relation faction="visitor005" relation="-1"/>
+<relation faction="visitor006" relation="-1"/>
+<relation faction="visitor007" relation="-1"/>
+<relation faction="visitor008" relation="-1"/>
+<relation faction="visitor009" relation="-1"/>
+<relation faction="visitor010" relation="-1"/>
+<relation faction="visitor011" relation="-1"/>
+<relation faction="visitor012" relation="-1"/>
+<relation faction="visitor013" relation="-1"/>
+<relation faction="visitor014" relation="-1"/>
+<relation faction="visitor015" relation="-1"/>
+<relation faction="visitor016" relation="-1"/>
+<relation faction="visitor017" relation="-1"/>
+<relation faction="visitor018" relation="-1"/>
+<relation faction="visitor019" relation="-1"/>
+<relation faction="visitor020" relation="-1"/>
+<relation faction="visitor021" relation="-1"/>
+<relation faction="visitor022" relation="-1"/>
+<relation faction="visitor023" relation="-1"/>
+<relation faction="visitor024" relation="-1"/>
+<relation faction="visitor025" relation="-1"/>
+<relation faction="visitor026" relation="-1"/>
+<relation faction="visitor027" relation="-1"/>
+<relation faction="visitor028" relation="-1"/>
+<relation faction="visitor029" relation="-1"/>
+<relation faction="visitor030" relation="-1"/>
+<relation faction="visitor031" relation="-1"/>
+<relation faction="visitor032" relation="-1"/>
+<relation faction="visitor033" relation="-1"/>
+<relation faction="visitor034" relation="-1"/>
+<relation faction="visitor035" relation="-1"/>
+<relation faction="visitor036" relation="-1"/>
+<relation faction="visitor037" relation="-1"/>
+<relation faction="visitor038" relation="-1"/>
+<relation faction="visitor039" relation="-1"/>
+<relation faction="visitor040" relation="-1"/>
+<relation faction="visitor041" relation="-1"/>
+<relation faction="visitor042" relation="-1"/>
+<relation faction="visitor043" relation="-1"/>
+<relation faction="visitor044" relation="-1"/>
+<relation faction="visitor045" relation="-1"/>
+<relation faction="visitor046" relation="-1"/>
+<relation faction="visitor047" relation="-1"/>
+<relation faction="visitor048" relation="-1"/>
+<relation faction="visitor049" relation="-1"/>
+<relation faction="visitor050" relation="-1"/>
+<relation faction="visitor051" relation="-1"/>
+<relation faction="visitor052" relation="-1"/>
+<relation faction="visitor053" relation="-1"/>
+<relation faction="visitor054" relation="-1"/>
+<relation faction="visitor055" relation="-1"/>
+<relation faction="visitor056" relation="-1"/>
+<relation faction="visitor057" relation="-1"/>
+<relation faction="visitor058" relation="-1"/>
+<relation faction="visitor059" relation="-1"/>
+<relation faction="visitor060" relation="-1"/>
+<relation faction="visitor061" relation="-1"/>
+<relation faction="visitor062" relation="-1"/>
+<relation faction="visitor063" relation="-1"/>
+<relation faction="visitor064" relation="-1"/>
+<relation faction="visitor065" relation="-1"/>
+<relation faction="visitor066" relation="-1"/>
+<relation faction="visitor067" relation="-1"/>
+<relation faction="visitor068" relation="-1"/>
+<relation faction="visitor069" relation="-1"/>
+<relation faction="visitor070" relation="-1"/>
+<relation faction="visitor071" relation="-1"/>
+<relation faction="visitor072" relation="-1"/>
+<relation faction="visitor073" relation="-1"/>
+<relation faction="visitor074" relation="-1"/>
+<relation faction="visitor075" relation="-1"/>
+<relation faction="visitor076" relation="-1"/>
+<relation faction="visitor077" relation="-1"/>
+<relation faction="visitor078" relation="-1"/>
+<relation faction="visitor079" relation="-1"/>
+<relation faction="visitor080" relation="-1"/>
+<relation faction="visitor081" relation="-1"/>
+<relation faction="visitor082" relation="-1"/>
+<relation faction="visitor083" relation="-1"/>
+<relation faction="visitor084" relation="-1"/>
+<relation faction="visitor085" relation="-1"/>
+<relation faction="visitor086" relation="-1"/>
+<relation faction="visitor087" relation="-1"/>
+<relation faction="visitor088" relation="-1"/>
+<relation faction="visitor089" relation="-1"/>
+<relation faction="visitor090" relation="-1"/>
+<relation faction="visitor091" relation="-1"/>
+<relation faction="visitor092" relation="-1"/>
+<relation faction="visitor093" relation="-1"/>
+<relation faction="visitor094" relation="-1"/>
+<relation faction="visitor095" relation="-1"/>
+<relation faction="visitor096" relation="-1"/>
+<relation faction="visitor097" relation="-1"/>
+<relation faction="visitor098" relation="-1"/>
+<relation faction="visitor099" relation="-1"/>
+<relation faction="visitor100" relation="-1"/>
+<relation faction="xenon" relation="-1"/>
+<relation faction="court" relation="-1"/>
+<relation faction="fallensplit" relation="-1"/>
+<relation faction="freesplit" relation="-1"/>
+<relation faction="split" relation="-1"/>
+<relation faction="pioneers" relation="-1"/>
+<relation faction="terran" relation="-1"/>
+<relation faction="yaki" relation="-1"/>
+<relation faction="loanshark" relation="-1"/>
+<relation faction="scavenger" relation="-1"/>
+<relation faction="boron" relation="-1"/>
+</relations>
+<signals>
+<response signal="policehalt" response="attack"/>
+</signals>
+</faction>
+<faction active="0" id="court">
+<relations>
+<relation faction="antigone" relation="-0.011"/>
+<relation faction="argon" relation="-0.011"/>
+<relation faction="buccaneers" relation="-0.032"/>
+<relation faction="criminal" relation="-0.5"/>
+<relation faction="khaak" relation="-1"/>
+<relation faction="outlaw" relation="-0.032"/>
+<relation faction="scaleplate" relation="-0.32"/>
+<relation faction="smuggler" relation="-0.06"/>
+<relation faction="xenon" relation="-1"/>
+<relation faction="fallensplit" relation="-0.32"/>
+<relation faction="split" relation="-0.1"/>
+<relation faction="terran" relation="-0.011"/>
+<relation faction="yaki" relation="-0.32"/>
+<relation faction="loanshark" relation="-0.032"/>
+<relation faction="boron" relation="-0.032"/>
+</relations>
+<diplomacy>
+<exclude faction="split" reason="dlc1_1"/>
+</diplomacy>
+<licences>
+<licence type="capitalequipment" factions="freesplit"/>
+<licence type="capitalship" factions="freesplit"/>
+<licence type="generaluseequipment" factions="freesplit"/>
+<licence type="generaluseship" factions="freesplit"/>
+<licence type="militaryequipment" factions="freesplit"/>
+<licence type="militaryship" factions="freesplit"/>
+<licence type="station_gen_basic" factions="freesplit"/>
+<licence type="station_gen_intermediate" factions="freesplit"/>
+<licence type="station_gen_advanced" factions="freesplit"/>
+<licence type="station_equip_sm" factions="freesplit"/>
+<licence type="station_equip_lxl" factions="freesplit"/>
+<licence type="envoy_access" factions="argon ministry"/>
+</licences>
+</faction>
+<faction id="civilian">
+<relations locked="1">
+<relation faction="criminal" relation="-0.5"/>
+<relation faction="khaak" relation="-1"/>
+<relation faction="smuggler" relation="-0.06"/>
+<relation faction="xenon" relation="-1"/>
+<relation faction="loanshark" relation="0.032"/>
+</relations>
+</faction>
+<faction id="criminal">
+<relations locked="1">
+<relation faction="player" relation="-0.5"/>
+<relation faction="alliance" relation="-0.5"/>
+<relation faction="antigone" relation="-0.5"/>
+<relation faction="argon" relation="-0.5"/>
+<relation faction="buccaneers" relation="-0.5"/>
+<relation faction="civilian" relation="-0.5"/>
+<relation faction="hatikvah" relation="-0.5"/>
+<relation faction="holyorder" relation="-0.5"/>
+<relation faction="khaak" relation="-1"/>
+<relation faction="ministry" relation="-0.5"/>
+<relation faction="outlaw" relation="-0.032"/>
+<relation faction="paranid" relation="-0.5"/>
+<relation faction="scaleplate" relation="-0.5"/>
+<relation faction="teladi" relation="-0.5"/>
+<relation faction="trinity" relation="-0.5"/>
+<relation faction="xenon" relation="-1"/>
+<relation faction="court" relation="-0.5"/>
+<relation faction="fallensplit" relatio

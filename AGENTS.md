@@ -424,8 +424,9 @@ From the build plan, mapped to verifiable checks:
 | Milestone | Done means |
 |---|---|
 | M0 Skeleton | `uv run x4c doctor` returns 0; `/api/v1/health` returns OK; `pytest` green; CI scaffold runs |
-| M1 Static extraction | `uv run x4c rebuild-static` produces `static.db` with ~500 wares + modules + ships + factions + map; second run is no-op in <1s |
-| M1.5 Icons | `uv run x4c rebuild-icons` produces ~990 PNGs; `GET /api/v1/wares/energycells` includes a working `icon_url` |
+| M1.A Datalake Extraction | `uv run x4c rebuild-datalake` produces `raw.db` with ~7,000 merged XMLs |
+| M1.B Static Transformation | `uv run x4c rebuild-static` transforms `raw.db` into `static.db` (wares, ships, equipment) |
+| M1.C Icons | `uv run x4c rebuild-icons` produces ~990 PNGs |
 | M2 Save streaming | `uv run x4c ingest-save` on a 200 MB+ save completes in <60s, peak RSS <500 MB |
 | M3 API + routes | `/api/v1/routes?ship_cargo=8000&ship_speed=420` returns ≤50 ranked routes in <2 s wall-clock |
 | M4 Dashboard | Opening `localhost:8765` shows live routes/stations/chains; updates after a save tick |
