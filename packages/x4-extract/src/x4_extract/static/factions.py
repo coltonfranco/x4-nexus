@@ -107,9 +107,12 @@ def extract(factions_bytes: bytes, colors_bytes: bytes | None = None) -> Extract
 
 
 def write(conn: sqlite3.Connection, result: ExtractResult) -> None:
-    """Replace faction rows in static.db. Caller wraps in a transaction."""
+    """Replace faction *definition* rows in static.db (reference layer).
+
+    Relations are gamestart seed, not reference — written to seed.db via
+    `write_relations`. Caller wraps in a transaction.
+    """
     conn.execute("DELETE FROM faction_licences")
-    conn.execute("DELETE FROM faction_relations")
     conn.execute("DELETE FROM factions")
     conn.executemany(
         "INSERT INTO factions (faction_id, name, color_hex, primary_race, description, short_name, prefix_name, "
@@ -118,16 +121,21 @@ def write(conn: sqlite3.Connection, result: ExtractResult) -> None:
         ":space_name, :home_space_name, :behaviour_set, :police_faction, :icon_active, :icon_inactive, :icon_banner, :tags)",
         result.factions,
     )
-    conn.executemany(
-        "INSERT INTO faction_relations (faction_id, other_faction_id, initial_relation) "
-        "VALUES (:faction_id, :other_faction_id, :initial_relation)",
-        result.relations,
-    )
     # Use INSERT OR IGNORE because factions.xml can list the same licence multiple times per faction with different precursor/tags
     conn.executemany(
         "INSERT OR IGNORE INTO faction_licences (licence_type, faction_id, name, description, icon, precursor, price, min_relation) "
         "VALUES (:licence_type, :faction_id, :name, :description, :icon, :precursor, :price, :min_relation)",
         result.licences,
+    )
+
+
+def write_relations(conn: sqlite3.Connection, result: ExtractResult) -> None:
+    """Replace gamestart faction relations in seed.db. Caller wraps in a transaction."""
+    conn.execute("DELETE FROM faction_relations")
+    conn.executemany(
+        "INSERT INTO faction_relations (faction_id, other_faction_id, initial_relation) "
+        "VALUES (:faction_id, :other_faction_id, :initial_relation)",
+        result.relations,
     )
 
 

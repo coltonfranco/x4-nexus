@@ -17,6 +17,7 @@ packages/x4-api/data/
 *.db-journal
 *.db-wal
 *.db-shm
+active_save.txt   # runtime active-save selection written to data_dir
 
 # Frontend
 node_modules/

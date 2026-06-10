@@ -13,7 +13,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from x4_api import __version__
-from x4_api.api.v1 import diplomacy, drops, equip_mods, factions, health, loadouts, map, modules, npc_stations, ships, terraform, ware_groups, wares
+from x4_api.api.v1 import diplomacy, drops, equip_mods, factions, fleet, health, loadouts, map, modules, npc_stations, player, routes, saves, ships, stations, terraform, ware_groups, wares
 from x4_api.config import settings
 
 
@@ -39,6 +39,12 @@ def app() -> FastAPI:
     fast.include_router(ware_groups.router, prefix="/api/v1", tags=["ware-groups"])
     fast.include_router(diplomacy.router, prefix="/api/v1", tags=["diplomacy"])
     fast.include_router(drops.router, prefix="/api/v1", tags=["drops"])
+    # Dynamic (save-state) endpoints — read the active save's per-save DB.
+    fast.include_router(saves.router, prefix="/api/v1", tags=["saves"])
+    fast.include_router(player.router, prefix="/api/v1", tags=["player"])
+    fast.include_router(stations.router, prefix="/api/v1", tags=["stations"])
+    fast.include_router(fleet.router, prefix="/api/v1", tags=["fleet"])
+    fast.include_router(routes.router, prefix="/api/v1", tags=["routes"])
 
     icons_dir = settings.data_dir / "icons"
     if icons_dir.exists():

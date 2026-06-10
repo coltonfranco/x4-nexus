@@ -76,6 +76,7 @@ class GateSummary(PublicModel):
 class SuperhighwaySummary(PublicModel):
     from_zone_id: str
     to_zone_id: str
+    kind: str
 
 class RegionSummary(PublicModel):
     region_id: str
@@ -100,15 +101,18 @@ def list_clusters(
     limit: int = Query(500, ge=1, le=2000),
     offset: int = Query(0, ge=0),
 ) -> list[ClusterSummary]:
+    # owner_faction is gamestart seed (predominant sector owner), LEFT JOINed from seed.db.
     sql = [
-        "SELECT cluster_id, name AS macro_id, dlc, name_id AS name, description_id AS description, owner_faction, environment, sun_class, population_id, max_population, x, y, z, qx, qy, qz, qw",
-        "FROM s.clusters WHERE 1=1",
+        "SELECT c.cluster_id, c.name AS macro_id, c.dlc, c.name_id AS name, c.description_id AS description, "
+        "co.owner_faction, c.environment, c.sun_class, c.population_id, c.max_population, "
+        "c.x, c.y, c.z, c.qx, c.qy, c.qz, c.qw",
+        "FROM s.clusters c LEFT JOIN seed.cluster_ownership co ON co.cluster_id = c.cluster_id WHERE 1=1",
     ]
     params: dict[str, object] = {"limit": limit, "offset": offset}
     if owner_faction is not None:
-        sql.append("AND owner_faction = :owner_faction")
+        sql.append("AND co.owner_faction = :owner_faction")
         params["owner_faction"] = owner_faction
-    sql.append("ORDER BY cluster_id LIMIT :limit OFFSET :offset")
+    sql.append("ORDER BY c.cluster_id LIMIT :limit OFFSET :offset")
 
     rows = conn.execute(" ".join(sql), params).fetchall()
     return [ClusterSummary(**dict(r)) for r in rows]
@@ -122,18 +126,21 @@ def list_sectors(
     limit: int = Query(500, ge=1, le=2000),
     offset: int = Query(0, ge=0),
 ) -> list[SectorSummary]:
+    # owner_faction is gamestart seed, LEFT JOINed from seed.sector_ownership.
     sql = [
-        "SELECT sector_id, cluster_id, name AS macro_id, owner_faction, dlc, name_id AS name, description_id AS description, sunlight, economy, security, tags, access_licence, x, y, z, qx, qy, qz, qw "
-        "FROM s.sectors WHERE 1=1"
+        "SELECT sec.sector_id, sec.cluster_id, sec.name AS macro_id, so.owner_faction, sec.dlc, "
+        "sec.name_id AS name, sec.description_id AS description, sec.sunlight, sec.economy, sec.security, "
+        "sec.tags, sec.access_licence, sec.x, sec.y, sec.z, sec.qx, sec.qy, sec.qz, sec.qw "
+        "FROM s.sectors sec LEFT JOIN seed.sector_ownership so ON so.sector_id = sec.sector_id WHERE 1=1"
     ]
     params: dict[str, object] = {"limit": limit, "offset": offset}
     if cluster_id is not None:
-        sql.append("AND cluster_id = :cluster_id")
+        sql.append("AND sec.cluster_id = :cluster_id")
         params["cluster_id"] = cluster_id
     if owner_faction is not None:
-        sql.append("AND owner_faction = :owner_faction")
+        sql.append("AND so.owner_faction = :owner_faction")
         params["owner_faction"] = owner_faction
-    sql.append("ORDER BY sector_id LIMIT :limit OFFSET :offset")
+    sql.append("ORDER BY sec.sector_id LIMIT :limit OFFSET :offset")
 
     rows = conn.execute(" ".join(sql), params).fetchall()
     return [SectorSummary(**dict(r)) for r in rows]
@@ -145,8 +152,11 @@ def get_sector(
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
 ) -> SectorSummary:
     row = conn.execute(
-        "SELECT sector_id, cluster_id, name AS macro_id, owner_faction, dlc, name_id AS name, description_id AS description, sunlight, economy, security, tags, access_licence, x, y, z, qx, qy, qz, qw "
-        "FROM s.sectors WHERE sector_id = :id",
+        "SELECT sec.sector_id, sec.cluster_id, sec.name AS macro_id, so.owner_faction, sec.dlc, "
+        "sec.name_id AS name, sec.description_id AS description, sec.sunlight, sec.economy, sec.security, "
+        "sec.tags, sec.access_licence, sec.x, sec.y, sec.z, sec.qx, sec.qy, sec.qz, sec.qw "
+        "FROM s.sectors sec LEFT JOIN seed.sector_ownership so ON so.sector_id = sec.sector_id "
+        "WHERE sec.sector_id = :id",
         {"id": sector_id},
     ).fetchone()
     if row is None:
@@ -271,7 +281,7 @@ def list_superhighways(
     offset: int = Query(0, ge=0),
 ) -> list[SuperhighwaySummary]:
     rows = conn.execute(
-        "SELECT from_zone_id, to_zone_id FROM s.superhighways ORDER BY from_zone_id, to_zone_id LIMIT :limit OFFSET :offset",
+        "SELECT from_zone_id, to_zone_id, kind FROM s.superhighways ORDER BY from_zone_id, to_zone_id LIMIT :limit OFFSET :offset",
         {"limit": limit, "offset": offset},
     ).fetchall()
     return [SuperhighwaySummary(**dict(r)) for r in rows]
@@ -304,7 +314,7 @@ def list_sector_connections(
         SELECT DISTINCT
             CASE WHEN z1.sector_id < z2.sector_id THEN z1.sector_id ELSE z2.sector_id END AS from_sector_id,
             CASE WHEN z1.sector_id < z2.sector_id THEN z2.sector_id ELSE z1.sector_id END AS to_sector_id,
-            'highway' AS kind
+            sh.kind AS kind
         FROM s.superhighways sh
         JOIN s.zones z1 ON z1.zone_id = sh.from_zone_id
         JOIN s.zones z2 ON z2.zone_id = sh.to_zone_id
@@ -345,7 +355,7 @@ def list_cluster_connections(
         SELECT DISTINCT
             CASE WHEN s1.cluster_id < s2.cluster_id THEN s1.cluster_id ELSE s2.cluster_id END AS from_cluster_id,
             CASE WHEN s1.cluster_id < s2.cluster_id THEN s2.cluster_id ELSE s1.cluster_id END AS to_cluster_id,
-            'highway' AS kind
+            sh.kind AS kind
         FROM s.superhighways sh
         JOIN s.zones z1 ON z1.zone_id = sh.from_zone_id
         JOIN s.sectors s1 ON s1.sector_id = z1.sector_id

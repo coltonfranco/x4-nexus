@@ -94,10 +94,14 @@ def test_get_faction_detail_returns_full_record(client: TestClient, static_conn:
     assert "capital_sector" not in data
 
 
-def test_get_faction_relations(client: TestClient, static_conn: sqlite3.Connection) -> None:
+def test_get_faction_relations(
+    client: TestClient, static_conn: sqlite3.Connection, seed_conn: sqlite3.Connection
+) -> None:
     result = factions.extract(TINY_FACTIONS_XML, TINY_COLORS_XML)
-    factions.write(static_conn, result)
+    factions.write(static_conn, result)  # faction definitions → static.db
     static_conn.commit()
+    factions.write_relations(seed_conn, result)  # gamestart relations → seed.db
+    seed_conn.commit()
 
     resp = client.get("/api/v1/factions/argon/relations")
 

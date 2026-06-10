@@ -191,7 +191,7 @@ def test_write_map(tmp_path):
         "PRIMARY KEY (from_zone_id, to_zone_id))"
     )
     conn.execute(
-        "CREATE TABLE superhighways (from_zone_id TEXT NOT NULL, to_zone_id TEXT NOT NULL, PRIMARY KEY (from_zone_id, to_zone_id))"
+        "CREATE TABLE superhighways (from_zone_id TEXT NOT NULL, to_zone_id TEXT NOT NULL, kind TEXT, PRIMARY KEY (from_zone_id, to_zone_id))"
     )
     conn.execute(
         "CREATE TABLE regions (region_id TEXT PRIMARY KEY, cluster_id TEXT, sector_id TEXT, x REAL, y REAL, z REAL, qx REAL, qy REAL, qz REAL, qw REAL)"

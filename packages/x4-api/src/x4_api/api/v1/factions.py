@@ -39,12 +39,14 @@ class FactionDetail(FactionSummary):
 class FactionRelation(PublicModel):
     other_faction_id: str
     initial_relation: float
+    current_relation: float | None = None  # from the active save; None until ingested
 
 
 class AllFactionRelation(PublicModel):
     faction_id: str
     other_faction_id: str
     initial_relation: float
+    current_relation: float | None = None  # from the active save; None until ingested
 
 
 class FactionLicence(PublicModel):
@@ -62,10 +64,18 @@ class FactionLicence(PublicModel):
 def list_all_faction_relations(
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
 ) -> list[AllFactionRelation]:
-    """List every faction-to-faction relation pair at gamestart — avoids N+1 queries."""
+    """Every faction-to-faction relation: gamestart value + current (from the active save).
+
+    `current_relation` is NULL until a save is ingested; the same -1..1 scale as
+    `initial_relation`, so the UI can show drift or COALESCE to the effective value.
+    """
     rows = conn.execute(
-        "SELECT faction_id, other_faction_id, initial_relation "
-        "FROM s.faction_relations ORDER BY faction_id, other_faction_id"
+        "SELECT s.faction_id, s.other_faction_id, s.initial_relation, "
+        "       d.relation AS current_relation "
+        "FROM seed.faction_relations s "
+        "LEFT JOIN faction_relations_current d "
+        "  ON d.faction_id = s.faction_id AND d.other_faction_id = s.other_faction_id "
+        "ORDER BY s.faction_id, s.other_faction_id"
     ).fetchall()
     return [AllFactionRelation(**dict(r)) for r in rows]
 
@@ -139,6 +149,7 @@ def faction_strength(
 
     # Stations split by type: military (defence/shipyard/wharf) vs economic (everything else)
     # tags column is a JSON array e.g. '["defence"]' or '["shipyard","wharf"]'
+    # NPC station placements + sector/cluster ownership are gamestart seed (seed.db).
     station_rows = conn.execute("""
         SELECT owner_faction,
             SUM(CASE WHEN tags LIKE '%defence%'
@@ -149,30 +160,28 @@ def faction_strength(
                                OR tags LIKE '%shipyard%'
                                OR tags LIKE '%wharf%')
                      THEN 1 ELSE 0 END) as econ_cnt
-        FROM s.npc_stations
+        FROM seed.npc_stations
         WHERE owner_faction IS NOT NULL
         GROUP BY owner_faction
     """).fetchall()
 
     sector_rows = conn.execute("""
-        SELECT owner_faction, COUNT(*) as cnt,
-               COALESCE(AVG(economy), 0.5) as avg_econ
-        FROM s.sectors WHERE owner_faction IS NOT NULL AND owner_faction != ''
-        GROUP BY owner_faction
+        SELECT so.owner_faction, COUNT(*) as cnt,
+               COALESCE(AVG(sec.economy), 0.5) as avg_econ
+        FROM seed.sector_ownership so
+        JOIN s.sectors sec ON sec.sector_id = so.sector_id
+        GROUP BY so.owner_faction
     """).fetchall()
 
-    # Clusters owned = distinct clusters with at least one owned sector
-    # (clusters.owner_faction is always NULL in the game data)
     cluster_rows = conn.execute("""
-        SELECT s.owner_faction, COUNT(DISTINCT s.cluster_id) as cnt
-        FROM s.sectors s
-        WHERE s.owner_faction IS NOT NULL AND s.owner_faction != ''
-        GROUP BY s.owner_faction
+        SELECT owner_faction, COUNT(*) as cnt
+        FROM seed.cluster_ownership
+        GROUP BY owner_faction
     """).fetchall()
 
     relation_rows = conn.execute("""
         SELECT faction_id, AVG(initial_relation) as avg_rel
-        FROM s.faction_relations
+        FROM seed.faction_relations
         GROUP BY faction_id
     """).fetchall()
 
@@ -288,13 +297,16 @@ def list_faction_relations(
     faction_id: str,
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
 ) -> list[FactionRelation]:
-    """List initial diplomatic relations for a faction (gamestart values only)."""
+    """Diplomatic relations for a faction: gamestart value + current (from active save)."""
     row = conn.execute("SELECT 1 FROM s.factions WHERE faction_id = :id", {"id": faction_id}).fetchone()
     if row is None:
         raise HTTPException(status_code=404, detail=f"Unknown faction_id: {faction_id}")
     rows = conn.execute(
-        "SELECT other_faction_id, initial_relation "
-        "FROM s.faction_relations WHERE faction_id = :id ORDER BY other_faction_id",
+        "SELECT s.other_faction_id, s.initial_relation, d.relation AS current_relation "
+        "FROM seed.faction_relations s "
+        "LEFT JOIN faction_relations_current d "
+        "  ON d.faction_id = s.faction_id AND d.other_faction_id = s.other_faction_id "
+        "WHERE s.faction_id = :id ORDER BY s.other_faction_id",
         {"id": faction_id},
     ).fetchall()
     return [FactionRelation(**dict(r)) for r in rows]

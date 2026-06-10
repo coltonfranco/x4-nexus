@@ -105,7 +105,25 @@ CREATE TABLE IF NOT EXISTS ships (
     faction_id       TEXT,
     hull             INTEGER,
     cargo_volume     INTEGER,
+    speed_min        REAL,
     speed_max        REAL,
+    travel_min       REAL,
+    travel_max       REAL,
+    boost_min        REAL,
+    boost_max        REAL,
+    pitch_min        REAL,
+    pitch_max        REAL,
+    yaw_min          REAL,
+    yaw_max          REAL,
+    roll_min         REAL,
+    roll_max         REAL,
+    shield_capacity_min    REAL,
+    shield_capacity_max    REAL,
+    shield_recharge_min    REAL,
+    shield_recharge_max    REAL,
+    shield_delay_min       REAL,
+    shield_delay_max       REAL,
+    radar_range      REAL,
     icon_path        TEXT,
     
     -- Physics
@@ -189,7 +207,6 @@ CREATE TABLE IF NOT EXISTS clusters (
     name       TEXT,
     file_path  TEXT,
     is_legacy  BOOLEAN DEFAULT 0,
-    owner_faction TEXT,
     dlc        TEXT,
     name_id          TEXT,
     description_id   TEXT,
@@ -207,7 +224,6 @@ CREATE TABLE IF NOT EXISTS sectors (
     name          TEXT,
     file_path     TEXT,
     is_legacy     BOOLEAN DEFAULT 0,
-    owner_faction TEXT,
     dlc              TEXT,
     name_id          TEXT,
     description_id   TEXT,
@@ -245,6 +261,7 @@ CREATE TABLE IF NOT EXISTS gates (
 CREATE TABLE IF NOT EXISTS superhighways (
     from_zone_id TEXT NOT NULL,
     to_zone_id   TEXT NOT NULL,
+    kind         TEXT NOT NULL,
     PRIMARY KEY (from_zone_id, to_zone_id)
 );
 
@@ -350,7 +367,8 @@ CREATE TABLE IF NOT EXISTS equip_software (
     file_path        TEXT,
     is_legacy        BOOLEAN DEFAULT 0,
     class_id         TEXT,      -- scanner, computer, radar
-    scan_maxlevel    INTEGER
+    scan_maxlevel    INTEGER,
+    radar_range      REAL
 );
 
 -- Equipment mod wares (mod_weapon_*, mod_engine_*, mod_shield_*, mod_ship_*).
@@ -459,14 +477,7 @@ CREATE TABLE IF NOT EXISTS game_version (
     game_version  TEXT
 );
 
--- Faction diplomatic relations (initial gamestart values; may shift during play)
-CREATE TABLE IF NOT EXISTS faction_relations (
-    faction_id       TEXT NOT NULL,
-    other_faction_id TEXT NOT NULL,
-    initial_relation REAL NOT NULL,
-    PRIMARY KEY (faction_id, other_faction_id),
-    FOREIGN KEY (faction_id) REFERENCES factions(faction_id)
-);
+-- NOTE: faction_relations moved to seed.db (gamestart snapshot, not reference). See docs/data-sources.md.
 
 CREATE TABLE IF NOT EXISTS faction_licences (
     licence_type   TEXT NOT NULL,
@@ -524,21 +535,7 @@ CREATE TABLE IF NOT EXISTS station_types (
     build_sets     TEXT            -- JSON array of set ref strings e.g. '["shipyard_argon"]'
 );
 
--- NPC station instances placed in the universe (from god.xml <stations>).
--- location macros follow god.xml casing (lowercase), e.g. "cluster_14_sector001_macro".
-CREATE TABLE IF NOT EXISTS npc_stations (
-    station_id       TEXT PRIMARY KEY,
-    owner_faction    TEXT,
-    race             TEXT,
-    tags             TEXT,          -- JSON array e.g. '["shipyard"]', '["wharf"]'
-    location_zone    TEXT,          -- zone macro id if placed in a zone, else NULL
-    location_sector  TEXT,          -- sector macro id (derived from zone or direct sector placement)
-    x                REAL,
-    y                REAL,
-    z                REAL
-);
-CREATE INDEX IF NOT EXISTS idx_npc_stations_owner  ON npc_stations(owner_faction);
-CREATE INDEX IF NOT EXISTS idx_npc_stations_sector ON npc_stations(location_sector);
+-- NOTE: npc_stations moved to seed.db (gamestart placements, not reference). See docs/data-sources.md.
 
 -- Diplomacy system from libraries/diplomacy.xml.
 CREATE TABLE IF NOT EXISTS diplo_actions (

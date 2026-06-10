@@ -19,7 +19,7 @@ from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
-from x4_api.db.migrate import migrate_all
+from x4_extract.db import migrate_all
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -33,8 +33,19 @@ def data_dir(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def static_conn(data_dir: Path) -> Iterator[sqlite3.Connection]:
-    """Direct connection to a fresh static.db. Use for extractor tests."""
+    """Direct connection to a fresh static.db (reference layer). Use for extractor tests."""
     conn = sqlite3.connect(data_dir / "static.db")
+    conn.row_factory = sqlite3.Row
+    try:
+        yield conn
+    finally:
+        conn.close()
+
+
+@pytest.fixture
+def seed_conn(data_dir: Path) -> Iterator[sqlite3.Connection]:
+    """Direct connection to a fresh seed.db (gamestart snapshot). Use for seed extractor tests."""
+    conn = sqlite3.connect(data_dir / "seed.db")
     conn.row_factory = sqlite3.Row
     try:
         yield conn

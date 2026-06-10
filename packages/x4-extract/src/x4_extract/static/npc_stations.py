@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import re
 import sqlite3
+from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -106,6 +107,12 @@ _TAG_PRIORITY = {
 
 
 def write(conn: sqlite3.Connection, result: ExtractResult) -> None:
+    """Write NPC station placements + derived ownership into seed.db.
+
+    `conn` must be the seed.db connection with static.db ATTACHed AS `s` — the
+    derivations map god.xml's lowercase sector macros to the canonical PascalCase
+    `s.sectors.sector_id` and look up each sector's cluster. Caller wraps in a transaction.
+    """
     conn.execute("DELETE FROM npc_stations")
     if result.stations:
         conn.executemany(
@@ -116,25 +123,48 @@ def write(conn: sqlite3.Connection, result: ExtractResult) -> None:
             result.stations,
         )
 
-    # Derive sector owner from npc_stations: highest-priority non-hostile station wins.
-    # god.xml uses lowercase sector macros; sectors table uses PascalCase.  Use LOWER() to join.
+    # Canonical id maps from the reference map (static.db, attached as s).
+    lower_to_canonical: dict[str, str] = {}
+    sector_to_cluster: dict[str, str | None] = {}
+    for sid, cid in conn.execute("SELECT sector_id, cluster_id FROM s.sectors"):
+        lower_to_canonical[sid.lower()] = sid
+        sector_to_cluster[sid] = cid
+
+    # Derive sector owner: highest-priority non-hostile station in the sector wins.
     sector_owner: dict[str, tuple[int, str]] = {}  # lower_sector → (priority, faction)
-    for s in result.stations:
-        sector = s.get("location_sector")
-        faction = s.get("owner_faction")
+    for st in result.stations:
+        sector = st.get("location_sector")  # already lowercased in extract()
+        faction = st.get("owner_faction")
         if not sector or not faction or faction in _HOSTILE_FACTIONS:
             continue
-        tags: list[str] = json.loads(s["tags"]) if s.get("tags") else []
+        tags: list[str] = json.loads(st["tags"]) if st.get("tags") else []
         priority = max((_TAG_PRIORITY.get(t, 0) for t in tags), default=0)
         current = sector_owner.get(sector)
         if current is None or priority > current[0]:
             sector_owner[sector] = (priority, faction)
 
+    conn.execute("DELETE FROM sector_ownership")
+    sector_rows: list[tuple[str, str]] = []
     for lower_sector, (_, faction) in sector_owner.items():
-        conn.execute(
-            "UPDATE sectors SET owner_faction = ? WHERE LOWER(sector_id) = ?",
-            (faction, lower_sector),
-        )
+        canonical = lower_to_canonical.get(lower_sector)
+        if canonical is not None:
+            sector_rows.append((canonical, faction))
+    conn.executemany(
+        "INSERT OR REPLACE INTO sector_ownership (sector_id, owner_faction) VALUES (?, ?)",
+        sector_rows,
+    )
+
+    # Predominant sector owner per cluster.
+    cluster_counter: dict[str, Counter[str]] = defaultdict(Counter)
+    for canonical, faction in sector_rows:
+        cluster_id = sector_to_cluster.get(canonical)
+        if cluster_id is not None:
+            cluster_counter[cluster_id][faction] += 1
+    conn.execute("DELETE FROM cluster_ownership")
+    conn.executemany(
+        "INSERT OR REPLACE INTO cluster_ownership (cluster_id, owner_faction) VALUES (?, ?)",
+        [(cid, counter.most_common(1)[0][0]) for cid, counter in cluster_counter.items()],
+    )
 
 
 def _derive_sector(zone_macro: str) -> str | None:

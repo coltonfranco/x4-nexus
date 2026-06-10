@@ -48,7 +48,7 @@ def list_npc_stations(
     """List NPC stations in the universe, optionally filtered by owner, tag, or sector."""
     sql = (
         "SELECT station_id, owner_faction, race, tags, location_sector "
-        "FROM s.npc_stations WHERE 1=1"
+        "FROM seed.npc_stations WHERE 1=1"
     )
     params: list = []
 
@@ -86,7 +86,7 @@ def get_npc_station(
     row = conn.execute(
         "SELECT station_id, owner_faction, race, tags, "
         "location_zone, location_sector, x, y, z "
-        "FROM s.npc_stations WHERE station_id = ?",
+        "FROM seed.npc_stations WHERE station_id = ?",
         (station_id,),
     ).fetchone()
     if row is None:

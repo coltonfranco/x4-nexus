@@ -73,6 +73,10 @@ def run(settings: ExtractSettings) -> None:
                             row_dict[k] = localizer.resolve(v)
         return result
 
+    # Captured during the static pass, written to seed.db afterwards (gamestart snapshot).
+    factions_result: Any | None = None
+    god_result: Any | None = None
+
     try:
         with conn:
             def resolver(path: str) -> bytes:
@@ -110,13 +114,15 @@ def run(settings: ExtractSettings) -> None:
             factions_xml = get_raw_file("libraries/factions.xml")
             if factions_xml:
                 colors_xml = get_raw_file("libraries/colors.xml")
-                factions.write(conn, _localize_result(factions.extract(factions_xml, colors_xml)))
+                factions_result = _localize_result(factions.extract(factions_xml, colors_xml))
+                factions.write(conn, factions_result)  # definitions only; relations → seed.db
 
             macros_xml = get_raw_file("index/macros.xml")
             if macros_xml:
                 modules.write(conn, _localize_result(modules.extract(macros_xml, resolver, resolve_name)))
                 ships.write(conn, _localize_result(ships.extract(macros_xml, resolver, resolve_name)))
                 equipment.write(conn, _localize_result(equipment.extract(macros_xml, resolver, resolve_name)))
+                ships.update_derived_stats(conn)
                 station_types.write(conn, _localize_result(station_types.extract(macros_xml, resolver)))
 
             loadouts_xml = get_raw_file("libraries/loadouts.xml")
@@ -147,10 +153,10 @@ def run(settings: ExtractSettings) -> None:
                     map_xmls["mapdefaults.xml"] = mapdefaults_xml
                 map.write(conn, _localize_result(map.extract(map_xmls)))
 
-            # god.xml NPC stations — must run after map.write() so sectors exist for owner update
+            # god.xml NPC stations are gamestart seed — captured here, written to seed.db below.
             god_xml = get_raw_file("libraries/god.xml")
             if god_xml:
-                npc_stations.write(conn, _localize_result(npc_stations.extract(god_xml)))
+                god_result = _localize_result(npc_stations.extract(god_xml))
 
             terraform_xml = get_raw_file("libraries/terraforming.xml")
             if terraform_xml:
@@ -161,3 +167,18 @@ def run(settings: ExtractSettings) -> None:
                 diplomacy.write(conn, _localize_result(diplomacy.extract(diplo_xml)))
     finally:
         conn.close()
+
+    # --- Build seed.db: the gamestart instance snapshot, separate from reference data. ---
+    # static.db is now closed; attach it read-only so the derivations can map god.xml's
+    # lowercase sector macros to canonical sector/cluster ids.
+    apply_schema(settings.data_dir, "seed")
+    seed_conn = sqlite3.connect(settings.data_dir / "seed.db")
+    seed_conn.execute(f"ATTACH DATABASE '{db_path.as_posix()}' AS s")
+    try:
+        with seed_conn:
+            if factions_result is not None:
+                factions.write_relations(seed_conn, factions_result)
+            if god_result is not None:
+                npc_stations.write(seed_conn, god_result)
+    finally:
+        seed_conn.close()

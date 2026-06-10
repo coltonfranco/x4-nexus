@@ -19,40 +19,53 @@ so offer elements are at depth 19. `<connections>` is empty for low-attention
 (distant) stations; all offer data lives under the `<trade>` child.
 
 Side is inferred from which of `buyer`/`seller` matches the station id.
+
+Tiers: station rows are STRUCTURAL (layout changes rarely); offers are VOLATILE.
+Module/construction/state extraction is pending a dedicated probe (see plan §4).
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
 import dataclasses
+import json
 import sqlite3
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from x4_extract.i18n import Localizer
 
 from lxml import etree
 
-from x4_api.savefile.dispatch import Registration, Target
+from x4_extract.dynamic.collector import Tier, hash_rows
+from x4_extract.savefile.dispatch import Registration, Target
 
 # Depths confirmed against a real save; fragile only if Egosoft restructures the
 # universe hierarchy or wraps stations in an extra container.
 _STATION_DEPTH = 15
 _OFFER_DEPTH = 19
 
+# Station <component> attrs promoted to columns; the rest go to extra_json.
+_MAPPED_STATION_ATTRS = frozenset({"id", "code", "name", "macro", "owner", "state"})
+
 
 @dataclass(slots=True)
 class StationRow:
     station_id: str
+    code: str | None
     name: str | None
+    macro: str | None
     owner_faction: str | None
     sector_id: str | None
     zone_id: str | None
     x: float | None
     y: float | None
     z: float | None
+    state: str | None
+    build_pct: float | None
     is_player_owned: int
     is_under_construction: int
+    extra_json: str | None
 
 
 @dataclass(slots=True)
@@ -113,18 +126,24 @@ class StationsCollector:
         if name and self.localizer:
             name = self.localizer.resolve(name)
 
+        extra = {k: v for k, v in elem.attrib.items() if k not in _MAPPED_STATION_ATTRS}
         self.station_rows.append(
             StationRow(
                 station_id=elem.get("id") or "",
+                code=elem.get("code"),
                 name=name,
+                macro=elem.get("macro"),
                 owner_faction=elem.get("owner"),
                 sector_id=sector_id,
                 zone_id=zone_id,
                 x=None,
                 y=None,
                 z=None,
+                state=elem.get("state"),
+                build_pct=None,
                 is_player_owned=int(elem.get("owner") == "player"),
                 is_under_construction=0,
+                extra_json=json.dumps(extra, sort_keys=True) if extra else None,
             )
         )
 
@@ -168,24 +187,38 @@ class StationsCollector:
             )
         )
 
-    def flush(self, conn: sqlite3.Connection) -> None:
-        conn.executemany(
-            """
-            INSERT OR REPLACE INTO stations
-                (station_id, name, owner_faction, sector_id, zone_id,
-                 x, y, z, is_player_owned, is_under_construction)
-            VALUES
-                (:station_id, :name, :owner_faction, :sector_id, :zone_id,
-                 :x, :y, :z, :is_player_owned, :is_under_construction)
-            """,
-            [dataclasses.asdict(r) for r in self.station_rows],
-        )
-        conn.executemany(
-            """
-            INSERT OR REPLACE INTO station_offers
-                (station_id, ware_id, side, price, quantity, last_seen_tick)
-            VALUES
-                (:station_id, :ware_id, :side, :price, :quantity, :last_seen_tick)
-            """,
-            [dataclasses.asdict(r) for r in self.offer_rows],
-        )
+    # --- tiered contract -------------------------------------------------------
+    def tables(self, tier: Tier) -> tuple[str, ...]:
+        if tier is Tier.STRUCTURAL:
+            return ("stations",)
+        return ("station_offers",)
+
+    def fingerprint(self, tier: Tier) -> str:
+        rows = self.station_rows if tier is Tier.STRUCTURAL else self.offer_rows
+        return hash_rows(dataclasses.asdict(r) for r in rows)
+
+    def flush(self, conn: sqlite3.Connection, tier: Tier | None = None) -> None:
+        if tier in (None, Tier.STRUCTURAL):
+            conn.executemany(
+                """
+                INSERT OR REPLACE INTO stations
+                    (station_id, code, name, macro, owner_faction, sector_id, zone_id,
+                     x, y, z, state, build_pct, is_player_owned, is_under_construction,
+                     extra_json)
+                VALUES
+                    (:station_id, :code, :name, :macro, :owner_faction, :sector_id, :zone_id,
+                     :x, :y, :z, :state, :build_pct, :is_player_owned, :is_under_construction,
+                     :extra_json)
+                """,
+                [dataclasses.asdict(r) for r in self.station_rows],
+            )
+        if tier in (None, Tier.VOLATILE):
+            conn.executemany(
+                """
+                INSERT OR REPLACE INTO station_offers
+                    (station_id, ware_id, side, price, quantity, last_seen_tick)
+                VALUES
+                    (:station_id, :ware_id, :side, :price, :quantity, :last_seen_tick)
+                """,
+                [dataclasses.asdict(r) for r in self.offer_rows],
+            )

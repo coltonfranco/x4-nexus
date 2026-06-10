@@ -103,8 +103,12 @@ paths:
       tags:
       - factions
       summary: List All Faction Relations
-      description: "List every faction-to-faction relation pair at gamestart \u2014\
-        \ avoids N+1 queries."
+      description: 'Every faction-to-faction relation: gamestart value + current (from the active save).
+
+
+        `current_relation` is NULL until a save is ingested; the same -1..1 scale as
+
+        `initial_relation`, so the UI can show drift or COALESCE to the effective value.'
       operationId: list_all_faction_relations_api_v1_faction_relations_get
       responses:
         '200':
@@ -115,8 +119,7 @@ paths:
                 items:
                   $ref: '#/components/schemas/AllFactionRelation'
                 type: array
-                title: Response List All Faction Relations Api V1 Faction Relations
-                  Get
+                title: Response List All Faction Relations Api V1 Faction Relations Get
   /api/v1/factions:
     get:
       tags:
@@ -139,8 +142,7 @@ paths:
       tags:
       - factions
       summary: Faction Strength
-      description: Relative strength metrics for all non-legacy factions, normalized
-        0-100.
+      description: Relative strength metrics for all non-legacy factions, normalized 0-100.
       operationId: faction_strength_api_v1_factions_strength_get
       responses:
         '200':
@@ -184,8 +186,7 @@ paths:
       tags:
       - factions
       summary: List Faction Relations
-      description: List initial diplomatic relations for a faction (gamestart values
-        only).
+      description: 'Diplomatic relations for a faction: gamestart value + current (from active save).'
       operationId: list_faction_relations_api_v1_factions__faction_id__relations_get
       parameters:
       - name: faction_id
@@ -203,8 +204,7 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/FactionRelation'
-                title: Response List Faction Relations Api V1 Factions  Faction Id  Relations
-                  Get
+                title: Response List Faction Relations Api V1 Factions  Faction Id  Relations Get
         '422':
           description: Validation Error
           content:
@@ -484,8 +484,7 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/ZoneSummary'
-                title: Response Get Sector Zones Api V1 Map Sectors  Sector Id  Zones
-                  Get
+                title: Response Get Sector Zones Api V1 Map Sectors  Sector Id  Zones Get
         '422':
           description: Validation Error
           content:
@@ -497,8 +496,7 @@ paths:
       tags:
       - map
       summary: List Resources
-      description: List resource region entries. Filter by ware to find where a resource
-        spawns.
+      description: List resource region entries. Filter by ware to find where a resource spawns.
       operationId: list_resources_api_v1_map_resources_get
       parameters:
       - name: ware
@@ -508,11 +506,9 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: Filter by ware (ore, silicon, nividium, hydrogen, helium, methane,
-            ice)
+          description: Filter by ware (ore, silicon, nividium, hydrogen, helium, methane, ice)
           title: Ware
-        description: Filter by ware (ore, silicon, nividium, hydrogen, helium, methane,
-          ice)
+        description: Filter by ware (ore, silicon, nividium, hydrogen, helium, methane, ice)
       - name: sector_id
         in: query
         required: false
@@ -579,8 +575,7 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/ResourceEntry'
-                title: Response Get Sector Resources Api V1 Map Sectors  Sector Id  Resources
-                  Get
+                title: Response Get Sector Resources Api V1 Map Sectors  Sector Id  Resources Get
         '422':
           description: Validation Error
           content:
@@ -688,8 +683,7 @@ paths:
       tags:
       - map
       summary: List Sector Connections
-      description: Return all sector-to-sector connections (gate and superhighway,
-        deduplicated).
+      description: Return all sector-to-sector connections (gate and superhighway, deduplicated).
       operationId: list_sector_connections_api_v1_map_sector_connections_get
       responses:
         '200':
@@ -700,15 +694,13 @@ paths:
                 items:
                   $ref: '#/components/schemas/SectorConnection'
                 type: array
-                title: Response List Sector Connections Api V1 Map Sector Connections
-                  Get
+                title: Response List Sector Connections Api V1 Map Sector Connections Get
   /api/v1/map/connections:
     get:
       tags:
       - map
       summary: List Cluster Connections
-      description: Return all cluster-to-cluster connections (gate and superhighway,
-        deduplicated).
+      description: Return all cluster-to-cluster connections (gate and superhighway, deduplicated).
       operationId: list_cluster_connections_api_v1_map_connections_get
       responses:
         '200':
@@ -725,8 +717,7 @@ paths:
       tags:
       - map
       summary: List Cluster Resources
-      description: Return best resource yield per ware per cluster, for map overlay
-        display.
+      description: Return best resource yield per ware per cluster, for map overlay display.
       operationId: list_cluster_resources_api_v1_map_cluster_resources_get
       responses:
         '200':
@@ -737,8 +728,7 @@ paths:
                 items:
                   $ref: '#/components/schemas/ClusterResourceEntry'
                 type: array
-                title: Response List Cluster Resources Api V1 Map Cluster Resources
-                  Get
+                title: Response List Cluster Resources Api V1 Map Cluster Resources Get
   /api/v1/modules:
     get:
       tags:
@@ -753,11 +743,9 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: 'Filter by kind: production, habitation, storage, dock, defence,
-            connectionmodule'
+          description: 'Filter by kind: production, habitation, storage, dock, defence, connectionmodule'
           title: Kind
-        description: 'Filter by kind: production, habitation, storage, dock, defence,
-          connectionmodule'
+        description: 'Filter by kind: production, habitation, storage, dock, defence, connectionmodule'
       - name: limit
         in: query
         required: false
@@ -906,8 +894,7 @@ paths:
       tags:
       - npc-stations
       summary: List Npc Stations
-      description: List NPC stations in the universe, optionally filtered by owner,
-        tag, or sector.
+      description: List NPC stations in the universe, optionally filtered by owner, tag, or sector.
       operationId: list_npc_stations_api_v1_npc_stations_get
       parameters:
       - name: owner
@@ -988,8 +975,8 @@ paths:
       tags:
       - loadouts
       summary: List Loadouts
-      description: List loadout presets with full equipment. Filter by ship_macro
-        to see loadouts for a specific ship.
+      description: List loadout presets with full equipment. Filter by ship_macro to see loadouts for
+        a specific ship.
       operationId: list_loadouts_api_v1_loadouts_get
       parameters:
       - name: ship_macro
@@ -1096,9 +1083,9 @@ paths:
           anyOf:
           - type: integer
           - type: 'null'
-          description: "Filter by quality tier 1\u20133"
+          description: Filter by quality tier 1–3
           title: Quality
-        description: "Filter by quality tier 1\u20133"
+        description: Filter by quality tier 1–3
       - name: limit
         in: query
         required: false
@@ -1189,8 +1176,7 @@ paths:
                 items:
                   $ref: '#/components/schemas/TerraformProjectGroup'
                 type: array
-                title: Response List Terraform Project Groups Api V1 Terraform Project
-                  Groups Get
+                title: Response List Terraform Project Groups Api V1 Terraform Project Groups Get
   /api/v1/terraform/projects:
     get:
       tags:
@@ -1215,8 +1201,7 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/TerraformProjectSummary'
-                title: Response List Terraform Projects Api V1 Terraform Projects
-                  Get
+                title: Response List Terraform Projects Api V1 Terraform Projects Get
         '422':
           description: Validation Error
           content:
@@ -1364,8 +1349,7 @@ paths:
       tags:
       - diplomacy
       summary: List Diplo Gifts
-      description: List faction gift preferences. Filter by faction_id to find what
-        a faction likes.
+      description: List faction gift preferences. Filter by faction_id to find what a faction likes.
       operationId: list_diplo_gifts_api_v1_diplomacy_gifts_get
       parameters:
       - name: faction_id
@@ -1424,8 +1408,7 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: ship | lockbox | asteroid | crystal | story | masstraffic |
-            other
+          description: ship | lockbox | asteroid | crystal | story | masstraffic | other
           title: Category
         description: ship | lockbox | asteroid | crystal | story | masstraffic | other
       responses:
@@ -1501,6 +1484,335 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/saves:
+    get:
+      tags:
+      - saves
+      summary: List Saves
+      description: All saves in the configured folder, newest first. Empty list when none/unset.
+      operationId: list_saves_api_v1_saves_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/SaveSummary'
+                type: array
+                title: Response List Saves Api V1 Saves Get
+  /api/v1/saves/active:
+    get:
+      tags:
+      - saves
+      summary: Get Active Save
+      description: The currently active save. 404 when no saves are available.
+      operationId: get_active_save_api_v1_saves_active_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SaveSummary'
+  /api/v1/saves/{key}/activate:
+    post:
+      tags:
+      - saves
+      summary: Activate Save
+      description: Select a save as active and (re)build its dynamic DB. 404 on unknown key.
+      operationId: activate_save_api_v1_saves__key__activate_post
+      parameters:
+      - name: key
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Key
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SaveSummary'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/player:
+    get:
+      tags:
+      - player
+      summary: Get Player
+      description: The player's account snapshot. 404 until a save has been ingested.
+      operationId: get_player_api_v1_player_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlayerAccount'
+  /api/v1/player/blueprints:
+    get:
+      tags:
+      - player
+      summary: List Blueprints
+      description: Ware IDs the player owns blueprints for.
+      operationId: list_blueprints_api_v1_player_blueprints_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/BlueprintItem'
+                type: array
+                title: Response List Blueprints Api V1 Player Blueprints Get
+  /api/v1/player/licences:
+    get:
+      tags:
+      - player
+      summary: List Licences
+      description: Licences the player holds, with the granting faction.
+      operationId: list_licences_api_v1_player_licences_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/LicenceItem'
+                type: array
+                title: Response List Licences Api V1 Player Licences Get
+  /api/v1/stations:
+    get:
+      tags:
+      - stations
+      summary: List Stations
+      description: Live stations, newest snapshot. Returns [] until a save is ingested.
+      operationId: list_stations_api_v1_stations_get
+      parameters:
+      - name: owner
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filter by owning faction id
+          title: Owner
+        description: Filter by owning faction id
+      - name: sector
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filter by sector macro id
+          title: Sector
+        description: Filter by sector macro id
+      - name: player_only
+        in: query
+        required: false
+        schema:
+          type: boolean
+          description: Only player-owned stations
+          default: false
+          title: Player Only
+        description: Only player-owned stations
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 2000
+          minimum: 1
+          default: 500
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LiveStation'
+                title: Response List Stations Api V1 Stations Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/stations/{station_id}/offers:
+    get:
+      tags:
+      - stations
+      summary: Station Offers
+      description: Current buy/sell offers at a station. 404 if the station is not in the save.
+      operationId: station_offers_api_v1_stations__station_id__offers_get
+      parameters:
+      - name: station_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Station Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StationOffer'
+                title: Response Station Offers Api V1 Stations  Station Id  Offers Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/fleet:
+    get:
+      tags:
+      - fleet
+      summary: List Fleet
+      description: Live ship instances. Returns [] until a save is ingested.
+      operationId: list_fleet_api_v1_fleet_get
+      parameters:
+      - name: owner
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filter by owning faction id
+          title: Owner
+        description: Filter by owning faction id
+      - name: sector
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filter by sector macro id
+          title: Sector
+        description: Filter by sector macro id
+      - name: player_only
+        in: query
+        required: false
+        schema:
+          type: boolean
+          description: Only player-owned ships
+          default: false
+          title: Player Only
+        description: Only player-owned ships
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 2000
+          minimum: 1
+          default: 500
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LiveShip'
+                title: Response List Fleet Api V1 Fleet Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/routes:
+    get:
+      tags:
+      - routes
+      summary: List Routes
+      description: Top trade routes ranked by estimated profit/hour for the given ship.
+      operationId: list_routes_api_v1_routes_get
+      parameters:
+      - name: ship_cargo
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          description: Ship cargo capacity (m³)
+          default: 8000
+          title: Ship Cargo
+        description: Ship cargo capacity (m³)
+      - name: ship_speed
+        in: query
+        required: false
+        schema:
+          type: number
+          exclusiveMinimum: 0
+          description: Ship travel speed (m/s)
+          default: 420
+          title: Ship Speed
+        description: Ship travel speed (m/s)
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 500
+          minimum: 1
+          default: 50
+          title: Limit
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Route'
+                title: Response List Routes Api V1 Routes Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
     AgentRank:
@@ -1542,6 +1854,11 @@ components:
         initial_relation:
           type: number
           title: Initial Relation
+        current_relation:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Current Relation
       additionalProperties: false
       type: object
       required:
@@ -1549,6 +1866,16 @@ components:
       - other_faction_id
       - initial_relation
       title: AllFactionRelation
+    BlueprintItem:
+      properties:
+        ware_id:
+          type: string
+          title: Ware Id
+      additionalProperties: false
+      type: object
+      required:
+      - ware_id
+      title: BlueprintItem
     BribeWare:
       properties:
         ware_id:
@@ -1686,6 +2013,11 @@ components:
           - type: number
           - type: 'null'
           title: Qy
+        qz:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Qz
         qw:
           anyOf:
           - type: number
@@ -2195,6 +2527,11 @@ components:
         initial_relation:
           type: number
           title: Initial Relation
+        current_relation:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Current Relation
       additionalProperties: false
       type: object
       required:
@@ -2389,6 +2726,124 @@ components:
       - save_age_sec
       - game_version
       title: HealthResponse
+    LicenceItem:
+      properties:
+        licence_type:
+          type: string
+          title: Licence Type
+        faction_id:
+          type: string
+          title: Faction Id
+      additionalProperties: false
+      type: object
+      required:
+      - licence_type
+      - faction_id
+      title: LicenceItem
+    LiveShip:
+      properties:
+        ship_id:
+          type: string
+          title: Ship Id
+        code:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Code
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+        macro:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Macro
+        owner_faction:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Owner Faction
+        class_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Class Id
+        sector_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Sector Id
+        state:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: State
+        is_player_owned:
+          type: boolean
+          title: Is Player Owned
+      additionalProperties: false
+      type: object
+      required:
+      - ship_id
+      - code
+      - name
+      - macro
+      - owner_faction
+      - class_id
+      - sector_id
+      - state
+      - is_player_owned
+      title: LiveShip
+    LiveStation:
+      properties:
+        station_id:
+          type: string
+          title: Station Id
+        code:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Code
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+        macro:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Macro
+        owner_faction:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Owner Faction
+        sector_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Sector Id
+        is_player_owned:
+          type: boolean
+          title: Is Player Owned
+        is_under_construction:
+          type: boolean
+          title: Is Under Construction
+      additionalProperties: false
+      type: object
+      required:
+      - station_id
+      - code
+      - name
+      - macro
+      - owner_faction
+      - sector_id
+      - is_player_owned
+      - is_under_construction
+      title: LiveStation
     LoadoutDetail:
       properties:
         loadout_id:
@@ -2715,6 +3170,48 @@ components:
       - tags
       - location_sector
       title: NpcStationSummary
+    PlayerAccount:
+      properties:
+        player_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Player Id
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+        credits:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Credits
+        hq_station_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Hq Station Id
+        current_sector:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Current Sector
+        current_ship_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Current Ship Id
+      additionalProperties: false
+      type: object
+      required:
+      - player_id
+      - name
+      - credits
+      - hq_station_id
+      - current_sector
+      - current_ship_id
+      title: PlayerAccount
     ProductionInput:
       properties:
         ware_id:
@@ -2818,6 +3315,142 @@ components:
       - ware
       - yield_level
       title: ResourceEntry
+    Route:
+      properties:
+        ware_id:
+          type: string
+          title: Ware Id
+        ware_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Ware Name
+        buy_station_id:
+          type: string
+          title: Buy Station Id
+        buy_station_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Buy Station Name
+        buy_sector:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Buy Sector
+        sell_station_id:
+          type: string
+          title: Sell Station Id
+        sell_station_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Sell Station Name
+        sell_sector:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Sell Sector
+        margin:
+          type: integer
+          title: Margin
+        units_per_trip:
+          type: integer
+          title: Units Per Trip
+        profit_per_trip:
+          type: integer
+          title: Profit Per Trip
+        hops:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Hops
+        est_profit_per_hour:
+          type: integer
+          title: Est Profit Per Hour
+      additionalProperties: false
+      type: object
+      required:
+      - ware_id
+      - ware_name
+      - buy_station_id
+      - buy_station_name
+      - buy_sector
+      - sell_station_id
+      - sell_station_name
+      - sell_sector
+      - margin
+      - units_per_trip
+      - profit_per_trip
+      - hops
+      - est_profit_per_hour
+      title: Route
+    SaveSummary:
+      properties:
+        key:
+          type: string
+          title: Key
+        save_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Save Name
+        in_game_time_sec:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: In Game Time Sec
+        real_time_iso:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Real Time Iso
+        game_version:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Game Version
+        player_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Player Name
+        player_credits:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Player Credits
+        size_bytes:
+          type: integer
+          title: Size Bytes
+        mtime:
+          type: number
+          title: Mtime
+        db_built:
+          type: boolean
+          title: Db Built
+        db_current:
+          type: boolean
+          title: Db Current
+        is_active:
+          type: boolean
+          title: Is Active
+      additionalProperties: false
+      type: object
+      required:
+      - key
+      - save_name
+      - in_game_time_sec
+      - real_time_iso
+      - game_version
+      - player_name
+      - player_credits
+      - size_bytes
+      - mtime
+      - db_built
+      - db_current
+      - is_active
+      title: SaveSummary
     SectorConnection:
       properties:
         from_sector_id:
@@ -2923,6 +3556,16 @@ components:
           - type: number
           - type: 'null'
           title: Qy
+        qz:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Qz
+        qw:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Qw
       additionalProperties: false
       type: object
       required:
@@ -2973,6 +3616,11 @@ components:
           - type: integer
           - type: 'null'
           title: Cargo Volume
+        speed_min:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Speed Min
         speed_max:
           anyOf:
           - type: number
@@ -3003,6 +3651,91 @@ components:
           - type: integer
           - type: 'null'
           title: Secrecy Level
+        travel_min:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Travel Min
+        travel_max:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Travel Max
+        boost_min:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Boost Min
+        boost_max:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Boost Max
+        pitch_min:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Pitch Min
+        pitch_max:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Pitch Max
+        yaw_min:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Yaw Min
+        yaw_max:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Yaw Max
+        roll_min:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Roll Min
+        roll_max:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Roll Max
+        shield_capacity_min:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Shield Capacity Min
+        shield_capacity_max:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Shield Capacity Max
+        shield_recharge_min:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Shield Recharge Min
+        shield_recharge_max:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Shield Recharge Max
+        shield_delay_min:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Shield Delay Min
+        shield_delay_max:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Shield Delay Max
+        radar_range:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Radar Range
         mass:
           anyOf:
           - type: number
@@ -3153,12 +3886,30 @@ components:
       - role
       - hull
       - cargo_volume
+      - speed_min
       - speed_max
       - icon_url
       - image_url
       - description
       - basename
       - secrecy_level
+      - travel_min
+      - travel_max
+      - boost_min
+      - boost_max
+      - pitch_min
+      - pitch_max
+      - yaw_min
+      - yaw_max
+      - roll_min
+      - roll_max
+      - shield_capacity_min
+      - shield_capacity_max
+      - shield_recharge_min
+      - shield_recharge_max
+      - shield_delay_min
+      - shield_delay_max
+      - radar_range
       - mass
       - drag_forward
       - drag_reverse
@@ -3255,6 +4006,11 @@ components:
           - type: integer
           - type: 'null'
           title: Cargo Volume
+        speed_min:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Speed Min
         speed_max:
           anyOf:
           - type: number
@@ -3282,10 +4038,33 @@ components:
       - role
       - hull
       - cargo_volume
+      - speed_min
       - speed_max
       - icon_url
       - image_url
       title: ShipSummary
+    StationOffer:
+      properties:
+        ware_id:
+          type: string
+          title: Ware Id
+        side:
+          type: string
+          title: Side
+        price:
+          type: integer
+          title: Price
+        quantity:
+          type: integer
+          title: Quantity
+      additionalProperties: false
+      type: object
+      required:
+      - ware_id
+      - side
+      - price
+      - quantity
+      title: StationOffer
     SuperhighwaySummary:
       properties:
         from_zone_id:
@@ -3294,11 +4073,15 @@ components:
         to_zone_id:
           type: string
           title: To Zone Id
+        kind:
+          type: string
+          title: Kind
       additionalProperties: false
       type: object
       required:
       - from_zone_id
       - to_zone_id
+      - kind
       title: SuperhighwaySummary
     TerraformDelivery:
       properties:

@@ -31,6 +31,7 @@ class ExtractResult:
     gates: list[dict[str, Any]] = field(default_factory=list)
     regions: list[dict[str, Any]] = field(default_factory=list)
     superhighways: list[dict[str, Any]] = field(default_factory=list)
+    zone_gate_kinds: dict[str, str] = field(default_factory=dict)
 
 
 def extract(xmls: dict[str, bytes]) -> ExtractResult:
@@ -85,19 +86,20 @@ def write(conn: sqlite3.Connection, result: ExtractResult) -> None:
     conn.execute("DELETE FROM sectors")
     conn.execute("DELETE FROM clusters")
 
+    # owner_faction is gamestart seed (→ seed.db), not reference; not stored on clusters/sectors.
     conn.executemany(
         """INSERT OR REPLACE INTO clusters (
-            cluster_id, name, dlc, name_id, description_id, environment, sun_class, population_id, max_population, owner_faction, x, y, z, qx, qy, qz, qw
+            cluster_id, name, dlc, name_id, description_id, environment, sun_class, population_id, max_population, x, y, z, qx, qy, qz, qw
         ) VALUES (
-            :cluster_id, :name, :dlc, :name_id, :description_id, :environment, :sun_class, :population_id, :max_population, :owner_faction, :x, :y, :z, :qx, :qy, :qz, :qw
+            :cluster_id, :name, :dlc, :name_id, :description_id, :environment, :sun_class, :population_id, :max_population, :x, :y, :z, :qx, :qy, :qz, :qw
         )""",
         result.clusters,
     )
     conn.executemany(
         """INSERT OR REPLACE INTO sectors (
-            sector_id, cluster_id, name, owner_faction, dlc, name_id, description_id, sunlight, economy, security, tags, access_licence, x, y, z, qx, qy, qz, qw
+            sector_id, cluster_id, name, dlc, name_id, description_id, sunlight, economy, security, tags, access_licence, x, y, z, qx, qy, qz, qw
         ) VALUES (
-            :sector_id, :cluster_id, :name, :owner_faction, :dlc, :name_id, :description_id, :sunlight, :economy, :security, :tags, :access_licence, :x, :y, :z, :qx, :qy, :qz, :qw
+            :sector_id, :cluster_id, :name, :dlc, :name_id, :description_id, :sunlight, :economy, :security, :tags, :access_licence, :x, :y, :z, :qx, :qy, :qz, :qw
         )""",
         result.sectors,
     )
@@ -112,8 +114,8 @@ def write(conn: sqlite3.Connection, result: ExtractResult) -> None:
         result.gates,
     )
     conn.executemany(
-        "INSERT OR IGNORE INTO superhighways (from_zone_id, to_zone_id) "
-        "VALUES (:from_zone_id, :to_zone_id)",
+        "INSERT OR IGNORE INTO superhighways (from_zone_id, to_zone_id, kind) "
+        "VALUES (:from_zone_id, :to_zone_id, :kind)",
         result.superhighways,
     )
     conn.executemany(
@@ -202,6 +204,15 @@ def _parse_macros(
                 "qw": pos.get("qw"),
             })
 
+            for conn_el in macro.findall(".//connection"):
+                m2 = conn_el.find("macro")
+                if m2 is not None:
+                    ref = m2.get("ref", "").lower()
+                    if "accelerator" in ref:
+                        out.zone_gate_kinds[macro_id] = "accelerator"
+                    elif "gate" in ref:
+                        out.zone_gate_kinds[macro_id] = "gate"
+
 
 def _parse_offsets(root: etree._Element, offsets: dict[str, dict[str, float]]) -> None:
     for conn in root.iterfind(".//connection"):
@@ -255,10 +266,13 @@ def _parse_gates(root: etree._Element, out: ExtractResult) -> None:
         m_from = re.search(r"([^/]+_connection)/connection_", from_path)
         m_to   = re.search(r"([^/]+_connection)/connection_", to_path)
         if m_from and m_to:
+            from_zone = m_from.group(1).replace("_connection", "_macro")
+            to_zone = m_to.group(1).replace("_connection", "_macro")
+            kind = out.zone_gate_kinds.get(from_zone) or out.zone_gate_kinds.get(to_zone) or "gate"
             out.gates.append({
-                "from_zone_id": m_from.group(1).replace("_connection", "_macro"),
-                "to_zone_id":   m_to.group(1).replace("_connection", "_macro"),
-                "kind":         "gate",
+                "from_zone_id": from_zone,
+                "to_zone_id":   to_zone,
+                "kind":         kind,
             })
 
 def _parse_regions(root: etree._Element, out: ExtractResult, offsets: dict[str, dict[str, float]]) -> None:
@@ -309,6 +323,7 @@ def _parse_superhighways(root: etree._Element, out: ExtractResult) -> None:
                 out.superhighways.append({
                     "from_zone_id": from_ref,
                     "to_zone_id": to_ref,
+                    "kind": "superhighway",
                 })
     
     # Handle zonehighways
@@ -327,6 +342,7 @@ def _parse_superhighways(root: etree._Element, out: ExtractResult) -> None:
                 out.superhighways.append({
                     "from_zone_id": m_from.group(1).replace("_connection", "_macro"),
                     "to_zone_id": m_to.group(1).replace("_connection", "_macro"),
+                    "kind": "localhighway",
                 })
 
 def _compute_cluster_ownership(clusters: list[dict[str, Any]], sectors: list[dict[str, Any]]) -> None:
@@ -400,21 +416,27 @@ def _parse_mapdefaults(root: etree._Element) -> dict[str, dict[str, Any]]:
 # ---------------------------------------------------------------------------
 
 _RE_CLUSTER_FROM_SECTOR = re.compile(r"^(Cluster_\w+?)_Sector", re.IGNORECASE)
-_RE_SECTOR_FROM_ZONE    = re.compile(r"(Cluster_\w+_Sector\w+?)(?:_macro|_connection|$)", re.IGNORECASE)
 
 
 def _derive_cluster_id(sector_id: str) -> str | None:
     m = _RE_CLUSTER_FROM_SECTOR.match(sector_id)
     return (m.group(1) + "_macro") if m else None
 
-
-def _derive_sector_id(zone_id: str) -> str | None:
-    m = _RE_SECTOR_FROM_ZONE.search(zone_id)
+def _derive_sector_id(zone_macro: str) -> str | None:
+    # e.g., "Zone005_Cluster_108_Sector001_macro" -> "Cluster_108_Sector001_macro"
+    # e.g., "tzoneCluster_108_Sector001SHCon6_GateZone_macro" -> "Cluster_108_Sector001_macro"
+    m = re.search(r"(Cluster_\d+_Sector\d+)", zone_macro, re.IGNORECASE)
     if m:
-        s = m.group(1)
-        return s if s.endswith("_macro") else s + "_macro"
+        return f"{m.group(1)}_macro"
+    m = re.search(r"(Cluster_\d+)", zone_macro, re.IGNORECASE)
+    if m:
+        return f"{m.group(1)}_macro"
+    
+    # Fallback to older regex
+    m = re.search(r"^(t?zone|Zone\d+_)(.*)", zone_macro, re.IGNORECASE)
+    if m:
+        return m.group(2)
     return None
-
 
 def _float(el: etree._Element, attr: str) -> float | None:
     v = el.get(attr)

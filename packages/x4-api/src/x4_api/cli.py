@@ -42,7 +42,7 @@ def version() -> None:
 @app.command()
 def doctor() -> None:
     """Verify install + save paths and report what was found."""
-    from x4_api.config import latest_save, resolve_save_path
+    from x4_extract.config import latest_save, resolve_save_path
 
     settings = _load_settings()
     typer.echo(f"x4-api v{__version__}")
@@ -104,12 +104,38 @@ def rebuild_icons() -> None:
 @app.command("ingest-save")
 def ingest_save(path: Path | None = typer.Argument(None)) -> None:
     """Parse a save file into dynamic.db. Defaults to the newest in the save folder."""
-    from x4_api.config import latest_save, resolve_save_path
-    from x4_api.ingest.dynamic_pipeline import run as run_dynamic
+    from x4_extract.config import latest_save, resolve_save_path
+    from x4_extract.dynamic.pipeline import run as run_dynamic
 
     settings = _load_settings()
     save = path or latest_save(resolve_save_path(settings.save_path))
     run_dynamic(settings, save)
+
+
+@app.command()
+def watch() -> None:
+    """Poll the active save folder and keep its dynamic DB fresh until interrupted."""
+    from datetime import datetime
+
+    from x4_extract.dynamic import poller
+    from x4_extract.dynamic.poller import PollResult
+
+    settings = _load_settings()
+
+    def on_tick(r: PollResult) -> None:
+        ts = datetime.now().strftime("%H:%M:%S")
+        if r.save_path is None:
+            typer.echo(f"[{ts}] no saves found")
+        elif r.ingested:
+            typer.secho(f"[{ts}] ingested {r.save_path.name}", fg="green")
+        else:
+            typer.echo(f"[{ts}] {r.save_path.name} unchanged")
+
+    typer.echo(f"Watching for save changes every {settings.poll_interval_sec}s. Ctrl-C to stop.")
+    try:
+        poller.watch(settings, on_tick)
+    except KeyboardInterrupt:
+        typer.echo("stopped")
 
 
 @app.command()

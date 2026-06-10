@@ -8,9 +8,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from x4_api.db.connection import open_db
-from x4_api.savefile.dispatch import stream_save
-from x4_api.savefile.extractors.stations import StationsCollector
+from x4_extract.db import open_db
+from x4_extract.dynamic.extractors.stations import StationsCollector
+from x4_extract.savefile.dispatch import stream_save
 
 
 def test_dispatch_stations_row_count(data_dir: Path, fixtures_dir: Path) -> None:

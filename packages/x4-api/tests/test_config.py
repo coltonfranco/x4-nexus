@@ -12,7 +12,7 @@ import gzip
 from pathlib import Path
 
 import pytest
-from x4_api.config import latest_save, resolve_save_path
+from x4_extract.config import latest_save, resolve_save_path
 
 
 def test_resolve_save_path_uses_configured_when_valid(tmp_path: Path) -> None:
