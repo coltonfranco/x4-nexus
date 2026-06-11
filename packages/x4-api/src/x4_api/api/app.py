@@ -13,7 +13,28 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from x4_api import __version__
-from x4_api.api.v1 import diplomacy, drops, economy, equip_mods, factions, fleet, health, loadouts, map, modules, npc_stations, player, routes, saves, ships, stations, terraform, ware_groups, wares
+from x4_api.api.v1 import (
+    diplomacy,
+    drops,
+    economy,
+    equip_mods,
+    equipment,
+    factions,
+    fleet,
+    health,
+    loadouts,
+    map,
+    modules,
+    npc_stations,
+    player,
+    routes,
+    saves,
+    ships,
+    stations,
+    terraform,
+    ware_groups,
+    wares,
+)
 from x4_api.config import settings
 
 
@@ -28,6 +49,7 @@ def app() -> FastAPI:
 
     fast.include_router(health.router, prefix="/api/v1", tags=["health"])
     fast.include_router(wares.router, prefix="/api/v1", tags=["wares"])
+    fast.include_router(equipment.router, prefix="/api/v1", tags=["equipment"])
     fast.include_router(factions.router, prefix="/api/v1", tags=["factions"])
     fast.include_router(map.router, prefix="/api/v1", tags=["map"])
     fast.include_router(modules.router, prefix="/api/v1", tags=["modules"])

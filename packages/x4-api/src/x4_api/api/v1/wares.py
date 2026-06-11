@@ -21,21 +21,34 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from x4_api.api.deps import get_db
 from x4_api.api.icons import get_icon_url
 from x4_api.api.schemas import PublicModel
+from x4_api.domain.ware_class import CATEGORIES, CATEGORY_SQL
 
 router = APIRouter()
 
 ICON_BASE = "/static/icons"
+
+# Whether a ware has any production method / can be obtained from a drop list.
+# Drives which detail tabs the dashboard shows, so empty tabs never render.
+_FLAGS_SQL = (
+    "EXISTS(SELECT 1 FROM s.ware_production p WHERE p.ware_id = wares.ware_id) AS has_production, "
+    "EXISTS(SELECT 1 FROM s.drop_list_wares d WHERE d.ware_id = wares.ware_id) AS has_drops"
+)
 
 
 class WareSummary(PublicModel):
     ware_id: str
     name: str
     group_id: str | None
+    category: str
     transport: str | None
     volume: float
+    price_min: int | None
     price_avg: int | None
+    price_max: int | None
     tags: str | None
     icon_url: str | None
+    has_production: bool
+    has_drops: bool
 
 
 class ProductionMethod(PublicModel):
@@ -52,8 +65,6 @@ class ProductionInput(PublicModel):
 
 
 class WareDetail(WareSummary):
-    price_min: int | None
-    price_max: int | None
     storage_class: str | None
     restriction_licence: str | None = None
     use_threshold: float | None = None
@@ -67,11 +78,18 @@ def list_wares(
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
     group: str | None = Query(None),
     transport: str | None = Query(None),
+    category: str | None = Query(
+        None, description=f"Filter by computed bucket: {', '.join(CATEGORIES)}"
+    ),
     limit: int = Query(500, ge=1, le=2000),
     offset: int = Query(0, ge=0),
 ) -> list[WareSummary]:
+    if category is not None and category not in CATEGORIES:
+        raise HTTPException(status_code=422, detail=f"Unknown category: {category}")
     sql = [
-        "SELECT ware_id, name, group_id, transport, volume, price_avg, tags, icon_path",
+        f"SELECT ware_id, name, group_id, ({CATEGORY_SQL}) AS category, transport, volume,",
+        "       price_min, price_avg, price_max, tags, icon_path,",
+        f"       {_FLAGS_SQL}",
         "FROM s.wares WHERE 1=1",
     ]
     params: dict[str, object] = {"limit": limit, "offset": offset}
@@ -81,6 +99,9 @@ def list_wares(
     if transport is not None:
         sql.append("AND transport = :transport")
         params["transport"] = transport
+    if category is not None:
+        sql.append(f"AND ({CATEGORY_SQL}) = :category")
+        params["category"] = category
     sql.append("ORDER BY ware_id LIMIT :limit OFFSET :offset")
 
     rows = conn.execute(" ".join(sql), params).fetchall()
@@ -89,11 +110,16 @@ def list_wares(
             ware_id=r["ware_id"],
             name=r["name"],
             group_id=r["group_id"],
+            category=r["category"],
             transport=r["transport"],
             volume=r["volume"],
+            price_min=r["price_min"],
             price_avg=r["price_avg"],
+            price_max=r["price_max"],
             tags=r["tags"],
             icon_url=get_icon_url(r["icon_path"]),
+            has_production=bool(r["has_production"]),
+            has_drops=bool(r["has_drops"]),
         )
         for r in rows
     ]
@@ -105,10 +131,11 @@ def get_ware(
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
 ) -> WareDetail:
     row = conn.execute(
-        """
-        SELECT ware_id, name, group_id, transport, volume,
+        f"""
+        SELECT ware_id, name, group_id, ({CATEGORY_SQL}) AS category, transport, volume,
                price_min, price_avg, price_max, storage_class,
-               tags, restriction_licence, use_threshold, icon_path
+               tags, restriction_licence, use_threshold, icon_path,
+               {_FLAGS_SQL}
         FROM s.wares WHERE ware_id = :id
         """,
         {"id": ware_id},
@@ -143,6 +170,7 @@ def get_ware(
         ware_id=row["ware_id"],
         name=row["name"],
         group_id=row["group_id"],
+        category=row["category"],
         transport=row["transport"],
         volume=row["volume"],
         price_min=row["price_min"],
@@ -155,6 +183,8 @@ def get_ware(
         owners=[r["faction_id"] for r in owner_rows],
         illegal_factions=[r["faction_id"] for r in illegal_rows],
         icon_url=get_icon_url(row["icon_path"]),
+        has_production=bool(row["has_production"]),
+        has_drops=bool(row["has_drops"]),
         production=[
             ProductionMethod(
                 method=pr["method"],

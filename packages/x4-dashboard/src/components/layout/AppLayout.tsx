@@ -1,7 +1,6 @@
 import { Link, Outlet, useRouterState } from "@tanstack/react-router";
 import {
-  AlertTriangle,
-  Factory,
+  Boxes,
   Handshake,
   Home,
   Map,
@@ -10,6 +9,7 @@ import {
   Sword,
   TrendingUp,
   User,
+  Wrench,
 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { SaveSelector } from "../SaveSelector";
@@ -18,11 +18,11 @@ import { ThemeToggle } from "./ThemeToggle";
 const navItems = [
   { to: "/", label: "Home", icon: Home },
   { to: "/empire", label: "Empire", icon: User },
-  { to: "/routes", label: "Trade Routes", icon: TrendingUp },
-  { to: "/economy", label: "Supply Radar", icon: AlertTriangle },
+  { to: "/trade", label: "Trade", icon: TrendingUp },
+  { to: "/equipment", label: "Equipment", icon: Wrench },
+  { to: "/inventory", label: "Inventory", icon: Boxes },
   { to: "/map", label: "Map", icon: Map },
   { to: "/ships", label: "Ships", icon: Sword },
-  { to: "/wares", label: "Wares", icon: Factory },
   { to: "/factions", label: "Factions", icon: Shield },
   { to: "/drops", label: "Drop Tables", icon: Package },
   { to: "/diplomacy", label: "Diplomacy", icon: Handshake },

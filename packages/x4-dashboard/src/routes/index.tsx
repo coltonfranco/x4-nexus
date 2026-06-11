@@ -18,10 +18,10 @@ const features = [
     description: "Browse all ships by class and faction. Compare speed, hull, cargo, and equipment slots.",
   },
   {
-    to: "/wares",
+    to: "/trade",
     icon: Factory,
-    title: "Wares & Production",
-    description: "Explore the trade catalog with production chains, pricing, and resource requirements.",
+    title: "Trade & Production",
+    description: "Commodity catalog with price ranges and production chains, plus the live supply radar and ranked routes.",
   },
   {
     to: "/factions",

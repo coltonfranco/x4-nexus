@@ -251,7 +251,7 @@ function ShipDetailPanel({ shipId, factions }: { shipId: string, factions: Facti
             <div>
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Performance (Base Chassis + Loadout Ranges)</p>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {[
+                {([
                   { label: "Speed", min: data.speed_min, max: data.speed_max, maxVal: MAX_SPEED, unit: "m/s", isLog: false },
                   { label: "Travel", min: data.travel_min, max: data.travel_max, maxVal: 10000, unit: "m/s", isLog: false },
                   { label: "Boost", min: data.boost_min, max: data.boost_max, maxVal: 3000, unit: "m/s", isLog: false },
@@ -260,7 +260,15 @@ function ShipDetailPanel({ shipId, factions }: { shipId: string, factions: Facti
                   { label: "Cargo", min: null, max: data.cargo_volume, maxVal: MAX_CARGO, unit: "m³", isLog: true },
                   { label: "Shield Cap", min: data.shield_capacity_min, max: data.shield_capacity_max, maxVal: 100000, unit: "MJ", isLog: true },
                   { label: "Shield Reg", min: data.shield_recharge_min, max: data.shield_recharge_max, maxVal: 1000, unit: "MW", isLog: true },
-                ].map(({ label, min, max, maxVal, unit, isLog, format }) => (
+                ] as {
+                  label: string;
+                  min: number | null;
+                  max: number | null;
+                  maxVal: number;
+                  unit: string;
+                  isLog: boolean;
+                  format?: (v: number) => string;
+                }[]).map(({ label, min, max, maxVal, unit, isLog, format }) => (
                   <div key={label} className="bg-muted/10 rounded-lg p-3 border border-border/50">
                     <p className="text-xs font-medium text-muted-foreground mb-1">{label}</p>
                     <div className="flex items-end gap-1.5 mb-2">

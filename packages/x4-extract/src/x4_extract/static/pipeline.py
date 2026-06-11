@@ -47,9 +47,14 @@ def run(settings: ExtractSettings) -> None:
     # Attach raw database so we can read from it
     conn.execute(f"ATTACH DATABASE '{raw_db_path.as_posix()}' AS raw")
 
-    # Helper to fetch a file from raw.db
+    # Helper to fetch a file from raw.db. Case-insensitive because index/macros.xml
+    # references lowercase paths (e.g. props/engines/macros/…) while the crawler
+    # preserves the archives' original casing (props/Engines/…). An exact match drops
+    # most base-game equipment macros; NOCASE recovers them.
     def get_raw_file(filepath: str) -> bytes | None:
-        row = conn.execute("SELECT content FROM raw.raw_files WHERE filepath = ?", (filepath,)).fetchone()
+        row = conn.execute(
+            "SELECT content FROM raw.raw_files WHERE filepath = ? COLLATE NOCASE", (filepath,)
+        ).fetchone()
         if row:
             return row[0].encode('utf-8')
         return None
@@ -92,7 +97,9 @@ def run(settings: ExtractSettings) -> None:
 
             def resolve_name(name: str) -> bytes:
                 filename = f"{name}.xml"
-                row = conn.execute("SELECT content FROM raw.raw_files WHERE filename = ?", (filename,)).fetchone()
+                row = conn.execute(
+                    "SELECT content FROM raw.raw_files WHERE filename = ? COLLATE NOCASE", (filename,)
+                ).fetchone()
                 if row:
                     return row[0].encode('utf-8')
                 raise KeyError(name)

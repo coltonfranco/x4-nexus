@@ -55,6 +55,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/equipment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Equipment
+         * @description Every buyable ship part with its stat block inlined. kind/size/faction are parsed
+         *     from the ware id and filtered in-process.
+         */
+        get: operations["list_equipment_api_v1_equipment_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/equipment/{ware_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Equipment
+         * @description One ship part with its stat block (engine/shield/weapon) when extracted.
+         */
+        get: operations["get_equipment_api_v1_equipment__ware_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/faction-relations": {
         parameters: {
             query?: never;
@@ -64,7 +105,10 @@ export interface paths {
         };
         /**
          * List All Faction Relations
-         * @description List every faction-to-faction relation pair at gamestart — avoids N+1 queries.
+         * @description Every faction-to-faction relation: gamestart value + current (from the active save).
+         *
+         *     `current_relation` is NULL until a save is ingested; the same -1..1 scale as
+         *     `initial_relation`, so the UI can show drift or COALESCE to the effective value.
          */
         get: operations["list_all_faction_relations_api_v1_faction_relations_get"];
         put?: never;
@@ -104,7 +148,11 @@ export interface paths {
         };
         /**
          * Faction Strength
-         * @description Relative strength metrics for all non-legacy factions, normalized 0-100.
+         * @description Relative strength metrics, normalized 0-100, computed from LIVE save state.
+         *
+         *     Everything here is the *current* universe (dynamic ships/stations/relations) so the
+         *     standings reflect how the game has actually unfolded — seed/static is init state only
+         *     and is not referenced once a save is loaded. The player is ranked alongside AI factions.
          */
         get: operations["faction_strength_api_v1_factions_strength_get"];
         put?: never;
@@ -144,7 +192,7 @@ export interface paths {
         };
         /**
          * List Faction Relations
-         * @description List initial diplomatic relations for a faction (gamestart values only).
+         * @description Diplomatic relations for a faction: gamestart value + current (from active save).
          */
         get: operations["list_faction_relations_api_v1_factions__faction_id__relations_get"];
         put?: never;
@@ -844,6 +892,266 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/saves": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Saves
+         * @description All saves in the configured folder, newest first. Empty list when none/unset.
+         */
+        get: operations["list_saves_api_v1_saves_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/saves/active": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Active Save
+         * @description The currently active save. 404 when no saves are available.
+         */
+        get: operations["get_active_save_api_v1_saves_active_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/saves/{key}/activate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Activate Save
+         * @description Select a save as active and (re)build its dynamic DB. 404 on unknown key.
+         */
+        post: operations["activate_save_api_v1_saves__key__activate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/player": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Player
+         * @description The player's account snapshot. 404 until a save has been ingested.
+         */
+        get: operations["get_player_api_v1_player_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/player/blueprints": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Blueprints
+         * @description Ware IDs the player owns blueprints for.
+         */
+        get: operations["list_blueprints_api_v1_player_blueprints_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/player/licences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Licences
+         * @description Licences the player holds, with the granting faction.
+         */
+        get: operations["list_licences_api_v1_player_licences_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/player/reputation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Player Reputation
+         * @description The player's current standing with every faction (best first), with gamestart drift.
+         */
+        get: operations["player_reputation_api_v1_player_reputation_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/stations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Stations
+         * @description Live stations, newest snapshot. Returns [] until a save is ingested.
+         */
+        get: operations["list_stations_api_v1_stations_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/stations/{station_id}/offers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Station Offers
+         * @description Current buy/sell offers at a station. 404 if the station is not in the save.
+         */
+        get: operations["station_offers_api_v1_stations__station_id__offers_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/fleet": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Fleet
+         * @description Live ship instances. Returns [] until a save is ingested.
+         */
+        get: operations["list_fleet_api_v1_fleet_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/routes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Routes
+         * @description Top trade routes ranked by estimated profit/hour for the given ship.
+         */
+        get: operations["list_routes_api_v1_routes_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/economy/wares": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Ware Market
+         * @description Universe-wide ware supply/demand/price summary. Most under-supplied first.
+         */
+        get: operations["list_ware_market_api_v1_economy_wares_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/economy/wares/{ware_id}/stations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Ware Offer Breakdown
+         * @description Per-station offers for one ware — where it's demanded vs supplied (and hoarding).
+         */
+        get: operations["ware_offer_breakdown_api_v1_economy_wares__ware_id__stations_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -867,6 +1175,13 @@ export interface components {
             other_faction_id: string;
             /** Initial Relation */
             initial_relation: number;
+            /** Current Relation */
+            current_relation?: number | null;
+        };
+        /** BlueprintItem */
+        BlueprintItem: {
+            /** Ware Id */
+            ware_id: string;
         };
         /** BribeWare */
         BribeWare: {
@@ -927,6 +1242,8 @@ export interface components {
             qx?: number | null;
             /** Qy */
             qy?: number | null;
+            /** Qz */
+            qz?: number | null;
             /** Qw */
             qw?: number | null;
         };
@@ -1018,6 +1335,25 @@ export interface components {
             /** Source Basket */
             source_basket: string | null;
         };
+        /** EngineStats */
+        EngineStats: {
+            /** Mk */
+            mk: number | null;
+            /** Thrust Forward */
+            thrust_forward: number | null;
+            /** Thrust Reverse */
+            thrust_reverse: number | null;
+            /** Thrust Strafe */
+            thrust_strafe: number | null;
+            /** Travel Thrust */
+            travel_thrust: number | null;
+            /** Travel Charge */
+            travel_charge: number | null;
+            /** Boost Thrust */
+            boost_thrust: number | null;
+            /** Boost Duration */
+            boost_duration: number | null;
+        };
         /** EquipModDetail */
         EquipModDetail: {
             /** Ware Id */
@@ -1067,6 +1403,34 @@ export interface components {
             max_factor: number | null;
             /** Price Avg */
             price_avg: number | null;
+        };
+        /** EquipmentItem */
+        EquipmentItem: {
+            /** Ware Id */
+            ware_id: string;
+            /** Name */
+            name: string;
+            /** Kind */
+            kind: string;
+            /** Size */
+            size: string | null;
+            /** Mk */
+            mk: number | null;
+            /** Faction Id */
+            faction_id: string | null;
+            /** Price Min */
+            price_min: number | null;
+            /** Price Avg */
+            price_avg: number | null;
+            /** Price Max */
+            price_max: number | null;
+            /** Icon Url */
+            icon_url: string | null;
+            /** Has Production */
+            has_production: boolean;
+            engine_stats: components["schemas"]["EngineStats"] | null;
+            shield_stats: components["schemas"]["ShieldStats"] | null;
+            weapon_stats: components["schemas"]["WeaponStats"] | null;
         };
         /** FactionDetail */
         FactionDetail: {
@@ -1128,6 +1492,8 @@ export interface components {
             other_faction_id: string;
             /** Initial Relation */
             initial_relation: number;
+            /** Current Relation */
+            current_relation?: number | null;
         };
         /** FactionStrength */
         FactionStrength: {
@@ -1213,6 +1579,61 @@ export interface components {
             save_age_sec: number | null;
             /** Game Version */
             game_version: string | null;
+        };
+        /** LicenceItem */
+        LicenceItem: {
+            /** Licence Type */
+            licence_type: string;
+            /** Faction Id */
+            faction_id: string;
+        };
+        /** LiveShip */
+        LiveShip: {
+            /** Ship Id */
+            ship_id: string;
+            /** Code */
+            code: string | null;
+            /** Name */
+            name: string | null;
+            /** Macro */
+            macro: string | null;
+            /** Owner Faction */
+            owner_faction: string | null;
+            /** Class Id */
+            class_id: string | null;
+            /** Sector Id */
+            sector_id: string | null;
+            /** State */
+            state: string | null;
+            /** Is Player Owned */
+            is_player_owned: boolean;
+            /** Catalog Name */
+            catalog_name: string | null;
+            /** Role */
+            role: string | null;
+            /** Ship Type */
+            ship_type: string | null;
+            /** Cargo Volume */
+            cargo_volume: number | null;
+        };
+        /** LiveStation */
+        LiveStation: {
+            /** Station Id */
+            station_id: string;
+            /** Code */
+            code: string | null;
+            /** Name */
+            name: string | null;
+            /** Macro */
+            macro: string | null;
+            /** Owner Faction */
+            owner_faction: string | null;
+            /** Sector Id */
+            sector_id: string | null;
+            /** Is Player Owned */
+            is_player_owned: boolean;
+            /** Is Under Construction */
+            is_under_construction: boolean;
         };
         /** LoadoutDetail */
         LoadoutDetail: {
@@ -1340,6 +1761,34 @@ export interface components {
             /** Location Sector */
             location_sector: string | null;
         };
+        /** PlayerAccount */
+        PlayerAccount: {
+            /** Player Id */
+            player_id: string | null;
+            /** Name */
+            name: string | null;
+            /** Credits */
+            credits: number | null;
+            /** Hq Station Id */
+            hq_station_id: string | null;
+            /** Current Sector */
+            current_sector: string | null;
+            /** Current Ship Id */
+            current_ship_id: string | null;
+        };
+        /** PlayerRelation */
+        PlayerRelation: {
+            /** Faction Id */
+            faction_id: string;
+            /** Faction Name */
+            faction_name: string | null;
+            /** Color Hex */
+            color_hex: string | null;
+            /** Relation */
+            relation: number;
+            /** Initial Relation */
+            initial_relation: number | null;
+        };
         /** ProductionInput */
         ProductionInput: {
             /** Ware Id */
@@ -1386,6 +1835,66 @@ export interface components {
             /** Yield Level */
             yield_level: string;
         };
+        /** Route */
+        Route: {
+            /** Ware Id */
+            ware_id: string;
+            /** Ware Name */
+            ware_name: string | null;
+            /** Buy Station Id */
+            buy_station_id: string;
+            /** Buy Station Name */
+            buy_station_name: string | null;
+            /** Buy Sector */
+            buy_sector: string | null;
+            /** Sell Station Id */
+            sell_station_id: string;
+            /** Sell Station Name */
+            sell_station_name: string | null;
+            /** Sell Sector */
+            sell_sector: string | null;
+            /** Buy Price */
+            buy_price: number | null;
+            /** Sell Price */
+            sell_price: number | null;
+            /** Margin */
+            margin: number;
+            /** Units Per Trip */
+            units_per_trip: number;
+            /** Profit Per Trip */
+            profit_per_trip: number;
+            /** Hops */
+            hops: number | null;
+            /** Est Profit Per Hour */
+            est_profit_per_hour: number;
+        };
+        /** SaveSummary */
+        SaveSummary: {
+            /** Key */
+            key: string;
+            /** Save Name */
+            save_name: string | null;
+            /** In Game Time Sec */
+            in_game_time_sec: number | null;
+            /** Real Time Iso */
+            real_time_iso: string | null;
+            /** Game Version */
+            game_version: string | null;
+            /** Player Name */
+            player_name: string | null;
+            /** Player Credits */
+            player_credits: number | null;
+            /** Size Bytes */
+            size_bytes: number;
+            /** Mtime */
+            mtime: number;
+            /** Db Built */
+            db_built: boolean;
+            /** Db Current */
+            db_current: boolean;
+            /** Is Active */
+            is_active: boolean;
+        };
         /** SectorConnection */
         SectorConnection: {
             /** From Sector Id */
@@ -1431,6 +1940,21 @@ export interface components {
             qx?: number | null;
             /** Qy */
             qy?: number | null;
+            /** Qz */
+            qz?: number | null;
+            /** Qw */
+            qw?: number | null;
+        };
+        /** ShieldStats */
+        ShieldStats: {
+            /** Mk */
+            mk: number | null;
+            /** Capacity */
+            capacity: number | null;
+            /** Recharge Rate */
+            recharge_rate: number | null;
+            /** Recharge Delay */
+            recharge_delay: number | null;
         };
         /** ShipDetail */
         ShipDetail: {
@@ -1452,6 +1976,8 @@ export interface components {
             hull: number | null;
             /** Cargo Volume */
             cargo_volume: number | null;
+            /** Speed Min */
+            speed_min: number | null;
             /** Speed Max */
             speed_max: number | null;
             /** Icon Url */
@@ -1464,6 +1990,40 @@ export interface components {
             basename: string | null;
             /** Secrecy Level */
             secrecy_level: number | null;
+            /** Travel Min */
+            travel_min: number | null;
+            /** Travel Max */
+            travel_max: number | null;
+            /** Boost Min */
+            boost_min: number | null;
+            /** Boost Max */
+            boost_max: number | null;
+            /** Pitch Min */
+            pitch_min: number | null;
+            /** Pitch Max */
+            pitch_max: number | null;
+            /** Yaw Min */
+            yaw_min: number | null;
+            /** Yaw Max */
+            yaw_max: number | null;
+            /** Roll Min */
+            roll_min: number | null;
+            /** Roll Max */
+            roll_max: number | null;
+            /** Shield Capacity Min */
+            shield_capacity_min: number | null;
+            /** Shield Capacity Max */
+            shield_capacity_max: number | null;
+            /** Shield Recharge Min */
+            shield_recharge_min: number | null;
+            /** Shield Recharge Max */
+            shield_recharge_max: number | null;
+            /** Shield Delay Min */
+            shield_delay_min: number | null;
+            /** Shield Delay Max */
+            shield_delay_max: number | null;
+            /** Radar Range */
+            radar_range: number | null;
             /** Mass */
             mass: number | null;
             /** Drag Forward */
@@ -1562,6 +2122,8 @@ export interface components {
             hull: number | null;
             /** Cargo Volume */
             cargo_volume: number | null;
+            /** Speed Min */
+            speed_min: number | null;
             /** Speed Max */
             speed_max: number | null;
             /** Icon Url */
@@ -1569,12 +2131,25 @@ export interface components {
             /** Image Url */
             image_url: string | null;
         };
+        /** StationOffer */
+        StationOffer: {
+            /** Ware Id */
+            ware_id: string;
+            /** Side */
+            side: string;
+            /** Price */
+            price: number;
+            /** Quantity */
+            quantity: number;
+        };
         /** SuperhighwaySummary */
         SuperhighwaySummary: {
             /** From Zone Id */
             from_zone_id: string;
             /** To Zone Id */
             to_zone_id: string;
+            /** Kind */
+            kind: string;
         };
         /** TerraformDelivery */
         TerraformDelivery: {
@@ -1684,20 +2259,26 @@ export interface components {
             name: string;
             /** Group Id */
             group_id: string | null;
+            /** Category */
+            category: string;
             /** Transport */
             transport: string | null;
             /** Volume */
             volume: number;
+            /** Price Min */
+            price_min: number | null;
             /** Price Avg */
             price_avg: number | null;
+            /** Price Max */
+            price_max: number | null;
             /** Tags */
             tags: string | null;
             /** Icon Url */
             icon_url: string | null;
-            /** Price Min */
-            price_min: number | null;
-            /** Price Max */
-            price_max: number | null;
+            /** Has Production */
+            has_production: boolean;
+            /** Has Drops */
+            has_drops: boolean;
             /** Storage Class */
             storage_class: string | null;
             /** Restriction Licence */
@@ -1732,6 +2313,52 @@ export interface components {
             /** Priority */
             priority: number | null;
         };
+        /** WareMarketRow */
+        WareMarketRow: {
+            /** Ware Id */
+            ware_id: string;
+            /** Ware Name */
+            ware_name: string | null;
+            /** Group Id */
+            group_id: string | null;
+            /** Ref Price */
+            ref_price: number | null;
+            /** Sell Offers */
+            sell_offers: number;
+            /** Sell Qty */
+            sell_qty: number;
+            /** Best Buy Price */
+            best_buy_price: number | null;
+            /** Buy Offers */
+            buy_offers: number;
+            /** Buy Qty */
+            buy_qty: number;
+            /** Best Sell Price */
+            best_sell_price: number | null;
+            /** Avg Price */
+            avg_price: number;
+            /** Net Demand */
+            net_demand: number;
+            /** Price Index */
+            price_index: number | null;
+            /** Classification */
+            classification: string;
+        };
+        /** WareOfferRow */
+        WareOfferRow: {
+            /** Station Id */
+            station_id: string;
+            /** Station Name */
+            station_name: string | null;
+            /** Sector Id */
+            sector_id: string | null;
+            /** Side */
+            side: string;
+            /** Price */
+            price: number;
+            /** Quantity */
+            quantity: number;
+        };
         /** WareSummary */
         WareSummary: {
             /** Ware Id */
@@ -1740,16 +2367,55 @@ export interface components {
             name: string;
             /** Group Id */
             group_id: string | null;
+            /** Category */
+            category: string;
             /** Transport */
             transport: string | null;
             /** Volume */
             volume: number;
+            /** Price Min */
+            price_min: number | null;
             /** Price Avg */
             price_avg: number | null;
+            /** Price Max */
+            price_max: number | null;
             /** Tags */
             tags: string | null;
             /** Icon Url */
             icon_url: string | null;
+            /** Has Production */
+            has_production: boolean;
+            /** Has Drops */
+            has_drops: boolean;
+        };
+        /** WeaponStats */
+        WeaponStats: {
+            /** Class Id */
+            class_id: string | null;
+            /** Size */
+            size: string | null;
+            /** Mk */
+            mk: number | null;
+            /** Rotation Speed */
+            rotation_speed: number | null;
+            /** Heat Overheat */
+            heat_overheat: number | null;
+            /** Heat Coolrate */
+            heat_coolrate: number | null;
+            /** Damage */
+            damage: number | null;
+            /** Shield Damage */
+            shield_damage: number | null;
+            /** Hull Damage */
+            hull_damage: number | null;
+            /** Reload Rate */
+            reload_rate: number | null;
+            /** Bullet Speed */
+            bullet_speed: number | null;
+            /** Bullet Lifetime */
+            bullet_lifetime: number | null;
+            /** Bullet Amount */
+            bullet_amount: number | null;
         };
         /** ZoneSummary */
         ZoneSummary: {
@@ -1798,6 +2464,8 @@ export interface operations {
             query?: {
                 group?: string | null;
                 transport?: string | null;
+                /** @description Filter by computed bucket: commodity, equipment, inventory, ship */
+                category?: string | null;
                 limit?: number;
                 offset?: number;
             };
@@ -1845,6 +2513,77 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WareDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_equipment_api_v1_equipment_get: {
+        parameters: {
+            query?: {
+                /** @description engine, shield, weapon, turret, thruster, missile, … */
+                kind?: string | null;
+                /** @description xs, s, m, l, xl */
+                size?: string | null;
+                /** @description Race/faction code parsed from the ware id, e.g. arg */
+                faction_id?: string | null;
+                /** @description Case-insensitive name substring */
+                search?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EquipmentItem"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_equipment_api_v1_equipment__ware_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ware_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EquipmentItem"];
                 };
             };
             /** @description Validation Error */
@@ -3078,6 +3817,365 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DropSource"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_saves_api_v1_saves_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SaveSummary"][];
+                };
+            };
+        };
+    };
+    get_active_save_api_v1_saves_active_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SaveSummary"];
+                };
+            };
+        };
+    };
+    activate_save_api_v1_saves__key__activate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SaveSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_player_api_v1_player_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlayerAccount"];
+                };
+            };
+        };
+    };
+    list_blueprints_api_v1_player_blueprints_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BlueprintItem"][];
+                };
+            };
+        };
+    };
+    list_licences_api_v1_player_licences_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LicenceItem"][];
+                };
+            };
+        };
+    };
+    player_reputation_api_v1_player_reputation_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlayerRelation"][];
+                };
+            };
+        };
+    };
+    list_stations_api_v1_stations_get: {
+        parameters: {
+            query?: {
+                /** @description Filter by owning faction id */
+                owner?: string | null;
+                /** @description Filter by sector macro id */
+                sector?: string | null;
+                /** @description Only player-owned stations */
+                player_only?: boolean;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LiveStation"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    station_offers_api_v1_stations__station_id__offers_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                station_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StationOffer"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_fleet_api_v1_fleet_get: {
+        parameters: {
+            query?: {
+                /** @description Filter by owning faction id */
+                owner?: string | null;
+                /** @description Filter by sector macro id */
+                sector?: string | null;
+                /** @description Only player-owned ships */
+                player_only?: boolean;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LiveShip"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_routes_api_v1_routes_get: {
+        parameters: {
+            query?: {
+                /** @description Ship cargo capacity (m³) */
+                ship_cargo?: number;
+                /** @description Ship travel speed (m/s) */
+                ship_speed?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Route"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_ware_market_api_v1_economy_wares_get: {
+        parameters: {
+            query?: {
+                /** @description Filter to shortages, surpluses, or balanced wares */
+                classification?: ("shortage" | "balanced" | "surplus") | null;
+                /** @description Sort key (descending) */
+                sort?: "net_demand" | "price_index" | "sell_qty" | "buy_qty";
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WareMarketRow"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ware_offer_breakdown_api_v1_economy_wares__ware_id__stations_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ware_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WareOfferRow"][];
                 };
             };
             /** @description Validation Error */

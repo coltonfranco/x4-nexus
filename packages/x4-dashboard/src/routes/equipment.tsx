@@ -1,0 +1,466 @@
+import { useQuery } from "@tanstack/react-query";
+import { ArrowDown, ArrowUp, ChevronDown, ChevronRight } from "lucide-react";
+import { useMemo, useState } from "react";
+import { MetricBar } from "../components/trade/MetricBar";
+import { ProductionChain } from "../components/trade/ProductionChain";
+import { Input } from "../components/ui/input";
+import { fmtNum } from "../lib/wareFormat";
+import { useSort } from "../lib/useSort";
+
+type EngineStats = {
+  mk: number | null;
+  thrust_forward: number | null;
+  thrust_reverse: number | null;
+  thrust_strafe: number | null;
+  travel_thrust: number | null;
+  travel_charge: number | null;
+  boost_thrust: number | null;
+  boost_duration: number | null;
+};
+type ShieldStats = {
+  mk: number | null;
+  capacity: number | null;
+  recharge_rate: number | null;
+  recharge_delay: number | null;
+};
+type WeaponStats = {
+  class_id: string | null;
+  size: string | null;
+  mk: number | null;
+  rotation_speed: number | null;
+  damage: number | null;
+  shield_damage: number | null;
+  hull_damage: number | null;
+  reload_rate: number | null;
+  bullet_speed: number | null;
+  bullet_lifetime: number | null;
+  bullet_amount: number | null;
+};
+type Equipment = {
+  ware_id: string;
+  name: string;
+  kind: string;
+  size: string | null;
+  mk: number | null;
+  faction_id: string | null;
+  price_min: number | null;
+  price_avg: number | null;
+  price_max: number | null;
+  has_production: boolean;
+  engine_stats: EngineStats | null;
+  shield_stats: ShieldStats | null;
+  weapon_stats: WeaponStats | null;
+};
+
+// ── Derived weapon metrics ──────────────────────────────────────────────────────
+// Projectile weapons reload (damage is per shot); beams have no reload and a hitscan
+// "speed" (~c), so their damage is already per-second and projectile range is nonsense.
+const dps = (w: WeaponStats | null): number | null =>
+  w?.damage == null ? null : Math.round(w.damage * (w.bullet_amount ?? 1) * (w.reload_rate ?? 1));
+const rangeM = (w: WeaponStats | null): number | null => {
+  if (w?.bullet_speed == null || w?.bullet_lifetime == null) return null;
+  const r = w.bullet_speed * w.bullet_lifetime;
+  return r > 50_000 ? null : Math.round(r); // > 50 km ⇒ hitscan beam, not a real projectile range
+};
+
+// ── Category definitions ────────────────────────────────────────────────────────
+type MetricCol = {
+  key: string;
+  label: string;
+  get: (e: Equipment) => number | null;
+  fmt: (n: number) => string;
+  primary?: boolean;
+};
+
+type Category = {
+  id: string;
+  label: string;
+  match: (kind: string) => boolean;
+  metrics: MetricCol[];
+};
+
+const km = (m: number) => `${(m / 1000).toFixed(1)}km`;
+const CATEGORIES: Category[] = [
+  {
+    id: "engine",
+    label: "Engines",
+    match: (k) => k === "engine",
+    metrics: [
+      { key: "travel", label: "Travel", primary: true, get: (e) => e.engine_stats?.travel_thrust ?? null, fmt: (n) => `${n.toFixed(1)}×` },
+      { key: "boost", label: "Boost", get: (e) => e.engine_stats?.boost_thrust ?? null, fmt: (n) => `${n.toFixed(1)}×` },
+      { key: "forward", label: "Forward", get: (e) => e.engine_stats?.thrust_forward ?? null, fmt: (n) => fmtNum(Math.round(n)) },
+    ],
+  },
+  {
+    id: "thruster",
+    label: "Thrusters",
+    match: (k) => k === "thruster",
+    metrics: [
+      { key: "strafe", label: "Strafe", primary: true, get: (e) => e.engine_stats?.thrust_strafe ?? null, fmt: (n) => fmtNum(Math.round(n)) },
+      { key: "forward", label: "Forward", get: (e) => e.engine_stats?.thrust_forward ?? null, fmt: (n) => fmtNum(Math.round(n)) },
+    ],
+  },
+  {
+    id: "shield",
+    label: "Shields",
+    match: (k) => k === "shield",
+    metrics: [
+      { key: "capacity", label: "Capacity", primary: true, get: (e) => e.shield_stats?.capacity ?? null, fmt: (n) => `${fmtNum(Math.round(n))} MJ` },
+      { key: "recharge", label: "Recharge", get: (e) => e.shield_stats?.recharge_rate ?? null, fmt: (n) => `${Math.round(n)}/s` },
+      { key: "delay", label: "Delay", get: (e) => e.shield_stats?.recharge_delay ?? null, fmt: (n) => `${n.toFixed(1)}s` },
+    ],
+  },
+  {
+    id: "weapon",
+    label: "Weapons",
+    match: (k) => k === "weapon",
+    metrics: [
+      { key: "dps", label: "DPS", primary: true, get: (e) => dps(e.weapon_stats), fmt: (n) => fmtNum(n) },
+      { key: "range", label: "Range", get: (e) => rangeM(e.weapon_stats), fmt: km },
+      { key: "rotation", label: "Rotation", get: (e) => e.weapon_stats?.rotation_speed ?? null, fmt: (n) => `${Math.round(n)}°/s` },
+    ],
+  },
+  {
+    id: "turret",
+    label: "Turrets",
+    match: (k) => k === "turret",
+    metrics: [
+      { key: "dps", label: "DPS", primary: true, get: (e) => dps(e.weapon_stats), fmt: (n) => fmtNum(n) },
+      { key: "range", label: "Range", get: (e) => rangeM(e.weapon_stats), fmt: km },
+      { key: "rotation", label: "Rotation", get: (e) => e.weapon_stats?.rotation_speed ?? null, fmt: (n) => `${Math.round(n)}°/s` },
+    ],
+  },
+  { id: "missile", label: "Missiles", match: (k) => k === "missile", metrics: [] },
+  {
+    id: "other",
+    label: "Other",
+    match: (k) => !["engine", "thruster", "shield", "weapon", "turret", "missile"].includes(k),
+    metrics: [],
+  },
+];
+
+const SIZE_ORDER: Record<string, number> = { xs: 0, s: 1, m: 2, l: 3, xl: 4 };
+const fmtCr = (n: number) => (n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 1000 ? `${Math.round(n / 1000)}k` : `${n}`);
+
+// ── Detail (instant — stats already inlined) ────────────────────────────────────
+function StatRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3">
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <span className="text-sm font-medium tabular-nums">{value}</span>
+    </div>
+  );
+}
+
+function FullStats({ item }: { item: Equipment }) {
+  const e = item.engine_stats;
+  const s = item.shield_stats;
+  const w = item.weapon_stats;
+  const rows: [string, string][] = [];
+  if (e)
+    rows.push(
+      ["Forward thrust", fmtNum(e.thrust_forward, " N")],
+      ["Reverse thrust", fmtNum(e.thrust_reverse, " N")],
+      ["Strafe thrust", fmtNum(e.thrust_strafe, " N")],
+      ["Travel thrust", fmtNum(e.travel_thrust, "×")],
+      ["Travel charge", fmtNum(e.travel_charge, " s")],
+      ["Boost thrust", fmtNum(e.boost_thrust, "×")],
+      ["Boost duration", fmtNum(e.boost_duration, " s")]
+    );
+  if (s)
+    rows.push(
+      ["Capacity", fmtNum(s.capacity, " MJ")],
+      ["Recharge rate", fmtNum(s.recharge_rate, " MJ/s")],
+      ["Recharge delay", fmtNum(s.recharge_delay, " s")]
+    );
+  if (w)
+    rows.push(
+      ["Class", w.class_id ?? "—"],
+      ["DPS", fmtNum(dps(w))],
+      ["Range", rangeM(w) != null ? km(rangeM(w)!) : "—"],
+      ["Rotation", fmtNum(w.rotation_speed, "°/s")],
+      ["Reload rate", fmtNum(w.reload_rate, "/s")],
+      ["Damage", fmtNum(w.damage)],
+      ["Shield damage", fmtNum(w.shield_damage)],
+      ["Hull damage", fmtNum(w.hull_damage)],
+      ["Projectiles", fmtNum(w.bullet_amount)]
+    );
+  return (
+    <div className="space-y-3">
+      {rows.length > 0 && (
+        <div className="grid grid-cols-2 gap-x-8 gap-y-1.5 sm:grid-cols-3">
+          {rows.map(([label, value]) => (
+            <StatRow key={label} label={label} value={value} />
+          ))}
+        </div>
+      )}
+      {item.has_production && (
+        <div>
+          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Build chain</p>
+          <ProductionChain wareId={item.ware_id} />
+        </div>
+      )}
+      {rows.length === 0 && !item.has_production && (
+        <p className="text-xs italic text-muted-foreground">No detailed stats extracted for this part.</p>
+      )}
+    </div>
+  );
+}
+
+// ── Comparison table ────────────────────────────────────────────────────────────
+function SortHeader({
+  label,
+  active,
+  dir,
+  onClick,
+  className = "",
+}: {
+  label: string;
+  active: boolean;
+  dir: "asc" | "desc";
+  onClick: () => void;
+  className?: string;
+}) {
+  return (
+    <th className={`px-3 py-2 text-left font-medium ${className}`}>
+      <button onClick={onClick} className={`inline-flex items-center gap-1 hover:text-foreground ${active ? "text-foreground" : ""}`}>
+        {label}
+        {active && (dir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)}
+      </button>
+    </th>
+  );
+}
+
+function EquipmentTable({ category, items }: { category: Category; items: Equipment[] }) {
+  const [openId, setOpenId] = useState<string | null>(null);
+  const metrics = category.metrics;
+
+  const accessors = useMemo(() => {
+    const acc: Record<string, (e: Equipment) => number | string | null> = {
+      name: (e) => e.name,
+      mk: (e) => e.mk,
+      price: (e) => e.price_avg,
+    };
+    for (const m of metrics) acc[m.key] = m.get;
+    return acc;
+  }, [metrics]);
+
+  const primaryKey = metrics.find((m) => m.primary)?.key ?? "name";
+  const { sorted, key, dir, toggle } = useSort(items, accessors, {
+    key: primaryKey,
+    dir: primaryKey === "name" ? "asc" : "desc",
+  });
+
+  // Bar maxima per metric over the currently displayed set.
+  const maxima = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const col of metrics) m[col.key] = Math.max(1, ...items.map((e) => col.get(e) ?? 0));
+    return m;
+  }, [metrics, items]);
+
+  const colCount = 2 + metrics.length + 3; // chevron + name + metrics + mk/faction/price
+
+  return (
+    <table className="w-full text-sm">
+      <thead>
+        <tr className="border-b border-border text-xs text-muted-foreground">
+          <th className="w-8" />
+          <SortHeader label="Name" active={key === "name"} dir={dir} onClick={() => toggle("name", "asc")} />
+          {metrics.map((m) => (
+            <SortHeader
+              key={m.key}
+              label={m.label}
+              active={key === m.key}
+              dir={dir}
+              onClick={() => toggle(m.key)}
+              className={m.primary ? "w-[26%]" : ""}
+            />
+          ))}
+          <th className="w-12 px-3 py-2 text-left font-medium">Mk</th>
+          <th className="w-16 px-3 py-2 text-left font-medium">Faction</th>
+          <SortHeader label="Price" active={key === "price"} dir={dir} onClick={() => toggle("price")} className="w-24" />
+        </tr>
+      </thead>
+      <tbody>
+        {sorted.map((e) => {
+          const open = openId === e.ware_id;
+          return (
+            <FragmentRow
+              key={e.ware_id}
+              item={e}
+              metrics={metrics}
+              maxima={maxima}
+              open={open}
+              onToggle={() => setOpenId(open ? null : e.ware_id)}
+              colCount={colCount}
+            />
+          );
+        })}
+      </tbody>
+    </table>
+  );
+}
+
+function FragmentRow({
+  item,
+  metrics,
+  maxima,
+  open,
+  onToggle,
+  colCount,
+}: {
+  item: Equipment;
+  metrics: MetricCol[];
+  maxima: Record<string, number>;
+  open: boolean;
+  onToggle: () => void;
+  colCount: number;
+}) {
+  return (
+    <>
+      <tr className="cursor-pointer border-b border-border transition-colors hover:bg-muted/30" onClick={onToggle}>
+        <td className="px-3 py-2">
+          {open ? (
+            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+          ) : (
+            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+          )}
+        </td>
+        <td className="px-3 py-2 font-medium">{item.name}</td>
+        {metrics.map((m) =>
+          m.primary ? (
+            <td key={m.key} className="px-3 py-2">
+              <MetricBar value={m.get(item)} max={maxima[m.key]} format={m.fmt} />
+            </td>
+          ) : (
+            <td key={m.key} className="px-3 py-2 text-xs tabular-nums text-muted-foreground">
+              {(() => {
+                const v = m.get(item);
+                return v == null ? "—" : m.fmt(v);
+              })()}
+            </td>
+          )
+        )}
+        <td className="px-3 py-2 text-xs text-muted-foreground">{item.mk != null ? `Mk${item.mk}` : ""}</td>
+        <td className="px-3 py-2 text-xs uppercase text-muted-foreground">{item.faction_id ?? ""}</td>
+        <td className="px-3 py-2 text-right text-xs tabular-nums text-muted-foreground">
+          {item.price_avg != null ? `${fmtCr(item.price_avg)} Cr` : "—"}
+        </td>
+      </tr>
+      {open && (
+        <tr className="border-b border-border">
+          <td colSpan={colCount} className="bg-muted/10 px-8 pb-4 pt-3">
+            <FullStats item={item} />
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
+
+// ── Page ────────────────────────────────────────────────────────────────────────
+export default function EquipmentPage() {
+  const [catId, setCatId] = useState("engine");
+  const [size, setSize] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+
+  const { data: items = [], isLoading } = useQuery<Equipment[]>({
+    queryKey: ["equipment"],
+    queryFn: () =>
+      fetch("/api/v1/equipment?limit=2000")
+        .then((r) => r.json())
+        .then((d) => (Array.isArray(d) ? d : [])),
+    staleTime: 5 * 60_000,
+  });
+
+  const counts = useMemo(() => {
+    const c: Record<string, number> = {};
+    for (const cat of CATEGORIES) c[cat.id] = items.filter((e) => cat.match(e.kind)).length;
+    return c;
+  }, [items]);
+
+  const category = CATEGORIES.find((c) => c.id === catId) ?? CATEGORIES[0];
+
+  const inCategory = useMemo(() => items.filter((e) => category.match(e.kind)), [items, category]);
+
+  const sizes = useMemo(
+    () =>
+      [...new Set(inCategory.map((e) => e.size).filter((s): s is string => !!s))].sort(
+        (a, b) => (SIZE_ORDER[a] ?? 9) - (SIZE_ORDER[b] ?? 9)
+      ),
+    [inCategory]
+  );
+
+  const shown = useMemo(() => {
+    const needle = search.trim().toLowerCase();
+    return inCategory.filter((e) => {
+      if (size && e.size !== size) return false;
+      if (needle && !e.name.toLowerCase().includes(needle)) return false;
+      return true;
+    });
+  }, [inCategory, size, search]);
+
+  return (
+    <div className="flex h-full flex-col">
+      <div className="border-b border-border px-6 pt-5">
+        <h1 className="text-2xl font-bold">Equipment</h1>
+        <p className="mt-0.5 text-sm text-muted-foreground">
+          Compare ship parts — pick a category and size, ranked by the stat that matters.
+        </p>
+        {/* Category tabs */}
+        <div className="mt-4 flex flex-wrap gap-1">
+          {CATEGORIES.filter((c) => counts[c.id] > 0).map((c) => (
+            <button
+              key={c.id}
+              onClick={() => {
+                setCatId(c.id);
+                setSize(null);
+              }}
+              className={`rounded-t-md border-b-2 px-3 py-2 text-sm font-medium transition-colors ${
+                c.id === catId
+                  ? "border-primary text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {c.label} <span className="text-xs text-muted-foreground">{counts[c.id]}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Size + search toolbar */}
+      <div className="flex flex-wrap items-center gap-3 border-b border-border bg-muted/20 px-6 py-3">
+        {sizes.length > 0 && (
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setSize(null)}
+              className={`rounded-full px-2.5 py-1 text-xs font-medium ${size === null ? "bg-primary text-primary-foreground" : "bg-muted/50 text-muted-foreground hover:text-foreground"}`}
+            >
+              All sizes
+            </button>
+            {sizes.map((s) => (
+              <button
+                key={s}
+                onClick={() => setSize(s)}
+                className={`rounded-full px-2.5 py-1 text-xs font-medium uppercase ${size === s ? "bg-primary text-primary-foreground" : "bg-muted/50 text-muted-foreground hover:text-foreground"}`}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        )}
+        <Input placeholder="Search…" value={search} onChange={(e) => setSearch(e.target.value)} className="ml-auto w-48" />
+      </div>
+
+      <div className="flex-1 overflow-auto px-6 py-4">
+        {isLoading ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">Loading equipment…</p>
+        ) : shown.length === 0 ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">No parts match.</p>
+        ) : (
+          <EquipmentTable category={category} items={shown} />
+        )}
+      </div>
+    </div>
+  );
+}

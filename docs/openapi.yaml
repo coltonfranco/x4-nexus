@@ -39,6 +39,16 @@ paths:
           - type: string
           - type: 'null'
           title: Transport
+      - name: category
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: 'Filter by computed bucket: commodity, equipment, inventory, ship'
+          title: Category
+        description: 'Filter by computed bucket: commodity, equipment, inventory, ship'
       - name: limit
         in: query
         required: false
@@ -92,6 +102,116 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/WareDetail'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/equipment:
+    get:
+      tags:
+      - equipment
+      summary: List Equipment
+      description: 'Every buyable ship part with its stat block inlined. kind/size/faction are parsed
+
+        from the ware id and filtered in-process.'
+      operationId: list_equipment_api_v1_equipment_get
+      parameters:
+      - name: kind
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: engine, shield, weapon, turret, thruster, missile, …
+          title: Kind
+        description: engine, shield, weapon, turret, thruster, missile, …
+      - name: size
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: xs, s, m, l, xl
+          title: Size
+        description: xs, s, m, l, xl
+      - name: faction_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Race/faction code parsed from the ware id, e.g. arg
+          title: Faction Id
+        description: Race/faction code parsed from the ware id, e.g. arg
+      - name: search
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Case-insensitive name substring
+          title: Search
+        description: Case-insensitive name substring
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 2000
+          minimum: 1
+          default: 2000
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EquipmentItem'
+                title: Response List Equipment Api V1 Equipment Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/equipment/{ware_id}:
+    get:
+      tags:
+      - equipment
+      summary: Get Equipment
+      description: One ship part with its stat block (engine/shield/weapon) when extracted.
+      operationId: get_equipment_api_v1_equipment__ware_id__get
+      parameters:
+      - name: ware_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Ware Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EquipmentItem'
         '422':
           description: Validation Error
           content:
@@ -982,8 +1102,7 @@ paths:
       tags:
       - loadouts
       summary: List Loadouts
-      description: List loadout presets with full equipment. Filter by ship_macro to see loadouts for
-        a specific ship.
+      description: List loadout presets with full equipment. Filter by ship_macro to see loadouts for a specific ship.
       operationId: list_loadouts_api_v1_loadouts_get
       parameters:
       - name: ship_macro
@@ -2364,6 +2483,60 @@ components:
       - max_amount
       - source_basket
       title: DropSource
+    EngineStats:
+      properties:
+        mk:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Mk
+        thrust_forward:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Thrust Forward
+        thrust_reverse:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Thrust Reverse
+        thrust_strafe:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Thrust Strafe
+        travel_thrust:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Travel Thrust
+        travel_charge:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Travel Charge
+        boost_thrust:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Boost Thrust
+        boost_duration:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Boost Duration
+      additionalProperties: false
+      type: object
+      required:
+      - mk
+      - thrust_forward
+      - thrust_reverse
+      - thrust_strafe
+      - travel_thrust
+      - travel_charge
+      - boost_thrust
+      - boost_duration
+      title: EngineStats
     EquipModDetail:
       properties:
         ware_id:
@@ -2504,6 +2677,85 @@ components:
       - max_factor
       - price_avg
       title: EquipModSummary
+    EquipmentItem:
+      properties:
+        ware_id:
+          type: string
+          title: Ware Id
+        name:
+          type: string
+          title: Name
+        kind:
+          type: string
+          title: Kind
+        size:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Size
+        mk:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Mk
+        faction_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Faction Id
+        price_min:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Price Min
+        price_avg:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Price Avg
+        price_max:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Price Max
+        icon_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon Url
+        has_production:
+          type: boolean
+          title: Has Production
+        engine_stats:
+          anyOf:
+          - $ref: '#/components/schemas/EngineStats'
+          - type: 'null'
+        shield_stats:
+          anyOf:
+          - $ref: '#/components/schemas/ShieldStats'
+          - type: 'null'
+        weapon_stats:
+          anyOf:
+          - $ref: '#/components/schemas/WeaponStats'
+          - type: 'null'
+      additionalProperties: false
+      type: object
+      required:
+      - ware_id
+      - name
+      - kind
+      - size
+      - mk
+      - faction_id
+      - price_min
+      - price_avg
+      - price_max
+      - icon_url
+      - has_production
+      - engine_stats
+      - shield_stats
+      - weapon_stats
+      title: EquipmentItem
     FactionDetail:
       properties:
         faction_id:
@@ -3756,6 +4008,36 @@ components:
       - cluster_id
       - owner_faction
       title: SectorSummary
+    ShieldStats:
+      properties:
+        mk:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Mk
+        capacity:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Capacity
+        recharge_rate:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Recharge Rate
+        recharge_delay:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Recharge Delay
+      additionalProperties: false
+      type: object
+      required:
+      - mk
+      - capacity
+      - recharge_rate
+      - recharge_delay
+      title: ShieldStats
     ShipDetail:
       properties:
         ship_id:
@@ -4525,6 +4807,9 @@ components:
           - type: string
           - type: 'null'
           title: Group Id
+        category:
+          type: string
+          title: Category
         transport:
           anyOf:
           - type: string
@@ -4533,11 +4818,21 @@ components:
         volume:
           type: number
           title: Volume
+        price_min:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Price Min
         price_avg:
           anyOf:
           - type: integer
           - type: 'null'
           title: Price Avg
+        price_max:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Price Max
         tags:
           anyOf:
           - type: string
@@ -4548,16 +4843,12 @@ components:
           - type: string
           - type: 'null'
           title: Icon Url
-        price_min:
-          anyOf:
-          - type: integer
-          - type: 'null'
-          title: Price Min
-        price_max:
-          anyOf:
-          - type: integer
-          - type: 'null'
-          title: Price Max
+        has_production:
+          type: boolean
+          title: Has Production
+        has_drops:
+          type: boolean
+          title: Has Drops
         storage_class:
           anyOf:
           - type: string
@@ -4594,13 +4885,16 @@ components:
       - ware_id
       - name
       - group_id
+      - category
       - transport
       - volume
+      - price_min
       - price_avg
+      - price_max
       - tags
       - icon_url
-      - price_min
-      - price_max
+      - has_production
+      - has_drops
       - storage_class
       - owners
       - illegal_factions
@@ -4785,6 +5079,9 @@ components:
           - type: string
           - type: 'null'
           title: Group Id
+        category:
+          type: string
+          title: Category
         transport:
           anyOf:
           - type: string
@@ -4793,11 +5090,21 @@ components:
         volume:
           type: number
           title: Volume
+        price_min:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Price Min
         price_avg:
           anyOf:
           - type: integer
           - type: 'null'
           title: Price Avg
+        price_max:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Price Max
         tags:
           anyOf:
           - type: string
@@ -4808,18 +5115,113 @@ components:
           - type: string
           - type: 'null'
           title: Icon Url
+        has_production:
+          type: boolean
+          title: Has Production
+        has_drops:
+          type: boolean
+          title: Has Drops
       additionalProperties: false
       type: object
       required:
       - ware_id
       - name
       - group_id
+      - category
       - transport
       - volume
+      - price_min
       - price_avg
+      - price_max
       - tags
       - icon_url
+      - has_production
+      - has_drops
       title: WareSummary
+    WeaponStats:
+      properties:
+        class_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Class Id
+        size:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Size
+        mk:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Mk
+        rotation_speed:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Rotation Speed
+        heat_overheat:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Heat Overheat
+        heat_coolrate:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Heat Coolrate
+        damage:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Damage
+        shield_damage:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Shield Damage
+        hull_damage:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Hull Damage
+        reload_rate:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Reload Rate
+        bullet_speed:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Bullet Speed
+        bullet_lifetime:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Bullet Lifetime
+        bullet_amount:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Bullet Amount
+      additionalProperties: false
+      type: object
+      required:
+      - class_id
+      - size
+      - mk
+      - rotation_speed
+      - heat_overheat
+      - heat_coolrate
+      - damage
+      - shield_damage
+      - hull_damage
+      - reload_rate
+      - bullet_speed
+      - bullet_lifetime
+      - bullet_amount
+      title: WeaponStats
     ZoneSummary:
       properties:
         zone_id:
