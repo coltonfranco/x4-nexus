@@ -43,12 +43,30 @@ type ShipSummary = {
   role: string | null;
   hull: number | null;
   cargo_volume: number | null;
+  speed_min: number | null;
   speed_max: number | null;
   icon_url: string | null;
   image_url: string | null;
 };
 
 type ShipDetail = ShipSummary & {
+  travel_min: number | null;
+  travel_max: number | null;
+  boost_min: number | null;
+  boost_max: number | null;
+  pitch_min: number | null;
+  pitch_max: number | null;
+  yaw_min: number | null;
+  yaw_max: number | null;
+  roll_min: number | null;
+  roll_max: number | null;
+  shield_capacity_min: number | null;
+  shield_capacity_max: number | null;
+  shield_recharge_min: number | null;
+  shield_recharge_max: number | null;
+  shield_delay_min: number | null;
+  shield_delay_max: number | null;
+  radar_range: number | null;
   mass: number | null;
   drag_forward: number | null;
   drag_reverse: number | null;
@@ -63,6 +81,8 @@ type ShipDetail = ShipSummary & {
   people_capacity: number | null;
   missile_storage: number | null;
   drone_storage: number | null;
+  countermeasure_storage: number | null;
+  deployable_storage: number | null;
   weapons_s: number;
   weapons_m: number;
   weapons_l: number;
@@ -229,25 +249,36 @@ function ShipDetailPanel({ shipId, factions }: { shipId: string, factions: Facti
 
           <TabsContent value="stats" className="space-y-6 pt-4">
             <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Performance</p>
-              <div className="grid grid-cols-3 gap-6">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Performance (Base Chassis + Loadout Ranges)</p>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {[
-                  { label: "Speed", value: data.speed_max, max: MAX_SPEED, unit: "m/s", isLog: false },
-                  { label: "Hull", value: data.hull, max: MAX_HULL, unit: "HP", isLog: true },
-                  { label: "Cargo", value: data.cargo_volume, max: MAX_CARGO, unit: "m³", isLog: true },
-                ].map(({ label, value, max, unit, isLog }) => (
+                  { label: "Speed", min: data.speed_min, max: data.speed_max, maxVal: MAX_SPEED, unit: "m/s", isLog: false },
+                  { label: "Travel", min: data.travel_min, max: data.travel_max, maxVal: 10000, unit: "m/s", isLog: false },
+                  { label: "Boost", min: data.boost_min, max: data.boost_max, maxVal: 3000, unit: "m/s", isLog: false },
+                  { label: "Radar", min: null, max: data.radar_range, maxVal: 40000, unit: "km", isLog: false, format: (v: number) => (v / 1000).toFixed(0) },
+                  { label: "Hull", min: null, max: data.hull, maxVal: MAX_HULL, unit: "HP", isLog: true },
+                  { label: "Cargo", min: null, max: data.cargo_volume, maxVal: MAX_CARGO, unit: "m³", isLog: true },
+                  { label: "Shield Cap", min: data.shield_capacity_min, max: data.shield_capacity_max, maxVal: 100000, unit: "MJ", isLog: true },
+                  { label: "Shield Reg", min: data.shield_recharge_min, max: data.shield_recharge_max, maxVal: 1000, unit: "MW", isLog: true },
+                ].map(({ label, min, max, maxVal, unit, isLog, format }) => (
                   <div key={label} className="bg-muted/10 rounded-lg p-3 border border-border/50">
                     <p className="text-xs font-medium text-muted-foreground mb-1">{label}</p>
                     <div className="flex items-end gap-1.5 mb-2">
-                      <span className="text-xl font-bold tracking-tight">
-                        {value?.toLocaleString() ?? "—"}
+                      <span className="text-sm font-bold tracking-tight">
+                        {max != null ? (
+                          min != null && min !== max ? (
+                            `${format ? format(min) : min.toFixed(0)} - ${format ? format(max) : max.toFixed(0)}`
+                          ) : (
+                            format ? format(max) : (max > 1000 ? max.toLocaleString() : max.toFixed(0))
+                          )
+                        ) : "—"}
                       </span>
-                      {value != null && <span className="text-xs text-muted-foreground pb-0.5">{unit}</span>}
+                      {max != null && <span className="text-xs text-muted-foreground pb-0.5">{unit}</span>}
                     </div>
-                    {value != null && value > 0 && (
+                    {max != null && max > 0 && (
                       <StatBar 
-                        value={isLog ? Math.log10(value + 1) : value} 
-                        max={isLog ? Math.log10(max + 1) : max} 
+                        value={isLog ? Math.log10(max + 1) : max} 
+                        max={isLog ? Math.log10(maxVal + 1) : maxVal} 
                       />
                     )}
                   </div>
@@ -299,14 +330,16 @@ function ShipDetailPanel({ shipId, factions }: { shipId: string, factions: Facti
               </div>
             </div>
   
-            {(data.people_capacity || data.missile_storage || data.drone_storage) && (
+            {(data.people_capacity || data.missile_storage || data.drone_storage || data.countermeasure_storage || data.deployable_storage) && (
               <div>
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Capacity</p>
-                <div className="grid grid-cols-3 gap-6">
+                <div className="grid grid-cols-5 gap-4">
                   {[
                     { label: "Crew", value: data.people_capacity },
                     { label: "Missiles", value: data.missile_storage },
                     { label: "Drones", value: data.drone_storage },
+                    { label: "Flares", value: data.countermeasure_storage },
+                    { label: "Deploy", value: data.deployable_storage },
                   ]
                     .filter((x) => x.value != null && x.value > 0)
                     .map(({ label, value }) => (
@@ -662,7 +695,7 @@ export default function ShipsPage() {
                               <StatBar
                                 value={ship.speed_max}
                                 max={MAX_SPEED}
-                                label={`${ship.speed_max.toFixed(1)} m/s`}
+                                label={ship.speed_min != null && ship.speed_min !== ship.speed_max ? `${ship.speed_min.toFixed(0)} - ${ship.speed_max.toFixed(0)} m/s` : `${ship.speed_max.toFixed(0)} m/s`}
                               />
                             ) : <span className="text-muted-foreground text-xs">—</span>}
                           </TableCell>

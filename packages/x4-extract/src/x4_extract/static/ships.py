@@ -74,8 +74,25 @@ def _parse_ship_macro(macro_name: str, file_path: str, macro_el: etree._Element,
     ship_el = macro_el.find("properties/ship")
 
     cargo_volume = 0
+    missile_storage = drone_storage = countermeasure_storage = deployable_storage = None
     if storage_el is not None:
         cargo_volume = _int(storage_el, "cargo") or _int(storage_el, "unit") or 0
+        missile_storage = _int(storage_el, "missile")
+        drone_storage = _int(storage_el, "unit")
+        countermeasure_storage = _int(storage_el, "countermeasure")
+        deployable_storage = _int(storage_el, "deployable")
+        
+    if countermeasure_storage is None:
+        if class_id == 's': countermeasure_storage = 4
+        elif class_id == 'm': countermeasure_storage = 8
+        elif class_id == 'l': countermeasure_storage = 20
+        elif class_id == 'xl': countermeasure_storage = 40
+        
+    if deployable_storage is None:
+        if class_id == 's': deployable_storage = 50
+        elif class_id == 'm': deployable_storage = 100
+        elif class_id == 'l': deployable_storage = 250
+        elif class_id == 'xl': deployable_storage = 450
 
     speed_max = 0.0
     mass = None
@@ -95,17 +112,6 @@ def _parse_ship_macro(macro_name: str, file_path: str, macro_el: etree._Element,
             drag_pitch = _float(drag_el, "pitch")
             drag_yaw = _float(drag_el, "yaw")
             drag_roll = _float(drag_el, "roll")
-
-            if mass and mass > 0 and drag_fwd and drag_fwd > 0:
-                thrust = 1000.0
-                if class_id == "s": thrust = 5000.0
-                elif class_id == "m": thrust = 50000.0
-                elif class_id == "l": thrust = 1500000.0
-                elif class_id == "xl": thrust = 15000000.0
-                elif class_id == "xs": thrust = 150.0
-                elif class_id == "spacesuit": thrust = 0.15
-                
-                speed_max = thrust / (mass * drag_fwd)
 
         if inertia_el is not None:
             inertia_pitch = _float(inertia_el, "pitch")
@@ -139,7 +145,25 @@ def _parse_ship_macro(macro_name: str, file_path: str, macro_el: etree._Element,
             "faction_id": ident_el.get("makerrace") if ident_el is not None else None,
             "hull": _int(hull_el, "max") if hull_el is not None else None,
             "cargo_volume": cargo_volume,
-            "speed_max": speed_max,
+            "speed_min": None,
+            "speed_max": None,
+            "travel_min": None,
+            "travel_max": None,
+            "boost_min": None,
+            "boost_max": None,
+            "pitch_min": None,
+            "pitch_max": None,
+            "yaw_min": None,
+            "yaw_max": None,
+            "roll_min": None,
+            "roll_max": None,
+            "shield_capacity_min": None,
+            "shield_capacity_max": None,
+            "shield_recharge_min": None,
+            "shield_recharge_max": None,
+            "shield_delay_min": None,
+            "shield_delay_max": None,
+            "radar_range": None,
             "icon_path": ident_el.get("icon") if ident_el is not None else None,
             "mass": mass,
             "drag_forward": drag_fwd,
@@ -153,10 +177,10 @@ def _parse_ship_macro(macro_name: str, file_path: str, macro_el: etree._Element,
             "inertia_yaw": inertia_yaw,
             "inertia_roll": inertia_roll,
             "people_capacity": _int(people_el, "capacity") if people_el is not None else None,
-            "missile_storage": _int(storage_el, "missile") if storage_el is not None else None,
-            "drone_storage": _int(storage_el, "unit") if storage_el is not None else None,
-            "countermeasure_storage": _int(storage_el, "countermeasure") if storage_el is not None else None,
-            "deployable_storage": _int(storage_el, "deployable") if storage_el is not None else None,
+            "missile_storage": missile_storage,
+            "drone_storage": drone_storage,
+            "countermeasure_storage": countermeasure_storage,
+            "deployable_storage": deployable_storage,
             "secrecy_level": _int(secrecy_el, "level") if secrecy_el is not None else None,
             **counts
         }
@@ -249,7 +273,11 @@ def write(conn: sqlite3.Connection, result: ExtractResult) -> None:
     columns = [
         "ship_id", "name", "description", "basename", "file_path", "is_legacy", "dlc",
         "class_id", "ship_type", "role", "faction_id",
-        "hull", "cargo_volume", "speed_max", "icon_path",
+        "hull", "cargo_volume", "speed_min", "speed_max", "travel_min", "travel_max",
+        "boost_min", "boost_max", "pitch_min", "pitch_max", "yaw_min", "yaw_max",
+        "roll_min", "roll_max", "shield_capacity_min", "shield_capacity_max",
+        "shield_recharge_min", "shield_recharge_max", "shield_delay_min",
+        "shield_delay_max", "radar_range", "icon_path",
         "mass", "drag_forward", "drag_reverse", "drag_horizontal", "drag_vertical",
         "drag_pitch", "drag_yaw", "drag_roll",
         "inertia_pitch", "inertia_yaw", "inertia_roll",
@@ -269,11 +297,118 @@ def write(conn: sqlite3.Connection, result: ExtractResult) -> None:
         f"INSERT INTO ships ({cols_str}) VALUES ({vals_str})",
         result.ships,
     )
-    conn.executemany(
-        "INSERT INTO ship_software (ship_id, ware_id, compatible, is_default) "
-        "VALUES (:ship_id, :ware_id, :compatible, :is_default)",
-        result.software,
-    )
+    if result.software:
+        conn.executemany(
+            "INSERT INTO ship_software (ship_id, ware_id, compatible, is_default) "
+            "VALUES (:ship_id, :ware_id, :compatible, :is_default)",
+            result.software,
+        )
+
+
+def update_derived_stats(conn: sqlite3.Connection) -> None:
+    """Calculate min/max stats based on extracted ship equipment capacity."""
+    
+    # We update speeds and thruster rotations and shields.
+    # We also update radar range from the ship_software table joined with equip_software.
+    
+    conn.execute('''
+    UPDATE ships
+    SET
+      speed_min = (
+        COALESCE(engines_s * (SELECT MIN(thrust_forward) FROM equip_engines WHERE size='s' AND class_id='engine'), 0) +
+        COALESCE(engines_m * (SELECT MIN(thrust_forward) FROM equip_engines WHERE size='m' AND class_id='engine'), 0) +
+        COALESCE(engines_l * (SELECT MIN(thrust_forward) FROM equip_engines WHERE size='l' AND class_id='engine'), 0) +
+        COALESCE(engines_xl * (SELECT MIN(thrust_forward) FROM equip_engines WHERE size='xl' AND class_id='engine'), 0)
+      ) / drag_forward,
+      speed_max = (
+        COALESCE(engines_s * (SELECT MAX(thrust_forward) FROM equip_engines WHERE size='s' AND class_id='engine'), 0) +
+        COALESCE(engines_m * (SELECT MAX(thrust_forward) FROM equip_engines WHERE size='m' AND class_id='engine'), 0) +
+        COALESCE(engines_l * (SELECT MAX(thrust_forward) FROM equip_engines WHERE size='l' AND class_id='engine'), 0) +
+        COALESCE(engines_xl * (SELECT MAX(thrust_forward) FROM equip_engines WHERE size='xl' AND class_id='engine'), 0)
+      ) / drag_forward,
+      
+      travel_min = (
+        COALESCE(engines_s * (SELECT MIN(thrust_forward * travel_thrust) FROM equip_engines WHERE size='s' AND class_id='engine'), 0) +
+        COALESCE(engines_m * (SELECT MIN(thrust_forward * travel_thrust) FROM equip_engines WHERE size='m' AND class_id='engine'), 0) +
+        COALESCE(engines_l * (SELECT MIN(thrust_forward * travel_thrust) FROM equip_engines WHERE size='l' AND class_id='engine'), 0) +
+        COALESCE(engines_xl * (SELECT MIN(thrust_forward * travel_thrust) FROM equip_engines WHERE size='xl' AND class_id='engine'), 0)
+      ) / drag_forward,
+      travel_max = (
+        COALESCE(engines_s * (SELECT MAX(thrust_forward * travel_thrust) FROM equip_engines WHERE size='s' AND class_id='engine'), 0) +
+        COALESCE(engines_m * (SELECT MAX(thrust_forward * travel_thrust) FROM equip_engines WHERE size='m' AND class_id='engine'), 0) +
+        COALESCE(engines_l * (SELECT MAX(thrust_forward * travel_thrust) FROM equip_engines WHERE size='l' AND class_id='engine'), 0) +
+        COALESCE(engines_xl * (SELECT MAX(thrust_forward * travel_thrust) FROM equip_engines WHERE size='xl' AND class_id='engine'), 0)
+      ) / drag_forward,
+      
+      boost_min = (
+        COALESCE(engines_s * (SELECT MIN(thrust_forward * boost_thrust) FROM equip_engines WHERE size='s' AND class_id='engine'), 0) +
+        COALESCE(engines_m * (SELECT MIN(thrust_forward * boost_thrust) FROM equip_engines WHERE size='m' AND class_id='engine'), 0) +
+        COALESCE(engines_l * (SELECT MIN(thrust_forward * boost_thrust) FROM equip_engines WHERE size='l' AND class_id='engine'), 0) +
+        COALESCE(engines_xl * (SELECT MIN(thrust_forward * boost_thrust) FROM equip_engines WHERE size='xl' AND class_id='engine'), 0)
+      ) / drag_forward,
+      boost_max = (
+        COALESCE(engines_s * (SELECT MAX(thrust_forward * boost_thrust) FROM equip_engines WHERE size='s' AND class_id='engine'), 0) +
+        COALESCE(engines_m * (SELECT MAX(thrust_forward * boost_thrust) FROM equip_engines WHERE size='m' AND class_id='engine'), 0) +
+        COALESCE(engines_l * (SELECT MAX(thrust_forward * boost_thrust) FROM equip_engines WHERE size='l' AND class_id='engine'), 0) +
+        COALESCE(engines_xl * (SELECT MAX(thrust_forward * boost_thrust) FROM equip_engines WHERE size='xl' AND class_id='engine'), 0)
+      ) / drag_forward,
+      
+      pitch_min = (SELECT MIN(thrust_pitch) FROM equip_engines WHERE size=ships.class_id AND class_id='thruster') / inertia_pitch,
+      pitch_max = (SELECT MAX(thrust_pitch) FROM equip_engines WHERE size=ships.class_id AND class_id='thruster') / inertia_pitch,
+      yaw_min = (SELECT MIN(thrust_yaw) FROM equip_engines WHERE size=ships.class_id AND class_id='thruster') / inertia_yaw,
+      yaw_max = (SELECT MAX(thrust_yaw) FROM equip_engines WHERE size=ships.class_id AND class_id='thruster') / inertia_yaw,
+      roll_min = (SELECT MIN(thrust_roll) FROM equip_engines WHERE size=ships.class_id AND class_id='thruster') / inertia_roll,
+      roll_max = (SELECT MAX(thrust_roll) FROM equip_engines WHERE size=ships.class_id AND class_id='thruster') / inertia_roll,
+      
+      shield_capacity_min = (
+        COALESCE(shields_s * (SELECT MIN(capacity) FROM equip_shields WHERE size='s'), 0) +
+        COALESCE(shields_m * (SELECT MIN(capacity) FROM equip_shields WHERE size='m'), 0) +
+        COALESCE(shields_l * (SELECT MIN(capacity) FROM equip_shields WHERE size='l'), 0) +
+        COALESCE(shields_xl * (SELECT MIN(capacity) FROM equip_shields WHERE size='xl'), 0)
+      ),
+      shield_capacity_max = (
+        COALESCE(shields_s * (SELECT MAX(capacity) FROM equip_shields WHERE size='s'), 0) +
+        COALESCE(shields_m * (SELECT MAX(capacity) FROM equip_shields WHERE size='m'), 0) +
+        COALESCE(shields_l * (SELECT MAX(capacity) FROM equip_shields WHERE size='l'), 0) +
+        COALESCE(shields_xl * (SELECT MAX(capacity) FROM equip_shields WHERE size='xl'), 0)
+      ),
+      
+      shield_recharge_min = (
+        COALESCE(shields_s * (SELECT MIN(recharge_rate) FROM equip_shields WHERE size='s'), 0) +
+        COALESCE(shields_m * (SELECT MIN(recharge_rate) FROM equip_shields WHERE size='m'), 0) +
+        COALESCE(shields_l * (SELECT MIN(recharge_rate) FROM equip_shields WHERE size='l'), 0) +
+        COALESCE(shields_xl * (SELECT MIN(recharge_rate) FROM equip_shields WHERE size='xl'), 0)
+      ),
+      shield_recharge_max = (
+        COALESCE(shields_s * (SELECT MAX(recharge_rate) FROM equip_shields WHERE size='s'), 0) +
+        COALESCE(shields_m * (SELECT MAX(recharge_rate) FROM equip_shields WHERE size='m'), 0) +
+        COALESCE(shields_l * (SELECT MAX(recharge_rate) FROM equip_shields WHERE size='l'), 0) +
+        COALESCE(shields_xl * (SELECT MAX(recharge_rate) FROM equip_shields WHERE size='xl'), 0)
+      ),
+      
+      shield_delay_min = (
+        SELECT MIN(recharge_delay) FROM equip_shields 
+        WHERE (size='s' AND ships.shields_s > 0)
+           OR (size='m' AND ships.shields_m > 0)
+           OR (size='l' AND ships.shields_l > 0)
+           OR (size='xl' AND ships.shields_xl > 0)
+      ),
+      shield_delay_max = (
+        SELECT MAX(recharge_delay) FROM equip_shields 
+        WHERE (size='s' AND ships.shields_s > 0)
+           OR (size='m' AND ships.shields_m > 0)
+           OR (size='l' AND ships.shields_l > 0)
+           OR (size='xl' AND ships.shields_xl > 0)
+      ),
+      
+      radar_range = COALESCE((
+        SELECT MAX(e.radar_range) 
+        FROM ship_software s 
+        JOIN equip_software e ON s.ware_id = e.software_id 
+        WHERE s.ship_id = ships.ship_id AND s.is_default = 1
+      ), 40000)
+    WHERE mass > 0 AND drag_forward > 0;
+    ''')
 
 
 def _int(el: etree._Element | None, attr: str) -> int | None:

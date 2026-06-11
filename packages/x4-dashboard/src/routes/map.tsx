@@ -48,7 +48,7 @@ type Zone = {
 };
 
 type Gate = { from_zone_id: string; to_zone_id: string; kind: string | null };
-type Highway = { from_zone_id: string; to_zone_id: string };
+type Highway = { from_zone_id: string; to_zone_id: string; kind: string };
 type SectorConnection = { from_sector_id: string; to_sector_id: string; kind: string | null };
 type ClusterResourceEntry = { cluster_id: string; ware: string; yield_level: string };
 type FactionSummary = { faction_id: string; name: string; color_hex: string | null };
@@ -67,19 +67,36 @@ const DLC_LABELS: Record<string, string> = {
 };
 
 const RESOURCE_COLORS: Record<string, string> = {
-  ore:      "#f97316",
-  silicon:  "#94a3b8",
-  ice:      "#7dd3fc",
-  nividium: "#a855f7",
-  hydrogen: "#3b82f6",
-  helium:   "#fbbf24",
-  methane:  "#2dd4bf",
-  scrap:    "#a8a29e",
+  energy: "#fde047",
+  ore: "#fca5a5",
+  silicon: "#93c5fd",
+  ice: "#bfdbfe",
+  nividium: "#d8b4fe",
+  rawscrap: "#d1d5db",
+  methane: "#fdba74",
+  helium: "#fcd34d",
+  hydrogen: "#f472b6",
 };
 const RESOURCE_ORDER = ["ore", "silicon", "ice", "nividium", "hydrogen", "helium", "methane", "scrap"];
 const MAP_W = 3000;
 const MAP_H = 2200;
 const SQRT3 = Math.sqrt(3);
+
+function ConnectionIcon({ x, y, iconPath, color, size = 24 }: { x: number; y: number; iconPath: string; color: string; size?: number }) {
+  const boxSize = size * 1.2;
+  return (
+    <foreignObject x={x - boxSize / 2} y={y - boxSize / 2} width={boxSize} height={boxSize} style={{ pointerEvents: "none", overflow: "visible" }}>
+      <div style={{
+        width: "100%", height: "100%",
+        backgroundColor: color,
+        WebkitMaskImage: `url(/static/icons/map_objects/${iconPath})`,
+        WebkitMaskSize: "85%",
+        WebkitMaskRepeat: "no-repeat",
+        WebkitMaskPosition: "center",
+      }} />
+    </foreignObject>
+  );
+}
 
 // ─── Geometry helpers ─────────────────────────────────────────────────────────
 
@@ -146,6 +163,7 @@ export default function MapPage() {
   const [showResources, setShowResources] = useState(true);
   const [showGates, setShowGates] = useState(true);
   const [showHighways, setShowHighways] = useState(true);
+  const [showLocalHighways, setShowLocalHighways] = useState(true);
   const [showFactionColors, setShowFactionColors] = useState(true);
   const [showGrid, setShowGrid] = useState(true);
   const [activeDlcs, setActiveDlcs] = useState<Set<string> | null>(null);
@@ -228,26 +246,19 @@ export default function MapPage() {
     zones.forEach((z) => m.set(z.zone_id, z));
     return m;
   }, [zones]);
-  const sectorZoneMap = useMemo(() => {
-    const m = new Map<string, Zone[]>();
-    zones.forEach((z) => {
-      if (!z.sector_id) return;
-      const arr = m.get(z.sector_id) ?? [];
-      arr.push(z);
-      m.set(z.sector_id, arr);
+
+  const subSectorSet = useMemo(() => {
+    const set = new Set<string>();
+    clusters.forEach((c) => {
+      const clusterSecs = sectors.filter((s) => s.cluster_id === c.cluster_id);
+      if (clusterSecs.length > 1) {
+        clusterSecs.forEach((s) => set.add(s.sector_id));
+      }
     });
-    return m;
-  }, [zones]);
-  const gateZoneIds = useMemo(() => {
-    const s = new Set<string>();
-    gates.forEach((g) => { s.add(g.from_zone_id); s.add(g.to_zone_id); });
-    return s;
-  }, [gates]);
-  const highwayZoneIds = useMemo(() => {
-    const s = new Set<string>();
-    highways.forEach((h) => { s.add(h.from_zone_id); s.add(h.to_zone_id); });
-    return s;
-  }, [highways]);
+    return set;
+  }, [clusters, sectors]);
+
+
 
   // ─── Coordinate computation ───────────────────────────────────────────────────
   //
@@ -271,6 +282,9 @@ export default function MapPage() {
 
     if (hasHexGrid) {
       // ── Exact hex-grid layout (qx/qy from DB) ──
+      // Each sector occupies its own full hex cell. Single-sector clusters map
+      // directly to the cluster cell; multi-sector clusters assign each sector to
+      // the cluster cell or an adjacent neighbor based on game-space angle.
       const size = 60;
       let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
       clusters.forEach((c) => {
@@ -284,75 +298,114 @@ export default function MapPage() {
       const scaleF = Math.min((MAP_W - PAD * 2) / (maxX - minX || 1), (MAP_H - PAD * 2) / (maxY - minY || 1));
       const ox = PAD + (MAP_W - PAD * 2) / 2 - ((minX + maxX) / 2) * scaleF;
       const oy = PAD + (MAP_H - PAD * 2) / 2 - ((minY + maxY) / 2) * scaleF;
-      const cCoords = new Map<string, [number, number]>();
-      clusters.forEach((c) => {
-        if (c.qx == null || c.qy == null) return;
-        const [px, rawPy] = axialToPixel(c.qx, c.qy, size);
-        cCoords.set(c.cluster_id, [ox + px * scaleF, oy + (-rawPy) * scaleF]);
-      });
-
       const hs = size * scaleF;
+
+      // Flat-top neighbor (dq, dr) and their game-space angle (atan2(z, x), z+ = north).
+      // Derived from wiki formula: q=(2/3)x/s, r=(-x/3+√3/3·z)/s
+      // (1,0)→NE≈30°, (0,1)→N=90°, (-1,1)→NW≈150°, (-1,0)→SW≈-150°, (0,-1)→S=-90°, (1,-1)→SE≈-30°
+      const NBRS: [number, number, number][] = [
+        [1,  0,  Math.PI / 6],
+        [0,  1,  Math.PI / 2],
+        [-1, 1,  5 * Math.PI / 6],
+        [-1, 0, -5 * Math.PI / 6],
+        [0, -1, -Math.PI / 2],
+        [1, -1, -Math.PI / 6],
+      ];
+
+      const occupied = new Map<string, string>(); // "q,r" → sector_id
       const sCoords = new Map<string, [number, number]>();
-      const hasZ = clusters.some((c) => Math.abs(c.z ?? 0) > 1);
 
-      clusters.forEach((c) => {
-        const cPos = cCoords.get(c.cluster_id);
-        if (!cPos) return;
+      const placeAt = (sid: string, q: number, r: number) => {
+        const [px, rawPy] = axialToPixel(q, r, size);
+        sCoords.set(sid, [ox + px * scaleF, oy + (-rawPy) * scaleF]);
+        occupied.set(`${q},${r}`, sid);
+      };
 
-        const clusterSecs = sectors.filter((s) => s.cluster_id === c.cluster_id);
-        if (clusterSecs.length === 1) {
-          sCoords.set(clusterSecs[0].sector_id, cPos);
-        } else if (clusterSecs.length > 1) {
-          const xs = clusterSecs.map(s => s.x ?? 0);
-          const zs = clusterSecs.map(s => hasZ ? (s.z ?? 0) : (s.y ?? 0));
-          const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
-          const cz = (Math.min(...zs) + Math.max(...zs)) / 2;
-
-          // Calculate angle for each sector relative to the centroid
-          // Note: SVG Y is down, but game Z+ is North (Up).
-          // We use atan2(x, z) to get the angle in the XZ plane.
-          const secAngles = clusterSecs.map((s) => {
-            let sx = (s.x ?? 0) - cx, sz = (hasZ ? (s.z ?? 0) : (s.y ?? 0)) - cz;
-            if (c.qw != null) {
-              const qx = c.qx ?? 0, qy = c.qy ?? 0, qz = c.qz ?? 0, qw = c.qw;
-              const xx = qx * qx, yy = qy * qy, zz = qz * qz;
-              const xz = qx * qz, yw = qy * qw;
-              const m00 = 1 - 2 * (yy + zz), m02 = 2 * (xz + yw);
-              const m20 = 2 * (xz - yw), m22 = 1 - 2 * (xx + yy);
-              const rx = sx * m00 + sz * m02;
-              const rz = sx * m20 + sz * m22;
-              sx = rx; sz = rz;
-            }
-            return { s, angle: Math.atan2(sz, sx) };
-          });
-
-          // Sort by angle.
-          secAngles.sort((a, b) => b.angle - a.angle);
-
-          // Assign to UI wedge offsets
-          // In SVG, Y increases downward.
-          const r = hs * 0.43;
-          secAngles.forEach(({ s }, idx) => {
-            let ox = 0, oy = 0;
-            if (clusterSecs.length === 2) {
-              // Top and Bottom
-              if (idx === 0) { ox = 0; oy = -r * 0.866; } // Top
-              else { ox = 0; oy = r * 0.866; }            // Bottom
-            } else if (clusterSecs.length === 3) {
-              // Top-Left, Top-Right, Bottom
-              if (idx === 0) { ox = -r; oy = -r * 0.57735; }     // Top-Left
-              else if (idx === 1) { ox = r; oy = -r * 0.57735; } // Top-Right
-              else { ox = 0; oy = r * 1.1547; }                  // Bottom
-            } else {
-              // Fallback for 4+
-              const a = (idx / clusterSecs.length) * Math.PI * 2;
-              ox = Math.cos(a) * r;
-              oy = Math.sin(a) * r;
-            }
-            sCoords.set(s.sector_id, [cPos[0] + ox, cPos[1] + oy]);
-          });
-        }
+      // Process single-sector clusters first so their cells are reserved before
+      // multi-sector clusters try to claim adjacent cells.
+      const clusterOrder = [...clusters].sort((a, b) => {
+        const nA = sectors.filter(s => s.cluster_id === a.cluster_id).length;
+        const nB = sectors.filter(s => s.cluster_id === b.cluster_id).length;
+        return nA - nB;
       });
+
+      clusterOrder.forEach((c) => {
+        if (c.qx == null || c.qy == null) return;
+        const cq = c.qx, cr = c.qy;
+        const clusterSecs = sectors.filter((s) => s.cluster_id === c.cluster_id);
+        if (clusterSecs.length === 0) return;
+
+        if (clusterSecs.length === 1) {
+          const key = `${cq},${cr}`;
+          if (!occupied.has(key)) {
+            placeAt(clusterSecs[0].sector_id, cq, cr);
+          } else {
+            const nb = NBRS.find(([dq, dr]) => !occupied.has(`${cq + dq},${cr + dr}`));
+            if (nb) placeAt(clusterSecs[0].sector_id, cq + nb[0], cr + nb[1]);
+            else placeAt(clusterSecs[0].sector_id, cq, cr);
+          }
+          return;
+        }
+
+        // Multi-sector: compute game-space angle of each sector from centroid.
+        // Sector relative positions are always in (x, z); cluster.z being null only
+        // affects galaxy-level positioning, not intra-cluster offsets.
+        const sxArr = clusterSecs.map(s => s.x ?? 0);
+        const szArr = clusterSecs.map(s => s.z ?? 0);
+        const centX = (Math.min(...sxArr) + Math.max(...sxArr)) / 2;
+        const centZ = (Math.min(...szArr) + Math.max(...szArr)) / 2;
+
+        const secData = clusterSecs.map((s) => {
+          let sx = (s.x ?? 0) - centX;
+          let sz = (s.z ?? 0) - centZ;
+          if (c.qw != null) {
+            const qx2 = c.qx ?? 0, qy2 = c.qy ?? 0, qz2 = c.qz ?? 0, qw2 = c.qw;
+            const xx = qx2*qx2, yy = qy2*qy2, zz = qz2*qz2;
+            const xz = qx2*qz2, yw = qy2*qw2;
+            const m00 = 1-2*(yy+zz), m02 = 2*(xz+yw);
+            const m20 = 2*(xz-yw), m22 = 1-2*(xx+yy);
+            const rx = sx*m00 + sz*m02;
+            const rz = sx*m20 + sz*m22;
+            sx = rx; sz = rz;
+          }
+          return { s, angle: Math.atan2(sz, sx), dist: Math.sqrt(sx*sx + sz*sz) };
+        });
+
+        // Most-central sector gets the cluster's own cell; outer sectors get neighbors.
+        secData.sort((a, b) => a.dist - b.dist);
+        const [central, ...outer] = secData;
+
+        const cKey = `${cq},${cr}`;
+        if (!occupied.has(cKey)) {
+          placeAt(central.s.sector_id, cq, cr);
+        } else {
+          const nb = NBRS.find(([dq, dr]) => !occupied.has(`${cq + dq},${cr + dr}`));
+          if (nb) placeAt(central.s.sector_id, cq + nb[0], cr + nb[1]);
+          else placeAt(central.s.sector_id, cq, cr);
+        }
+
+        outer.forEach(({ s, angle }) => {
+          const byAngle = [...NBRS]
+            .map((n, i) => {
+              let diff = Math.abs(angle - n[2]);
+              if (diff > Math.PI) diff = 2 * Math.PI - diff;
+              return { dq: n[0], dr: n[1], diff, i };
+            })
+            .sort((a, b) => a.diff - b.diff);
+
+          const nb = byAngle.find(({ dq, dr }) => !occupied.has(`${cq + dq},${cr + dr}`));
+          if (nb) { placeAt(s.sector_id, cq + nb.dq, cr + nb.dr); return; }
+
+          // All 6 neighbors taken; expand to rings 2-4
+          for (let ring = 2; ring <= 4; ring++) {
+            const ringCells = hexRing(cq, cr, ring);
+            const free = ringCells.find(([q, r]) => !occupied.has(`${q},${r}`));
+            if (free) { placeAt(s.sector_id, free[0], free[1]); return; }
+          }
+          placeAt(s.sector_id, cq, cr);
+        });
+      });
+
       return { sectorCoords: sCoords, hexSize: hs, gridOrigin: [ox, oy] };
     }
 
@@ -428,7 +481,7 @@ export default function MapPage() {
       (MAP_W - PAD * 2) / (uMaxX - uMinX || 1),
       (MAP_H - PAD * 2) / (uMaxY - uMinY || 1)
     );
-    const hs = Math.max(14, Math.min(55, scaleF));
+    const hs = Math.max(2, scaleF);
     const gox = PAD + (MAP_W - PAD * 2) / 2 - ((uMinX + uMaxX) / 2) * hs;
     const goy = PAD + (MAP_H - PAD * 2) / 2 - ((uMinY + uMaxY) / 2) * hs;
 
@@ -438,7 +491,8 @@ export default function MapPage() {
       cCoords.set(id, [gox + px, goy + (-py)]);
     });
 
-    // Compute sectorCoords by mapping intra-cluster offsets
+    // Sub-sector positioning via 6-neighbor assignment
+
     const sCoords = new Map<string, [number, number]>();
     clusters.forEach((c) => {
       const cPos = cCoords.get(c.cluster_id);
@@ -447,47 +501,107 @@ export default function MapPage() {
       const clusterSecs = sectors.filter((s) => s.cluster_id === c.cluster_id);
       if (clusterSecs.length === 1) {
         sCoords.set(clusterSecs[0].sector_id, cPos);
-      } else if (clusterSecs.length > 1) {
-        const xs = clusterSecs.map(s => s.x ?? 0);
-        const zs = clusterSecs.map(s => hasZ ? (s.z ?? 0) : (s.y ?? 0));
-        const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
-        const cz = (Math.min(...zs) + Math.max(...zs)) / 2;
-
-        const secAngles = clusterSecs.map((s) => {
-          let sx = (s.x ?? 0) - cx, sz = (hasZ ? (s.z ?? 0) : (s.y ?? 0)) - cz;
-          if (c.qw != null) {
-            const qx = c.qx ?? 0, qy = c.qy ?? 0, qz = c.qz ?? 0, qw = c.qw;
-            const xx = qx * qx, yy = qy * qy, zz = qz * qz;
-            const xz = qx * qz, yw = qy * qw;
-            const m00 = 1 - 2 * (yy + zz), m02 = 2 * (xz + yw);
-            const m20 = 2 * (xz - yw), m22 = 1 - 2 * (xx + yy);
-            const rx = sx * m00 + sz * m02;
-            const rz = sx * m20 + sz * m22;
-            sx = rx; sz = rz;
-          }
-          return { s, angle: Math.atan2(sz, sx) };
-        });
-
-        secAngles.sort((a, b) => b.angle - a.angle);
-
-        const r = hs * 0.43;
-        secAngles.forEach(({ s }, idx) => {
-          let ox = 0, oy = 0;
-          if (clusterSecs.length === 2) {
-            if (idx === 0) { ox = 0; oy = -r * 0.866; }
-            else { ox = 0; oy = r * 0.866; }
-          } else if (clusterSecs.length === 3) {
-            if (idx === 0) { ox = -r; oy = -r * 0.57735; }
-            else if (idx === 1) { ox = r; oy = -r * 0.57735; }
-            else { ox = 0; oy = r * 1.1547; }
-          } else {
-            const a = (idx / clusterSecs.length) * Math.PI * 2;
-            ox = Math.cos(a) * r;
-            oy = Math.sin(a) * r;
-          }
-          sCoords.set(s.sector_id, [cPos[0] + ox, cPos[1] + oy]);
-        });
+        return;
       }
+
+      const secX = clusterSecs.map((s) => s.x ?? 0);
+      const secZ = clusterSecs.map((s) => hasZ ? (s.z ?? 0) : (s.y ?? 0));
+
+      const r_hex = hs * 0.5;
+      const xS = 1.5 * r_hex;
+      const yS = SQRT3 * r_hex;
+      
+      let configs: { dx: number, dy: number, gx: number, gz: number }[][] = [];
+
+      if (clusterSecs.length === 1) {
+        configs = [ [ { dx: 0, dy: 0, gx: 0, gz: 0 } ] ];
+      } else if (clusterSecs.length === 2) {
+        configs = [
+          [
+            { dx: -xS/3, dy: -yS/2, gx: -1, gz: 1 }, // TL
+            { dx: xS/3, dy: yS/2, gx: 1, gz: -1 }    // BR
+          ],
+          [
+            { dx: xS/3, dy: -yS/2, gx: 1, gz: 1 },   // TR
+            { dx: -xS/3, dy: yS/2, gx: -1, gz: -1 }  // BL
+          ]
+        ];
+      } else if (clusterSecs.length === 3) {
+        configs = [
+          [ // Pointing Left
+            { dx: -xS/3, dy: -yS/2, gx: -1, gz: 1 },
+            { dx: 2*xS/3, dy: 0, gx: 1, gz: 0 },
+            { dx: -xS/3, dy: yS/2, gx: -1, gz: -1 }
+          ],
+          [ // Pointing Right
+            { dx: xS/3, dy: -yS/2, gx: 1, gz: 1 },
+            { dx: -2*xS/3, dy: 0, gx: -1, gz: 0 },
+            { dx: xS/3, dy: yS/2, gx: 1, gz: -1 }
+          ]
+        ];
+      } else {
+        configs = [
+          [
+            { dx: -xS/2, dy: yS/4, gx: -1, gz: 0 },
+            { dx: -xS/2, dy: -3*yS/4, gx: -1, gz: 2 },
+            { dx: xS/2, dy: -yS/4, gx: 1, gz: 1 },
+            { dx: xS/2, dy: 3*yS/4, gx: 1, gz: -1 }
+          ]
+        ];
+      }
+
+      const norm = (x: number, z: number) => {
+        const mag = Math.sqrt(x*x + z*z);
+        return mag === 0 ? [0, 0] : [x/mag, z/mag];
+      };
+
+      const secNorms = clusterSecs.map((_, i) => norm(secX[i], secZ[i]));
+
+      // Since Earth/Moon and Savage Spur have identically tied internal coordinates (0, -1),
+      // the game engine likely resolves their orientations via a physics/connection layout pass.
+      // We use a targeted override to match the vanilla map exactly without replicating the physics engine.
+      if (c.cluster_id === 'Cluster_112_macro') {
+        configs.reverse();
+      }
+
+      let globalBestScore = -Infinity;
+      let bestConfig: { dx: number, dy: number, gx: number, gz: number }[] = [];
+      let bestAssignment: number[] = [];
+
+      for (const config of configs) {
+        const dirsNorm = config.map(d => norm(d.gx, d.gz));
+        
+        const permute = (current: number[], available: number[]) => {
+          if (current.length === clusterSecs.length) {
+            let score = 0;
+            for (let i = 0; i < current.length; i++) {
+              const sn = secNorms[i];
+              const dn = dirsNorm[current[i]];
+              score += sn[0] * dn[0] + sn[1] * dn[1];
+            }
+            if (score > globalBestScore) {
+              globalBestScore = score;
+              bestConfig = config;
+              bestAssignment = [...current];
+            }
+            return;
+          }
+          for (let i = 0; i < available.length; i++) {
+            const nextAvail = available.slice();
+            const chosen = nextAvail.splice(i, 1)[0];
+            current.push(chosen);
+            permute(current, nextAvail);
+            current.pop();
+          }
+        };
+
+        permute([], Array.from({ length: config.length }, (_, i) => i));
+      }
+
+      clusterSecs.forEach((s, i) => {
+        const dir = bestConfig[bestAssignment[i]];
+        sCoords.set(s.sector_id, [cPos[0] + dir.dx, cPos[1] + dir.dy]);
+      });
     });
 
     return { sectorCoords: sCoords, hexSize: hs, gridOrigin: [gox, goy] };
@@ -507,7 +621,7 @@ export default function MapPage() {
     for (let q = -qMax; q <= qMax; q++) {
       for (let r = -rMax; r <= rMax; r++) {
         const [px, py] = axialToPixel(q, r, hexSize);
-        cells.push([gox + px, goy + py]);
+        cells.push([gox + px, goy + (-py)]); // Y-flip matches sector coordinate system
       }
     }
     return cells;
@@ -516,32 +630,57 @@ export default function MapPage() {
   // ─── Zone screen positions ────────────────────────────────────────────────────
 
   const zoneScale = useMemo(() => {
-    if (zones.length === 0 || hexSize === 0) return 0;
-    const perSector = new Map<string, number>();
-    zones.forEach((z) => {
-      if (!z.sector_id) return;
-      const d = Math.sqrt((z.x ?? 0) ** 2 + (z.z ?? 0) ** 2);
-      const cur = perSector.get(z.sector_id) ?? 0;
-      if (d > cur) perSector.set(z.sector_id, d);
-    });
-    const extents: number[] = [];
-    perSector.forEach((v) => { if (v > 0) extents.push(v); });
-    if (!extents.length) return 0;
-    extents.sort((a, b) => a - b);
-    const p75 = extents[Math.floor(extents.length * 0.75)] ?? 1;
-    return p75 > 0 ? (hexSize * 0.72) / p75 : 0;
-  }, [zones, hexSize]);
+    if (hexSize === 0) return 0;
+    // In X4, sector sizes are dynamic. By scaling to 300,000, gates at 200,000
+    // sit comfortably inside the hexes without physically touching the borders.
+    // This perfectly matches the dynamic visual scale of the game's UI.
+    return (hexSize * Math.sqrt(3) / 2) / 300000;
+  }, [hexSize]);
 
   const zoneScreenPos = useMemo(() => {
     const m = new Map<string, [number, number]>();
     if (zoneScale === 0) return m;
     zones.forEach((z) => {
-      const sp = z.sector_id ? sectorCoords.get(z.sector_id) : null;
+      if (!z.sector_id) return;
+      const sp = sectorCoords.get(z.sector_id);
       if (!sp) return;
-      m.set(z.zone_id, [sp[0] + (z.x ?? 0) * zoneScale, sp[1] - (z.z ?? 0) * zoneScale]);
+      
+      const isSubSector = subSectorSet.has(z.sector_id);
+      // For subsectors, the hex radius is exactly halved (0.5), so we half the scale to perfectly map 200k to the sub-hex edge.
+      const scale = isSubSector ? zoneScale * 0.5 : zoneScale;
+      
+      const dx = (z.x ?? 0) * scale;
+      const dz = (z.z ?? 0) * scale;
+      
+      m.set(z.zone_id, [sp[0] + dx, sp[1] - dz]);
     });
     return m;
-  }, [zones, sectorCoords, zoneScale]);
+  }, [zones, sectorCoords, zoneScale, subSectorSet]);
+
+  const overlappingPaths = useMemo(() => {
+    const counts = new Map<string, number>();
+    const getSig = (p1: [number, number], p2: [number, number]) => {
+      const s1 = `${Math.round(p1[0]/10)},${Math.round(p1[1]/10)}`;
+      const s2 = `${Math.round(p2[0]/10)},${Math.round(p2[1]/10)}`;
+      return s1 < s2 ? `${s1}-${s2}` : `${s2}-${s1}`;
+    };
+
+    const addConnection = (z1Id: string, z2Id: string) => {
+        const z1 = zoneMap.get(z1Id), z2 = zoneMap.get(z2Id);
+        if (!z1?.sector_id || !z2?.sector_id) return;
+        const p1 = zoneScreenPos.get(z1Id) ?? sectorCoords.get(z1.sector_id);
+        const p2 = zoneScreenPos.get(z2Id) ?? sectorCoords.get(z2.sector_id);
+        if (p1 && p2) {
+           const sig = getSig(p1, p2);
+           counts.set(sig, (counts.get(sig) ?? 0) + 1);
+        }
+    };
+
+    highways.forEach(hw => addConnection(hw.from_zone_id, hw.to_zone_id));
+    gates.forEach(g => addConnection(g.from_zone_id, g.to_zone_id));
+
+    return { counts, getSig };
+  }, [highways, gates, zoneMap, zoneScreenPos, sectorCoords]);
 
   // ─── Auto-fit ─────────────────────────────────────────────────────────────────
 
@@ -657,17 +796,85 @@ export default function MapPage() {
               ))}
 
               {/* ── Superhighway lines ── */}
-              {showHighways && highways.map((hw) => {
+              {highways.map((hw) => {
+                const isLocal = hw.kind === "localhighway";
+                if (isLocal && !showLocalHighways) return null;
+                if (!isLocal && !showHighways) return null;
+
+                // Blacklist anomalous one-off highway in Nopileos' Fortune II 
+                if (hw.from_zone_id === 'Zone020_Cluster_04_Sector001_macro' || hw.to_zone_id === 'Zone020_Cluster_04_Sector001_macro') {
+                  return null;
+                }
+
                 const z1 = zoneMap.get(hw.from_zone_id), z2 = zoneMap.get(hw.to_zone_id);
-                if (!z1?.sector_id || !z2?.sector_id || z1.sector_id === z2.sector_id) return null;
+                if (!z1?.sector_id || !z2?.sector_id) return null;
                 if (!visibleSectorIds.has(z1.sector_id) || !visibleSectorIds.has(z2.sector_id)) return null;
+                
                 const p1 = zoneScreenPos.get(hw.from_zone_id) ?? sectorCoords.get(z1.sector_id);
                 const p2 = zoneScreenPos.get(hw.to_zone_id) ?? sectorCoords.get(z2.sector_id);
                 if (!p1 || !p2) return null;
+                
+                const stroke = isLocal ? "#6366f1" : "#4aaeff"; // Indigo for local, cyan for super
+                const baseScreenStroke = isLocal ? 1.0 : 2.0;
+                const screenStroke = Math.max(0.5, Math.min(6, baseScreenStroke * Math.pow(transform.scale, 0.7)));
+                const strokeWidth = screenStroke / transform.scale;
+                
+                const opacity = isLocal ? 0.6 : 0.8;
+                
+                const showIcons = transform.scale > 1.5 && !isLocal;
+                const showAnimation = transform.scale > 2.0;
+                const screenPixelSize = Math.max(8, Math.min(32, 16 * Math.pow(transform.scale, 0.6)));
+                const iconSize = screenPixelSize / transform.scale;
+                const dotSize = Math.max(1.5, 4 / transform.scale);
+                
+                const sig = overlappingPaths.getSig(p1, p2);
+                const isOverlapping = transform.scale > 3.0 && (overlappingPaths.counts.get(sig) ?? 0) > 1;
+                
+                let sp1 = p1, sp2 = p2;
+                if (isOverlapping) {
+                  const dx_raw = p2[0] - p1[0], dy_raw = p2[1] - p1[1], d_raw = Math.max(0.1, Math.sqrt(dx_raw*dx_raw + dy_raw*dy_raw));
+                  const nx = -dy_raw / d_raw, ny = dx_raw / d_raw;
+                  const sep = strokeWidth / 2.2;
+                  sp1 = [p1[0] + nx * sep, p1[1] + ny * sep];
+                  sp2 = [p2[0] + nx * sep, p2[1] + ny * sep];
+                }
+                
+                let l1 = sp1, l2 = sp2;
+                if (showIcons) {
+                  const dx = sp2[0] - sp1[0], dy = sp2[1] - sp1[1], d = Math.sqrt(dx*dx + dy*dy);
+                  if (d > iconSize) {
+                    const r = iconSize * 0.65 / d;
+                    l1 = [sp1[0] + dx*r, sp1[1] + dy*r];
+                    l2 = [sp2[0] - dx*r, sp2[1] - dy*r];
+                  }
+                }
+                
+                const lineLen = Math.max(10, Math.sqrt(Math.pow(l2[0]-l1[0], 2) + Math.pow(l2[1]-l1[1], 2)));
+                
                 return (
-                  <line key={`hw-${hw.from_zone_id}-${hw.to_zone_id}`}
-                    x1={p1[0]} y1={p1[1]} x2={p2[0]} y2={p2[1]}
-                    stroke="#4aaeff" strokeWidth={1.5} strokeDasharray="7 4" opacity={0.55} />
+                  <g key={`hw-${hw.from_zone_id}-${hw.to_zone_id}`}>
+                    <line
+                      x1={l1[0]} y1={l1[1]} x2={l2[0]} y2={l2[1]}
+                      stroke={stroke} strokeWidth={strokeWidth} opacity={showAnimation ? opacity * 0.2 : opacity * 0.6} />
+                    {showAnimation && (
+                      <line
+                        x1={l1[0]} y1={l1[1]} x2={l2[0]} y2={l2[1]}
+                        stroke={stroke} strokeWidth={strokeWidth} strokeLinecap="round" strokeDasharray={isLocal ? `6 ${lineLen}` : "3 6"} opacity={opacity * 1.5}>
+                        <animate attributeName="stroke-dashoffset" from="0" to={isLocal ? -lineLen : -9} dur={isLocal ? "2s" : "0.5s"} repeatCount="indefinite" />
+                      </line>
+                    )}
+                    {showIcons ? (
+                      <>
+                        <ConnectionIcon x={p1[0]} y={p1[1]} iconPath="mapob_superhighway.png" color={stroke} size={iconSize} />
+                        <ConnectionIcon x={p2[0]} y={p2[1]} iconPath="mapob_superhighway.png" color={stroke} size={iconSize} />
+                      </>
+                    ) : (
+                      <>
+                        <circle cx={p1[0]} cy={p1[1]} r={dotSize} fill={stroke} />
+                        <circle cx={p2[0]} cy={p2[1]} r={dotSize} fill={stroke} />
+                      </>
+                    )}
+                  </g>
                 );
               })}
 
@@ -679,10 +886,67 @@ export default function MapPage() {
                 const p1 = zoneScreenPos.get(g.from_zone_id) ?? sectorCoords.get(z1.sector_id);
                 const p2 = zoneScreenPos.get(g.to_zone_id) ?? sectorCoords.get(z2.sector_id);
                 if (!p1 || !p2) return null;
+                const isAccelerator = g.kind === "accelerator";
+                const stroke = isAccelerator ? "#fcd34d" : "#64748b"; // Yellow for accelerator, Slate for warp gate
+                
+                const baseScreenStroke = isAccelerator ? 1.5 : 1.0;
+                const screenStroke = Math.max(0.5, Math.min(6, baseScreenStroke * Math.pow(transform.scale, 0.7)));
+                const strokeWidth = screenStroke / transform.scale;
+                
+                const dur = isAccelerator ? "4s" : "6s";
+                const baseOpacity = isAccelerator ? 0.65 : 0.5;
+                const animVals = isAccelerator ? "0.4;0.8;0.4" : "0.3;0.7;0.3";
+                
+                const showIcons = transform.scale > 1.5;
+                const showAnimation = transform.scale > 2.0;
+                const screenPixelSize = Math.max(10, Math.min(40, 20 * Math.pow(transform.scale, 0.6)));
+                const iconSize = screenPixelSize / transform.scale;
+                const dotSize = Math.max(1.5, 4 / transform.scale);
+                const iconPath = isAccelerator ? "mapob_transorbital_accelerator.png" : "mapob_jumpgate.png";
+                
+                const sig = overlappingPaths.getSig(p1, p2);
+                const isOverlapping = transform.scale > 3.0 && (overlappingPaths.counts.get(sig) ?? 0) > 1;
+                
+                let sp1 = p1, sp2 = p2;
+                if (isOverlapping) {
+                  const dx_raw = p2[0] - p1[0], dy_raw = p2[1] - p1[1], d_raw = Math.max(0.1, Math.sqrt(dx_raw*dx_raw + dy_raw*dy_raw));
+                  const nx = -dy_raw / d_raw, ny = dx_raw / d_raw;
+                  const sep = strokeWidth / 2.2;
+                  sp1 = [p1[0] + nx * sep, p1[1] + ny * sep];
+                  sp2 = [p2[0] + nx * sep, p2[1] + ny * sep];
+                }
+                
+                let l1 = sp1, l2 = sp2;
+                if (showIcons) {
+                  const dx = sp2[0] - sp1[0], dy = sp2[1] - sp1[1], d = Math.sqrt(dx*dx + dy*dy);
+                  if (d > iconSize) {
+                    const r = iconSize * 0.45 / d;
+                    l1 = [sp1[0] + dx*r, sp1[1] + dy*r];
+                    l2 = [sp2[0] - dx*r, sp2[1] - dy*r];
+                  }
+                }
+                
                 return (
-                  <line key={`gate-${g.from_zone_id}-${g.to_zone_id}`}
-                    x1={p1[0]} y1={p1[1]} x2={p2[0]} y2={p2[1]}
-                    stroke="rgba(255,255,255,0.35)" strokeWidth={1} />
+                  <g key={`gate-${g.from_zone_id}-${g.to_zone_id}`}>
+                    <line
+                      x1={l1[0]} y1={l1[1]} x2={l2[0]} y2={l2[1]}
+                      stroke={stroke} strokeWidth={strokeWidth} opacity={showAnimation ? baseOpacity : baseOpacity * 0.7}>
+                      {showAnimation && (
+                        <animate attributeName="opacity" values={animVals} dur={dur} repeatCount="indefinite" />
+                      )}
+                    </line>
+                    {showIcons ? (
+                      <>
+                        <ConnectionIcon x={p1[0]} y={p1[1]} iconPath={iconPath} color={stroke} size={iconSize} />
+                        <ConnectionIcon x={p2[0]} y={p2[1]} iconPath={iconPath} color={stroke} size={iconSize} />
+                      </>
+                    ) : (
+                      <>
+                        <circle cx={p1[0]} cy={p1[1]} r={dotSize} fill={stroke} opacity={0.6} />
+                        <circle cx={p2[0]} cy={p2[1]} r={dotSize} fill={stroke} opacity={0.6} />
+                      </>
+                    )}
+                  </g>
                 );
               })}
 
@@ -700,7 +964,7 @@ export default function MapPage() {
 
                 const siblings = sector.cluster_id ? sectors.filter((s) => s.cluster_id === sector.cluster_id) : [sector];
                 const isSubSector = siblings.length > 1;
-                const renderedHexSize = isSubSector ? hexSize * 0.43 : hexSize;
+                const renderedHexSize = isSubSector ? hexSize * 0.5 : hexSize;
 
                 const isSelected = sector.sector_id === selectedSectorId;
                 const isHovered = sector.sector_id === hoveredSectorId;
@@ -710,11 +974,9 @@ export default function MapPage() {
                   : new Set<string>();
                 const activeRes = RESOURCE_ORDER.filter((r) => clusterRes.has(r));
 
-                const fontSize = Math.max(6, Math.min(12, renderedHexSize * 0.28));
-                const dotR = Math.max(1.8, renderedHexSize * 0.085);
+                const fontSize = Math.max(3, Math.min(16, (renderedHexSize * 0.28) / Math.pow(transform.scale, 0.6)));
+                const dotR = Math.max(1.5, Math.min(4, (renderedHexSize * 0.085) / Math.pow(transform.scale, 0.5)));
                 const dotSpacing = dotR * 2.5;
-                const markerR = Math.max(2.5, renderedHexSize * 0.075);
-                const sectorZones = sectorZoneMap.get(sector.sector_id) ?? [];
 
                 return (
                   <g key={sector.sector_id} style={{ cursor: "pointer" }}
@@ -722,25 +984,13 @@ export default function MapPage() {
                     onMouseEnter={() => setHoveredSectorId(sector.sector_id)}
                     onMouseLeave={() => setHoveredSectorId(null)}>
 
-                    {isSelected && (
-                      <polygon points={hexPoints(cx, cy, renderedHexSize + 4)}
-                        fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth={2} />
-                    )}
-
                     <polygon points={hexPoints(cx, cy, renderedHexSize)}
-                      fill={`${color}2a`}
-                      stroke={isSelected || isHovered ? color : `${color}80`}
+                      fill={isSelected ? `${color}40` : `${color}2a`}
+                      stroke={isSelected ? "#ffffff" : isHovered ? color : `${color}80`}
                       strokeWidth={isSelected ? 2 : 1.2} />
 
-                    <text x={cx} y={cy - fontSize * 0.5}
-                      textAnchor="middle" fontSize={fontSize} fontWeight={500}
-                      fill="rgba(255,255,255,0.85)"
-                      style={{ pointerEvents: "none", userSelect: "none" }}>
-                      {sectorDisplayName(sector)}
-                    </text>
-
                     {showResources && activeRes.length > 0 && (
-                      <g transform={`translate(${cx - ((activeRes.length - 1) * dotSpacing) / 2},${cy + fontSize})`}>
+                      <g transform={`translate(${cx - ((activeRes.length - 1) * dotSpacing) / 2},${cy + fontSize * 1.5})`}>
                         {activeRes.map((r, i) => (
                           <circle key={r} cx={i * dotSpacing} cy={0} r={dotR}
                             fill={RESOURCE_COLORS[r] ?? "#888"} opacity={0.9}
@@ -749,22 +999,35 @@ export default function MapPage() {
                       </g>
                     )}
 
-                    {zoneScale > 0 && sectorZones.map((z) => {
-                      const isGate = gateZoneIds.has(z.zone_id);
-                      const isHw = highwayZoneIds.has(z.zone_id);
-                      if (!isGate && !isHw) return null;
-                      const zp = zoneScreenPos.get(z.zone_id);
-                      if (!zp) return null;
-                      const [zx, zy] = zp;
-                      if (isHw) {
-                        return <circle key={z.zone_id} cx={zx} cy={zy} r={markerR}
-                          fill="#4aaeff" opacity={0.75} style={{ pointerEvents: "none" }} />;
-                      }
-                      const d = markerR * 1.3;
-                      return <polygon key={z.zone_id}
-                        points={`${zx},${zy - d} ${zx + d},${zy} ${zx},${zy + d} ${zx - d},${zy}`}
-                        fill="rgba(255,255,255,0.55)" style={{ pointerEvents: "none" }} />;
-                    })}
+                    <foreignObject
+                      x={cx - renderedHexSize * 1.25}
+                      y={cy - fontSize * 3}
+                      width={renderedHexSize * 2.5}
+                      height={fontSize * 6}
+                      style={{ pointerEvents: "none", userSelect: "none", overflow: "visible" }}
+                    >
+                      <div style={{
+                        width: '100%', height: '100%',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center'
+                      }}>
+                        <span style={{
+                          backgroundColor: 'rgba(15, 23, 42, 0.85)',
+                          padding: `${fontSize * 0.15}px ${fontSize * 0.4}px`,
+                          borderRadius: `${fontSize * 0.3}px`,
+                          color: 'rgba(255,255,255,0.85)',
+                          fontSize: `${fontSize * 0.9}px`,
+                          fontWeight: 500,
+                          textAlign: 'center',
+                          lineHeight: 1.1,
+                          boxShadow: `0 0 ${fontSize * 0.3}px rgba(0,0,0,0.5)`,
+                          border: `${Math.max(1, fontSize * 0.05)}px solid rgba(148, 163, 184, 0.2)`
+                        }}>
+                          {sectorDisplayName(sector)}
+                        </span>
+                      </div>
+                    </foreignObject>
+
+
                   </g>
                 );
               })}
@@ -777,12 +1040,20 @@ export default function MapPage() {
 
           <div style={{ position: "absolute", bottom: 12, right: 248, display: "flex", gap: 12, alignItems: "center", fontSize: 10, color: "rgba(255,255,255,0.35)" }}>
             <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              <svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" stroke="rgba(255,255,255,0.4)" strokeWidth="1" /></svg>
-              Gate
+              <svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" stroke="#2dd4bf" strokeWidth="1.5" strokeDasharray="8 4" opacity="0.6" /></svg>
+              Jump Gate
             </span>
             <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              <svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" stroke="#4aaeff" strokeWidth="1.5" strokeDasharray="5 3" opacity="0.6" /></svg>
-              Highway
+              <svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" stroke="#fcd34d" strokeWidth="1.2" strokeDasharray="3 4" opacity="0.6" /></svg>
+              Accelerator
+            </span>
+            <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" stroke="#4aaeff" strokeWidth="1.5" strokeDasharray="7 4" opacity="0.6" /></svg>
+              Superhighway
+            </span>
+            <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <svg width="20" height="8"><line x1="0" y1="4" x2="20" y2="4" stroke="#6366f1" strokeWidth="0.8" strokeDasharray="4 4" opacity="0.6" /></svg>
+              Local Highway
             </span>
           </div>
         </div>
@@ -806,11 +1077,13 @@ export default function MapPage() {
               showResources={showResources}
               showGates={showGates}
               showHighways={showHighways}
+              showLocalHighways={showLocalHighways}
               showFactionColors={showFactionColors}
               showGrid={showGrid}
               onToggleResources={setShowResources}
               onToggleGates={setShowGates}
               onToggleHighways={setShowHighways}
+              onToggleLocalHighways={setShowLocalHighways}
               onToggleFactionColors={setShowFactionColors}
               onToggleGrid={setShowGrid}
               onToggleDlc={(dlc, on) => {
@@ -894,13 +1167,13 @@ function SectorDetailPanel({ sector, cluster, resources, factionMap, showFaction
 // ─── ControlPanel ─────────────────────────────────────────────────────────────
 
 function ControlPanel({
-  allDlcs, activeDlcs, showResources, showGates, showHighways, showFactionColors, showGrid,
-  onToggleResources, onToggleGates, onToggleHighways, onToggleFactionColors, onToggleGrid, onToggleDlc,
+  allDlcs, activeDlcs, showResources, showGates, showHighways, showLocalHighways, showFactionColors, showGrid,
+  onToggleResources, onToggleGates, onToggleHighways, onToggleLocalHighways, onToggleFactionColors, onToggleGrid, onToggleDlc,
 }: {
   allDlcs: string[]; activeDlcs: Set<string>;
-  showResources: boolean; showGates: boolean; showHighways: boolean; showFactionColors: boolean; showGrid: boolean;
+  showResources: boolean; showGates: boolean; showHighways: boolean; showLocalHighways: boolean; showFactionColors: boolean; showGrid: boolean;
   onToggleResources: (v: boolean) => void; onToggleGates: (v: boolean) => void;
-  onToggleHighways: (v: boolean) => void; onToggleFactionColors: (v: boolean) => void;
+  onToggleHighways: (v: boolean) => void; onToggleLocalHighways: (v: boolean) => void; onToggleFactionColors: (v: boolean) => void;
   onToggleGrid: (v: boolean) => void; onToggleDlc: (dlc: string, on: boolean) => void;
 }) {
   return (
@@ -924,6 +1197,7 @@ function ControlPanel({
             ["Resources", showResources, onToggleResources],
             ["Gates", showGates, onToggleGates],
             ["Superhighways", showHighways, onToggleHighways],
+            ["Local Highways", showLocalHighways, onToggleLocalHighways],
             ["Hex Grid", showGrid, onToggleGrid],
           ] as [string, boolean, (v: boolean) => void][]).map(([label, checked, setter]) => (
             <label key={label} className="flex items-center gap-2 text-xs cursor-pointer select-none text-muted-foreground hover:text-foreground transition-colors">

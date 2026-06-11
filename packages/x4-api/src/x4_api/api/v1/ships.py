@@ -26,6 +26,7 @@ class ShipSummary(PublicModel):
     role: str | None
     hull: int | None
     cargo_volume: int | None
+    speed_min: float | None
     speed_max: float | None
     icon_url: str | None
     image_url: str | None
@@ -41,6 +42,23 @@ class ShipDetail(ShipSummary):
     description: str | None
     basename: str | None
     secrecy_level: int | None
+    travel_min: float | None
+    travel_max: float | None
+    boost_min: float | None
+    boost_max: float | None
+    pitch_min: float | None
+    pitch_max: float | None
+    yaw_min: float | None
+    yaw_max: float | None
+    roll_min: float | None
+    roll_max: float | None
+    shield_capacity_min: float | None
+    shield_capacity_max: float | None
+    shield_recharge_min: float | None
+    shield_recharge_max: float | None
+    shield_delay_min: float | None
+    shield_delay_max: float | None
+    radar_range: float | None
     mass: float | None
     drag_forward: float | None
     drag_reverse: float | None
@@ -79,8 +97,12 @@ class ShipDetail(ShipSummary):
 
 _DETAIL_COLS = (
     "ship_id, name, description, basename, dlc, class_id, ship_type, role, faction_id, "
-    "hull, cargo_volume, speed_max, icon_path, "
+    "hull, cargo_volume, speed_min, speed_max, icon_path, "
     "secrecy_level, "
+    "travel_min, travel_max, boost_min, boost_max, "
+    "pitch_min, pitch_max, yaw_min, yaw_max, roll_min, roll_max, "
+    "shield_capacity_min, shield_capacity_max, shield_recharge_min, shield_recharge_max, "
+    "shield_delay_min, shield_delay_max, radar_range, "
     "mass, drag_forward, drag_reverse, drag_horizontal, drag_vertical, "
     "drag_pitch, drag_yaw, drag_roll, "
     "inertia_pitch, inertia_yaw, inertia_roll, "
@@ -103,7 +125,7 @@ def list_ships(
 ) -> list[ShipSummary]:
     """List all ships in the game catalog."""
     sql = [
-        "SELECT ship_id, name, dlc, class_id, ship_type, role, faction_id, hull, cargo_volume, speed_max, icon_path",
+        "SELECT ship_id, name, dlc, class_id, ship_type, role, faction_id, hull, cargo_volume, speed_min, speed_max, icon_path",
         "FROM s.ships WHERE 1=1",
     ]
     params: dict[str, object] = {"limit": limit, "offset": offset}
@@ -127,6 +149,7 @@ def list_ships(
             faction_id=r["faction_id"],
             hull=r["hull"],
             cargo_volume=r["cargo_volume"],
+            speed_min=r["speed_min"],
             speed_max=r["speed_max"],
             icon_url=get_icon_url(r["icon_path"]),
             image_url=get_icon_url(f"ship_{r['ship_id']}"),

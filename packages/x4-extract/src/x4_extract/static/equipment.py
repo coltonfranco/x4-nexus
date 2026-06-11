@@ -213,6 +213,7 @@ def _parse_equipment_macro(macro_name: str, file_path: str, macro_el: etree._Ele
 
     elif class_id in ["scanner", "computer", "radar"]:
         scan_el = macro_el.find("properties/scan")
+        radar_el = macro_el.find("properties/radar")
         out.software.append({
             "software_id": macro_name,
             "name": name,
@@ -220,6 +221,7 @@ def _parse_equipment_macro(macro_name: str, file_path: str, macro_el: etree._Ele
             "is_legacy": "legacy" in file_path.lower(),
             "class_id": class_id,
             "scan_maxlevel": _int(scan_el, "maxlevel") if scan_el is not None else None,
+            "radar_range": _float(radar_el, "range") if radar_el is not None else None,
         })
 
 
@@ -289,8 +291,8 @@ def write(conn: sqlite3.Connection, result: ExtractResult) -> None:
     # Software
     if result.software:
         conn.executemany(
-        "INSERT INTO equip_software (software_id, name, file_path, is_legacy, class_id, scan_maxlevel) "
-        "VALUES (:software_id, :name, :file_path, :is_legacy, :class_id, :scan_maxlevel)",
+        "INSERT INTO equip_software (software_id, name, file_path, is_legacy, class_id, scan_maxlevel, radar_range) "
+        "VALUES (:software_id, :name, :file_path, :is_legacy, :class_id, :scan_maxlevel, :radar_range)",
         result.software,
     )
 
