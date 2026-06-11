@@ -49,6 +49,7 @@ def test_rank_routes_scores_and_enriches(data_dir: Path) -> None:
     assert r.ware_name == "Energy Cells"
     assert r.buy_station_id == "A" and r.sell_station_id == "B"
     assert r.buy_sector == "S1" and r.sell_sector == "S2"
+    assert r.buy_price == 100 and r.sell_price == 150
     assert r.margin == 50
     assert r.units_per_trip == 300  # min(qty=300, cargo 8000 / volume 1)
     assert r.profit_per_trip == 15000

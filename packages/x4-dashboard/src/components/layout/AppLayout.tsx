@@ -1,10 +1,25 @@
 import { Link, Outlet, useRouterState } from "@tanstack/react-router";
-import { Factory, Handshake, Home, Map, Package, Shield, Sword } from "lucide-react";
+import {
+  AlertTriangle,
+  Factory,
+  Handshake,
+  Home,
+  Map,
+  Package,
+  Shield,
+  Sword,
+  TrendingUp,
+  User,
+} from "lucide-react";
 import { cn } from "../../lib/utils";
+import { SaveSelector } from "../SaveSelector";
 import { ThemeToggle } from "./ThemeToggle";
 
 const navItems = [
   { to: "/", label: "Home", icon: Home },
+  { to: "/empire", label: "Empire", icon: User },
+  { to: "/routes", label: "Trade Routes", icon: TrendingUp },
+  { to: "/economy", label: "Supply Radar", icon: AlertTriangle },
   { to: "/map", label: "Map", icon: Map },
   { to: "/ships", label: "Ships", icon: Sword },
   { to: "/wares", label: "Wares", icon: Factory },
@@ -71,6 +86,7 @@ export function AppLayout() {
         </nav>
 
         {/* Bottom */}
+        <SaveSelector />
         <div className="p-3 border-t border-border">
           <ThemeToggle />
         </div>

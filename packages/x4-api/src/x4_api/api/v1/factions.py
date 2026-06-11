@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -116,76 +116,61 @@ class FactionStrength(PublicModel):
     avg_relation: float           # game-scale -30..30
 
 
-_SKIP_FACTIONS = frozenset({"player", "visitor", "ownerless"})
+# Player is included so it ranks alongside AI factions; only structural placeholders skipped.
+_SKIP_FACTIONS = frozenset({"visitor", "ownerless"})
 _CLASS_MULT = {"s": 1, "m": 2, "l": 4, "xl": 8, "xs": 1}
 _ECON_MULT  = {"s": 1, "m": 2, "l": 3, "xl": 4, "xs": 1}
-# Tags that indicate a military installation; everything else is economic
-_MIL_TAGS = ("defence", "shipyard", "wharf")
 
 
 @router.get("/factions/strength", response_model=list[FactionStrength])
 def faction_strength(
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
 ) -> list[FactionStrength]:
-    """Relative strength metrics for all non-legacy factions, normalized 0-100."""
+    """Relative strength metrics, normalized 0-100, computed from LIVE save state.
+
+    Everything here is the *current* universe (dynamic ships/stations/relations) so the
+    standings reflect how the game has actually unfolded — seed/static is init state only
+    and is not referenced once a save is loaded. The player is ranked alongside AI factions.
+    """
     factions_q = conn.execute(
         "SELECT faction_id, name, color_hex FROM s.factions WHERE is_legacy = 0 ORDER BY name"
     ).fetchall()
 
-    # Military: combat ships weighted by class size
+    # Military: live combat ships, class-weighted (role/class come from the catalog via macro).
     mil_rows = conn.execute("""
-        SELECT faction_id, class_id, COUNT(*) as cnt
-        FROM s.ships WHERE role = 'fight' AND faction_id IS NOT NULL
-        GROUP BY faction_id, class_id
+        SELECT sh.owner_faction AS faction_id, c.class_id, COUNT(*) AS cnt
+        FROM ships sh JOIN s.ships c ON c.ship_id = sh.macro
+        WHERE c.role = 'fight' AND sh.owner_faction IS NOT NULL
+        GROUP BY sh.owner_faction, c.class_id
     """).fetchall()
 
-    # Economic: trade + mining ships weighted by class size
+    # Economic ships: live trade/mine/build/auxiliary, class-weighted.
     econ_ship_rows = conn.execute("""
-        SELECT faction_id, role, class_id, COUNT(*) as cnt
-        FROM s.ships WHERE role IN ('trade', 'mine', 'build', 'auxiliary')
-          AND faction_id IS NOT NULL
-        GROUP BY faction_id, role, class_id
+        SELECT sh.owner_faction AS faction_id, c.role, c.class_id, COUNT(*) AS cnt
+        FROM ships sh JOIN s.ships c ON c.ship_id = sh.macro
+        WHERE c.role IN ('trade','mine','build','auxiliary') AND sh.owner_faction IS NOT NULL
+        GROUP BY sh.owner_faction, c.role, c.class_id
     """).fetchall()
 
-    # Stations split by type: military (defence/shipyard/wharf) vs economic (everything else)
-    # tags column is a JSON array e.g. '["defence"]' or '["shipyard","wharf"]'
-    # NPC station placements + sector/cluster ownership are gamestart seed (seed.db).
-    station_rows = conn.execute("""
-        SELECT owner_faction,
-            SUM(CASE WHEN tags LIKE '%defence%'
-                       OR tags LIKE '%shipyard%'
-                       OR tags LIKE '%wharf%'
-                     THEN 1 ELSE 0 END) as mil_cnt,
-            SUM(CASE WHEN NOT (tags LIKE '%defence%'
-                               OR tags LIKE '%shipyard%'
-                               OR tags LIKE '%wharf%')
-                     THEN 1 ELSE 0 END) as econ_cnt
-        FROM seed.npc_stations
-        WHERE owner_faction IS NOT NULL
-        GROUP BY owner_faction
+    # Live stations owned + territory (distinct sectors/clusters with an owned station).
+    territory_rows = conn.execute("""
+        SELECT st.owner_faction AS faction_id,
+               COUNT(*) AS stations,
+               COUNT(DISTINCT st.sector_id) AS sectors,
+               COUNT(DISTINCT sec.cluster_id) AS clusters,
+               COALESCE(AVG(sec.economy), 0.5) AS avg_econ
+        FROM stations st
+        LEFT JOIN s.sectors sec ON LOWER(sec.sector_id) = LOWER(st.sector_id)
+        WHERE st.owner_faction IS NOT NULL
+        GROUP BY st.owner_faction
     """).fetchall()
 
-    sector_rows = conn.execute("""
-        SELECT so.owner_faction, COUNT(*) as cnt,
-               COALESCE(AVG(sec.economy), 0.5) as avg_econ
-        FROM seed.sector_ownership so
-        JOIN s.sectors sec ON sec.sector_id = so.sector_id
-        GROUP BY so.owner_faction
-    """).fetchall()
-
-    cluster_rows = conn.execute("""
-        SELECT owner_faction, COUNT(*) as cnt
-        FROM seed.cluster_ownership
-        GROUP BY owner_faction
-    """).fetchall()
-
+    # Diplomatic: live current relations.
     relation_rows = conn.execute("""
-        SELECT faction_id, AVG(initial_relation) as avg_rel
-        FROM seed.faction_relations
-        GROUP BY faction_id
+        SELECT faction_id, AVG(relation) AS avg_rel
+        FROM faction_relations_current GROUP BY faction_id
     """).fetchall()
 
-    # Build lookups
     mil_weighted: dict[str, float] = {}
     fight_counts: dict[str, int] = {}
     for r in mil_rows:
@@ -206,38 +191,31 @@ def faction_strength(
         elif r["role"] == "mine":
             mine_counts[fid] = mine_counts.get(fid, 0) + r["cnt"]
 
-    mil_stations: dict[str, int]  = {r["owner_faction"]: int(r["mil_cnt"] or 0)  for r in station_rows}
-    econ_stations: dict[str, int] = {r["owner_faction"]: int(r["econ_cnt"] or 0) for r in station_rows}
-    sectors: dict[str, dict] = {r["owner_faction"]: dict(r) for r in sector_rows}
-    clusters: dict[str, int] = {r["owner_faction"]: r["cnt"] for r in cluster_rows}
+    territory: dict[str, Any] = {r["faction_id"]: dict(r) for r in territory_rows}
     relations: dict[str, float] = {r["faction_id"]: float(r["avg_rel"]) for r in relation_rows}
 
-    rows: list[dict] = []
+    rows: list[dict[str, Any]] = []
     for f in factions_q:
         fid = f["faction_id"]
         if fid in _SKIP_FACTIONS:
             continue
 
-        sec = sectors.get(fid, {})
-        sec_cnt: int = sec.get("cnt", 0)
+        terr = territory.get(fid, {})
+        sec_cnt = int(terr.get("sectors", 0) or 0)
+        clus_cnt = int(terr.get("clusters", 0) or 0)
+        station_cnt = int(terr.get("stations", 0) or 0)
+        avg_econ = float(terr.get("avg_econ", 0.5) or 0.5)
         avg_rel = relations.get(fid, -1.0)
 
-        # Military: combat ships (class-weighted) + military stations
-        #   Ship weights: s=1, m=2, l=4, xl=8
-        #   Military station ≈ 6 pts (a defence outpost ~= a large warship; shipyard/wharf bigger)
-        mil_raw = mil_weighted.get(fid, 0.0) + mil_stations.get(fid, 0) * 6.0
-
-        # Economic: trade/mine ships (class-weighted × 0.8) + economic stations (3 pts each)
-        #   + sector economy rating (sector_count × avg_economy × 5)
-        #   Ship weights: s=1, m=2, l=3, xl=4
+        # Military: live combat ships, class-weighted (s=1, m=2, l=4, xl=8).
+        mil_raw = mil_weighted.get(fid, 0.0)
+        # Economic: econ ships (x0.8) + live stations (3 pts) + sector economy rating.
         econ_raw = (
-            econ_stations.get(fid, 0) * 3.0
-            + sec_cnt * sec.get("avg_econ", 0.5) * 5.0
+            station_cnt * 3.0
+            + sec_cnt * avg_econ * 5.0
             + econ_ship_weighted.get(fid, 0.0) * 0.8
         )
-
-        territory_raw = float(sec_cnt + clusters.get(fid, 0) * 2)
-        # Diplomatic: map avg_relation [-1, 1] → [0, 100] (absolute scale, not normalized)
+        territory_raw = float(sec_cnt + clus_cnt * 2)
         diplo_score = round((avg_rel + 1.0) / 2.0 * 100.0, 1)
 
         rows.append({
@@ -251,10 +229,10 @@ def faction_strength(
             "fight_ship_count": fight_counts.get(fid, 0),
             "trade_ship_count": trade_counts.get(fid, 0),
             "mine_ship_count": mine_counts.get(fid, 0),
-            "military_station_count": mil_stations.get(fid, 0),
-            "economic_station_count": econ_stations.get(fid, 0),
+            "military_station_count": 0,  # live station type-classification is a fast-follow
+            "economic_station_count": station_cnt,
             "sector_count": sec_cnt,
-            "cluster_count": clusters.get(fid, 0),
+            "cluster_count": clus_cnt,
             "avg_relation": round(avg_rel * 30.0, 1),  # game-scale -30..30
         })
 

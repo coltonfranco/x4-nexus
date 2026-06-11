@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useSearch } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { ArrowLeft, Info } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../components/ui/tooltip";
@@ -672,8 +673,14 @@ function MatrixView({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function FactionsPage() {
-  const [selectedFactionId, setSelectedFactionId] = useState<string | null>(null);
+  const search = useSearch({ strict: false }) as { faction?: string };
+  const [selectedFactionId, setSelectedFactionId] = useState<string | null>(search.faction ?? null);
   const [view, setView] = useState<"standings" | "matrix">("standings");
+
+  // Deep-link: ?faction=argon preselects (e.g. from the Empire reputation list).
+  useEffect(() => {
+    if (search.faction) setSelectedFactionId(search.faction);
+  }, [search.faction]);
 
   const { data: factions = [], isLoading: factionsLoading } = useQuery<FactionSummary[]>({
     queryKey: ["factions"],

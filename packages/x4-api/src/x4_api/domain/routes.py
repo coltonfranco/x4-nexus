@@ -26,13 +26,20 @@ SELECT t.ware_id, w.name AS ware_name, w.volume,
        t.buy_station_id,  bs.name AS buy_station_name,  bs.sector_id AS buy_sector,
        t.sell_station_id, ss.name AS sell_station_name, ss.sector_id AS sell_sector,
        t.margin, t.qty,
+       bo.price AS buy_price,   -- you buy here (station's sell offer)
+       so.price AS sell_price,  -- you sell here (station's buy offer)
        d.hops AS hops
 FROM top_routes_per_ware t
 LEFT JOIN s.wares w ON w.ware_id = t.ware_id
 LEFT JOIN stations bs ON bs.station_id = t.buy_station_id
 LEFT JOIN stations ss ON ss.station_id = t.sell_station_id
+LEFT JOIN station_offers bo
+       ON bo.station_id = t.buy_station_id AND bo.ware_id = t.ware_id AND bo.side = 'sell'
+LEFT JOIN station_offers so
+       ON so.station_id = t.sell_station_id AND so.ware_id = t.ware_id AND so.side = 'buy'
 LEFT JOIN sector_distance d
-       ON d.from_sector_id = bs.sector_id AND d.to_sector_id = ss.sector_id
+       ON LOWER(d.from_sector_id) = LOWER(bs.sector_id)
+      AND LOWER(d.to_sector_id) = LOWER(ss.sector_id)
 """
 
 
@@ -46,6 +53,8 @@ class RankedRoute:
     sell_station_id: str
     sell_station_name: str | None
     sell_sector: str | None
+    buy_price: int | None
+    sell_price: int | None
     margin: int
     units_per_trip: int
     profit_per_trip: int
@@ -81,6 +90,8 @@ def rank_routes(
                 sell_station_id=r["sell_station_id"],
                 sell_station_name=r["sell_station_name"],
                 sell_sector=r["sell_sector"],
+                buy_price=r["buy_price"],
+                sell_price=r["sell_price"],
                 margin=r["margin"],
                 units_per_trip=units,
                 profit_per_trip=profit,

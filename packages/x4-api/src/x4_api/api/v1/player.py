@@ -35,6 +35,14 @@ class LicenceItem(PublicModel):
     faction_id: str
 
 
+class PlayerRelation(PublicModel):
+    faction_id: str            # the other faction
+    faction_name: str | None
+    color_hex: str | None
+    relation: float            # current (save) relation, -1..1
+    initial_relation: float | None  # gamestart value, for drift
+
+
 @router.get("/player", response_model=PlayerAccount)
 def get_player(conn: Annotated[sqlite3.Connection, Depends(get_db)]) -> PlayerAccount:
     """The player's account snapshot. 404 until a save has been ingested."""
@@ -61,3 +69,21 @@ def list_licences(conn: Annotated[sqlite3.Connection, Depends(get_db)]) -> list[
         "SELECT licence_type, faction_id FROM player_licences ORDER BY licence_type, faction_id"
     ).fetchall()
     return [LicenceItem(**dict(r)) for r in rows]
+
+
+@router.get("/player/reputation", response_model=list[PlayerRelation])
+def player_reputation(conn: Annotated[sqlite3.Connection, Depends(get_db)]) -> list[PlayerRelation]:
+    """The player's current standing with every faction (best first), with gamestart drift."""
+    rows = conn.execute(
+        """
+        SELECT c.other_faction_id AS faction_id, f.name AS faction_name, f.color_hex,
+               c.relation, sd.initial_relation
+        FROM faction_relations_current c
+        LEFT JOIN s.factions f ON f.faction_id = c.other_faction_id
+        LEFT JOIN seed.faction_relations sd
+               ON sd.faction_id = 'player' AND sd.other_faction_id = c.other_faction_id
+        WHERE c.faction_id = 'player'
+        ORDER BY c.relation DESC
+        """
+    ).fetchall()
+    return [PlayerRelation(**dict(r)) for r in rows]

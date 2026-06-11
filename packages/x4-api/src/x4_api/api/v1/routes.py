@@ -28,6 +28,8 @@ class Route(PublicModel):
     sell_station_id: str
     sell_station_name: str | None
     sell_sector: str | None
+    buy_price: int | None
+    sell_price: int | None
     margin: int
     units_per_trip: int
     profit_per_trip: int

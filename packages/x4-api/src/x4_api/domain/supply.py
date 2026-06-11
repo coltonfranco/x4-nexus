@@ -59,6 +59,40 @@ def _classify(sell_qty: int, buy_qty: int) -> str:
     return "balanced"
 
 
+@dataclass(slots=True)
+class WareOffer:
+    station_id: str
+    station_name: str | None
+    sector_id: str | None
+    side: str           # 'sell' = station supplies it (you buy); 'buy' = station demands it (you sell)
+    price: int
+    quantity: int
+
+
+_OFFERS_QUERY = """
+SELECT o.station_id, st.name AS station_name, st.sector_id, o.side, o.price, o.quantity
+FROM station_offers o
+LEFT JOIN stations st ON st.station_id = o.station_id
+WHERE o.ware_id = ?
+ORDER BY o.quantity DESC
+"""
+
+
+def ware_stations(conn: sqlite3.Connection, ware_id: str) -> list[WareOffer]:
+    """Every station offer for one ware — drives the 'where is it short/hoarded?' drill-down."""
+    return [
+        WareOffer(
+            station_id=r["station_id"],
+            station_name=r["station_name"],
+            sector_id=r["sector_id"],
+            side=r["side"],
+            price=r["price"],
+            quantity=r["quantity"],
+        )
+        for r in conn.execute(_OFFERS_QUERY, (ware_id,)).fetchall()
+    ]
+
+
 def ware_market(conn: sqlite3.Connection) -> list[WareMarket]:
     """Per-ware market summary, most under-supplied first. Empty until a save loads."""
     out: list[WareMarket] = []

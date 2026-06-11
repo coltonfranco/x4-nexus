@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, Query
 
 from x4_api.api.deps import get_db
 from x4_api.api.schemas import PublicModel
-from x4_api.domain.supply import ware_market
+from x4_api.domain.supply import ware_market, ware_stations
 
 router = APIRouter()
 
@@ -60,3 +60,21 @@ def list_ware_market(
         rows = [m for m in rows if m.classification == classification]
     rows.sort(key=_SORTS[sort], reverse=True)
     return [WareMarketRow(**dataclasses.asdict(m)) for m in rows[:limit]]
+
+
+class WareOfferRow(PublicModel):
+    station_id: str
+    station_name: str | None
+    sector_id: str | None
+    side: str
+    price: int
+    quantity: int
+
+
+@router.get("/economy/wares/{ware_id}/stations", response_model=list[WareOfferRow])
+def ware_offer_breakdown(
+    ware_id: str,
+    conn: Annotated[sqlite3.Connection, Depends(get_db)],
+) -> list[WareOfferRow]:
+    """Per-station offers for one ware — where it's demanded vs supplied (and hoarding)."""
+    return [WareOfferRow(**dataclasses.asdict(o)) for o in ware_stations(conn, ware_id)]

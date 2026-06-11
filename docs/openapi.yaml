@@ -142,7 +142,14 @@ paths:
       tags:
       - factions
       summary: Faction Strength
-      description: Relative strength metrics for all non-legacy factions, normalized 0-100.
+      description: 'Relative strength metrics, normalized 0-100, computed from LIVE save state.
+
+
+        Everything here is the *current* universe (dynamic ships/stations/relations) so the
+
+        standings reflect how the game has actually unfolded — seed/static is init state only
+
+        and is not referenced once a save is loaded. The player is ranked alongside AI factions.'
       operationId: faction_strength_api_v1_factions_strength_get
       responses:
         '200':
@@ -1590,6 +1597,23 @@ paths:
                   $ref: '#/components/schemas/LicenceItem'
                 type: array
                 title: Response List Licences Api V1 Player Licences Get
+  /api/v1/player/reputation:
+    get:
+      tags:
+      - player
+      summary: Player Reputation
+      description: The player's current standing with every faction (best first), with gamestart drift.
+      operationId: player_reputation_api_v1_player_reputation_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/PlayerRelation'
+                type: array
+                title: Response Player Reputation Api V1 Player Reputation Get
   /api/v1/stations:
     get:
       tags:
@@ -1868,6 +1892,36 @@ paths:
                 items:
                   $ref: '#/components/schemas/WareMarketRow'
                 title: Response List Ware Market Api V1 Economy Wares Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/economy/wares/{ware_id}/stations:
+    get:
+      tags:
+      - economy
+      summary: Ware Offer Breakdown
+      description: Per-station offers for one ware — where it's demanded vs supplied (and hoarding).
+      operationId: ware_offer_breakdown_api_v1_economy_wares__ware_id__stations_get
+      parameters:
+      - name: ware_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Ware Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WareOfferRow'
+                title: Response Ware Offer Breakdown Api V1 Economy Wares  Ware Id  Stations Get
         '422':
           description: Validation Error
           content:
@@ -2844,6 +2898,26 @@ components:
         is_player_owned:
           type: boolean
           title: Is Player Owned
+        catalog_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Catalog Name
+        role:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Role
+        ship_type:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Ship Type
+        cargo_volume:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Cargo Volume
       additionalProperties: false
       type: object
       required:
@@ -2856,6 +2930,10 @@ components:
       - sector_id
       - state
       - is_player_owned
+      - catalog_name
+      - role
+      - ship_type
+      - cargo_volume
       title: LiveShip
     LiveStation:
       properties:
@@ -3273,6 +3351,38 @@ components:
       - current_sector
       - current_ship_id
       title: PlayerAccount
+    PlayerRelation:
+      properties:
+        faction_id:
+          type: string
+          title: Faction Id
+        faction_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Faction Name
+        color_hex:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Color Hex
+        relation:
+          type: number
+          title: Relation
+        initial_relation:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Initial Relation
+      additionalProperties: false
+      type: object
+      required:
+      - faction_id
+      - faction_name
+      - color_hex
+      - relation
+      - initial_relation
+      title: PlayerRelation
     ProductionInput:
       properties:
         ware_id:
@@ -3412,6 +3522,16 @@ components:
           - type: string
           - type: 'null'
           title: Sell Sector
+        buy_price:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Buy Price
+        sell_price:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Sell Price
         margin:
           type: integer
           title: Margin
@@ -3440,6 +3560,8 @@ components:
       - sell_station_id
       - sell_station_name
       - sell_sector
+      - buy_price
+      - sell_price
       - margin
       - units_per_trip
       - profit_per_trip
@@ -4616,6 +4738,40 @@ components:
       - price_index
       - classification
       title: WareMarketRow
+    WareOfferRow:
+      properties:
+        station_id:
+          type: string
+          title: Station Id
+        station_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Station Name
+        sector_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Sector Id
+        side:
+          type: string
+          title: Side
+        price:
+          type: integer
+          title: Price
+        quantity:
+          type: integer
+          title: Quantity
+      additionalProperties: false
+      type: object
+      required:
+      - station_id
+      - station_name
+      - sector_id
+      - side
+      - price
+      - quantity
+      title: WareOfferRow
     WareSummary:
       properties:
         ware_id:

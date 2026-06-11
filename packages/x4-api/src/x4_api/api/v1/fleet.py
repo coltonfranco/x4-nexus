@@ -21,13 +21,17 @@ router = APIRouter()
 class LiveShip(PublicModel):
     ship_id: str
     code: str | None
-    name: str | None
+    name: str | None              # in-save name (player-renamed); often null for NPC ships
     macro: str | None
     owner_faction: str | None
-    class_id: str | None
+    class_id: str | None          # size: ship_xs..ship_xl
     sector_id: str | None
     state: str | None
     is_player_owned: bool
+    catalog_name: str | None      # from the static ship catalog (e.g. "Rapier")
+    role: str | None              # fight | trade | mine | build | auxiliary | ...
+    ship_type: str | None         # scout | fighter | miner | freighter | ...
+    cargo_volume: int | None
 
 
 @router.get("/fleet", response_model=list[LiveShip])
@@ -40,20 +44,23 @@ def list_fleet(
     offset: int = Query(0, ge=0),
 ) -> list[LiveShip]:
     """Live ship instances. Returns [] until a save is ingested."""
+    # LEFT JOIN the static ship catalog (by macro) for role/type/name/cargo.
     sql = [
-        "SELECT ship_id, code, name, macro, owner_faction, class_id, sector_id, state, "
-        "is_player_owned FROM ships WHERE 1=1"
+        "SELECT sh.ship_id, sh.code, sh.name, sh.macro, sh.owner_faction, sh.class_id, "
+        "sh.sector_id, sh.state, sh.is_player_owned, "
+        "c.name AS catalog_name, c.role, c.ship_type, c.cargo_volume "
+        "FROM ships sh LEFT JOIN s.ships c ON c.ship_id = sh.macro WHERE 1=1"
     ]
     params: dict[str, object] = {}
     if owner is not None:
-        sql.append("AND owner_faction = :owner")
+        sql.append("AND sh.owner_faction = :owner")
         params["owner"] = owner
     if sector is not None:
-        sql.append("AND sector_id = :sector")
+        sql.append("AND sh.sector_id = :sector")
         params["sector"] = sector
     if player_only:
-        sql.append("AND is_player_owned = 1")
-    sql.append("ORDER BY ship_id LIMIT :limit OFFSET :offset")
+        sql.append("AND sh.is_player_owned = 1")
+    sql.append("ORDER BY sh.ship_id LIMIT :limit OFFSET :offset")
     params["limit"] = limit
     params["offset"] = offset
     rows = conn.execute(" ".join(sql), params).fetchall()
