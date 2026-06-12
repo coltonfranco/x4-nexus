@@ -85,6 +85,18 @@ def test_live_stations_and_fleet(client: TestClient) -> None:
     assert fleet[0]["is_player_owned"] is True
 
 
+def test_live_resources(client: TestClient) -> None:
+    assert client.get("/api/v1/map/resources/live").json() == []  # nothing ingested yet
+    _activate(client)
+
+    rows = {r["ware"]: r for r in client.get("/api/v1/map/resources/live").json()}
+    assert rows["ore"]["sector_id"] == "cluster_001_sector001_macro"
+    assert rows["ore"]["current"] == 4689
+    assert rows["silicon"]["current"] == 19080  # summed across the sector's two areas
+    assert rows["silicon"]["max"] == 33694
+    assert rows["silicon"]["yield_tier"] == "lowplus"
+
+
 def test_faction_relations_coalesce_current(
     client: TestClient, static_conn: sqlite3.Connection, seed_conn: sqlite3.Connection
 ) -> None:

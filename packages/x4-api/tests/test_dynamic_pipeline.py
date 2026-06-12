@@ -57,8 +57,8 @@ def test_pipeline_ingests_stations_meta_and_state(data_dir: Path, fixtures_dir: 
     assert meta["player_credits"] == 500000
     assert meta["real_time_iso"] is not None  # unix date → ISO
 
-    # Both tiers fired plus the source guard.
-    assert tiers == {"source", "structural", "volatile"}
+    # Both tiers fired plus the source + pipeline-version guards.
+    assert tiers == {"source", "structural", "volatile", "pipeline_version"}
 
 
 def test_pipeline_skips_unchanged_source(data_dir: Path, fixtures_dir: Path) -> None:
@@ -75,3 +75,26 @@ def test_pipeline_skips_unchanged_source(data_dir: Path, fixtures_dir: Path) -> 
     finally:
         conn.close()
     assert count == 1
+
+
+def test_pipeline_reingests_on_version_bump(data_dir: Path, fixtures_dir: Path) -> None:
+    settings = _settings(data_dir)
+    save = fixtures_dir / "tiny_save.xml.gz"
+    db = pipeline.run(settings, save)
+
+    # Simulate a DB ingested under an older pipeline: clear the version stamp and wipe a
+    # table the old pipeline never populated. An unchanged save must still re-ingest.
+    conn = _open(db)
+    conn.execute("DELETE FROM ingest_state WHERE tier = 'pipeline_version'")
+    conn.execute("DELETE FROM sector_resources")
+    conn.commit()
+    conn.close()
+
+    pipeline.run(settings, save)
+
+    conn = _open(db)
+    try:
+        (count,) = conn.execute("SELECT COUNT(*) FROM sector_resources").fetchone()
+    finally:
+        conn.close()
+    assert count == 2  # ore + silicon repopulated despite the save being unchanged

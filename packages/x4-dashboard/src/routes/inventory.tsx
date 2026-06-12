@@ -1,9 +1,10 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Coins } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronRight, Coins } from "lucide-react";
 import { useMemo, useState } from "react";
-import { PriceBar } from "../components/trade/PriceBar";
-import { WareDetailTabs } from "../components/trade/WareDetailTabs";
+import { Currency } from "../components/Currency";
+import { WareDetailPanel } from "../components/trade/WareDetailPanel";
 import { Badge } from "../components/ui/badge";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../components/ui/dialog";
 import { Input } from "../components/ui/input";
 
 type Ware = {
@@ -32,6 +33,7 @@ const BUCKETS = [
   "Other Inventory",
 ] as const;
 type Bucket = (typeof BUCKETS)[number];
+type FilterType = Bucket | "Craftable" | "Drops" | "all";
 
 function bucketOf(w: Ware): Bucket {
   const t = w.tags ?? "";
@@ -97,40 +99,26 @@ function NameCell({ ware }: { ware: Ware }) {
   return <span className="text-sm font-medium">{ware.name}</span>;
 }
 
-function InventoryRow({ ware, bucket }: { ware: Ware; bucket: Bucket }) {
-  const [open, setOpen] = useState(false);
+function InventoryRow({ ware, bucket, onSelect }: { ware: Ware; bucket: Bucket; onSelect: (id: string) => void }) {
   const qc = useQueryClient();
-  const expandable = ware.has_production || ware.has_drops;
 
   const prefetch = () => {
-    if (ware.has_drops)
-      qc.prefetchQuery({
-        queryKey: ["drops", "wares", ware.ware_id],
-        queryFn: () => fetch(`/api/v1/drops/wares/${ware.ware_id}`).then((r) => r.json()),
-        staleTime: 60_000,
-      });
-    if (ware.has_production)
-      qc.prefetchQuery({
-        queryKey: ["wares", ware.ware_id],
-        queryFn: () => fetch(`/api/v1/wares/${ware.ware_id}`).then((r) => r.json()),
-        staleTime: 60_000,
-      });
+    qc.prefetchQuery({
+      queryKey: ["wares", ware.ware_id],
+      queryFn: () => fetch(`/api/v1/wares/${ware.ware_id}`).then((r) => r.json()),
+      staleTime: 60_000,
+    });
   };
 
   return (
-    <>
       <tr
-        className={`border-b border-border transition-colors ${expandable ? "cursor-pointer hover:bg-muted/30" : ""}`}
-        onClick={expandable ? () => setOpen((o) => !o) : undefined}
+        className="border-b border-border transition-colors cursor-pointer hover:bg-muted/30"
+        onClick={() => onSelect(ware.ware_id)}
         onMouseEnter={prefetch}
       >
-        <td className="px-3 py-2">
-          {expandable &&
-            (open ? (
-              <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-            ) : (
-              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-            ))}
+        <td className="px-3 py-2 text-muted-foreground/40 pl-4">
+          {/* Reserve space instead of chevron */}
+          <ChevronRight className="h-3.5 w-3.5 opacity-0" />
         </td>
         <td className="px-3 py-2">
           <NameCell ware={ware} />
@@ -146,25 +134,18 @@ function InventoryRow({ ware, bucket }: { ware: Ware; bucket: Bucket }) {
           </div>
         </td>
         <td className="px-3 py-2">
-          <PriceBar min={ware.price_min} avg={ware.price_avg} max={ware.price_max} />
+          <Currency value={ware.price_avg} />
         </td>
       </tr>
-      {open && expandable && (
-        <tr className="border-b border-border">
-          <td colSpan={5} className="px-8 pb-4 pt-2">
-            <WareDetailTabs wareId={ware.ware_id} hasProduction={ware.has_production} hasDrops={ware.has_drops} prefer="drops" />
-          </td>
-        </tr>
-      )}
-    </>
   );
 }
 
 export default function InventoryPage() {
   const [search, setSearch] = useState("");
-  const [bucket, setBucket] = useState<Bucket | "all">("all");
+  const [filter, setFilter] = useState<FilterType>("all");
   const [sort, setSort] = useState<SortKey>("type");
   const [dir, setDir] = useState<"asc" | "desc">("asc");
+  const [selectedWareId, setSelectedWareId] = useState<string | null>(null);
 
   const { data: wares = [], isLoading } = useQuery<Ware[]>({
     queryKey: ["wares", "inventory"],
@@ -178,8 +159,12 @@ export default function InventoryPage() {
   const withBucket = useMemo(() => wares.map((w) => ({ ware: w, bucket: bucketOf(w) })), [wares]);
 
   const counts = useMemo(() => {
-    const c: Record<string, number> = {};
-    for (const { bucket } of withBucket) c[bucket] = (c[bucket] ?? 0) + 1;
+    const c: Record<string, number> = { Craftable: 0, Drops: 0 };
+    for (const { ware, bucket } of withBucket) {
+      c[bucket] = (c[bucket] ?? 0) + 1;
+      if (ware.has_production) c.Craftable++;
+      if (ware.has_drops) c.Drops++;
+    }
     return c;
   }, [withBucket]);
 
@@ -187,7 +172,9 @@ export default function InventoryPage() {
     const needle = search.trim().toLowerCase();
     const filtered = withBucket.filter(({ ware, bucket: b }) => {
       if (needle && !ware.name.toLowerCase().includes(needle)) return false;
-      if (bucket !== "all" && b !== bucket) return false;
+      if (filter === "Craftable" && !ware.has_production) return false;
+      if (filter === "Drops" && !ware.has_drops) return false;
+      if (filter !== "all" && filter !== "Craftable" && filter !== "Drops" && b !== filter) return false;
       return true;
     });
     const mul = dir === "asc" ? 1 : -1;
@@ -197,7 +184,7 @@ export default function InventoryPage() {
       const t = a.bucket.localeCompare(b.bucket) * mul;
       return t !== 0 ? t : a.ware.name.localeCompare(b.ware.name);
     });
-  }, [withBucket, search, bucket, sort, dir]);
+  }, [withBucket, search, filter, sort, dir]);
 
   const onSort = (c: SortKey) => {
     if (c === sort) setDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -217,20 +204,33 @@ export default function InventoryPage() {
         <div className="mt-3 flex flex-wrap items-center gap-1.5">
           <Input placeholder="Search…" value={search} onChange={(e) => setSearch(e.target.value)} className="mr-2 w-52" />
           <button
-            onClick={() => setBucket("all")}
-            className={`rounded-full px-2.5 py-1 text-xs font-medium ${bucket === "all" ? "bg-primary text-primary-foreground" : "bg-muted/50 text-muted-foreground hover:text-foreground"}`}
+            onClick={() => setFilter("all")}
+            className={`rounded-full px-2.5 py-1 text-xs font-medium ${filter === "all" ? "bg-primary text-primary-foreground" : "bg-muted/50 text-muted-foreground hover:text-foreground"}`}
           >
             All
           </button>
           {BUCKETS.filter((b) => counts[b]).map((b) => (
             <button
               key={b}
-              onClick={() => setBucket(b)}
-              className={`rounded-full px-2.5 py-1 text-xs font-medium ${bucket === b ? "bg-primary text-primary-foreground" : "bg-muted/50 text-muted-foreground hover:text-foreground"}`}
+              onClick={() => setFilter(b)}
+              className={`rounded-full px-2.5 py-1 text-xs font-medium ${filter === b ? "bg-primary text-primary-foreground" : "bg-muted/50 text-muted-foreground hover:text-foreground"}`}
             >
               {b} <span className="opacity-60">{counts[b]}</span>
             </button>
           ))}
+          <div className="mx-1 h-4 w-px bg-border" />
+          <button
+            onClick={() => setFilter("Craftable")}
+            className={`rounded-full px-2.5 py-1 text-xs font-medium ${filter === "Craftable" ? "bg-primary text-primary-foreground" : "bg-muted/50 text-muted-foreground hover:text-foreground"}`}
+          >
+            Craftable <span className="opacity-60">{counts.Craftable}</span>
+          </button>
+          <button
+            onClick={() => setFilter("Drops")}
+            className={`rounded-full px-2.5 py-1 text-xs font-medium ${filter === "Drops" ? "bg-primary text-primary-foreground" : "bg-muted/50 text-muted-foreground hover:text-foreground"}`}
+          >
+            Drops <span className="opacity-60">{counts.Drops}</span>
+          </button>
         </div>
       </div>
 
@@ -259,12 +259,22 @@ export default function InventoryPage() {
             </thead>
             <tbody>
               {rows.map(({ ware, bucket: b }) => (
-                <InventoryRow key={ware.ware_id} ware={ware} bucket={b} />
+                <InventoryRow key={ware.ware_id} ware={ware} bucket={b} onSelect={setSelectedWareId} />
               ))}
             </tbody>
           </table>
         )}
       </div>
+
+      <Dialog open={selectedWareId !== null} onOpenChange={(open) => { if (!open) setSelectedWareId(null); }}>
+        <DialogContent className="sm:max-w-2xl md:max-w-4xl min-h-[60vh] max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Item Details</DialogTitle>
+            <DialogDescription>Detailed view of the selected item</DialogDescription>
+          </DialogHeader>
+          {selectedWareId && <WareDetailPanel wareId={selectedWareId} />}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

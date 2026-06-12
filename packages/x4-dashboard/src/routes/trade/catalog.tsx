@@ -1,8 +1,9 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowDown, ArrowUp, ChevronDown, ChevronRight } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronRight } from "lucide-react";
 import { useMemo, useState } from "react";
 import { PriceBar } from "../../components/trade/PriceBar";
-import { WareDetailTabs } from "../../components/trade/WareDetailTabs";
+import { WareDetailPanel } from "../../components/trade/WareDetailPanel";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../components/ui/dialog";
 import { Input } from "../../components/ui/input";
 import {
   Select,
@@ -53,14 +54,11 @@ function SortHeader({
   );
 }
 
-function CommodityRow({ ware, groupName }: { ware: Ware; groupName: string }) {
-  const [open, setOpen] = useState(false);
+function CommodityRow({ ware, groupName, onSelect }: { ware: Ware; groupName: string; onSelect: (id: string) => void }) {
   const qc = useQueryClient();
-  const expandable = ware.has_production || ware.has_drops;
 
   // Warm the detail cache on hover so the expander renders instantly.
   const prefetch = () => {
-    if (!ware.has_production) return;
     qc.prefetchQuery({
       queryKey: ["wares", ware.ware_id],
       queryFn: () => fetch(`/api/v1/wares/${ware.ware_id}`).then((r) => r.json()),
@@ -69,19 +67,13 @@ function CommodityRow({ ware, groupName }: { ware: Ware; groupName: string }) {
   };
 
   return (
-    <>
       <tr
-        className={`border-b border-border transition-colors ${expandable ? "cursor-pointer hover:bg-muted/30" : ""}`}
-        onClick={expandable ? () => setOpen((o) => !o) : undefined}
+        className="border-b border-border transition-colors cursor-pointer hover:bg-muted/30"
+        onClick={() => onSelect(ware.ware_id)}
         onMouseEnter={prefetch}
       >
-        <td className="px-3 py-2">
-          {expandable &&
-            (open ? (
-              <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-            ) : (
-              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-            ))}
+        <td className="px-3 py-2 text-muted-foreground/40 pl-4">
+          <ChevronRight className="h-3.5 w-3.5 opacity-0" />
         </td>
         <td className="px-3 py-2 text-sm font-medium">{ware.name}</td>
         <td className="px-3 py-2 text-xs text-muted-foreground">{groupName}</td>
@@ -89,14 +81,6 @@ function CommodityRow({ ware, groupName }: { ware: Ware; groupName: string }) {
           <PriceBar min={ware.price_min} avg={ware.price_avg} max={ware.price_max} />
         </td>
       </tr>
-      {open && expandable && (
-        <tr className="border-b border-border">
-          <td colSpan={4} className="px-8 pb-4 pt-2">
-            <WareDetailTabs wareId={ware.ware_id} hasProduction={ware.has_production} hasDrops={ware.has_drops} prefer="production" />
-          </td>
-        </tr>
-      )}
-    </>
   );
 }
 
@@ -105,6 +89,7 @@ export default function TradeCatalogPage() {
   const [group, setGroup] = useState("all");
   const [sort, setSort] = useState<SortKey>("group");
   const [dir, setDir] = useState<"asc" | "desc">("asc");
+  const [selectedWareId, setSelectedWareId] = useState<string | null>(null);
 
   const { data: wares = [], isLoading } = useQuery<Ware[]>({
     queryKey: ["wares", "commodity"],
@@ -211,12 +196,22 @@ export default function TradeCatalogPage() {
             </thead>
             <tbody>
               {rows.map((w) => (
-                <CommodityRow key={w.ware_id} ware={w} groupName={groupName(w.group_id)} />
+                <CommodityRow key={w.ware_id} ware={w} groupName={groupName(w.group_id)} onSelect={setSelectedWareId} />
               ))}
             </tbody>
           </table>
         )}
       </div>
+
+      <Dialog open={selectedWareId !== null} onOpenChange={(open) => { if (!open) setSelectedWareId(null); }}>
+        <DialogContent className="sm:max-w-2xl md:max-w-4xl min-h-[60vh] max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Commodity Details</DialogTitle>
+            <DialogDescription>Detailed view of the selected commodity</DialogDescription>
+          </DialogHeader>
+          {selectedWareId && <WareDetailPanel wareId={selectedWareId} />}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

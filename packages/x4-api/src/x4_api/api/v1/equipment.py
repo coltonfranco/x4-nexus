@@ -158,7 +158,7 @@ def _build_item(
         price_min=row["price_min"],
         price_avg=row["price_avg"],
         price_max=row["price_max"],
-        icon_url=get_icon_url(row["icon_path"]),
+        icon_url=get_icon_url(row["icon_path"]) or get_icon_url(f"upgrade_{row['ware_id']}_macro"),
         has_production=bool(row["has_production"]),
         engine_stats=engine_stats,
         shield_stats=shield_stats,

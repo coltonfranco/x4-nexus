@@ -30,6 +30,7 @@ class ShipSummary(PublicModel):
     speed_max: float | None
     icon_url: str | None
     image_url: str | None
+    price_avg: int | None
 
 
 class ShipSoftware(PublicModel):
@@ -96,8 +97,8 @@ class ShipDetail(ShipSummary):
 
 
 _DETAIL_COLS = (
-    "ship_id, name, description, basename, dlc, class_id, ship_type, role, faction_id, "
-    "hull, cargo_volume, speed_min, speed_max, icon_path, "
+    "s.ship_id, s.name, s.description, s.basename, s.dlc, s.class_id, s.ship_type, s.role, s.faction_id, "
+    "s.hull, s.cargo_volume, s.speed_min, s.speed_max, s.icon_path, "
     "secrecy_level, "
     "travel_min, travel_max, boost_min, boost_max, "
     "pitch_min, pitch_max, yaw_min, yaw_max, roll_min, roll_max, "
@@ -111,7 +112,8 @@ _DETAIL_COLS = (
     "weapons_s, weapons_m, weapons_l, weapons_xl, "
     "turrets_s, turrets_m, turrets_l, turrets_xl, "
     "shields_s, shields_m, shields_l, shields_xl, "
-    "engines_s, engines_m, engines_l, engines_xl"
+    "engines_s, engines_m, engines_l, engines_xl, "
+    "w.price_avg"
 )
 
 
@@ -125,17 +127,19 @@ def list_ships(
 ) -> list[ShipSummary]:
     """List all ships in the game catalog."""
     sql = [
-        "SELECT ship_id, name, dlc, class_id, ship_type, role, faction_id, hull, cargo_volume, speed_min, speed_max, icon_path",
-        "FROM s.ships WHERE 1=1",
+        "SELECT s.ship_id, s.name, s.dlc, s.class_id, s.ship_type, s.role, s.faction_id, s.hull, s.cargo_volume, s.speed_min, s.speed_max, s.icon_path, w.price_avg",
+        "FROM s.ships s",
+        "LEFT JOIN s.wares w ON w.ware_id = REPLACE(s.ship_id, '_macro', '')",
+        "WHERE 1=1",
     ]
     params: dict[str, object] = {"limit": limit, "offset": offset}
     if class_id is not None:
-        sql.append("AND class_id = :class_id")
+        sql.append("AND s.class_id = :class_id")
         params["class_id"] = class_id
     if faction_id is not None:
-        sql.append("AND faction_id = :faction_id")
+        sql.append("AND s.faction_id = :faction_id")
         params["faction_id"] = faction_id
-    sql.append("ORDER BY ship_id LIMIT :limit OFFSET :offset")
+    sql.append("ORDER BY s.ship_id LIMIT :limit OFFSET :offset")
 
     rows = conn.execute(" ".join(sql), params).fetchall()
     return [
@@ -153,6 +157,7 @@ def list_ships(
             speed_max=r["speed_max"],
             icon_url=get_icon_url(r["icon_path"]),
             image_url=get_icon_url(f"ship_{r['ship_id']}"),
+            price_avg=r["price_avg"],
         )
         for r in rows
     ]
@@ -165,7 +170,7 @@ def get_ship(
 ) -> ShipDetail:
     """Get detailed stats for a specific ship."""
     row = conn.execute(
-        f"SELECT {_DETAIL_COLS} FROM s.ships WHERE ship_id = :id", {"id": ship_id}
+        f"SELECT {_DETAIL_COLS} FROM s.ships s LEFT JOIN s.wares w ON w.ware_id = REPLACE(s.ship_id, '_macro', '') WHERE s.ship_id = :id", {"id": ship_id}
     ).fetchone()
     if row is None:
         raise HTTPException(status_code=404, detail=f"Unknown ship_id: {ship_id}")

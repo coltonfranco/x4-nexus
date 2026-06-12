@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
+import { Currency } from "../components/Currency";
 import { useMemo, useState } from "react";
-import { ArrowRight, Coins, Gauge, Package, Rocket, TrendingUp } from "lucide-react";
+import { ArrowRight, Gauge, Map as MapIcon, Package, Rocket, TrendingUp } from "lucide-react";
 
 type TradeRoute = {
   ware_id: string;
@@ -163,7 +165,7 @@ export default function RoutesPage() {
                   <div className="flex items-center gap-2 text-sm font-semibold">
                     <span className="truncate">{r.ware_name ?? r.ware_id}</span>
                     <span className="flex items-center gap-1 text-xs text-emerald-500 tabular-nums">
-                      <Coins className="h-3 w-3" />+{fmt(r.margin)}/u
+                      +<Currency value={r.margin} icon={true} abbreviate className="text-emerald-500" />/u
                     </span>
                     <span className="flex items-center gap-1 text-xs text-muted-foreground tabular-nums">
                       <Package className="h-3 w-3" />
@@ -174,30 +176,38 @@ export default function RoutesPage() {
                     <span className="truncate text-blue-400/90">
                       {sectorName(r.buy_sector)}
                       {r.buy_price != null && (
-                        <span className="ml-1 opacity-70 tabular-nums">buy @{fmt(r.buy_price)}</span>
+                        <span className="ml-1 opacity-70 tabular-nums">buy @<Currency value={r.buy_price} abbreviate icon={false} /></span>
                       )}
                     </span>
                     <ArrowRight className="h-3 w-3 shrink-0 text-emerald-500" />
                     <span className="truncate text-amber-400/90">
                       {sectorName(r.sell_sector)}
                       {r.sell_price != null && (
-                        <span className="ml-1 opacity-70 tabular-nums">sell @{fmt(r.sell_price)}</span>
+                        <span className="ml-1 opacity-70 tabular-nums">sell @<Currency value={r.sell_price} abbreviate icon={false} /></span>
                       )}
                     </span>
                     {r.hops != null && (
                       <span className="shrink-0 opacity-60">· {r.hops} jump{r.hops === 1 ? "" : "s"}</span>
                     )}
+                    <Link
+                      to="/map"
+                      search={{ ware: r.ware_id, from: r.buy_sector ?? undefined, to: r.sell_sector ?? undefined }}
+                      title="View this route on the map"
+                      className="shrink-0 ml-auto flex items-center gap-1 text-muted-foreground/70 hover:text-primary transition-colors"
+                    >
+                      <MapIcon className="h-3.5 w-3.5" />
+                    </Link>
                   </div>
                 </div>
 
                 {/* profit/hr hero + bar */}
                 <div className="w-40 shrink-0 text-right">
                   <div className="text-base font-bold tabular-nums text-emerald-400">
-                    {fmt(r.est_profit_per_hour)}
+                    <Currency value={r.est_profit_per_hour} abbreviate icon={false} className="text-emerald-400" />
                     <span className="text-xs font-normal text-muted-foreground"> /hr</span>
                   </div>
                   <div className="text-xs text-muted-foreground tabular-nums">
-                    {fmt(r.profit_per_trip)} / trip
+                    <Currency value={r.profit_per_trip} abbreviate icon={false} className="text-muted-foreground" /> / trip
                   </div>
                   <div className="mt-1 h-1 w-full rounded-full bg-border overflow-hidden">
                     <div

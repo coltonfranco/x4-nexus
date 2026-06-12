@@ -84,4 +84,20 @@
   --radius-sm: calc(var(--radius) - 2px);
   --radius-md: var(--radius);
   --radius-lg: calc(var(--radius) + 2px);
+  --animate-hover-bob-sm: hover-bob-sm 3s ease-in-out infinite;
+  --animate-hover-bob-md: hover-bob-md 5s ease-in-out infinite;
+  --animate-hover-bob-lg: hover-bob-lg 8s ease-in-out infinite;
+}
+
+@keyframes hover-bob-sm {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-12px); }
+}
+@keyframes hover-bob-md {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+@keyframes hover-bob-lg {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
 }

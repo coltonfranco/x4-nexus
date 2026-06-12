@@ -1,11 +1,22 @@
 import { useQuery } from "@tanstack/react-query";
-import { ArrowDown, ArrowUp, ChevronDown, ChevronRight } from "lucide-react";
+import { ArrowDown, ArrowUp } from "lucide-react";
 import { useMemo, useState } from "react";
-import { MetricBar } from "../components/trade/MetricBar";
 import { ProductionChain } from "../components/trade/ProductionChain";
 import { Input } from "../components/ui/input";
 import { fmtNum } from "../lib/wareFormat";
 import { useSort } from "../lib/useSort";
+import { Currency } from "../components/Currency";
+import { FactionBadge } from "../components/FactionBadge";
+import { ShipRoleBadge, EquipmentMkBadge, ShipClassBadge } from "../components/ShipBadges";
+import { StatBar } from "../components/StatBar";
+import { EntityIcon } from "../components/EntityIcon";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "../components/ui/dialog";
 
 type EngineStats = {
   mk: number | null;
@@ -46,21 +57,26 @@ type Equipment = {
   price_min: number | null;
   price_avg: number | null;
   price_max: number | null;
+  icon_url: string | null;
   has_production: boolean;
   engine_stats: EngineStats | null;
   shield_stats: ShieldStats | null;
   weapon_stats: WeaponStats | null;
 };
 
+type FactionSummary = {
+  faction_id: string;
+  name: string;
+  color_hex: string | null;
+};
+
 // ── Derived weapon metrics ──────────────────────────────────────────────────────
-// Projectile weapons reload (damage is per shot); beams have no reload and a hitscan
-// "speed" (~c), so their damage is already per-second and projectile range is nonsense.
 const dps = (w: WeaponStats | null): number | null =>
   w?.damage == null ? null : Math.round(w.damage * (w.bullet_amount ?? 1) * (w.reload_rate ?? 1));
 const rangeM = (w: WeaponStats | null): number | null => {
   if (w?.bullet_speed == null || w?.bullet_lifetime == null) return null;
   const r = w.bullet_speed * w.bullet_lifetime;
-  return r > 50_000 ? null : Math.round(r); // > 50 km ⇒ hitscan beam, not a real projectile range
+  return r > 50_000 ? null : Math.round(r);
 };
 
 // ── Category definitions ────────────────────────────────────────────────────────
@@ -87,8 +103,7 @@ const CATEGORIES: Category[] = [
     match: (k) => k === "engine",
     metrics: [
       { key: "travel", label: "Travel", primary: true, get: (e) => e.engine_stats?.travel_thrust ?? null, fmt: (n) => `${n.toFixed(1)}×` },
-      { key: "boost", label: "Boost", get: (e) => e.engine_stats?.boost_thrust ?? null, fmt: (n) => `${n.toFixed(1)}×` },
-      { key: "forward", label: "Forward", get: (e) => e.engine_stats?.thrust_forward ?? null, fmt: (n) => fmtNum(Math.round(n)) },
+      { key: "boost", label: "Boost", primary: true, get: (e) => e.engine_stats?.boost_thrust ?? null, fmt: (n) => `${n.toFixed(1)}×` },
     ],
   },
   {
@@ -140,9 +155,8 @@ const CATEGORIES: Category[] = [
 ];
 
 const SIZE_ORDER: Record<string, number> = { xs: 0, s: 1, m: 2, l: 3, xl: 4 };
-const fmtCr = (n: number) => (n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 1000 ? `${Math.round(n / 1000)}k` : `${n}`);
 
-// ── Detail (instant — stats already inlined) ────────────────────────────────────
+// ── Detail Modal ────────────────────────────────────────────────────────────────
 function StatRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-baseline justify-between gap-3">
@@ -186,23 +200,56 @@ function FullStats({ item }: { item: Equipment }) {
       ["Projectiles", fmtNum(w.bullet_amount)]
     );
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {rows.length > 0 && (
-        <div className="grid grid-cols-2 gap-x-8 gap-y-1.5 sm:grid-cols-3">
-          {rows.map(([label, value]) => (
-            <StatRow key={label} label={label} value={value} />
-          ))}
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">Metrics</p>
+          <div className="grid grid-cols-2 gap-x-8 gap-y-2 sm:grid-cols-3">
+            {rows.map(([label, value]) => (
+              <StatRow key={label} label={label} value={value} />
+            ))}
+          </div>
         </div>
       )}
       {item.has_production && (
         <div>
-          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Build chain</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">Build chain</p>
           <ProductionChain wareId={item.ware_id} />
         </div>
       )}
       {rows.length === 0 && !item.has_production && (
         <p className="text-xs italic text-muted-foreground">No detailed stats extracted for this part.</p>
       )}
+    </div>
+  );
+}
+
+function EquipmentDetailPanel({ item, factions }: { item: Equipment; factions: FactionSummary[] }) {
+  const faction = item.faction_id ? factions.find((f) => f.faction_id === item.faction_id) : undefined;
+  
+  return (
+    <div className="p-6 space-y-5">
+      <div className="flex flex-col sm:flex-row gap-6">
+        <div className="shrink-0 flex items-center justify-center w-32 h-32 bg-muted/10 rounded-xl p-2 border border-border/50 shadow-inner relative overflow-hidden">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.05)_0%,transparent_70%)]" />
+          <EntityIcon src={item.icon_url} alt={item.name} size={100} className="relative drop-shadow-[0_0_12px_rgba(0,0,0,0.6)]" />
+        </div>
+        
+        <div className="flex-1 flex flex-col justify-center min-w-0">
+          <h2 className="text-2xl font-bold tracking-tight truncate" title={item.name}>
+            {item.name}
+          </h2>
+          <div className="flex items-center gap-2 mt-3 flex-wrap">
+            <ShipRoleBadge role={item.kind} className="px-2.5 py-0.5 text-xs" />
+            <EquipmentMkBadge mk={item.mk} className="px-2.5 py-0.5 text-xs tracking-wider" />
+            {item.size && <ShipClassBadge class_id={item.size} className="px-2.5 py-0.5 text-xs tracking-wider" />}
+            {faction && <FactionBadge name={faction.name} color_hex={faction.color_hex} faction_id={faction.faction_id} />}
+          </div>
+        </div>
+      </div>
+      <div className="pt-4 border-t border-border/50">
+        <FullStats item={item} />
+      </div>
     </div>
   );
 }
@@ -231,8 +278,17 @@ function SortHeader({
   );
 }
 
-function EquipmentTable({ category, items }: { category: Category; items: Equipment[] }) {
-  const [openId, setOpenId] = useState<string | null>(null);
+function EquipmentTable({
+  category,
+  items,
+  factions,
+  onSelect,
+}: {
+  category: Category;
+  items: Equipment[];
+  factions: FactionSummary[];
+  onSelect: (item: Equipment) => void;
+}) {
   const metrics = category.metrics;
 
   const accessors = useMemo(() => {
@@ -251,20 +307,19 @@ function EquipmentTable({ category, items }: { category: Category; items: Equipm
     dir: primaryKey === "name" ? "asc" : "desc",
   });
 
-  // Bar maxima per metric over the currently displayed set.
   const maxima = useMemo(() => {
     const m: Record<string, number> = {};
     for (const col of metrics) m[col.key] = Math.max(1, ...items.map((e) => col.get(e) ?? 0));
     return m;
   }, [metrics, items]);
 
-  const colCount = 2 + metrics.length + 3; // chevron + name + metrics + mk/faction/price
+  const factionMap = new Map(factions.map((f) => [f.faction_id, f]));
 
   return (
     <table className="w-full text-sm">
       <thead>
         <tr className="border-b border-border text-xs text-muted-foreground">
-          <th className="w-8" />
+          <th className="w-10 px-3 py-2" />
           <SortHeader label="Name" active={key === "name"} dir={dir} onClick={() => toggle("name", "asc")} />
           {metrics.map((m) => (
             <SortHeader
@@ -273,88 +328,67 @@ function EquipmentTable({ category, items }: { category: Category; items: Equipm
               active={key === m.key}
               dir={dir}
               onClick={() => toggle(m.key)}
-              className={m.primary ? "w-[26%]" : ""}
+              className={m.primary ? "w-28" : ""}
             />
           ))}
           <th className="w-12 px-3 py-2 text-left font-medium">Mk</th>
-          <th className="w-16 px-3 py-2 text-left font-medium">Faction</th>
+          <th className="w-32 px-3 py-2 text-left font-medium">Faction</th>
           <SortHeader label="Price" active={key === "price"} dir={dir} onClick={() => toggle("price")} className="w-24" />
         </tr>
       </thead>
       <tbody>
         {sorted.map((e) => {
-          const open = openId === e.ware_id;
+          const faction = e.faction_id ? factionMap.get(e.faction_id) : undefined;
           return (
-            <FragmentRow
+            <tr
               key={e.ware_id}
-              item={e}
-              metrics={metrics}
-              maxima={maxima}
-              open={open}
-              onToggle={() => setOpenId(open ? null : e.ware_id)}
-              colCount={colCount}
-            />
+              className="cursor-pointer border-b border-border transition-colors hover:bg-muted/30"
+              onClick={() => onSelect(e)}
+            >
+              <td className="px-3 py-2">
+                <EntityIcon src={e.icon_url} alt={e.name} size={28} />
+              </td>
+              <td className="px-3 py-2 font-medium">{e.name}</td>
+              {metrics.map((m) =>
+                m.primary ? (
+                  <td key={m.key} className="px-3 py-2">
+                    {m.get(e) != null ? (
+                      <StatBar value={m.get(e)!} max={maxima[m.key]} label={m.fmt(m.get(e)!)} width={80} />
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
+                  </td>
+                ) : (
+                  <td key={m.key} className="px-3 py-2 text-xs tabular-nums text-muted-foreground">
+                    {(() => {
+                      const v = m.get(e);
+                      return v == null ? "—" : m.fmt(v);
+                    })()}
+                  </td>
+                )
+              )}
+              <td className="px-3 py-2">
+                {e.mk != null ? (
+                  <EquipmentMkBadge mk={e.mk} className="text-[10px] px-1.5 py-0" />
+                ) : (
+                  <span className="text-xs text-muted-foreground">—</span>
+                )}
+              </td>
+              <td className="px-3 py-2">
+                {faction ? (
+                  <FactionBadge name={faction.name} color_hex={faction.color_hex} faction_id={faction.faction_id} />
+                ) : (
+                  <span className="text-xs uppercase text-muted-foreground">{e.faction_id ?? "—"}</span>
+                )}
+              </td>
+              <td className="px-3 py-2 text-right text-xs tabular-nums text-muted-foreground">
+                {e.price_avg != null ? <Currency value={e.price_avg} /> : "—"}
+              </td>
+            </tr>
           );
         })}
       </tbody>
     </table>
-  );
-}
-
-function FragmentRow({
-  item,
-  metrics,
-  maxima,
-  open,
-  onToggle,
-  colCount,
-}: {
-  item: Equipment;
-  metrics: MetricCol[];
-  maxima: Record<string, number>;
-  open: boolean;
-  onToggle: () => void;
-  colCount: number;
-}) {
-  return (
-    <>
-      <tr className="cursor-pointer border-b border-border transition-colors hover:bg-muted/30" onClick={onToggle}>
-        <td className="px-3 py-2">
-          {open ? (
-            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-          ) : (
-            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-          )}
-        </td>
-        <td className="px-3 py-2 font-medium">{item.name}</td>
-        {metrics.map((m) =>
-          m.primary ? (
-            <td key={m.key} className="px-3 py-2">
-              <MetricBar value={m.get(item)} max={maxima[m.key]} format={m.fmt} />
-            </td>
-          ) : (
-            <td key={m.key} className="px-3 py-2 text-xs tabular-nums text-muted-foreground">
-              {(() => {
-                const v = m.get(item);
-                return v == null ? "—" : m.fmt(v);
-              })()}
-            </td>
-          )
-        )}
-        <td className="px-3 py-2 text-xs text-muted-foreground">{item.mk != null ? `Mk${item.mk}` : ""}</td>
-        <td className="px-3 py-2 text-xs uppercase text-muted-foreground">{item.faction_id ?? ""}</td>
-        <td className="px-3 py-2 text-right text-xs tabular-nums text-muted-foreground">
-          {item.price_avg != null ? `${fmtCr(item.price_avg)} Cr` : "—"}
-        </td>
-      </tr>
-      {open && (
-        <tr className="border-b border-border">
-          <td colSpan={colCount} className="bg-muted/10 px-8 pb-4 pt-3">
-            <FullStats item={item} />
-          </td>
-        </tr>
-      )}
-    </>
   );
 }
 
@@ -363,6 +397,7 @@ export default function EquipmentPage() {
   const [catId, setCatId] = useState("engine");
   const [size, setSize] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [selectedEquipment, setSelectedEquipment] = useState<Equipment | null>(null);
 
   const { data: items = [], isLoading } = useQuery<Equipment[]>({
     queryKey: ["equipment"],
@@ -371,6 +406,11 @@ export default function EquipmentPage() {
         .then((r) => r.json())
         .then((d) => (Array.isArray(d) ? d : [])),
     staleTime: 5 * 60_000,
+  });
+
+  const { data: factions = [] } = useQuery<FactionSummary[]>({
+    queryKey: ["factions"],
+    queryFn: () => fetch("/api/v1/factions").then((r) => r.json()),
   });
 
   const counts = useMemo(() => {
@@ -458,9 +498,25 @@ export default function EquipmentPage() {
         ) : shown.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">No parts match.</p>
         ) : (
-          <EquipmentTable category={category} items={shown} />
+          <EquipmentTable
+            category={category}
+            items={shown}
+            factions={factions}
+            onSelect={setSelectedEquipment}
+          />
         )}
       </div>
+
+      <Dialog open={selectedEquipment !== null} onOpenChange={(open) => { if (!open) setSelectedEquipment(null); }}>
+        <DialogContent className="sm:max-w-2xl md:max-w-3xl">
+          <DialogHeader className="sr-only">
+            <DialogTitle>{selectedEquipment?.name ?? "Equipment details"}</DialogTitle>
+            <DialogDescription>Detailed stats for {selectedEquipment?.name}</DialogDescription>
+          </DialogHeader>
+          {selectedEquipment && <EquipmentDetailPanel item={selectedEquipment} factions={factions} />}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+

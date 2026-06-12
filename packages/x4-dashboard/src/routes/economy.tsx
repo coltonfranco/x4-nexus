@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { Currency } from "../components/Currency";
 import { useMemo, useState } from "react";
 import { AlertTriangle, Boxes, ChevronDown, TrendingDown, TrendingUp } from "lucide-react";
 
@@ -159,7 +160,7 @@ export default function EconomyPage() {
                       ) : (
                         <span className="text-xs text-muted-foreground">—</span>
                       )}
-                      <div className="text-[10px] text-muted-foreground tabular-nums">{m.avg_price.toLocaleString()} cr</div>
+                      <div className="text-[10px] text-muted-foreground tabular-nums"><Currency value={m.avg_price} icon={false} dynamicColor className="text-muted-foreground" /></div>
                     </div>
                     <div className="text-right">
                       <div className={`text-sm font-bold tabular-nums ${signColor(m.net_demand)}`}>
@@ -236,7 +237,7 @@ function DistColumn({
                 <div className={`h-full rounded-full ${bar}`} style={{ width: `${(v.qty / max) * 100}%` }} />
               </div>
               <span className="w-16 text-right tabular-nums text-muted-foreground">{v.qty.toLocaleString()}</span>
-              <span className="w-20 text-right tabular-nums text-muted-foreground/80">@{v.best.toLocaleString()}{v.n > 1 ? ` ·${v.n}` : ""}</span>
+              <span className="w-20 text-right tabular-nums text-muted-foreground/80">@<Currency value={v.best} abbreviate icon={false} />{v.n > 1 ? ` ·${v.n}` : ""}</span>
             </div>
           ))}
         </div>

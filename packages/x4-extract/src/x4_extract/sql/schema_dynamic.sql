@@ -68,6 +68,21 @@ CREATE TABLE IF NOT EXISTS station_offers (
 CREATE INDEX IF NOT EXISTS idx_offers_ware_side_price
     ON station_offers(ware_id, side, price, station_id, quantity);
 
+-- Live, depleting mineable resources per sector (aggregated across resource areas).
+-- `current`/`max` are the regenerating stockpile the player actually mines; `yield_tier`
+-- is the categorical density (matches static region_resources vocabulary). VOLATILE:
+-- `current` falls as fields are mined and recovers over `recharge_time`.
+CREATE TABLE IF NOT EXISTS sector_resources (
+    sector_id     TEXT NOT NULL,
+    ware          TEXT NOT NULL,
+    current       INTEGER,
+    max           INTEGER,
+    yield_tier    TEXT,
+    recharge_time INTEGER,
+    PRIMARY KEY (sector_id, ware)
+);
+CREATE INDEX IF NOT EXISTS idx_sector_resources_ware ON sector_resources(ware);
+
 CREATE TABLE IF NOT EXISTS construction_needs (
     station_id TEXT NOT NULL,
     ware_id    TEXT NOT NULL,

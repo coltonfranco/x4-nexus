@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { EntityIcon } from "../components/EntityIcon";
 import { FactionBadge } from "../components/FactionBadge";
 import { StatBar } from "../components/StatBar";
-import { Credits } from "../components/GameValues";
+import { Currency } from "../components/Currency";
 import { Badge } from "../components/ui/badge";
 import {
   Select,
@@ -106,7 +106,7 @@ function ActionRow({ action }: { action: DiploAction }) {
               <span className="text-primary font-medium">{action.cost_influence} inf</span>
             )}
             {action.cost_money != null && action.cost_money > 0 && (
-              <Credits value={action.cost_money} className="text-xs" />
+              <Currency value={action.cost_money} className="text-xs" />
             )}
             {(!action.cost_influence || action.cost_influence === 0) && (!action.cost_money || action.cost_money === 0) && (
               <span className="text-muted-foreground">Free</span>
@@ -265,7 +265,7 @@ function GiftsTab() {
             <div key={factionId} className="rounded-md border border-border p-3">
               <div className="mb-2">
                 {faction ? (
-                  <FactionBadge name={faction.name} color_hex={faction.color_hex} size="md" />
+                  <FactionBadge name={faction.name} color_hex={faction.color_hex} size="md" faction_id={faction.faction_id} />
                 ) : (
                   <span className="text-sm font-medium">{factionId}</span>
                 )}

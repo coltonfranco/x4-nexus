@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { type ReactNode, useMemo, useState } from "react";
 import { Building2, ChevronDown, Coins, FileText, Handshake, Rocket, ScrollText, Ship, Trophy, User } from "lucide-react";
 import { Reputation } from "../components/GameValues";
+import { Currency } from "../components/Currency";
 import { getReputationScore } from "../lib/formatters";
 
 type Player = { player_id: string | null; name: string | null; credits: number | null; current_ship_id: string | null };
@@ -133,7 +134,7 @@ export default function EmpirePage() {
 
       <div className="flex-1 overflow-auto p-4 space-y-4 max-w-5xl mx-auto w-full">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <StatCard icon={Coins} tone="text-amber-400" big value={player.credits != null ? player.credits.toLocaleString() : "—"} label="Credits" />
+          <StatCard tone="text-amber-400" big value={<Currency value={player.credits} abbreviate className="text-amber-400" />} label="Credits" />
           <StatCard icon={Ship} tone="text-sky-400" value={fleet.length.toString()} label="Ships" />
           <StatCard icon={Building2} tone="text-violet-400" value={stations.length.toString()} label="Stations" />
           <StatCard icon={FileText} tone="text-emerald-400" value={blueprints.length.toString()} label="Blueprints" />
@@ -298,10 +299,10 @@ export default function EmpirePage() {
   );
 }
 
-function StatCard({ icon: Icon, tone, value, label, big }: { icon: typeof Coins; tone: string; value: string; label: string; big?: boolean }) {
+function StatCard({ icon: Icon, tone, value, label, big }: { icon?: typeof Coins; tone: string; value: ReactNode; label: string; big?: boolean }) {
   return (
     <div className="rounded-lg border border-border bg-card p-4 flex flex-col gap-1">
-      <Icon className={`h-4 w-4 ${tone}`} />
+      {Icon && <Icon className={`h-4 w-4 ${tone}`} />}
       <span className={`font-bold tabular-nums leading-tight ${big ? "text-2xl" : "text-xl"} ${tone}`}>{value}</span>
       <span className="text-xs text-muted-foreground">{label}</span>
     </div>

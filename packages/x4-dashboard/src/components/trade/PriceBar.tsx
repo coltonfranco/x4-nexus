@@ -1,6 +1,8 @@
 // Min–avg–max price visualised as a gradient bar with the average marked.
 // Every ware in the catalog carries all three, so this renders for all of them.
 
+import { Currency } from "../Currency";
+
 export function PriceBar({
   min,
   avg,
@@ -12,7 +14,7 @@ export function PriceBar({
 }) {
   if (avg == null) return <span className="text-muted-foreground text-xs">—</span>;
   if (min == null || max == null || max <= min) {
-    return <span className="text-xs tabular-nums">{avg.toLocaleString()} Cr</span>;
+    return <Currency value={avg} className="text-xs" icon={false} />;
   }
   const avgPct = ((avg - min) / (max - min)) * 100;
   return (
@@ -34,7 +36,7 @@ export function PriceBar({
         />
       </div>
       <span className="text-xs tabular-nums text-muted-foreground">
-        {min.toLocaleString()}–{max.toLocaleString()}
+        <Currency value={min} maxValue={max} icon={false} abbreviate className="text-muted-foreground" />
       </span>
     </div>
   );

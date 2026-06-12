@@ -2,10 +2,6 @@
 
 export type WareCategory = "commodity" | "equipment" | "inventory" | "ship";
 
-export function fmtCr(n: number | null | undefined): string {
-  return n == null ? "—" : `${n.toLocaleString()} Cr`;
-}
-
 export function fmtNum(n: number | null | undefined, suffix = ""): string {
   return n == null ? "—" : `${n.toLocaleString()}${suffix}`;
 }

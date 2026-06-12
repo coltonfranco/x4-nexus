@@ -1,13 +1,16 @@
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, ChevronRight } from "lucide-react";
+import { Link, Outlet, useRouterState } from "@tanstack/react-router";
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, ChevronRight, Wrench } from "lucide-react";
 import { MultiSelect } from "../components/ui/multi-select";
 import { EntityIcon } from "../components/EntityIcon";
 import { FactionBadge } from "../components/FactionBadge";
 import { StatBar } from "../components/StatBar";
-import { getTypeColor } from "../lib/formatters";
+import { classFull, classShort } from "../lib/formatters";
+import { ShipClassBadge, ShipRoleBadge } from "../components/ShipBadges";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
+import { ShipImage } from "../components/ShipImage";
 import { DropListContent, buildDropGroups } from "../components/DropListContent";
 import {
   Dialog,
@@ -110,33 +113,6 @@ type FactionSummary = {
 
 const CLASSES = ["XS", "S", "M", "L", "XL"] as const;
 
-function classShort(class_id: string) {
-  return class_id.replace("ship_", "").toUpperCase();
-}
-
-function classFull(class_id: string) {
-  const short = classShort(class_id);
-  switch (short) {
-    case "XS": return "Extra Small";
-    case "S": return "Small";
-    case "M": return "Medium";
-    case "L": return "Large";
-    case "XL": return "Extra Large";
-    default: return short;
-  }
-}
-
-function getClassColor(class_id: string): string {
-  const cls = classShort(class_id);
-  switch (cls) {
-    case "XS": return "bg-gray-500/10 text-gray-500 border-gray-500/20";
-    case "S": return "bg-emerald-500/10 text-emerald-500 border-emerald-500/20";
-    case "M": return "bg-blue-500/10 text-blue-500 border-blue-500/20";
-    case "L": return "bg-orange-500/10 text-orange-500 border-orange-500/20";
-    case "XL": return "bg-purple-500/10 text-purple-500 border-purple-500/20";
-    default: return "bg-muted text-muted-foreground border-border";
-  }
-}
 
 const MAX_SPEED = 600;
 const MAX_HULL = 800_000;
@@ -149,10 +125,10 @@ function formatDlc(dlc: string) {
 
 function renderGroupHeaderContent(groupBy: string, groupKey: string, sampleShip: ShipSummary, factions: FactionSummary[]) {
   if (groupBy === "class_id") {
-    return <Badge variant="outline" className={`text-xs ${getClassColor(sampleShip.class_id)}`}>{classFull(sampleShip.class_id)}</Badge>;
+    return <ShipClassBadge class_id={sampleShip.class_id} className="text-xs" />;
   }
   if (groupBy === "role" && sampleShip.role) {
-    return <Badge variant="outline" className={`text-xs uppercase px-2 py-0.5 ${getTypeColor(sampleShip.role)}`}>{groupKey}</Badge>;
+    return <ShipRoleBadge role={sampleShip.role} className="text-xs px-2 py-0.5" />;
   }
   if (groupBy === "faction_id" && sampleShip.faction_id) {
     const faction = factions.find(f => f.faction_id === sampleShip.faction_id);
@@ -201,21 +177,15 @@ function ShipDetailPanel({ shipId, factions }: { shipId: string, factions: Facti
   return (
     <div className="p-6 space-y-5">
       <div className="flex flex-col sm:flex-row gap-6">
-        {data.image_url ? (
-          <div className="relative shrink-0 flex items-center justify-center w-full sm:w-64 h-48 bg-gradient-to-tr from-muted/10 to-muted/30 border border-border/60 rounded-xl p-4 shadow-inner overflow-hidden">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.05)_0%,transparent_70%)]" />
-            <img
-              src={data.image_url}
-              alt={data.name}
-              className="relative w-full h-full object-contain drop-shadow-[0_0_12px_rgba(0,0,0,0.6)] transition-transform hover:scale-105 duration-500"
-              onError={(e) => (e.currentTarget.parentElement!.style.display = "none")}
-            />
-          </div>
-        ) : (
-          <div className="shrink-0 flex items-center justify-center w-24 h-24">
-            <EntityIcon src={data.icon_url} alt={data.name} size={80} />
-          </div>
-        )}
+        <ShipImage
+          imageUrl={data.image_url}
+          iconUrl={data.icon_url}
+          name={data.name}
+          role={data.role}
+          classId={data.class_id}
+          className="shrink-0 w-full sm:w-64 h-48 p-4 shadow-inner border-border/60"
+          imageClassName="transition-transform hover:scale-105 duration-500"
+        />
 
         <div className="flex-1 flex flex-col justify-center min-w-0">
           <div className="flex items-center gap-3">
@@ -227,17 +197,22 @@ function ShipDetailPanel({ shipId, factions }: { shipId: string, factions: Facti
             </h2>
           </div>
           <div className="flex items-center gap-2 mt-3 flex-wrap">
-            <Badge variant="outline" className={`px-2.5 py-0.5 text-sm ${getClassColor(data.class_id)}`}>
-              {classFull(data.class_id)}
-            </Badge>
-            {data.role && (
-              <Badge variant="outline" className={`px-2.5 py-0.5 text-sm ${getTypeColor(data.role)}`}>
-                {data.role.charAt(0).toUpperCase() + data.role.slice(1)}
-              </Badge>
-            )}
-            {faction && <FactionBadge name={faction.name} color_hex={faction.color_hex} />}
+            <ShipClassBadge class_id={data.class_id} className="px-2.5 py-0.5 text-sm" />
+            <ShipRoleBadge role={data.role} className="px-2.5 py-0.5 text-sm" />
+            {faction && <FactionBadge name={faction.name} color_hex={faction.color_hex} faction_id={faction.faction_id} />}
             {data.dlc && <Badge variant="outline" className="px-2.5 py-0.5 text-sm">{data.dlc}</Badge>}
           </div>
+          <Button
+            variant="default"
+            size="sm"
+            className="mt-3 self-start"
+            asChild
+          >
+            <Link to="/ships/builder" search={{ ship_id: data.ship_id }}>
+              <Wrench className="h-3.5 w-3.5 mr-1.5" />
+              Build Loadout
+            </Link>
+          </Button>
         </div>
       </div>
 
@@ -399,6 +374,8 @@ function ShipDetailPanel({ shipId, factions }: { shipId: string, factions: Facti
 }
 
 export default function ShipsPage() {
+  const { location } = useRouterState();
+
   const [search, setSearch] = useState("");
   const [selectedClasses, setSelectedClasses] = useState<Set<string>>(new Set());
   const [selectedFaction, setSelectedFaction] = useState("all");
@@ -512,6 +489,9 @@ export default function ShipsPage() {
   };
 
   const hasFilters = search || selectedClasses.size > 0 || selectedFaction !== "all" || selectedDlcs.size > 0 || selectedTypes.size > 0;
+
+  // Child route (e.g. /ships/builder) — delegate to <Outlet />
+  if (location.pathname !== "/ships") return <Outlet />;
 
   return (
     <div className="flex flex-col h-full">
@@ -644,6 +624,7 @@ export default function ShipsPage() {
                 <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort("cargo_volume")}>
                   <div className="flex items-center gap-1">Cargo {sortCol === "cargo_volume" ? (sortDesc ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-20" />}</div>
                 </TableHead>
+                <TableHead className="w-12" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -656,7 +637,7 @@ export default function ShipsPage() {
                         className="bg-muted/30 hover:bg-muted/50 cursor-pointer transition-colors"
                         onClick={() => toggleGroup(groupKey)}
                       >
-                        <TableCell colSpan={8} className="py-2.5 px-4">
+                        <TableCell colSpan={9} className="py-2.5 px-4">
                           <div className="flex items-center gap-2 select-none">
                             {isCollapsed ? <ChevronRight className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
                             {renderGroupHeaderContent(groupBy, groupKey, groupShips[0], factions)}
@@ -679,21 +660,17 @@ export default function ShipsPage() {
                           <TableCell className="font-medium">{ship.name}</TableCell>
                           <TableCell>
                             {ship.role ? (
-                              <Badge variant="outline" className={`text-[10px] uppercase px-1.5 py-0 ${getTypeColor(ship.role)}`}>
-                                {ship.role}
-                              </Badge>
+                              <ShipRoleBadge role={ship.role} className="text-[10px] px-1.5 py-0" />
                             ) : (
                               <span className="text-muted-foreground text-xs">—</span>
                             )}
                           </TableCell>
                           <TableCell>
-                            <Badge variant="outline" className={`text-xs ${getClassColor(ship.class_id)}`}>
-                              {classFull(ship.class_id)}
-                            </Badge>
+                            <ShipClassBadge class_id={ship.class_id} className="text-xs" />
                           </TableCell>
                           <TableCell>
                             {faction ? (
-                              <FactionBadge name={faction.name} color_hex={faction.color_hex} />
+                              <FactionBadge name={faction.name} color_hex={faction.color_hex} faction_id={faction.faction_id} />
                             ) : (
                               <span className="text-muted-foreground text-xs">—</span>
                             )}
@@ -726,6 +703,23 @@ export default function ShipsPage() {
                             ) : (
                               <span className="text-muted-foreground text-xs">—</span>
                             )}
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="h-7 w-7"
+                              title="Build loadout"
+                              asChild
+                            >
+                              <Link
+                                to="/ships/builder"
+                                search={{ ship_id: ship.ship_id }}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <Wrench className="h-3.5 w-3.5" />
+                              </Link>
+                            </Button>
                           </TableCell>
                         </TableRow>
                       );

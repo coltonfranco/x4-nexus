@@ -23,7 +23,7 @@ export const RESOURCE_COLORS: Record<string, string> = {
   hydrogen: "#f472b6",
 };
 
-export const RESOURCE_ORDER = ["ore", "silicon", "ice", "nividium", "hydrogen", "helium", "methane", "scrap"];
+export const RESOURCE_ORDER = ["ore", "silicon", "ice", "nividium", "hydrogen", "helium", "methane", "rawscrap"];
 
 export const MAP_W = 3000;
 export const MAP_H = 2200;

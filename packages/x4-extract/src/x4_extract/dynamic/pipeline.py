@@ -24,12 +24,19 @@ from x4_extract.dynamic.distance import build_sector_distance
 from x4_extract.dynamic.extractors.factions import FactionsCollector
 from x4_extract.dynamic.extractors.meta import MetaCollector
 from x4_extract.dynamic.extractors.player import PlayerCollector
+from x4_extract.dynamic.extractors.resources import ResourceAreasCollector
 from x4_extract.dynamic.extractors.ships import ShipsCollector
 from x4_extract.dynamic.extractors.stations import StationsCollector
 from x4_extract.dynamic.materialize import compute_top_routes
 from x4_extract.savefile.dispatch import stream_save
 
 _FINGERPRINT_BLOCK = 1 << 16  # 64 KiB head+tail sample is enough to detect a rewrite
+
+# Bump whenever the set of collectors or the dynamic schema changes. A stored version
+# that differs forces a full re-ingest even when the save file itself is unchanged —
+# otherwise a newly-added table (e.g. sector_resources) would never be populated for
+# saves already ingested under the old pipeline.
+_PIPELINE_VERSION = "2"
 
 
 def dynamic_db_path(settings: ExtractSettings, save_path: Path) -> Path:
@@ -43,14 +50,15 @@ def run(settings: ExtractSettings, save_path: Path) -> Path:
     No-op (returns early) when the save's source fingerprint matches the last run.
     """
     db_path = dynamic_db_path(settings, save_path)
-    if not db_path.exists():
-        apply_schema(settings.data_dir, "dynamic", db_path=db_path)
+    # Idempotent: also brings pre-existing DBs up to date with newly-added tables.
+    apply_schema(settings.data_dir, "dynamic", db_path=db_path)
 
     source_fp = source_fingerprint(save_path)
     conn = open_db(settings.data_dir, dynamic_db=db_path)
     try:
         state = _read_ingest_state(conn)
-        if state.get("source") == source_fp:
+        version_ok = state.get("pipeline_version") == _PIPELINE_VERSION
+        if version_ok and state.get("source") == source_fp:
             return db_path  # nothing changed since the last successful ingest
 
         collectors: list[Collector] = [
@@ -59,6 +67,7 @@ def run(settings: ExtractSettings, save_path: Path) -> Path:
             FactionsCollector(),
             PlayerCollector(),
             ShipsCollector(),
+            ResourceAreasCollector(),
         ]
         registrations = [r for c in collectors for r in c.register()]
         stream_save(save_path, registrations)
@@ -66,12 +75,13 @@ def run(settings: ExtractSettings, save_path: Path) -> Path:
         with conn:  # single transaction; WAL keeps API readers live
             for tier in TIERS:
                 new_fp = combined_fingerprint(collectors, tier)
-                if new_fp == state.get(tier):
+                if version_ok and new_fp == state.get(tier):
                     continue  # this tier's content is unchanged — keep existing rows
                 _rewrite_tier(conn, collectors, tier)
                 _run_derived(conn, tier)
                 _write_ingest_state(conn, tier, new_fp)
             _write_ingest_state(conn, "source", source_fp)
+            _write_ingest_state(conn, "pipeline_version", _PIPELINE_VERSION)
     finally:
         conn.close()
     return db_path

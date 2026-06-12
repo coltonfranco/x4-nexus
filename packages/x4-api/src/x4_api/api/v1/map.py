@@ -94,6 +94,14 @@ class ResourceEntry(PublicModel):
     yield_level: str
 
 
+class LiveResourceEntry(PublicModel):
+    sector_id: str
+    ware: str
+    current: int | None
+    max: int | None
+    yield_tier: str | None
+
+
 @router.get("/map/clusters", response_model=list[ClusterSummary])
 def list_clusters(
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
@@ -252,6 +260,40 @@ def get_sector_resources(
         {"id": sector_id},
     ).fetchall()
     return [ResourceEntry(**dict(r)) for r in rows]
+
+
+@router.get("/map/resources/live", response_model=list[LiveResourceEntry])
+def list_live_resources(
+    conn: Annotated[sqlite3.Connection, Depends(get_db)],
+    ware: str | None = Query(None, description="Filter by ware (ore, silicon, ...)"),
+    sector_id: str | None = Query(None, description="Filter by sector macro id"),
+    limit: int = Query(500, ge=1, le=2000),
+    offset: int = Query(0, ge=0),
+) -> list[LiveResourceEntry]:
+    """Live, depleting mineable resources per sector, from the active save.
+
+    Returns [] until a save with resource data is ingested (the dashboard's mining
+    heatmap falls back to the static /map/resources in that case).
+    """
+    table = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='sector_resources'"
+    ).fetchone()
+    if table is None:  # dynamic DB predates the schema; treat as no data
+        return []
+    sql = [
+        "SELECT sector_id, ware, current, max, yield_tier FROM sector_resources WHERE 1=1"
+    ]
+    params: dict[str, object] = {"limit": limit, "offset": offset}
+    if ware is not None:
+        sql.append("AND ware = :ware")
+        params["ware"] = ware
+    if sector_id is not None:
+        sql.append("AND sector_id = :sector_id")
+        params["sector_id"] = sector_id
+    sql.append("ORDER BY sector_id, ware LIMIT :limit OFFSET :offset")
+    rows = conn.execute(" ".join(sql), params).fetchall()
+    return [LiveResourceEntry(**dict(r)) for r in rows]
+
 
 @router.get("/map/regions", response_model=list[RegionSummary])
 def list_regions(

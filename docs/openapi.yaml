@@ -709,6 +709,72 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/map/resources/live:
+    get:
+      tags:
+      - map
+      summary: List Live Resources
+      description: 'Live, depleting mineable resources per sector, from the active save.
+
+
+        Returns [] until a save with resource data is ingested (the dashboard''s mining
+
+        heatmap falls back to the static /map/resources in that case).'
+      operationId: list_live_resources_api_v1_map_resources_live_get
+      parameters:
+      - name: ware
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filter by ware (ore, silicon, ...)
+          title: Ware
+        description: Filter by ware (ore, silicon, ...)
+      - name: sector_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filter by sector macro id
+          title: Sector Id
+        description: Filter by sector macro id
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 2000
+          minimum: 1
+          default: 500
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LiveResourceEntry'
+                title: Response List Live Resources Api V1 Map Resources Live Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/v1/map/regions:
     get:
       tags:
@@ -3107,6 +3173,38 @@ components:
       - licence_type
       - faction_id
       title: LicenceItem
+    LiveResourceEntry:
+      properties:
+        sector_id:
+          type: string
+          title: Sector Id
+        ware:
+          type: string
+          title: Ware
+        current:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Current
+        max:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Max
+        yield_tier:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Yield Tier
+      additionalProperties: false
+      type: object
+      required:
+      - sector_id
+      - ware
+      - current
+      - max
+      - yield_tier
+      title: LiveResourceEntry
     LiveShip:
       properties:
         ship_id:

@@ -1,0 +1,60 @@
+// Right-panel map controls (below the overlay tabs): connection-line toggles and DLC
+// filters. Faction colors and resources are no longer toggles here — they're the
+// Faction and Resources overlay tabs.
+
+import { dlcLabel } from "../../lib/map/names";
+
+export function ControlPanel({
+  allDlcs, activeDlcs, showGates, showHighways, showLocalHighways, showGrid,
+  onToggleGates, onToggleHighways, onToggleLocalHighways, onToggleGrid, onToggleDlc,
+}: {
+  allDlcs: string[]; activeDlcs: Set<string>;
+  showGates: boolean; showHighways: boolean; showLocalHighways: boolean; showGrid: boolean;
+  onToggleGates: (v: boolean) => void;
+  onToggleHighways: (v: boolean) => void; onToggleLocalHighways: (v: boolean) => void;
+  onToggleGrid: (v: boolean) => void; onToggleDlc: (dlc: string, on: boolean) => void;
+}) {
+  return (
+    <div className="p-4 flex flex-col gap-5">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Overlays</p>
+        <div className="space-y-2">
+          {([
+            ["Gates", showGates, onToggleGates],
+            ["Superhighways", showHighways, onToggleHighways],
+            ["Local Highways", showLocalHighways, onToggleLocalHighways],
+            ["Hex Grid", showGrid, onToggleGrid],
+          ] as [string, boolean, (v: boolean) => void][]).map(([label, checked, setter]) => (
+            <label key={label} className="flex items-center gap-2 text-xs cursor-pointer select-none text-muted-foreground hover:text-foreground transition-colors">
+              <input type="checkbox" checked={checked} onChange={(e) => setter(e.target.checked)} className="w-3 h-3 accent-primary" />
+              {label}
+            </label>
+          ))}
+        </div>
+      </div>
+      {allDlcs.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">DLC</p>
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-xs text-muted-foreground select-none">
+              <input type="checkbox" checked disabled className="w-3 h-3" />
+              Base Game
+            </label>
+            {allDlcs.map((dlc) => (
+              <label key={dlc} className="flex items-center gap-2 text-xs cursor-pointer select-none text-muted-foreground hover:text-foreground transition-colors">
+                <input type="checkbox" checked={activeDlcs.has(dlc)}
+                  onChange={(e) => onToggleDlc(dlc, e.target.checked)} className="w-3 h-3 accent-primary" />
+                {dlcLabel(dlc)}
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+      <div className="text-xs text-muted-foreground/40 space-y-0.5 pt-4 border-t border-border">
+        <p>Scroll · zoom</p>
+        <p>Drag · pan</p>
+        <p>Click hex · details</p>
+      </div>
+    </div>
+  );
+}

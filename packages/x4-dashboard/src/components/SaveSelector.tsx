@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Currency } from "./Currency";
 import { Loader2, Save } from "lucide-react";
 
 export type SaveSummary = {
@@ -59,7 +60,7 @@ export function SaveSelector() {
                 <Loader2 className="h-3 w-3 animate-spin" /> rebuilding…
               </span>
             ) : active?.player_credits != null ? (
-              <span>{active.player_credits.toLocaleString()} cr</span>
+              <Currency value={active.player_credits} icon={false} />
             ) : (
               <span>—</span>
             )}

@@ -7,7 +7,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../com
 import { EntityIcon } from "../components/EntityIcon";
 import { Badge } from "../components/ui/badge";
 import { getReputationScore } from "../lib/formatters";
-import { Reputation, Credits } from "../components/GameValues";
+import { Reputation } from "../components/GameValues";
+import { Currency } from "../components/Currency";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -481,7 +482,7 @@ function FactionDetailPanel({ factionId, onClose }: { factionId: string; onClose
                     </div>
 
                     <div className="text-right w-28 shrink-0">
-                      {l.price != null && <Credits value={l.price} />}
+                      {l.price != null && <Currency value={l.price} />}
                     </div>
 
                     <div className="text-right w-20 shrink-0">

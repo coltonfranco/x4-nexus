@@ -9,11 +9,3 @@ export function Reputation({ value, className = "" }: { value: number, className
     </span>
   );
 }
-
-export function Credits({ value, className = "" }: { value: number, className?: string }) {
-  return (
-    <span className={`tabular-nums font-mono text-amber-500 font-medium ${className}`}>
-      {value.toLocaleString()} Cr
-    </span>
-  );
-}

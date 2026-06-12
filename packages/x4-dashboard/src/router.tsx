@@ -10,6 +10,7 @@ import IndexPage from "./routes/index";
 import InventoryPage from "./routes/inventory";
 import MapPage from "./routes/map";
 import ShipsPage from "./routes/ships";
+import BuilderPage from "./routes/ships/builder";
 import TradeCatalogPage from "./routes/trade/catalog";
 import { TradeLayout } from "./routes/trade/layout";
 import TradeRoutesPage from "./routes/routes";
@@ -50,8 +51,27 @@ const waresRedirect = createRoute({
 
 const equipmentRoute = createRoute({ getParentRoute: () => rootRoute, path: "/equipment", component: EquipmentPage });
 const inventoryRoute = createRoute({ getParentRoute: () => rootRoute, path: "/inventory", component: InventoryPage });
-const mapRoute = createRoute({ getParentRoute: () => rootRoute, path: "/map", component: MapPage });
+const mapRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/map",
+  component: MapPage,
+  // Deep-link from the trade pages: preset the ware overlay, route arrows, and nav path.
+  validateSearch: (search: Record<string, unknown>): { ware?: string; routes?: boolean; from?: string; to?: string } => ({
+    ware: typeof search.ware === "string" ? search.ware : undefined,
+    routes: search.routes === true || search.routes === "1" || search.routes === "true" ? true : undefined,
+    from: typeof search.from === "string" ? search.from : undefined,
+    to: typeof search.to === "string" ? search.to : undefined,
+  }),
+});
 const shipsRoute = createRoute({ getParentRoute: () => rootRoute, path: "/ships", component: ShipsPage });
+const shipsBuilderRoute = createRoute({
+  getParentRoute: () => shipsRoute,
+  path: "/builder",
+  component: BuilderPage,
+  validateSearch: (search: Record<string, unknown>): { ship_id?: string } => ({
+    ship_id: typeof search.ship_id === "string" ? search.ship_id : undefined,
+  }),
+});
 const factionsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/factions",
@@ -73,7 +93,7 @@ const routeTree = rootRoute.addChildren([
   equipmentRoute,
   inventoryRoute,
   mapRoute,
-  shipsRoute,
+  shipsRoute.addChildren([shipsBuilderRoute]),
   factionsRoute,
   dropsRoute,
   diplomacyRoute,
