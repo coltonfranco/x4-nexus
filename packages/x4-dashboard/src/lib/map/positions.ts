@@ -3,7 +3,7 @@
 
 import { MAP_H, MAP_W, SQRT3 } from "./constants";
 import { axialToPixel } from "./geometry";
-import type { Cluster, Gate, Highway, Sector, Zone } from "./types";
+import type { Cluster, Gate, Highway, MapStation, Sector, Zone } from "./types";
 
 // Sectors that share a cluster with other sectors render at half hex size.
 export function computeSubSectorSet(clusters: Cluster[], sectors: Sector[]): Set<string> {
@@ -63,6 +63,33 @@ export function computeZoneScreenPos(
     const dz = (z.z ?? 0) * scale;
 
     m.set(z.zone_id, [sp[0] + dx, sp[1] - dz]);
+  });
+  return m;
+}
+
+// Map each station to a screen position inside its sector hex, using the same
+// game-units→canvas scale as zones (halved for sub-sectors). Save-derived station ids
+// are lowercase while the static sector keys are PascalCase, so match case-insensitively.
+// Stations with no known offset fall back to the sector centre rather than vanishing.
+export function computeStationScreenPos(
+  stations: MapStation[],
+  sectorCoords: Map<string, [number, number]>,
+  zoneScale: number,
+  subSectorSet: Set<string>,
+): Map<string, [number, number]> {
+  const m = new Map<string, [number, number]>();
+  if (zoneScale === 0) return m;
+  const sectorCI = new Map<string, [number, number]>();
+  sectorCoords.forEach((v, k) => sectorCI.set(k.toLowerCase(), v));
+  const subCI = new Set<string>();
+  subSectorSet.forEach((s) => subCI.add(s.toLowerCase()));
+  stations.forEach((st) => {
+    if (!st.sector_id) return;
+    const key = st.sector_id.toLowerCase();
+    const sp = sectorCI.get(key);
+    if (!sp) return;
+    const scale = subCI.has(key) ? zoneScale * 0.5 : zoneScale;
+    m.set(st.station_id, [sp[0] + (st.x ?? 0) * scale, sp[1] - (st.z ?? 0) * scale]);
   });
   return m;
 }

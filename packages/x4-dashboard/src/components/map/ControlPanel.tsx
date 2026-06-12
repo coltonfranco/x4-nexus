@@ -5,14 +5,15 @@
 import { dlcLabel } from "../../lib/map/names";
 
 export function ControlPanel({
-  allDlcs, activeDlcs, showGates, showHighways, showLocalHighways, showGrid,
-  onToggleGates, onToggleHighways, onToggleLocalHighways, onToggleGrid, onToggleDlc,
+  allDlcs, activeDlcs, showGates, showHighways, showLocalHighways, showGrid, showStations, showFactionLogos,
+  onToggleGates, onToggleHighways, onToggleLocalHighways, onToggleGrid, onToggleStations, onToggleFactionLogos, onToggleDlc,
 }: {
   allDlcs: string[]; activeDlcs: Set<string>;
-  showGates: boolean; showHighways: boolean; showLocalHighways: boolean; showGrid: boolean;
+  showGates: boolean; showHighways: boolean; showLocalHighways: boolean; showGrid: boolean; showStations: boolean; showFactionLogos: boolean;
   onToggleGates: (v: boolean) => void;
   onToggleHighways: (v: boolean) => void; onToggleLocalHighways: (v: boolean) => void;
-  onToggleGrid: (v: boolean) => void; onToggleDlc: (dlc: string, on: boolean) => void;
+  onToggleGrid: (v: boolean) => void; onToggleStations: (v: boolean) => void; onToggleFactionLogos: (v: boolean) => void;
+  onToggleDlc: (dlc: string, on: boolean) => void;
 }) {
   return (
     <div className="p-4 flex flex-col gap-5">
@@ -24,6 +25,8 @@ export function ControlPanel({
             ["Superhighways", showHighways, onToggleHighways],
             ["Local Highways", showLocalHighways, onToggleLocalHighways],
             ["Hex Grid", showGrid, onToggleGrid],
+            ["Stations", showStations, onToggleStations],
+            ["Faction Logos", showFactionLogos, onToggleFactionLogos],
           ] as [string, boolean, (v: boolean) => void][]).map(([label, checked, setter]) => (
             <label key={label} className="flex items-center gap-2 text-xs cursor-pointer select-none text-muted-foreground hover:text-foreground transition-colors">
               <input type="checkbox" checked={checked} onChange={(e) => setter(e.target.checked)} className="w-3 h-3 accent-primary" />

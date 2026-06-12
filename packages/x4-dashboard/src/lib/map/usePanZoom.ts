@@ -12,6 +12,7 @@ export function usePanZoom(
 ) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [transform, setTransform] = useState<Transform>({ x: 0, y: 0, scale: 1 });
+  const [viewport, setViewport] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const panStart = useRef<{ cx: number; cy: number; tx: number; ty: number } | null>(null);
   const hasAutoFit = useRef(false);
@@ -36,6 +37,20 @@ export function usePanZoom(
     fitView();
     hasAutoFit.current = true;
   }, [sectorCoords, visibleSectors, fitView]);
+
+  // Track the canvas size so layers can cull to the visible world-space rect.
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const update = () => {
+      const r = el.getBoundingClientRect();
+      setViewport({ w: r.width, h: r.height });
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   // Re-fit on the next idle frame, used by the header "Reset" button.
   const resetView = useCallback(() => {
@@ -74,6 +89,7 @@ export function usePanZoom(
   return {
     containerRef,
     transform,
+    viewport,
     isPanning,
     fitView,
     resetView,

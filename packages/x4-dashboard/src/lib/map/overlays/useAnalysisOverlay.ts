@@ -7,13 +7,20 @@ import { useMemo } from "react";
 
 import { RESOURCE_COLORS } from "../constants";
 import { heatColor } from "./heat";
-import { buildAdjacency, findPath, type Path } from "./pathfinding";
+import { buildAdjacency, findPath, type TravelSegmentKind, type PathResult } from "./pathfinding";
 import type { FillMode } from "./types";
-import { useResourceData, useTopRoutes, useWareOffers, type ResourceSource } from "./useAnalysisData";
+import { useResourceData, useTopRoutes, useWareOffers, usePlayerRelations, type ResourceSource } from "./useAnalysisData";
+import type { Cluster, Gate, Highway, Sector, Zone } from "../types";
 
 export type SectorTint = { fill: string; opacity: number };
 export type RouteInfo = { wareName: string; sellSector: string; profitPerHour: number; hops: number | null };
 export type RouteMarker = { id: string; coord: [number, number]; color: string; routes: RouteInfo[] };
+
+export type PathSegment = {
+  p1: [number, number];
+  p2: [number, number];
+  kind: TravelSegmentKind;
+};
 
 export type AnalysisOverlay = {
   sectorTint: Map<string, SectorTint> | null; // keyed by lowercase sector id; null → faction base
@@ -21,9 +28,10 @@ export type AnalysisOverlay = {
   alternateDots: Map<string, string[]>;       // lowercase sector → alt resource colors
   dimOthers: boolean;
   routeMarkers: RouteMarker[];
-  highlightPath: [number, number][];
-  pathPoints: [number, number][];
+  highlightSegments: PathSegment[];
+  navSegments: PathSegment[];
   pathHops: number | null;
+  pathDistanceKm: number | null;
   navOrigin: [number, number] | null;
   navDest: [number, number] | null;
   resourceSource: ResourceSource | null;
@@ -38,8 +46,14 @@ function compact(n: number): string {
   return `${s}${a}`;
 }
 
+function relationToUI(rel: number): number {
+  const abs = Math.abs(rel);
+  if (abs <= 0.0032) return rel / 0.00064;
+  return Math.sign(rel) * 10 * Math.log10(abs * 1000);
+}
+
 export function useAnalysisOverlay({
-  fillMode, resource, wareId, maxJumps, selectedRouteSector, navFrom, navTo, sectorCoords, connections,
+  fillMode, resource, wareId, maxJumps, selectedRouteSector, navFrom, navTo, navFromPos, navToPos, sectorCoords, gates, highways, zoneMap, zoneScreenPos, sectors, clusterMap, zoneScale,
 }: {
   fillMode: FillMode;
   resource: string | null;
@@ -48,14 +62,24 @@ export function useAnalysisOverlay({
   selectedRouteSector: string | null;
   navFrom: string | null;
   navTo: string | null;
+  navFromPos?: [number, number] | null;
+  navToPos?: [number, number] | null;
   sectorCoords: Map<string, [number, number]>;
-  connections: { from_sector_id: string; to_sector_id: string; kind: string | null }[];
+  gates: Gate[];
+  highways: Highway[];
+  zoneMap: Map<string, Zone>;
+  zoneScreenPos: Map<string, [number, number]>;
+  sectors: Sector[];
+  clusterMap: Map<string, Cluster>;
+  zoneScale: number;
 }): AnalysisOverlay {
   const resourcesOn = fillMode === "resources";
+  const relationsOn = fillMode === "relations";
   const tradeRoutesOn = fillMode === "trade" && !wareId;
   const wareOn = fillMode === "trade" && !!wareId;
 
   const resourceData = useResourceData(resourcesOn);
+  const relations = usePlayerRelations(relationsOn);
   const offers = useWareOffers(wareOn ? wareId : null);
   const routes = useTopRoutes(tradeRoutesOn || !!selectedRouteSector);
 
@@ -67,17 +91,35 @@ export function useAnalysisOverlay({
   }, [sectorCoords]);
 
   const adjacency = useMemo(
-    () => buildAdjacency(connections.map((c) => ({
-      from_sector_id: c.from_sector_id.toLowerCase(),
-      to_sector_id: c.to_sector_id.toLowerCase(),
-      kind: c.kind,
-    }))),
-    [connections]
+    () => buildAdjacency(gates, highways, sectors, zoneMap, zoneScreenPos, coordsCI),
+    [gates, highways, sectors, zoneMap, zoneScreenPos, coordsCI]
   );
-  const navPath: Path | null = useMemo(
-    () => (navFrom && navTo ? findPath(adjacency, navFrom.toLowerCase(), navTo.toLowerCase()) : null),
+  const navPathResult: PathResult | null = useMemo(
+    () => (navFrom && navTo ? findPath(adjacency, navFrom, navTo) : null),
     [navFrom, navTo, adjacency]
   );
+
+  const resolveNodeCoord = useMemo(() => (node: string): [number, number] | null => {
+    if (node.startsWith("sector:")) {
+      const sid = node.substring(7);
+      if (sid === navFrom?.toLowerCase() && navFromPos) return navFromPos;
+      if (sid === navTo?.toLowerCase() && navToPos) return navToPos;
+      return coordsCI.get(sid) ?? null;
+    }
+    if (node.startsWith("zone:")) return zoneScreenPos.get(node.substring(5)) ?? null;
+    return null;
+  }, [coordsCI, zoneScreenPos, navFrom, navTo, navFromPos, navToPos]);
+
+  const pathToSegments = useMemo(() => (res: PathResult | null): PathSegment[] => {
+    if (!res) return [];
+    const segs: PathSegment[] = [];
+    for (let i = 0; i < res.edges.length; i++) {
+      const p1 = resolveNodeCoord(res.nodes[i]);
+      const p2 = resolveNodeCoord(res.nodes[i+1]);
+      if (p1 && p2) segs.push({ p1, p2, kind: res.edges[i] });
+    }
+    return segs;
+  }, [resolveNodeCoord]);
 
   // ── Fill overlay ──
   const fill = useMemo(() => {
@@ -89,6 +131,35 @@ export function useAnalysisOverlay({
       source: null as ResourceSource | null,
       loading: false,
     };
+
+    if (fillMode === "relations") {
+      const repMap = new Map<string, number>();
+      (relations.data ?? []).forEach((r) => repMap.set(r.faction_id, r.relation));
+      const tint = new Map<string, SectorTint>();
+      const badges = new Map<string, string>();
+      sectors.forEach((sec) => {
+        let owner = sec.owner_faction;
+        if (!owner && sec.cluster_id) {
+          const clus = clusterMap.get(sec.cluster_id);
+          if (clus) owner = clus.owner_faction;
+        }
+        if (owner) {
+          const rel = repMap.get(owner) ?? 0;
+          const relUI = relationToUI(rel);
+          const mag = Math.min(30, Math.abs(relUI)) / 30.0;
+          
+          badges.set(sec.sector_id.toLowerCase(), `${relUI >= 0 ? "+" : ""}${Math.round(relUI)}`);
+
+          if (Math.abs(relUI) >= 0.5) {
+            const fill = relUI > 0 ? "#22c55e" : "#ef4444";
+            const opacity = 0.15 + 0.65 * mag;
+            tint.set(sec.sector_id.toLowerCase(), { fill, opacity });
+          }
+        }
+      });
+      return { ...empty, tint, badges, dim: true, loading: relations.isLoading };
+    }
+
 
     if (fillMode === "resources") {
       const source = resourceData.data?.source ?? null;
@@ -144,7 +215,7 @@ export function useAnalysisOverlay({
     }
 
     return empty; // faction, or trade-routes view (no fill tint)
-  }, [fillMode, wareOn, resource, resourceData.data, resourceData.isLoading, offers.data, offers.isLoading]);
+  }, [fillMode, wareOn, resource, resourceData.data, resourceData.isLoading, offers.data, offers.isLoading, relations.data, relations.isLoading, sectors, clusterMap]);
 
   // ── Trade routes: one marker per buy sector, plus a profit tint so the whole hex
   // reads as "better/worse run" and is a big click target. Filtered by max jumps. ──
@@ -189,26 +260,45 @@ export function useAnalysisOverlay({
   const routeMarkers = routeData.markers;
 
   // ── Highlighted route path (clicked marker → buy → sell jump path) ──
-  const highlightPath = useMemo<[number, number][]>(() => {
+  const highlightSegments = useMemo<PathSegment[]>(() => {
     if (!selectedRouteSector) return [];
     const marker = routeMarkers.find((m) => m.id === selectedRouteSector.toLowerCase());
     const sell = marker?.routes[0]?.sellSector;
     if (!marker || !sell) return [];
-    const p = findPath(adjacency, selectedRouteSector.toLowerCase(), sell.toLowerCase());
-    if (!p) return [marker.coord, coordsCI.get(sell.toLowerCase())].filter(Boolean) as [number, number][];
-    return p.sectors.map((s) => coordsCI.get(s)).filter(Boolean) as [number, number][];
-  }, [selectedRouteSector, routeMarkers, adjacency, coordsCI]);
+    const p = findPath(adjacency, selectedRouteSector, sell);
+    return pathToSegments(p);
+  }, [selectedRouteSector, routeMarkers, adjacency, pathToSegments]);
 
   // ── Navigation (fewest-jump path) ──
   const nav = useMemo(() => {
-    const pathPoints = (navPath?.sectors ?? [])
-      .map((sid) => coordsCI.get(sid))
-      .filter(Boolean) as [number, number][];
-    const navOrigin = navFrom ? coordsCI.get(navFrom.toLowerCase()) ?? null : null;
-    const navDest = navTo ? coordsCI.get(navTo.toLowerCase()) ?? null : null;
-    const pathHops = navPath ? navPath.edges.length : null;
-    return { pathPoints, navOrigin, navDest, pathHops };
-  }, [navPath, navFrom, navTo, coordsCI]);
+    const navSegments = pathToSegments(navPathResult);
+    const navOrigin = navFrom ? (navFromPos ?? coordsCI.get(navFrom.toLowerCase()) ?? null) : null;
+    const navDest = navTo ? (navToPos ?? coordsCI.get(navTo.toLowerCase()) ?? null) : null;
+    
+    // If navigation is within the exact same sector, inject a single manual segment
+    if (navSegments.length === 0 && navFrom && navFrom === navTo && navOrigin && navDest) {
+      navSegments.push({ p1: navOrigin, p2: navDest, kind: "manual" });
+    }
+    
+    // Count only major inter-sector hops for the UI display, and sum travel distances.
+    let hops = 0;
+    let distSvg = 0;
+    
+    for (const seg of navSegments) {
+      if (seg.kind === "jump_gate" || seg.kind === "accelerator" || seg.kind === "superhighway") {
+        hops++;
+      } else {
+        const dx = seg.p1[0] - seg.p2[0];
+        const dy = seg.p1[1] - seg.p2[1];
+        distSvg += Math.sqrt(dx * dx + dy * dy);
+      }
+    }
+    
+    const pathHops = navFrom && navTo && navFrom !== navTo && navPathResult ? hops : null;
+    const pathDistanceKm = (navFrom && navTo && zoneScale > 0) ? (distSvg / zoneScale) / 1000 : null;
+
+    return { navSegments, navOrigin, navDest, pathHops, pathDistanceKm };
+  }, [navPathResult, navFrom, navTo, navFromPos, navToPos, coordsCI, pathToSegments, zoneScale]);
 
   return useMemo(() => ({
     sectorTint: tradeRoutesOn ? routeData.tint : fill.tint,
@@ -216,12 +306,13 @@ export function useAnalysisOverlay({
     alternateDots: fill.dots,
     dimOthers: fill.dim || tradeRoutesOn,
     routeMarkers,
-    highlightPath,
-    pathPoints: nav.pathPoints,
+    highlightSegments,
+    navSegments: nav.navSegments,
     pathHops: nav.pathHops,
+    pathDistanceKm: nav.pathDistanceKm,
     navOrigin: nav.navOrigin,
     navDest: nav.navDest,
     resourceSource: fill.source,
     isLoading: fill.loading || ((tradeRoutesOn || !!selectedRouteSector) && routes.isLoading),
-  }), [fill, routeData, routeMarkers, highlightPath, nav, tradeRoutesOn, selectedRouteSector, routes.isLoading]);
+  }), [fill, routeData, routeMarkers, highlightSegments, nav, tradeRoutesOn, selectedRouteSector, routes.isLoading]);
 }

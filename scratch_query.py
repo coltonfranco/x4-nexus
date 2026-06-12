@@ -1,12 +1,26 @@
+import os
 import sqlite3
-import dataclasses
-from x4_extract.static import ships
-from x4_extract.i18n import Localizer
+import sys
 
-conn = sqlite3.connect("raw.db")
-localizer = Localizer(conn, "044")
+db_paths = [
+    'C:/Users/colto/.gemini/antigravity/data/static.db',
+    'C:/Users/colto/git/x4-companion/packages/x4-api/data/static.db',
+    'C:/Users/colto/git/x4-companion/static.db',
+    'data/static.db',
+    'packages/x4-api/data/static.db'
+]
 
-s1 = localizer.resolve("{20111,3101}")
-s2 = localizer.resolve("{20111,3201}")
-print("3101 resolves to:", repr(s1))
-print("3201 resolves to:", repr(s2))
+db_path = None
+for p in db_paths:
+    if os.path.exists(p):
+        db_path = p
+        break
+
+if db_path is None:
+    print("Database not found!")
+    sys.exit(1)
+
+conn = sqlite3.connect(db_path)
+print("DB found at:", db_path)
+for row in conn.execute("SELECT ware_id, name, icon_path FROM wares WHERE group_id = 'engines' LIMIT 5;"):
+    print(row)

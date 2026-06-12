@@ -5,6 +5,7 @@ Exposes clusters, sectors, and gates.
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from typing import Annotated
 
@@ -217,6 +218,146 @@ def get_sector_zones(
         {"id": sector_id},
     ).fetchall()
     return [ZoneSummary(**dict(r)) for r in rows]
+
+
+class MapStation(PublicModel):
+    station_id: str
+    name: str | None = None
+    code: str | None = None
+    macro: str | None = None
+    owner_faction: str | None = None
+    sector_id: str | None = None
+    zone_id: str | None = None
+    x: float | None = None
+    y: float | None = None
+    z: float | None = None
+    # Function category derived from gamestart tags; one of the major types below or
+    # the first tag present, else None for ordinary production stations.
+    category: str | None = None
+    is_player_owned: bool = False
+    is_hq: bool = False
+    is_under_construction: bool = False
+    source: str = "seed"  # 'live' (active save) | 'seed' (gamestart placement)
+
+
+# Function tags the in-sector map keeps visible when zoomed out (order = priority).
+_MAJOR_STATION_TAGS = ("shipyard", "wharf", "equipmentdock", "tradestation")
+
+# Live station macros encode their function (e.g. station_arg_tradestation_base_01_macro,
+# station_pla_headquarters_base_01_macro). Substring → category, checked in this order.
+_MACRO_CATEGORY_MARKERS = (
+    ("shipyard", "shipyard"),
+    ("wharf", "wharf"),
+    ("equipmentdock", "equipmentdock"),
+    ("tradestation", "tradestation"),
+    ("headquarters", "headquarters"),
+    ("defence", "defence"),
+    ("defense", "defence"),
+    ("piratebase", "piratebase"),
+    ("piratestation", "piratebase"),
+    ("factory", "factory"),
+)
+
+
+def _category_from_macro(macro: str | None) -> str | None:
+    """Derive a function category from a live station's macro id."""
+    if not macro:
+        return None
+    m = macro.lower()
+    for marker, category in _MACRO_CATEGORY_MARKERS:
+        if marker in m:
+            return category
+    return None
+
+
+def _station_category(tags_raw: str | None) -> str | None:
+    """Pick a display category from a gamestart npc_station tags JSON array."""
+    if not tags_raw:
+        return None
+    try:
+        tags = json.loads(tags_raw)
+    except (ValueError, TypeError):
+        return None
+    if not isinstance(tags, list) or not tags:
+        return None
+    lowered = [str(t).lower() for t in tags]
+    for major in _MAJOR_STATION_TAGS:
+        if major in lowered:
+            return major
+    return lowered[0]
+
+
+@router.get("/map/stations", response_model=list[MapStation])
+def list_map_stations(
+    conn: Annotated[sqlite3.Connection, Depends(get_db)],
+    sector_id: str | None = Query(None, description="Filter by sector macro id"),
+    limit: int = Query(5000, ge=1, le=20000),
+    offset: int = Query(0, ge=0),
+) -> list[MapStation]:
+    """Stations positioned within their sector, for the zoomed-in map view.
+
+    Prefers live save stations; positions fall back live -> static zone centre, so
+    placement is correct at zone granularity even before per-station offsets are
+    parsed. With no save ingested, returns gamestart npc placements (which already
+    carry coordinates). `category` is derived from gamestart function tags.
+    """
+    has_table = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='stations'"
+    ).fetchone()
+    has_live = bool(has_table) and (
+        conn.execute("SELECT 1 FROM stations LIMIT 1").fetchone() is not None
+    )
+
+    params: dict[str, object] = {"limit": limit, "offset": offset}
+    if has_live:
+        sql = [
+            "SELECT st.station_id, st.name, st.code, st.macro, st.owner_faction, "
+            "st.sector_id, st.zone_id, "
+            # Station offset is zone-relative; add the zone's sector-relative centre for an
+            # accurate sector-relative position. tempzone stations (no zone coord) fall back
+            # to offset-from-sector-origin.
+            "(COALESCE(z.x, 0) + COALESCE(st.x, 0)) AS x, "
+            "(COALESCE(z.y, 0) + COALESCE(st.y, 0)) AS y, "
+            "(COALESCE(z.z, 0) + COALESCE(st.z, 0)) AS z, "
+            "st.is_player_owned, st.is_under_construction, "
+            "(SELECT ns.tags FROM seed.npc_stations ns WHERE LOWER(ns.location_zone) = LOWER(st.zone_id) LIMIT 1) AS tags, "
+            "CASE WHEN p.hq_station_id IS NOT NULL AND p.hq_station_id = st.station_id THEN 1 ELSE 0 END AS is_hq, "
+            "'live' AS source "
+            "FROM stations st "
+            # Save zone ids are lowercase; static zone ids are PascalCase — match case-insensitively.
+            "LEFT JOIN s.zones z ON LOWER(z.zone_id) = LOWER(st.zone_id) "
+            "LEFT JOIN player p ON p.id = 1 "
+            "WHERE 1=1"
+        ]
+        if sector_id is not None:
+            sql.append("AND st.sector_id = :sector_id")
+            params["sector_id"] = sector_id
+        sql.append("ORDER BY st.station_id LIMIT :limit OFFSET :offset")
+    else:
+        sql = [
+            "SELECT ns.station_id, NULL AS name, NULL AS code, NULL AS macro, "
+            "ns.owner_faction, ns.location_sector AS sector_id, ns.location_zone AS zone_id, "
+            "COALESCE(z.x, ns.x) AS x, COALESCE(z.y, ns.y) AS y, COALESCE(z.z, ns.z) AS z, "
+            "0 AS is_player_owned, 0 AS is_under_construction, ns.tags AS tags, "
+            "0 AS is_hq, 'seed' AS source "
+            "FROM seed.npc_stations ns "
+            "LEFT JOIN s.zones z ON LOWER(z.zone_id) = LOWER(ns.location_zone) "
+            "WHERE 1=1"
+        ]
+        if sector_id is not None:
+            sql.append("AND ns.location_sector = :sector_id")
+            params["sector_id"] = sector_id
+        sql.append("ORDER BY ns.station_id LIMIT :limit OFFSET :offset")
+
+    rows = conn.execute(" ".join(sql), params).fetchall()
+    out: list[MapStation] = []
+    for r in rows:
+        d = dict(r)
+        tags = d.pop("tags", None)
+        # Live macro is the most reliable signal; fall back to gamestart tags (seed branch).
+        category = _category_from_macro(d.get("macro")) or _station_category(tags)
+        out.append(MapStation(category=category, **d))
+    return out
 
 
 @router.get("/map/resources", response_model=list[ResourceEntry])

@@ -85,6 +85,23 @@ def test_live_stations_and_fleet(client: TestClient) -> None:
     assert fleet[0]["is_player_owned"] is True
 
 
+def test_map_stations(client: TestClient) -> None:
+    # No save ingested yet → falls back to (empty) seed placements without erroring.
+    assert client.get("/api/v1/map/stations").json() == []
+    _activate(client)
+
+    stations = client.get("/api/v1/map/stations").json()
+    assert len(stations) == 1
+    st = stations[0]
+    assert st["station_id"] == "[0x100]"
+    assert st["owner_faction"] == "argon"
+    assert st["sector_id"] == "cluster_001_sector001_macro"
+    assert st["source"] == "live"
+    assert st["is_player_owned"] is False
+    # No gamestart tags for this fixture station → no derived category.
+    assert st["category"] is None
+
+
 def test_live_resources(client: TestClient) -> None:
     assert client.get("/api/v1/map/resources/live").json() == []  # nothing ingested yet
     _activate(client)

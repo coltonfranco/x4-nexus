@@ -7,6 +7,7 @@ import { computeSectorLayout } from "./layout";
 import {
   computeBgGrid,
   computeOverlappingPaths,
+  computeStationScreenPos,
   computeSubSectorSet,
   computeZoneScale,
   computeZoneScreenPos,
@@ -15,7 +16,7 @@ import type { Cluster, FactionSummary, Zone } from "./types";
 import type { MapData } from "./useMapData";
 
 export function useMapLayout(data: MapData, activeDlcs: Set<string> | null) {
-  const { clusters, sectors, zones, gates, highways, connections, resources, factions } = data;
+  const { clusters, sectors, zones, gates, highways, connections, resources, factions, stations } = data;
 
   const factionMap = useMemo(() => {
     const m = new Map<string, FactionSummary>();
@@ -80,6 +81,11 @@ export function useMapLayout(data: MapData, activeDlcs: Set<string> | null) {
     [highways, gates, zoneMap, zoneScreenPos, sectorCoords]
   );
 
+  const stationScreenPos = useMemo(
+    () => computeStationScreenPos(stations, sectorCoords, zoneScale, subSectorSet),
+    [stations, sectorCoords, zoneScale, subSectorSet]
+  );
+
   return {
     factionMap,
     clusterMap,
@@ -94,8 +100,10 @@ export function useMapLayout(data: MapData, activeDlcs: Set<string> | null) {
     hexSize,
     gridOrigin,
     bgGrid,
+    zoneScale,
     zoneScreenPos,
     overlappingPaths,
+    stationScreenPos,
   };
 }
 

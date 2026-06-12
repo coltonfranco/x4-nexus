@@ -1,23 +1,30 @@
 // The pannable/zoomable SVG canvas: composes the grid, link, sector, and overlay layers,
 // and renders screen-space HUD bits (route tooltip, nav readout, zoom, legend).
 
-import { type RefObject } from "react";
+import { type RefObject, useState } from "react";
 import { X } from "lucide-react";
+
+import { stationCategoryLabel, stationDisplayName } from "../../lib/map/stations";
 
 import type { MapData } from "../../lib/map/useMapData";
 import type { MapLayout } from "../../lib/map/useMapLayout";
-import type { Transform } from "../../lib/map/types";
+import type { MapStation, Transform } from "../../lib/map/types";
 import type { AnalysisOverlay } from "../../lib/map/overlays/useAnalysisOverlay";
 import { HexGridLayer } from "./layers/HexGridLayer";
+import { HexBuildGridLayer } from "./layers/HexBuildGridLayer";
 import { GateLayer, HighwayLayer } from "./layers/LinkLayer";
 import { SectorLayer } from "./layers/SectorLayer";
+import { StationLayer } from "./layers/StationLayer";
 import { NavLayer, RoutePathLayer } from "./layers/AnalysisLayer";
+import { StationPopover } from "./StationPopover";
 
 export type MapToggles = {
   showGates: boolean;
   showHighways: boolean;
   showLocalHighways: boolean;
   showGrid: boolean;
+  showStations: boolean;
+  showFactionLogos: boolean;
 };
 
 type PanZoomHandlers = {
@@ -34,31 +41,36 @@ function compact(n: number): string {
 }
 
 export function MapCanvas({
-  data, layout, toggles, overlay, transform, isPanning, containerRef, handlers,
+  data, layout, toggles, overlay, transform, viewport, isPanning, containerRef, handlers,
   selectedSectorId, hoveredSectorId, onSelectSector, onHoverSector, onContextSector,
   navFrom, navTo, onClearNav, sectorName,
+  selectedStation, onSelectStation, showFactionLabels,
 }: {
   data: MapData;
   layout: MapLayout;
   toggles: MapToggles;
   overlay: AnalysisOverlay;
   transform: Transform;
+  viewport: { w: number; h: number };
   isPanning: boolean;
   containerRef: RefObject<HTMLDivElement>;
   handlers: PanZoomHandlers;
   selectedSectorId: string | null;
   hoveredSectorId: string | null;
-  onSelectSector: (id: string | null) => void;
+  onSelectSector: (id: string | null, mapPos?: [number, number]) => void;
   onHoverSector: (id: string | null) => void;
-  onContextSector: (id: string) => void;
+  onContextSector: (id: string, mapPos?: [number, number]) => void;
   navFrom: string | null;
   navTo: string | null;
   onClearNav: () => void;
   sectorName: (id: string) => string;
+  selectedStation: MapStation | null;
+  onSelectStation: (st: MapStation | null) => void;
+  showFactionLabels?: boolean;
 }) {
   const {
-    sectorCoords, hexSize, bgGrid, zoneScreenPos, overlappingPaths, zoneMap,
-    visibleSectors, visibleSectorIds, subSectorSet, factionMap, clusterMap,
+    sectorCoords, hexSize, zoneScale, bgGrid, zoneScreenPos, overlappingPaths, zoneMap,
+    visibleSectors, visibleSectorIds, subSectorSet, factionMap, clusterMap, stationScreenPos,
   } = layout;
 
   // In trade-routes view, hovering a buy sector shows its routes (the whole hex is the
@@ -67,6 +79,12 @@ export function MapCanvas({
     ? overlay.routeMarkers.find((m) => m.id === hoveredSectorId.toLowerCase()) ?? null
     : null;
 
+  // Hovered station (local to the canvas) → lightweight name/type tooltip.
+  const [hoveredStation, setHoveredStation] = useState<MapStation | null>(null);
+  const tooltipStation =
+    hoveredStation && hoveredStation.station_id !== selectedStation?.station_id ? hoveredStation : null;
+  const tooltipPos = tooltipStation ? stationScreenPos.get(tooltipStation.station_id) ?? null : null;
+
   return (
     <div
       ref={containerRef}
@@ -74,7 +92,7 @@ export function MapCanvas({
       onWheel={handlers.onWheel} onMouseDown={handlers.onMouseDown} onMouseMove={handlers.onMouseMove}
       onMouseUp={handlers.onMouseUp} onMouseLeave={handlers.onMouseUp}
       className={isPanning ? "cursor-grabbing" : "cursor-grab"}
-      onClick={() => onSelectSector(null)}
+      onClick={() => { onSelectSector(null); onSelectStation(null); }}
       onContextMenu={(e) => e.preventDefault()}
     >
       {data.isLoading && (
@@ -108,13 +126,44 @@ export function MapCanvas({
             factionMap={factionMap} clusterMap={clusterMap}
             hexSize={hexSize} transform={transform}
             selectedSectorId={selectedSectorId} hoveredSectorId={hoveredSectorId}
-            onSelect={onSelectSector} onHover={onHoverSector} onContext={onContextSector}
+            onSelect={(id, cx, cy) => {
+              let mapPos: [number, number] | undefined;
+              if (cx !== undefined && cy !== undefined && containerRef.current) {
+                const rect = containerRef.current.getBoundingClientRect();
+                mapPos = [(cx - rect.left - transform.x) / transform.scale, (cy - rect.top - transform.y) / transform.scale];
+              }
+              onSelectSector(id, mapPos);
+            }}
+            onHover={onHoverSector}
+            onContext={(id, cx, cy) => {
+              let mapPos: [number, number] | undefined;
+              if (containerRef.current) {
+                const rect = containerRef.current.getBoundingClientRect();
+                mapPos = [(cx - rect.left - transform.x) / transform.scale, (cy - rect.top - transform.y) / transform.scale];
+              }
+              onContextSector(id, mapPos);
+            }}
             sectorTint={overlay.sectorTint} sectorBadges={overlay.sectorBadges}
             alternateDots={overlay.alternateDots} dimOthers={overlay.dimOthers}
+            showFactionLabels={showFactionLabels}
           />
 
-          <RoutePathLayer points={overlay.highlightPath} transform={transform} />
-          <NavLayer points={overlay.pathPoints} origin={overlay.navOrigin} dest={overlay.navDest} transform={transform} />
+          <HexBuildGridLayer
+            visibleSectors={visibleSectors} sectorCoords={sectorCoords} subSectorSet={subSectorSet}
+            hexSize={hexSize} zoneScale={zoneScale} transform={transform} viewport={viewport}
+          />
+
+          {toggles.showStations && (
+            <StationLayer
+              stations={data.stations} stationScreenPos={stationScreenPos} factionMap={factionMap}
+              hexSize={hexSize} transform={transform}
+              selectedStationId={selectedStation?.station_id ?? null} onSelect={onSelectStation}
+              onHover={setHoveredStation}
+            />
+          )}
+
+          <RoutePathLayer segments={overlay.highlightSegments} transform={transform} />
+          <NavLayer segments={overlay.navSegments} origin={overlay.navOrigin} dest={overlay.navDest} transform={transform} />
         </g>
       </svg>
 
@@ -141,6 +190,33 @@ export function MapCanvas({
         </div>
       )}
 
+      {/* Station hover tooltip (screen-space, name + faction + type). */}
+      {tooltipStation && tooltipPos && (
+        <div style={{
+          position: "absolute",
+          left: tooltipPos[0] * transform.scale + transform.x + 12,
+          top: tooltipPos[1] * transform.scale + transform.y + 12,
+          pointerEvents: "none", zIndex: 22, maxWidth: 220,
+        }} className="rounded-md border border-border bg-popover/95 px-2 py-1.5 shadow-lg backdrop-blur text-xs">
+          <p className="font-semibold leading-tight">{stationDisplayName(tooltipStation)}</p>
+          <p className="text-muted-foreground">
+            {(tooltipStation.owner_faction ? factionMap.get(tooltipStation.owner_faction)?.name : null)
+              ?? tooltipStation.owner_faction ?? "Unknown"} · {stationCategoryLabel(tooltipStation.category)}
+          </p>
+        </div>
+      )}
+
+      {/* Station info popover (screen-space, anchored to the selected station). */}
+      {selectedStation && stationScreenPos.get(selectedStation.station_id) && (
+        <StationPopover
+          station={selectedStation}
+          x={stationScreenPos.get(selectedStation.station_id)![0] * transform.scale + transform.x}
+          y={stationScreenPos.get(selectedStation.station_id)![1] * transform.scale + transform.y}
+          faction={selectedStation.owner_faction ? factionMap.get(selectedStation.owner_faction) ?? null : null}
+          onClose={() => onSelectStation(null)}
+        />
+      )}
+
       {/* Navigation readout (prominent, on the map) — only once a route is plotted. */}
       {navFrom && navTo && (
         <div style={{ position: "absolute", top: 12, left: "50%", transform: "translateX(-50%)", zIndex: 15 }}
@@ -150,8 +226,16 @@ export function MapCanvas({
           <span className="font-semibold text-red-400">{sectorName(navTo)}</span>
           <span className="text-muted-foreground">·</span>
           <span className="tabular-nums text-sky-400">
-            {overlay.pathHops != null ? `${overlay.pathHops} jump${overlay.pathHops === 1 ? "" : "s"}` : "no route"}
+            {overlay.pathHops != null ? `${overlay.pathHops} jump${overlay.pathHops === 1 ? "" : "s"}` : (overlay.navSegments.length > 0 ? "0 jumps" : "no route")}
           </span>
+          {overlay.pathDistanceKm != null && overlay.navSegments.length > 0 && (
+            <>
+              <span className="text-muted-foreground">·</span>
+              <span className="tabular-nums text-indigo-400">
+                {overlay.pathDistanceKm.toFixed(0)} km
+              </span>
+            </>
+          )}
           <button onClick={onClearNav} title="Clear route (Esc)"
             className="ml-1 -mr-1 flex items-center justify-center w-5 h-5 rounded text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors">
             <X className="w-3.5 h-3.5" />

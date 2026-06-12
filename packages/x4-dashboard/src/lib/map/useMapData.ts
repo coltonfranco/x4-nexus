@@ -8,6 +8,7 @@ import type {
   FactionSummary,
   Gate,
   Highway,
+  MapStation,
   Sector,
   SectorConnection,
   Zone,
@@ -51,6 +52,10 @@ export function useMapData() {
     queryKey: ["factions"],
     queryFn: () => fetch("/api/v1/factions").then((r) => r.json()),
   });
+  const stationsQuery = useQuery<MapStation[]>({
+    queryKey: ["map-stations"],
+    queryFn: () => fetch("/api/v1/map/stations?limit=20000").then(okJson),
+  });
 
   return {
     clusters: clustersQuery.data ?? [],
@@ -61,6 +66,7 @@ export function useMapData() {
     connections: connectionsQuery.data ?? [],
     resources: resourcesQuery.data ?? [],
     factions: factionsQuery.data ?? [],
+    stations: stationsQuery.data ?? [],
     isLoading: clustersQuery.isLoading || sectorsQuery.isLoading,
   };
 }

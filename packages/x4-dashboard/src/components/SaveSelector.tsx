@@ -14,6 +14,20 @@ export type SaveSummary = {
   is_active: boolean;
 };
 
+function formatSaveName(s: SaveSummary) {
+  if (!s.save_name || /^#\d+$/.test(s.save_name.trim())) {
+    return s.key.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase());
+  }
+  return s.save_name;
+}
+
+function formatPlayTime(seconds: number | null) {
+  if (seconds == null) return "";
+  const hrs = Math.floor(seconds / 3600);
+  const mins = Math.floor((seconds % 3600) / 60);
+  return `${hrs}h ${mins}m`;
+}
+
 /** Active-save picker. Activating rebuilds that save's dynamic DB and refreshes all
  *  save-state queries (routes, economy, player, fleet, ...). Lives in the sidebar. */
 export function SaveSelector() {
@@ -48,11 +62,17 @@ export function SaveSelector() {
             onChange={(e) => activate.mutate(e.target.value)}
             className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs disabled:opacity-60"
           >
-            {saves.map((s) => (
-              <option key={s.key} value={s.key}>
-                {(s.save_name || s.key) + (s.db_current ? "" : " ↻")}
-              </option>
-            ))}
+            {saves.map((s, i) => {
+              const name = formatSaveName(s);
+              const time = s.in_game_time_sec ? ` (${formatPlayTime(s.in_game_time_sec)})` : "";
+              const newest = i === 0 ? " ★" : "";
+              const rebuilding = s.db_current ? "" : " ↻";
+              return (
+                <option key={s.key} value={s.key}>
+                  {name}{time}{newest}{rebuilding}
+                </option>
+              );
+            })}
           </select>
           <div className="flex items-center justify-between text-xs text-muted-foreground tabular-nums">
             {activate.isPending ? (

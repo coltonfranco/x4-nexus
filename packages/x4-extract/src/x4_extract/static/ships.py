@@ -73,28 +73,33 @@ def _parse_ship_macro(macro_name: str, file_path: str, macro_el: etree._Element,
     secrecy_el = macro_el.find("properties/secrecy")
     ship_el = macro_el.find("properties/ship")
 
-    cargo_volume = 0
     missile_storage = drone_storage = countermeasure_storage = deployable_storage = None
     if storage_el is not None:
-        cargo_volume = _int(storage_el, "cargo") or _int(storage_el, "unit") or 0
         missile_storage = _int(storage_el, "missile")
         drone_storage = _int(storage_el, "unit")
         countermeasure_storage = _int(storage_el, "countermeasure")
         deployable_storage = _int(storage_el, "deployable")
         
     if countermeasure_storage is None:
-        if class_id == 's': countermeasure_storage = 4
-        elif class_id == 'm': countermeasure_storage = 8
-        elif class_id == 'l': countermeasure_storage = 20
-        elif class_id == 'xl': countermeasure_storage = 40
+        if class_id == 's':
+            countermeasure_storage = 4
+        elif class_id == 'm':
+            countermeasure_storage = 8
+        elif class_id == 'l':
+            countermeasure_storage = 20
+        elif class_id == 'xl':
+            countermeasure_storage = 40
         
     if deployable_storage is None:
-        if class_id == 's': deployable_storage = 50
-        elif class_id == 'm': deployable_storage = 100
-        elif class_id == 'l': deployable_storage = 250
-        elif class_id == 'xl': deployable_storage = 450
+        if class_id == 's':
+            deployable_storage = 50
+        elif class_id == 'm':
+            deployable_storage = 100
+        elif class_id == 'l':
+            deployable_storage = 250
+        elif class_id == 'xl':
+            deployable_storage = 450
 
-    speed_max = 0.0
     mass = None
     drag_fwd = drag_rev = drag_horiz = drag_vert = drag_pitch = drag_yaw = drag_roll = None
     inertia_pitch = inertia_yaw = inertia_roll = None
@@ -120,6 +125,7 @@ def _parse_ship_macro(macro_name: str, file_path: str, macro_el: etree._Element,
 
     # Hardpoints counters
     counts = {
+        "cargo_volume": 0,
         "weapons_s": 0, "weapons_m": 0, "weapons_l": 0, "weapons_xl": 0,
         "turrets_s": 0, "turrets_m": 0, "turrets_l": 0, "turrets_xl": 0,
         "shields_s": 0, "shields_m": 0, "shields_l": 0, "shields_xl": 0,
@@ -144,7 +150,7 @@ def _parse_ship_macro(macro_name: str, file_path: str, macro_el: etree._Element,
             "role": purpose_el.get("primary") if purpose_el is not None else None,
             "faction_id": ident_el.get("makerrace") if ident_el is not None else None,
             "hull": _int(hull_el, "max") if hull_el is not None else None,
-            "cargo_volume": cargo_volume,
+            "cargo_volume": counts.get("cargo_volume", 0),
             "speed_min": None,
             "speed_max": None,
             "travel_min": None,
@@ -201,6 +207,19 @@ def _parse_ship_macro(macro_name: str, file_path: str, macro_el: etree._Element,
 
 
 def _resolve_and_count_hardpoints(el: etree._Element, resolve_name: Callable[[str], bytes], counts: dict[str, int], visited: set[str]) -> None:
+    # Accumulate cargo volume from properties/cargo and properties/storage
+    cargo_el = el.find("properties/cargo")
+    if cargo_el is not None:
+        c = _int(cargo_el, "max")
+        if c:
+            counts["cargo_volume"] += c
+            
+    storage_el = el.find("properties/storage")
+    if storage_el is not None:
+        c = _int(storage_el, "cargo")
+        if c:
+            counts["cargo_volume"] += c
+
     # Find component ref for this macro
     comp_el = el.find("component")
     if comp_el is not None:

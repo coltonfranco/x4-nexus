@@ -1,6 +1,7 @@
 import sqlite3
 import xml.etree.ElementTree as ET
 
+
 def find_shapes(filepath):
     print(f"\n--- Checking shapes and rotations in {filepath} ---")
     conn = sqlite3.connect('raw.db')

@@ -44,10 +44,28 @@ export type Zone = {
   z: number | null;
 };
 
+export type MapStation = {
+  station_id: string;
+  name: string | null;
+  code: string | null;
+  macro: string | null;
+  owner_faction: string | null;
+  sector_id: string | null;
+  zone_id: string | null;
+  x: number | null;
+  y: number | null;
+  z: number | null;
+  category: string | null;
+  is_player_owned: boolean;
+  is_hq: boolean;
+  is_under_construction: boolean;
+  source: string;
+};
+
 export type Gate = { from_zone_id: string; to_zone_id: string; kind: string | null };
 export type Highway = { from_zone_id: string; to_zone_id: string; kind: string };
 export type SectorConnection = { from_sector_id: string; to_sector_id: string; kind: string | null };
 export type ClusterResourceEntry = { cluster_id: string; ware: string; yield_level: string };
-export type FactionSummary = { faction_id: string; name: string; color_hex: string | null };
+export type FactionSummary = { faction_id: string; name: string; color_hex: string | null; icon_url: string | null; };
 
 export type Transform = { x: number; y: number; scale: number };

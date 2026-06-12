@@ -48,6 +48,9 @@ def test_dispatch_station_fields(data_dir: Path, fixtures_dir: Path) -> None:
     assert row["sector_id"] == "cluster_001_sector001_macro"
     assert row["zone_id"] == "zone001_cluster_001_sector001_macro"
     assert row["is_player_owned"] == 0
+    # Zone-relative offset captured from <offset><position>.
+    assert row["x"] == 1000
+    assert row["z"] == 2000
 
 
 def test_dispatch_offer_sides(data_dir: Path, fixtures_dir: Path) -> None:

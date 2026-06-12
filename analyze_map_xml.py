@@ -2,6 +2,7 @@ import sqlite3
 import xml.etree.ElementTree as ET
 from collections import Counter
 
+
 def analyze_xml(filepath):
     print(f"\n--- Analyzing {filepath} ---")
     conn = sqlite3.connect('raw.db')

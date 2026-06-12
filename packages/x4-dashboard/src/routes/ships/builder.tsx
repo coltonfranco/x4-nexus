@@ -130,7 +130,6 @@ const SHIP_CARGO_MAX: Record<string, number> = { xs: 10, s: 20000, m: 50000, l: 
 const SHIP_CREW_MAX: Record<string, number> = { xs: 2, s: 7, m: 25, l: 225, xl: 405 };
 const SHIP_MISSILE_MAX: Record<string, number> = { xs: 20, s: 50, m: 100, l: 310, xl: 500 };
 const SHIP_DPS_MAX: Record<string, number> = { xs: 1000, s: 1824, m: 9000, l: 33567, xl: 110254 };
-const SHIP_TURN_MAX: Record<string, number> = { xs: 250, s: 200, m: 100, l: 50, xl: 30 };
 
 type SortOption = { id: string; label: string; eval: (e: EquipmentItem) => number | string; desc?: boolean; };
 
@@ -634,7 +633,6 @@ function StatsFooter({ ship, cart, slots }: {
   const maxMissile = SHIP_MISSILE_MAX[cid] || 100;
   const maxDps = SHIP_DPS_MAX[cid] || 5_000;
   const maxRange = RANGE_MAX[cid] || 20;
-  const maxTurn = SHIP_TURN_MAX[cid] || 250;
 
   return (
     <div className="bg-muted/10 border-t border-border/50 text-sm overflow-y-auto w-full max-h-[35vh]">

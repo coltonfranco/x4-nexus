@@ -12,6 +12,7 @@ import { useMapData } from "../lib/map/useMapData";
 import { useMapLayout } from "../lib/map/useMapLayout";
 import { usePanZoom } from "../lib/map/usePanZoom";
 import type { FillMode } from "../lib/map/overlays/types";
+import type { MapStation } from "../lib/map/types";
 import { useEconomyWares } from "../lib/map/overlays/useAnalysisData";
 import { useAnalysisOverlay } from "../lib/map/overlays/useAnalysisOverlay";
 
@@ -23,11 +24,14 @@ export default function MapPage() {
 
   const [selectedSectorId, setSelectedSectorId] = useState<string | null>(null);
   const [hoveredSectorId, setHoveredSectorId] = useState<string | null>(null);
+  const [selectedStation, setSelectedStation] = useState<MapStation | null>(null);
   const [toggles, setToggles] = useState<MapToggles>({
     showGates: true,
     showHighways: true,
     showLocalHighways: true,
     showGrid: true,
+    showStations: true,
+    showFactionLogos: true,
   });
   const [activeDlcs, setActiveDlcs] = useState<Set<string> | null>(null);
 
@@ -39,6 +43,8 @@ export default function MapPage() {
   const [selectedRouteSector, setSelectedRouteSector] = useState<string | null>(null);
   const [navFrom, setNavFrom] = useState<string | null>(search.from ?? null);
   const [navTo, setNavTo] = useState<string | null>(search.to ?? null);
+  const [navFromPos, setNavFromPos] = useState<[number, number] | null>(null);
+  const [navToPos, setNavToPos] = useState<[number, number] | null>(null);
 
   // Re-apply deep-link params if they change while the map is already mounted.
   useEffect(() => {
@@ -60,8 +66,10 @@ export default function MapPage() {
   );
 
   const overlay = useAnalysisOverlay({
-    fillMode, resource, wareId, maxJumps, selectedRouteSector, navFrom, navTo,
-    sectorCoords, connections: data.connections,
+    fillMode, resource, wareId, maxJumps, selectedRouteSector, navFrom, navTo, navFromPos, navToPos,
+    sectorCoords, gates: data.gates, highways: data.highways,
+    zoneMap: layout.zoneMap, zoneScreenPos: layout.zoneScreenPos,
+    sectors: data.sectors, clusterMap: layout.clusterMap, zoneScale: layout.zoneScale,
   });
 
   const sectorName = useCallback((id: string) => {
@@ -80,21 +88,40 @@ export default function MapPage() {
   // Left-click: select (highlighted bounds) and set the nav origin, clearing any plotted
   // route so plain browsing never draws one. In trade-routes view it also highlights the
   // clicked sector's best route — the whole hex is the click target, not a tiny dot.
-  const handleSelectSector = useCallback((id: string | null) => {
-    setSelectedSectorId((cur) => (cur === id ? null : id));
-    if (id) { setNavFrom(id); setNavTo(null); }
+  const handleSelectSector = useCallback((id: string | null, mapPos?: [number, number]) => {
+    setSelectedSectorId(id);
+    if (id) { 
+      if (id !== navFrom) {
+        setNavTo(null); 
+        setNavToPos(null);
+      }
+      setNavFrom(id); 
+      setNavFromPos(mapPos ?? null);
+    }
     setSelectedRouteSector(id && fillMode === "trade" && !wareId ? id : null);
-  }, [fillMode, wareId]);
+  }, [fillMode, wareId, navFrom]);
+
+  // Selecting a station opens its popover and drops any sector selection.
+  const handleSelectStation = useCallback((st: MapStation | null) => {
+    setSelectedStation(st);
+    if (st) setSelectedSectorId(null);
+  }, []);
 
   // Right-click: set the navigation destination (origin stays sticky for repeat probing).
-  const handleContextSector = useCallback((id: string) => setNavTo(id), []);
+  const handleContextSector = useCallback((id: string, mapPos?: [number, number]) => {
+    setNavTo(id);
+    setNavToPos(mapPos ?? null);
+  }, []);
 
-  const clearNav = useCallback(() => { setNavFrom(null); setNavTo(null); }, []);
+  const clearNav = useCallback(() => { 
+    setNavFrom(null); setNavTo(null); 
+    setNavFromPos(null); setNavToPos(null); 
+  }, []);
 
   // Escape clears the navigation path and any highlighted route.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { clearNav(); setSelectedRouteSector(null); }
+      if (e.key === "Escape") { clearNav(); setSelectedRouteSector(null); setSelectedStation(null); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -135,6 +162,7 @@ export default function MapPage() {
           toggles={toggles}
           overlay={overlay}
           transform={panZoom.transform}
+          viewport={panZoom.viewport}
           isPanning={panZoom.isPanning}
           containerRef={panZoom.containerRef}
           handlers={panZoom.handlers}
@@ -147,6 +175,9 @@ export default function MapPage() {
           navTo={navTo}
           onClearNav={clearNav}
           sectorName={sectorName}
+          selectedStation={selectedStation}
+          onSelectStation={handleSelectStation}
+          showFactionLabels={toggles.showFactionLogos}
         />
 
         {/* Right panel: overlay controls (top), detail/map controls, navigation (bottom). */}
@@ -188,10 +219,14 @@ export default function MapPage() {
               showHighways={toggles.showHighways}
               showLocalHighways={toggles.showLocalHighways}
               showGrid={toggles.showGrid}
+              showStations={toggles.showStations}
+              showFactionLogos={toggles.showFactionLogos}
               onToggleGates={setToggle("showGates")}
               onToggleHighways={setToggle("showHighways")}
               onToggleLocalHighways={setToggle("showLocalHighways")}
               onToggleGrid={setToggle("showGrid")}
+              onToggleStations={setToggle("showStations")}
+              onToggleFactionLogos={setToggle("showFactionLogos")}
               onToggleDlc={(dlc, on) => {
                 setActiveDlcs((prev) => {
                   const current = new Set(prev ?? allDlcs);

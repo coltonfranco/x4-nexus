@@ -46,9 +46,11 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: 'Filter by computed bucket: commodity, equipment, inventory, ship'
+          description: 'Filter by computed bucket: commodity, equipment, inventory,
+            ship'
           title: Category
-        description: 'Filter by computed bucket: commodity, equipment, inventory, ship'
+        description: 'Filter by computed bucket: commodity, equipment, inventory,
+          ship'
       - name: limit
         in: query
         required: false
@@ -113,7 +115,8 @@ paths:
       tags:
       - equipment
       summary: List Equipment
-      description: 'Every buyable ship part with its stat block inlined. kind/size/faction are parsed
+      description: 'Every buyable ship part with its stat block inlined. kind/size/faction
+        are parsed
 
         from the ware id and filtered in-process.'
       operationId: list_equipment_api_v1_equipment_get
@@ -223,12 +226,15 @@ paths:
       tags:
       - factions
       summary: List All Faction Relations
-      description: 'Every faction-to-faction relation: gamestart value + current (from the active save).
+      description: 'Every faction-to-faction relation: gamestart value + current (from
+        the active save).
 
 
-        `current_relation` is NULL until a save is ingested; the same -1..1 scale as
+        `current_relation` is NULL until a save is ingested; the same -1..1 scale
+        as
 
-        `initial_relation`, so the UI can show drift or COALESCE to the effective value.'
+        `initial_relation`, so the UI can show drift or COALESCE to the effective
+        value.'
       operationId: list_all_faction_relations_api_v1_faction_relations_get
       responses:
         '200':
@@ -239,7 +245,8 @@ paths:
                 items:
                   $ref: '#/components/schemas/AllFactionRelation'
                 type: array
-                title: Response List All Faction Relations Api V1 Faction Relations Get
+                title: Response List All Faction Relations Api V1 Faction Relations
+                  Get
   /api/v1/factions:
     get:
       tags:
@@ -262,14 +269,18 @@ paths:
       tags:
       - factions
       summary: Faction Strength
-      description: 'Relative strength metrics, normalized 0-100, computed from LIVE save state.
+      description: 'Relative strength metrics, normalized 0-100, computed from LIVE
+        save state.
 
 
-        Everything here is the *current* universe (dynamic ships/stations/relations) so the
+        Everything here is the *current* universe (dynamic ships/stations/relations)
+        so the
 
-        standings reflect how the game has actually unfolded — seed/static is init state only
+        standings reflect how the game has actually unfolded — seed/static is init
+        state only
 
-        and is not referenced once a save is loaded. The player is ranked alongside AI factions.'
+        and is not referenced once a save is loaded. The player is ranked alongside
+        AI factions.'
       operationId: faction_strength_api_v1_factions_strength_get
       responses:
         '200':
@@ -313,7 +324,8 @@ paths:
       tags:
       - factions
       summary: List Faction Relations
-      description: 'Diplomatic relations for a faction: gamestart value + current (from active save).'
+      description: 'Diplomatic relations for a faction: gamestart value + current
+        (from active save).'
       operationId: list_faction_relations_api_v1_factions__faction_id__relations_get
       parameters:
       - name: faction_id
@@ -331,7 +343,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/FactionRelation'
-                title: Response List Faction Relations Api V1 Factions  Faction Id  Relations Get
+                title: Response List Faction Relations Api V1 Factions  Faction Id  Relations
+                  Get
         '422':
           description: Validation Error
           content:
@@ -611,7 +624,70 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/ZoneSummary'
-                title: Response Get Sector Zones Api V1 Map Sectors  Sector Id  Zones Get
+                title: Response Get Sector Zones Api V1 Map Sectors  Sector Id  Zones
+                  Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/map/stations:
+    get:
+      tags:
+      - map
+      summary: List Map Stations
+      description: 'Stations positioned within their sector, for the zoomed-in map
+        view.
+
+
+        Prefers live save stations; positions fall back live -> static zone centre,
+        so
+
+        placement is correct at zone granularity even before per-station offsets are
+
+        parsed. With no save ingested, returns gamestart npc placements (which already
+
+        carry coordinates). `category` is derived from gamestart function tags.'
+      operationId: list_map_stations_api_v1_map_stations_get
+      parameters:
+      - name: sector_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filter by sector macro id
+          title: Sector Id
+        description: Filter by sector macro id
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 20000
+          minimum: 1
+          default: 5000
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MapStation'
+                title: Response List Map Stations Api V1 Map Stations Get
         '422':
           description: Validation Error
           content:
@@ -623,7 +699,8 @@ paths:
       tags:
       - map
       summary: List Resources
-      description: List resource region entries. Filter by ware to find where a resource spawns.
+      description: List resource region entries. Filter by ware to find where a resource
+        spawns.
       operationId: list_resources_api_v1_map_resources_get
       parameters:
       - name: ware
@@ -633,9 +710,11 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: Filter by ware (ore, silicon, nividium, hydrogen, helium, methane, ice)
+          description: Filter by ware (ore, silicon, nividium, hydrogen, helium, methane,
+            ice)
           title: Ware
-        description: Filter by ware (ore, silicon, nividium, hydrogen, helium, methane, ice)
+        description: Filter by ware (ore, silicon, nividium, hydrogen, helium, methane,
+          ice)
       - name: sector_id
         in: query
         required: false
@@ -702,7 +781,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/ResourceEntry'
-                title: Response Get Sector Resources Api V1 Map Sectors  Sector Id  Resources Get
+                title: Response Get Sector Resources Api V1 Map Sectors  Sector Id  Resources
+                  Get
         '422':
           description: Validation Error
           content:
@@ -714,7 +794,8 @@ paths:
       tags:
       - map
       summary: List Live Resources
-      description: 'Live, depleting mineable resources per sector, from the active save.
+      description: 'Live, depleting mineable resources per sector, from the active
+        save.
 
 
         Returns [] until a save with resource data is ingested (the dashboard''s mining
@@ -876,7 +957,8 @@ paths:
       tags:
       - map
       summary: List Sector Connections
-      description: Return all sector-to-sector connections (gate and superhighway, deduplicated).
+      description: Return all sector-to-sector connections (gate and superhighway,
+        deduplicated).
       operationId: list_sector_connections_api_v1_map_sector_connections_get
       responses:
         '200':
@@ -887,13 +969,15 @@ paths:
                 items:
                   $ref: '#/components/schemas/SectorConnection'
                 type: array
-                title: Response List Sector Connections Api V1 Map Sector Connections Get
+                title: Response List Sector Connections Api V1 Map Sector Connections
+                  Get
   /api/v1/map/connections:
     get:
       tags:
       - map
       summary: List Cluster Connections
-      description: Return all cluster-to-cluster connections (gate and superhighway, deduplicated).
+      description: Return all cluster-to-cluster connections (gate and superhighway,
+        deduplicated).
       operationId: list_cluster_connections_api_v1_map_connections_get
       responses:
         '200':
@@ -910,7 +994,8 @@ paths:
       tags:
       - map
       summary: List Cluster Resources
-      description: Return best resource yield per ware per cluster, for map overlay display.
+      description: Return best resource yield per ware per cluster, for map overlay
+        display.
       operationId: list_cluster_resources_api_v1_map_cluster_resources_get
       responses:
         '200':
@@ -921,7 +1006,8 @@ paths:
                 items:
                   $ref: '#/components/schemas/ClusterResourceEntry'
                 type: array
-                title: Response List Cluster Resources Api V1 Map Cluster Resources Get
+                title: Response List Cluster Resources Api V1 Map Cluster Resources
+                  Get
   /api/v1/modules:
     get:
       tags:
@@ -936,9 +1022,11 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: 'Filter by kind: production, habitation, storage, dock, defence, connectionmodule'
+          description: 'Filter by kind: production, habitation, storage, dock, defence,
+            connectionmodule'
           title: Kind
-        description: 'Filter by kind: production, habitation, storage, dock, defence, connectionmodule'
+        description: 'Filter by kind: production, habitation, storage, dock, defence,
+          connectionmodule'
       - name: limit
         in: query
         required: false
@@ -1087,7 +1175,8 @@ paths:
       tags:
       - npc-stations
       summary: List Npc Stations
-      description: List NPC stations in the universe, optionally filtered by owner, tag, or sector.
+      description: List NPC stations in the universe, optionally filtered by owner,
+        tag, or sector.
       operationId: list_npc_stations_api_v1_npc_stations_get
       parameters:
       - name: owner
@@ -1168,7 +1257,8 @@ paths:
       tags:
       - loadouts
       summary: List Loadouts
-      description: List loadout presets with full equipment. Filter by ship_macro to see loadouts for a specific ship.
+      description: List loadout presets with full equipment. Filter by ship_macro
+        to see loadouts for a specific ship.
       operationId: list_loadouts_api_v1_loadouts_get
       parameters:
       - name: ship_macro
@@ -1368,7 +1458,8 @@ paths:
                 items:
                   $ref: '#/components/schemas/TerraformProjectGroup'
                 type: array
-                title: Response List Terraform Project Groups Api V1 Terraform Project Groups Get
+                title: Response List Terraform Project Groups Api V1 Terraform Project
+                  Groups Get
   /api/v1/terraform/projects:
     get:
       tags:
@@ -1393,7 +1484,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/TerraformProjectSummary'
-                title: Response List Terraform Projects Api V1 Terraform Projects Get
+                title: Response List Terraform Projects Api V1 Terraform Projects
+                  Get
         '422':
           description: Validation Error
           content:
@@ -1541,7 +1633,8 @@ paths:
       tags:
       - diplomacy
       summary: List Diplo Gifts
-      description: List faction gift preferences. Filter by faction_id to find what a faction likes.
+      description: List faction gift preferences. Filter by faction_id to find what
+        a faction likes.
       operationId: list_diplo_gifts_api_v1_diplomacy_gifts_get
       parameters:
       - name: faction_id
@@ -1600,7 +1693,8 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: ship | lockbox | asteroid | crystal | story | masstraffic | other
+          description: ship | lockbox | asteroid | crystal | story | masstraffic |
+            other
           title: Category
         description: ship | lockbox | asteroid | crystal | story | masstraffic | other
       responses:
@@ -1681,7 +1775,8 @@ paths:
       tags:
       - saves
       summary: List Saves
-      description: All saves in the configured folder, newest first. Empty list when none/unset.
+      description: All saves in the configured folder, newest first. Empty list when
+        none/unset.
       operationId: list_saves_api_v1_saves_get
       responses:
         '200':
@@ -1712,7 +1807,8 @@ paths:
       tags:
       - saves
       summary: Activate Save
-      description: Select a save as active and (re)build its dynamic DB. 404 on unknown key.
+      description: Select a save as active and (re)build its dynamic DB. 404 on unknown
+        key.
       operationId: activate_save_api_v1_saves__key__activate_post
       parameters:
       - name: key
@@ -1787,7 +1883,8 @@ paths:
       tags:
       - player
       summary: Player Reputation
-      description: The player's current standing with every faction (best first), with gamestart drift.
+      description: The player's current standing with every faction (best first),
+        with gamestart drift.
       operationId: player_reputation_api_v1_player_reputation_get
       responses:
         '200':
@@ -1874,7 +1971,8 @@ paths:
       tags:
       - stations
       summary: Station Offers
-      description: Current buy/sell offers at a station. 404 if the station is not in the save.
+      description: Current buy/sell offers at a station. 404 if the station is not
+        in the save.
       operationId: station_offers_api_v1_stations__station_id__offers_get
       parameters:
       - name: station_id
@@ -1892,7 +1990,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/StationOffer'
-                title: Response Station Offers Api V1 Stations  Station Id  Offers Get
+                title: Response Station Offers Api V1 Stations  Station Id  Offers
+                  Get
         '422':
           description: Validation Error
           content:
@@ -1974,7 +2073,8 @@ paths:
       tags:
       - routes
       summary: List Routes
-      description: Top trade routes ranked by estimated profit/hour for the given ship.
+      description: Top trade routes ranked by estimated profit/hour for the given
+        ship.
       operationId: list_routes_api_v1_routes_get
       parameters:
       - name: ship_cargo
@@ -2027,7 +2127,8 @@ paths:
       tags:
       - economy
       summary: List Ware Market
-      description: Universe-wide ware supply/demand/price summary. Most under-supplied first.
+      description: Universe-wide ware supply/demand/price summary. Most under-supplied
+        first.
       operationId: list_ware_market_api_v1_economy_wares_get
       parameters:
       - name: classification
@@ -2088,7 +2189,8 @@ paths:
       tags:
       - economy
       summary: Ware Offer Breakdown
-      description: Per-station offers for one ware — where it's demanded vs supplied (and hoarding).
+      description: Per-station offers for one ware — where it's demanded vs supplied
+        (and hoarding).
       operationId: ware_offer_breakdown_api_v1_economy_wares__ware_id__stations_get
       parameters:
       - name: ware_id
@@ -2106,7 +2208,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/WareOfferRow'
-                title: Response Ware Offer Breakdown Api V1 Economy Wares  Ware Id  Stations Get
+                title: Response Ware Offer Breakdown Api V1 Economy Wares  Ware Id  Stations
+                  Get
         '422':
           description: Validation Error
           content:
@@ -3383,6 +3486,82 @@ components:
       - optional
       - quantity
       title: LoadoutEquipmentItem
+    MapStation:
+      properties:
+        station_id:
+          type: string
+          title: Station Id
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+        code:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Code
+        macro:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Macro
+        owner_faction:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Owner Faction
+        sector_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Sector Id
+        zone_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Zone Id
+        x:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: X
+        y:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Y
+        z:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Z
+        category:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Category
+        is_player_owned:
+          type: boolean
+          title: Is Player Owned
+          default: false
+        is_hq:
+          type: boolean
+          title: Is Hq
+          default: false
+        is_under_construction:
+          type: boolean
+          title: Is Under Construction
+          default: false
+        source:
+          type: string
+          title: Source
+          default: seed
+      additionalProperties: false
+      type: object
+      required:
+      - station_id
+      title: MapStation
     ModuleDetail:
       properties:
         module_id:
@@ -4199,6 +4378,11 @@ components:
           - type: string
           - type: 'null'
           title: Image Url
+        price_avg:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Price Avg
         description:
           anyOf:
           - type: string
@@ -4453,6 +4637,7 @@ components:
       - speed_max
       - icon_url
       - image_url
+      - price_avg
       - description
       - basename
       - secrecy_level
@@ -4589,6 +4774,11 @@ components:
           - type: string
           - type: 'null'
           title: Image Url
+        price_avg:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Price Avg
       additionalProperties: false
       type: object
       required:
@@ -4605,6 +4795,7 @@ components:
       - speed_max
       - icon_url
       - image_url
+      - price_avg
       title: ShipSummary
     StationOffer:
       properties:

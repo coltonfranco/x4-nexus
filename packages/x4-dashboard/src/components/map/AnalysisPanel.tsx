@@ -10,6 +10,7 @@ import type { ResourceSource } from "../../lib/map/overlays/useAnalysisData";
 
 const TABS: { id: FillMode; label: string }[] = [
   { id: "faction", label: "Faction" },
+  { id: "relations", label: "Relations" },
   { id: "resources", label: "Resources" },
   { id: "trade", label: "Trade" },
 ];
@@ -47,7 +48,7 @@ export function AnalysisPanel({
   return (
     <div className="p-4 border-b border-border flex flex-col gap-3">
       <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Sector overlay</p>
-      <div className="grid grid-cols-3 gap-1.5">
+      <div className="grid grid-cols-2 gap-1.5">
         {TABS.map((t) => (
           <button key={t.id} onClick={() => onFillModeChange(t.id)}
             className={`text-xs px-2 py-1.5 rounded border transition-colors ${
@@ -62,6 +63,22 @@ export function AnalysisPanel({
 
       {fillMode === "faction" && (
         <p className="text-[11px] text-muted-foreground">Sectors colored by owning faction.</p>
+      )}
+
+      {fillMode === "relations" && (
+        <div className="flex flex-col gap-2">
+          <p className="text-[11px] text-muted-foreground">
+            Sectors colored by player relation to owner.
+          </p>
+          <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-1">
+            <span>enemy (-30)</span>
+            <span className="h-2 flex-1 rounded-full" style={{
+              background: "linear-gradient(to right, #ef4444, #4b5563, #22c55e)",
+            }} />
+            <span>friend (+30)</span>
+          </div>
+          <p className="text-[11px] text-muted-foreground/60">Neutral (+0) is grey. Hover/click for details.</p>
+        </div>
       )}
 
       {fillMode === "resources" && (

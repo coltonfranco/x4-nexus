@@ -2,17 +2,40 @@
 // (Trade routes themselves are shown as a profit tint on the sector hexes, not markers.)
 
 import type { Transform } from "../../../lib/map/types";
+import type { PathSegment } from "../../../lib/map/overlays/useAnalysisOverlay";
 
-export function RoutePathLayer({ points, transform }: { points: [number, number][]; transform: Transform }) {
-  if (points.length < 2) return null;
+function getSegmentColor(kind: string): string {
+  switch (kind) {
+    case "jump_gate": return "#22c55e"; // Green
+    case "accelerator":
+    case "superhighway":
+    case "localhighway": return "#eab308"; // Yellow
+    case "manual": return "#ef4444"; // Red
+    default: return "#0ea5e9";
+  }
+}
+
+export function RoutePathLayer({ segments, transform }: { segments: PathSegment[]; transform: Transform }) {
+  if (segments.length === 0) return null;
   const w = 3 / transform.scale;
-  const poly = points.map((p) => `${p[0]},${p[1]}`).join(" ");
+  const points = [segments[0].p1, ...segments.map((s) => s.p2)];
+  
   return (
     <g style={{ pointerEvents: "none" }}>
-      <polyline points={poly} fill="none" stroke="#f59e0b" strokeWidth={w * 2.4} opacity={0.3}
-        strokeLinejoin="round" strokeLinecap="round" />
-      <polyline points={poly} fill="none" stroke="#fbbf24" strokeWidth={w} opacity={0.95}
-        strokeLinejoin="round" strokeLinecap="round" />
+      {segments.map((s, i) => {
+        const poly = `${s.p1[0]},${s.p1[1]} ${s.p2[0]},${s.p2[1]}`;
+        const color = getSegmentColor(s.kind);
+        return (
+          <g key={i}>
+            <polyline points={poly} fill="none" stroke={color} strokeWidth={w * 2.4} opacity={0.3}
+              strokeLinejoin="round" strokeLinecap="round" />
+            <polyline points={poly} fill="none" stroke={color} strokeWidth={w} opacity={0.95}
+              strokeLinejoin="round" strokeLinecap="round" strokeDasharray={`${w * 3} ${w * 2}`}>
+              <animate attributeName="stroke-dashoffset" from={w * 5} to="0" dur="0.6s" repeatCount="indefinite" />
+            </polyline>
+          </g>
+        );
+      })}
       {[points[0], points[points.length - 1]].map((p, i) => (
         <circle key={i} cx={p[0]} cy={p[1]} r={w * 1.6} fill={i === 0 ? "#34d399" : "#fbbf24"} stroke="#0b1220" strokeWidth={w * 0.3} />
       ))}
@@ -20,24 +43,33 @@ export function RoutePathLayer({ points, transform }: { points: [number, number]
   );
 }
 
-export function NavLayer({ points, origin, dest, transform }: {
-  points: [number, number][];
+export function NavLayer({ segments, origin, dest, transform }: {
+  segments: PathSegment[];
   origin: [number, number] | null;
   dest: [number, number] | null;
   transform: Transform;
 }) {
   const w = 3 / transform.scale;
-  const poly = points.map((p) => `${p[0]},${p[1]}`).join(" ");
+  const points = segments.length ? [segments[0].p1, ...segments.map((s) => s.p2)] : [];
+  
   return (
     <g style={{ pointerEvents: "none" }}>
-      {points.length >= 2 && (
+      {segments.length > 0 && (
         <>
-          <polyline points={poly} fill="none" stroke="#0ea5e9" strokeWidth={w * 2.2} opacity={0.25}
-            strokeLinejoin="round" strokeLinecap="round" />
-          <polyline points={poly} fill="none" stroke="#7dd3fc" strokeWidth={w} opacity={0.95}
-            strokeLinejoin="round" strokeLinecap="round" strokeDasharray={`${w * 3} ${w * 2}`}>
-            <animate attributeName="stroke-dashoffset" from={w * 5} to="0" dur="0.6s" repeatCount="indefinite" />
-          </polyline>
+          {segments.map((s, i) => {
+            const poly = `${s.p1[0]},${s.p1[1]} ${s.p2[0]},${s.p2[1]}`;
+            const color = getSegmentColor(s.kind);
+            return (
+              <g key={i}>
+                <polyline points={poly} fill="none" stroke={color} strokeWidth={w * 2.2} opacity={0.25}
+                  strokeLinejoin="round" strokeLinecap="round" />
+                <polyline points={poly} fill="none" stroke={color} strokeWidth={w} opacity={0.95}
+                  strokeLinejoin="round" strokeLinecap="round" strokeDasharray={`${w * 3} ${w * 2}`}>
+                  <animate attributeName="stroke-dashoffset" from={w * 5} to="0" dur="0.6s" repeatCount="indefinite" />
+                </polyline>
+              </g>
+            );
+          })}
           {points.map((p, i) => (
             <circle key={i} cx={p[0]} cy={p[1]} r={w * 1.4} fill="#0ea5e9" stroke="#7dd3fc" strokeWidth={w * 0.4} />
           ))}

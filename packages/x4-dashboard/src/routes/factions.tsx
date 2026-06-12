@@ -566,15 +566,11 @@ function MatrixView({
                 title={f.name}
                 onClick={() => onSelectFaction(f.faction_id)}
                 style={{
-                  padding: "6px 4px",
-                  writingMode: "vertical-lr",
-                  transform: "rotate(180deg)",
+                  padding: "6px 0",
                   height: 140,
                   width: 44,
                   minWidth: 44,
                   maxWidth: 44,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
                   color: f.color_hex ?? "hsl(var(--foreground))",
                   fontWeight: 600,
                   borderBottom: "1px solid hsl(var(--border))",
@@ -587,7 +583,28 @@ function MatrixView({
                 }}
                 className="hover:bg-muted/50"
               >
-                {f.name}
+                <div className="flex flex-col items-center justify-end h-full gap-2 pb-1">
+                  <span
+                    style={{
+                      writingMode: "vertical-lr",
+                      transform: "rotate(180deg)",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                      maxHeight: "100px",
+                    }}
+                  >
+                    {f.name}
+                  </span>
+                  {f.icon_url && (
+                    <div style={{
+                      width: '18px', height: '18px', flexShrink: 0,
+                      backgroundColor: f.color_hex ?? 'hsl(var(--foreground))',
+                      WebkitMaskImage: `url(${f.icon_url})`,
+                      WebkitMaskSize: 'contain', WebkitMaskRepeat: 'no-repeat', WebkitMaskPosition: 'center',
+                    }} />
+                  )}
+                </div>
               </th>
             ))}
           </tr>
@@ -607,14 +624,25 @@ function MatrixView({
                   zIndex: 1,
                   borderRight: "1px solid hsl(var(--border))",
                   borderBottom: "1px solid hsl(var(--border))",
-                  maxWidth: 140,
+                  maxWidth: 160,
                   overflow: "hidden",
                   textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
                   cursor: "pointer",
                 }}
                 className="hover:bg-muted/50"
               >
-                {from.name}
+                <div className="flex items-center gap-2">
+                  {from.icon_url && (
+                    <div style={{
+                      width: '18px', height: '18px', flexShrink: 0,
+                      backgroundColor: from.color_hex ?? 'hsl(var(--foreground))',
+                      WebkitMaskImage: `url(${from.icon_url})`,
+                      WebkitMaskSize: 'contain', WebkitMaskRepeat: 'no-repeat', WebkitMaskPosition: 'center',
+                    }} />
+                  )}
+                  <span className="truncate">{from.name}</span>
+                </div>
               </td>
               {factions.map((to) => {
                 if (from.faction_id === to.faction_id) {

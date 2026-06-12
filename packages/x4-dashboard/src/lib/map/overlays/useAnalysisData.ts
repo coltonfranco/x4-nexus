@@ -3,7 +3,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 
-import type { EconomyWare, TradeRoute, WareOffer } from "./types";
+import type { EconomyWare, PlayerRelation, TradeRoute, WareOffer } from "./types";
 
 type StaticResourceRow = { sector_id: string | null; ware: string; yield_level: string };
 type LiveResourceRow = { sector_id: string; ware: string; current: number | null; max: number | null; yield_tier: string | null };
@@ -147,5 +147,13 @@ export function useTopRoutes(enabled: boolean) {
     queryKey: ["map-top-routes"],
     enabled,
     queryFn: () => fetch("/api/v1/routes?limit=80").then((r) => r.json()),
+  });
+}
+
+export function usePlayerRelations(enabled: boolean) {
+  return useQuery<PlayerRelation[]>({
+    queryKey: ["player-reputation"],
+    enabled,
+    queryFn: () => fetch("/api/v1/player/reputation").then((r) => r.json()),
   });
 }

@@ -33,12 +33,12 @@ export function AppLayout() {
 
   return (
     <div
-      style={{ display: "flex", minHeight: "100vh" }}
+      style={{ display: "flex", height: "100vh" }}
       className="bg-background text-foreground"
     >
       {/* Sidebar */}
       <aside
-        style={{ width: 200, flexShrink: 0 }}
+        style={{ width: 240, flexShrink: 0 }}
         className="flex flex-col border-r border-border bg-card"
       >
         {/* Logo */}
@@ -63,7 +63,7 @@ export function AppLayout() {
         </div>
 
         {/* Nav */}
-        <nav className="flex flex-col gap-1 p-2 flex-1">
+        <nav className="flex flex-col gap-1 p-2 flex-1 overflow-y-auto">
           {navItems.map(({ to, label, icon: Icon }) => {
             const active =
               to === "/" ? location.pathname === "/" : location.pathname.startsWith(to);

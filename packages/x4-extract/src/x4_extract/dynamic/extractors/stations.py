@@ -44,6 +44,19 @@ from x4_extract.savefile.dispatch import Registration, Target
 # universe hierarchy or wraps stations in an extra container.
 _STATION_DEPTH = 15
 _OFFER_DEPTH = 19
+# A station's position lives in <offset><position> (station→offset→position), zone-relative.
+# It must be captured at the leaf <position> because the streaming dispatcher clears child
+# subtrees before the station's own end event (see savefile/dispatch.py).
+_STATION_POS_DEPTH = 17
+
+
+def _f(v: str | None) -> float | None:
+    if v is None:
+        return None
+    try:
+        return float(v)
+    except ValueError:
+        return None
 
 # Station <component> attrs promoted to columns; the rest go to extra_json.
 _MAPPED_STATION_ATTRS = frozenset({"id", "code", "name", "macro", "owner", "state"})
@@ -85,6 +98,10 @@ class StationsCollector:
     localizer: Localizer | None = None
     station_rows: list[StationRow] = field(default_factory=list)
     offer_rows: list[OfferRow] = field(default_factory=list)
+    # station id → (x, y, z) zone-relative offset, captured before the station row builds.
+    station_offsets: dict[str, tuple[float | None, float | None, float | None]] = field(
+        default_factory=dict
+    )
 
     def register(self) -> list[Registration]:
         return [
@@ -105,7 +122,22 @@ class StationsCollector:
                 ),
                 visitor=self._on_offer,
             ),
+            Registration(
+                target=Target(depth=_STATION_POS_DEPTH, tag="position", parent_tag="offset"),
+                visitor=self._on_station_offset,
+            ),
         ]
+
+    def _on_station_offset(self, elem: etree._Element) -> None:
+        offset = elem.getparent()
+        if offset is None or offset.tag != "offset":
+            return
+        comp = offset.getparent()
+        if comp is None or comp.get("class") != "station":
+            return
+        sid = comp.get("id")
+        if sid:
+            self.station_offsets[sid] = (_f(elem.get("x")), _f(elem.get("y")), _f(elem.get("z")))
 
     def _on_station(self, elem: etree._Element) -> None:
         sector_id: str | None = None
@@ -127,6 +159,7 @@ class StationsCollector:
             name = self.localizer.resolve(name)
 
         extra = {k: v for k, v in elem.attrib.items() if k not in _MAPPED_STATION_ATTRS}
+        ox, oy, oz = self.station_offsets.get(elem.get("id") or "", (None, None, None))
         self.station_rows.append(
             StationRow(
                 station_id=elem.get("id") or "",
@@ -136,9 +169,9 @@ class StationsCollector:
                 owner_faction=elem.get("owner"),
                 sector_id=sector_id,
                 zone_id=zone_id,
-                x=None,
-                y=None,
-                z=None,
+                x=ox,
+                y=oy,
+                z=oz,
                 state=elem.get("state"),
                 build_pct=None,
                 is_player_owned=int(elem.get("owner") == "player"),
