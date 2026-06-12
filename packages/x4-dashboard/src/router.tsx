@@ -14,6 +14,7 @@ import BuilderPage from "./routes/ships/builder";
 import TradeCatalogPage from "./routes/trade/catalog";
 import { TradeLayout } from "./routes/trade/layout";
 import TradeRoutesPage from "./routes/routes";
+import SectorTestPage from "./routes/sector_test";
 
 const rootRoute = createRootRoute({ component: AppLayout });
 
@@ -82,6 +83,7 @@ const factionsRoute = createRoute({
 });
 const dropsRoute = createRoute({ getParentRoute: () => rootRoute, path: "/drops", component: DropsPage });
 const diplomacyRoute = createRoute({ getParentRoute: () => rootRoute, path: "/diplomacy", component: DiplomacyPage });
+const sectorTestRoute = createRoute({ getParentRoute: () => rootRoute, path: "/sector_test", component: SectorTestPage });
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
@@ -97,6 +99,7 @@ const routeTree = rootRoute.addChildren([
   factionsRoute,
   dropsRoute,
   diplomacyRoute,
+  sectorTestRoute,
 ]);
 
 export const router = createRouter({ routeTree });

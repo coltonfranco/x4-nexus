@@ -115,7 +115,7 @@ def write(conn: sqlite3.Connection, result: ExtractResult) -> None:
     conn.execute("DELETE FROM faction_licences")
     conn.execute("DELETE FROM factions")
     conn.executemany(
-        "INSERT INTO factions (faction_id, name, color_hex, primary_race, description, short_name, prefix_name, "
+        "INSERT OR IGNORE INTO factions (faction_id, name, color_hex, primary_race, description, short_name, prefix_name, "
         "space_name, home_space_name, behaviour_set, police_faction, icon_active, icon_inactive, icon_banner, tags) "
         "VALUES (:faction_id, :name, :color_hex, :primary_race, :description, :short_name, :prefix_name, "
         ":space_name, :home_space_name, :behaviour_set, :police_faction, :icon_active, :icon_inactive, :icon_banner, :tags)",
@@ -133,7 +133,7 @@ def write_relations(conn: sqlite3.Connection, result: ExtractResult) -> None:
     """Replace gamestart faction relations in seed.db. Caller wraps in a transaction."""
     conn.execute("DELETE FROM faction_relations")
     conn.executemany(
-        "INSERT INTO faction_relations (faction_id, other_faction_id, initial_relation) "
+        "INSERT OR IGNORE INTO faction_relations (faction_id, other_faction_id, initial_relation) "
         "VALUES (:faction_id, :other_faction_id, :initial_relation)",
         result.relations,
     )
