@@ -103,6 +103,22 @@ def extract(factions_bytes: bytes, colors_bytes: bytes | None = None) -> Extract
                     "min_relation": min_rel,
                 })
 
+    # Deduplicate relations: merged DLC sub-elements may produce duplicate
+    # (faction_id, other_faction_id) pairs.  Last-wins so DLC updates to
+    # existing relation values are preserved.
+    deduped_rels: dict[tuple[str, str], dict[str, Any]] = {}
+    for r in out.relations:
+        key = (r["faction_id"], r["other_faction_id"])
+        deduped_rels[key] = r
+    out.relations = list(deduped_rels.values())
+
+    # Same for licences — merged sub-elements can duplicate (licence_type, faction_id).
+    deduped_lics: dict[tuple[str, str], dict[str, Any]] = {}
+    for lic in out.licences:
+        key = (lic["licence_type"], lic["faction_id"])
+        deduped_lics[key] = lic
+    out.licences = list(deduped_lics.values())
+
     return out
 
 
@@ -115,15 +131,14 @@ def write(conn: sqlite3.Connection, result: ExtractResult) -> None:
     conn.execute("DELETE FROM faction_licences")
     conn.execute("DELETE FROM factions")
     conn.executemany(
-        "INSERT OR IGNORE INTO factions (faction_id, name, color_hex, primary_race, description, short_name, prefix_name, "
+        "INSERT INTO factions (faction_id, name, color_hex, primary_race, description, short_name, prefix_name, "
         "space_name, home_space_name, behaviour_set, police_faction, icon_active, icon_inactive, icon_banner, tags) "
         "VALUES (:faction_id, :name, :color_hex, :primary_race, :description, :short_name, :prefix_name, "
         ":space_name, :home_space_name, :behaviour_set, :police_faction, :icon_active, :icon_inactive, :icon_banner, :tags)",
         result.factions,
     )
-    # Use INSERT OR IGNORE because factions.xml can list the same licence multiple times per faction with different precursor/tags
     conn.executemany(
-        "INSERT OR IGNORE INTO faction_licences (licence_type, faction_id, name, description, icon, precursor, price, min_relation) "
+        "INSERT INTO faction_licences (licence_type, faction_id, name, description, icon, precursor, price, min_relation) "
         "VALUES (:licence_type, :faction_id, :name, :description, :icon, :precursor, :price, :min_relation)",
         result.licences,
     )
@@ -133,7 +148,7 @@ def write_relations(conn: sqlite3.Connection, result: ExtractResult) -> None:
     """Replace gamestart faction relations in seed.db. Caller wraps in a transaction."""
     conn.execute("DELETE FROM faction_relations")
     conn.executemany(
-        "INSERT OR IGNORE INTO faction_relations (faction_id, other_faction_id, initial_relation) "
+        "INSERT INTO faction_relations (faction_id, other_faction_id, initial_relation) "
         "VALUES (:faction_id, :other_faction_id, :initial_relation)",
         result.relations,
     )
