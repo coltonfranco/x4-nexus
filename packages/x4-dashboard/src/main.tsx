@@ -5,6 +5,7 @@ import { RouterProvider } from "@tanstack/react-router";
 import { TooltipProvider } from "./components/ui/tooltip";
 import "./index.css";
 import { router } from "./router";
+import { SettingsProvider } from "./lib/settingsStore";
 
 // Apply saved theme before first render to prevent flash.
 const savedTheme = localStorage.getItem("theme");
@@ -22,9 +23,11 @@ const queryClient = new QueryClient({
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <RouterProvider router={router} />
-      </TooltipProvider>
+      <SettingsProvider>
+        <TooltipProvider>
+          <RouterProvider router={router} />
+        </TooltipProvider>
+      </SettingsProvider>
     </QueryClientProvider>
   </React.StrictMode>
 );

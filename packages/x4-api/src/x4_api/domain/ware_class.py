@@ -69,6 +69,49 @@ _TAG_KINDS = frozenset(
 _META_RE = re.compile(r"^[a-z]+_(?P<faction>[a-z]{2,3})_(?P<size>xs|s|m|l|xl)_")
 _MK_RE = re.compile(r"_mk(?P<mk>\d+)")
 
+# Map equipment short faction codes → full faction_id.
+# Most codes are the first 3 letters of a primary_race (arg→argon, tel→teladi).
+# Built lazily from the live factions table so new DLC races work automatically.
+# Edge cases (pir, gen, atf) don't match any primary_race and are hardcoded.
+_faction_map_cache: dict[str, str] | None = None
+
+
+def _build_faction_map() -> dict[str, str]:
+    """Build {short_code: faction_id} from the factions table."""
+    mapping: dict[str, str] = {
+        "pir": "scaleplate",
+        "atf": "terran",
+        "gen": "alliance",
+    }
+    try:
+        import sqlite3
+
+        from x4_api.config import settings
+        db = settings.data_dir / "static.db"
+        if db.exists():
+            conn = sqlite3.connect(db)
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(
+                "SELECT primary_race, faction_id FROM factions"
+                " WHERE primary_race IS NOT NULL"
+                " AND faction_id = primary_race"
+            ).fetchall()
+            for row in rows:
+                short = row["primary_race"][:3]
+                mapping.setdefault(short, row["faction_id"])
+            conn.close()
+    except Exception:
+        pass
+    return mapping
+
+
+def _faction_map() -> dict[str, str]:
+    global _faction_map_cache
+    if _faction_map_cache is None:
+        _faction_map_cache = _build_faction_map()
+    return _faction_map_cache
+
+
 # equipment kind → (stat table, primary-key column). Wares join via ware_id||'_macro'.
 EQUIP_STAT_TABLE = {
     "engine": ("equip_engines", "engine_id"),
@@ -93,6 +136,8 @@ def equipment_meta(ware_id: str) -> tuple[str | None, str | None, int | None]:
     faction: str | None = None
     size: str | None = None
     if (m := _META_RE.match(ware_id)) is not None:
-        faction, size = m.group("faction"), m.group("size")
+        short = m.group("faction")
+        faction = _faction_map().get(short, short)
+        size = m.group("size")
     mk = int(mm.group("mk")) if (mm := _MK_RE.search(ware_id)) else None
     return faction, size, mk

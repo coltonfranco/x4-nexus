@@ -49,7 +49,12 @@ def extract(xml_bytes: bytes) -> ExtractResult:
         if not loadout_id or not ship_macro:
             continue
 
-        out.loadouts.append({"loadout_id": loadout_id, "ship_macro": ship_macro})
+        out.loadouts.append({
+            "loadout_id": loadout_id,
+            "ship_macro": ship_macro,
+            "name": lo_el.get("name"),
+            "description": lo_el.get("description"),
+        })
 
         for slot_el in lo_el.iterfind("macros/*"):
             kind = slot_el.tag
@@ -65,6 +70,8 @@ def extract(xml_bytes: bytes) -> ExtractResult:
                 "kind": kind,
                 "optional": 1 if slot_el.get("optional") == "1" else 0,
                 "quantity": None,
+                "weaponmode": slot_el.get("weaponmode"),
+                "ammunition": slot_el.get("ammunition"),
             })
 
         for thr_el in lo_el.iterfind("virtualmacros/thruster"):
@@ -77,6 +84,8 @@ def extract(xml_bytes: bytes) -> ExtractResult:
                     "kind": "thruster",
                     "optional": 0,
                     "quantity": None,
+                    "weaponmode": None,
+                    "ammunition": None,
                 })
 
         for sw_el in lo_el.iterfind("software/software"):
@@ -89,6 +98,8 @@ def extract(xml_bytes: bytes) -> ExtractResult:
                     "kind": "software",
                     "optional": 0,
                     "quantity": None,
+                    "weaponmode": None,
+                    "ammunition": None,
                 })
 
         for ammo_el in lo_el.iterfind("ammunition/ammunition"):
@@ -103,6 +114,8 @@ def extract(xml_bytes: bytes) -> ExtractResult:
                 "kind": "ammunition",
                 "optional": 1 if ammo_el.get("optional") == "1" else 0,
                 "quantity": int(qty) if qty is not None else None,
+                "weaponmode": None,
+                "ammunition": None,
             })
 
     return out
@@ -113,12 +126,13 @@ def write(conn: sqlite3.Connection, result: ExtractResult) -> None:
     conn.execute("DELETE FROM loadouts")
     if result.loadouts:
         conn.executemany(
-            "INSERT INTO loadouts (loadout_id, ship_macro) VALUES (:loadout_id, :ship_macro)",
+            "INSERT INTO loadouts (loadout_id, ship_macro, name, description) "
+            "VALUES (:loadout_id, :ship_macro, :name, :description)",
             result.loadouts,
         )
     if result.equipment:
         conn.executemany(
-            "INSERT INTO loadout_equipment (loadout_id, slot_path, macro, kind, optional, quantity) "
-            "VALUES (:loadout_id, :slot_path, :macro, :kind, :optional, :quantity)",
+            "INSERT INTO loadout_equipment (loadout_id, slot_path, macro, kind, optional, quantity, weaponmode, ammunition) "
+            "VALUES (:loadout_id, :slot_path, :macro, :kind, :optional, :quantity, :weaponmode, :ammunition)",
             result.equipment,
         )

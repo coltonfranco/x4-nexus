@@ -14,12 +14,24 @@ from x4_api.api.schemas import PublicModel
 router = APIRouter()
 
 _LIST_COLS = (
-    "module_id, name, dlc, kind, size, produces_ware_id, "
-    "storage_capacity, storage_type, drone_capacity, workforce_capacity, icon_path"
+    "module_id, name, dlc, kind, size, makerrace, description, shortname, "
+    "is_datavault, is_landmark, is_unique, icon, hudicon, factionhqicon, subtype, "
+    "produces_ware_id, storage_capacity, storage_type, drone_capacity, "
+    "workforce_capacity, workforce_race, icon_path"
 )
 _DETAIL_COLS = (
     _LIST_COLS + ", "
-    "hull, explosiondamage, "
+    "hull, hull_min, hull_integrated, hull_invulnerable, hull_noscrap, "
+    "explosiondamage, secrecy_level, "
+    "dock_allow, dock_allowbuild, dock_allowtrade, dock_allowunits, "
+    "dock_external, dock_playeronly, dock_priority, dock_showroom, dock_size_tags, "
+    "equip_classes, supply_classes, "
+    "production_research, production_show_active, "
+    "builder_units, build_has_storage, "
+    "rotation_speed_max, rotation_accel_max, "
+    "translation_speed_max, translation_accel_max, "
+    "undock_distance, undock_speed, undock_rotate, "
+    "autoaim_allow, ownership_claim, longrangescan_minlevel, "
     "turrets_s, turrets_m, turrets_l, turrets_xl, "
     "shields_s, shields_m, shields_l, shields_xl"
 )
@@ -31,17 +43,58 @@ class ModuleSummary(PublicModel):
     dlc: str | None
     kind: str | None
     size: str | None
+    makerrace: str | None = None
+    description: str | None = None
+    shortname: str | None = None
+    is_datavault: bool | None = None
+    is_landmark: bool | None = None
+    is_unique: bool | None = None
+    icon: str | None = None
+    hudicon: str | None = None
+    factionhqicon: str | None = None
+    subtype: str | None = None
     produces_ware_id: str | None
     storage_capacity: int | None
     storage_type: str | None
     drone_capacity: int | None
     workforce_capacity: int | None
+    workforce_race: str | None = None
     icon_url: str | None
 
 
 class ModuleDetail(ModuleSummary):
     hull: int | None
+    hull_min: int | None = None
+    hull_integrated: bool | None = None
+    hull_invulnerable: bool | None = None
+    hull_noscrap: bool | None = None
     explosiondamage: int | None
+    secrecy_level: int | None = None
+    dock_allow: bool | None = None
+    dock_allowbuild: bool | None = None
+    dock_allowtrade: bool | None = None
+    dock_allowunits: bool | None = None
+    dock_external: bool | None = None
+    dock_playeronly: bool | None = None
+    dock_priority: int | None = None
+    dock_showroom: bool | None = None
+    dock_size_tags: str | None = None
+    equip_classes: str | None = None
+    supply_classes: str | None = None
+    production_research: bool | None = None
+    production_show_active: bool | None = None
+    builder_units: int | None = None
+    build_has_storage: bool | None = None
+    rotation_speed_max: float | None = None
+    rotation_accel_max: float | None = None
+    translation_speed_max: float | None = None
+    translation_accel_max: float | None = None
+    undock_distance: float | None = None
+    undock_speed: float | None = None
+    undock_rotate: bool | None = None
+    autoaim_allow: bool | None = None
+    ownership_claim: bool | None = None
+    longrangescan_minlevel: int | None = None
     turrets_s: int
     turrets_m: int
     turrets_l: int
@@ -67,7 +120,7 @@ def _row_to_detail(r: sqlite3.Row) -> ModuleDetail:
 @router.get("/modules", response_model=list[ModuleSummary])
 def list_modules(
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
-    kind: str | None = Query(None, description="Filter by kind: production, habitation, storage, dock, defence, connectionmodule"),
+    kind: str | None = Query(None),
     limit: int = Query(500, ge=1, le=2000),
     offset: int = Query(0, ge=0),
 ) -> list[ModuleSummary]:

@@ -26,11 +26,15 @@ class ShipSummary(PublicModel):
     role: str | None
     hull: int | None
     cargo_volume: int | None
+    dps_max: float | None
     speed_min: float | None
     speed_max: float | None
     icon_url: str | None
     image_url: str | None
     price_avg: int | None
+    is_owned: bool = False
+    restriction_licence: str | None = None
+    is_obtainable: bool = False
 
 
 class ShipSoftware(PublicModel):
@@ -42,9 +46,11 @@ class ShipSoftware(PublicModel):
 class ShipDetail(ShipSummary):
     description: str | None
     basename: str | None
+    variation: str | None
     secrecy_level: int | None
     travel_min: float | None
     travel_max: float | None
+    travel_stability: float | None
     boost_min: float | None
     boost_max: float | None
     pitch_min: float | None
@@ -53,6 +59,28 @@ class ShipDetail(ShipSummary):
     yaw_max: float | None
     roll_min: float | None
     roll_max: float | None
+    accel_forward: float | None
+    decel_forward: float | None
+    accel_boost: float | None
+    accel_travel: float | None
+    accel_strafe: float | None
+    accel_angular: float | None
+    accel_factor_reverse: float | None
+    accel_factor_horizontal: float | None
+    accel_factor_vertical: float | None
+    modifier_weapon_heat: float | None
+    explosion_damage: float | None
+    explosion_shield_damage: float | None
+    explosion_shield_disruption: float | None
+    travel_stability: float | None
+    gatherrate_gas: float | None
+    gatherrate_ore: float | None
+    gatherrate_silicon: float | None
+    can_be_captured: int | None
+    radar_range_direct: float | None
+    boost_recharge_delay: float | None
+    rotation_speed_max: float | None
+    rotation_accel_max: float | None
     shield_capacity_min: float | None
     shield_capacity_max: float | None
     shield_recharge_min: float | None
@@ -76,6 +104,15 @@ class ShipDetail(ShipSummary):
     drone_storage: int | None
     countermeasure_storage: int | None
     deployable_storage: int | None
+    dock_s: int
+    dock_m: int
+    dock_l: int
+    dock_xl: int
+    storage_s: int
+    storage_m: int
+    storage_l: int
+    storage_xl: int
+    launch_tubes: int
     weapons_s: int
     weapons_m: int
     weapons_l: int
@@ -97,11 +134,18 @@ class ShipDetail(ShipSummary):
 
 
 _DETAIL_COLS = (
-    "s.ship_id, s.name, s.description, s.basename, s.dlc, s.class_id, s.ship_type, s.role, s.faction_id, "
-    "s.hull, s.cargo_volume, s.speed_min, s.speed_max, s.icon_path, "
+    "s.ship_id, s.name, s.description, s.basename, s.variation, s.dlc, s.class_id, s.ship_type, s.role, s.faction_id, "
+    "s.hull, s.cargo_volume, s.dps_max, s.speed_min, s.speed_max, s.icon_path, "
     "secrecy_level, "
-    "travel_min, travel_max, boost_min, boost_max, "
+    "travel_min, travel_max, travel_stability, boost_min, boost_max, "
     "pitch_min, pitch_max, yaw_min, yaw_max, roll_min, roll_max, "
+    "accel_forward, decel_forward, accel_boost, accel_travel, accel_strafe, accel_angular, "
+    "accel_factor_reverse, accel_factor_horizontal, accel_factor_vertical, "
+    "modifier_weapon_heat, explosion_damage, explosion_shield_damage, "
+    "explosion_shield_disruption, travel_stability, "
+    "gatherrate_gas, gatherrate_ore, gatherrate_silicon, "
+    "can_be_captured, radar_range_direct, boost_recharge_delay, "
+    "rotation_speed_max, rotation_accel_max, "
     "shield_capacity_min, shield_capacity_max, shield_recharge_min, shield_recharge_max, "
     "shield_delay_min, shield_delay_max, radar_range, "
     "mass, drag_forward, drag_reverse, drag_horizontal, drag_vertical, "
@@ -109,11 +153,16 @@ _DETAIL_COLS = (
     "inertia_pitch, inertia_yaw, inertia_roll, "
     "people_capacity, missile_storage, drone_storage, "
     "countermeasure_storage, deployable_storage, "
+    "dock_s, dock_m, dock_l, dock_xl, "
+    "storage_s, storage_m, storage_l, storage_xl, "
+    "launch_tubes, "
     "weapons_s, weapons_m, weapons_l, weapons_xl, "
     "turrets_s, turrets_m, turrets_l, turrets_xl, "
     "shields_s, shields_m, shields_l, shields_xl, "
     "engines_s, engines_m, engines_l, engines_xl, "
-    "w.price_avg"
+    "w.price_avg, w.restriction_licence, "
+    "EXISTS(SELECT 1 FROM ships dyn WHERE dyn.macro = s.ship_id AND dyn.is_player_owned = 1) AS is_owned, "
+    "(w.ware_id IS NOT NULL AND s.faction_id NOT IN ('xenon', 'khaak') AND (w.restriction_licence IS NULL OR w.restriction_licence IN ('generaluseship', 'generaluseequipment') OR EXISTS (SELECT 1 FROM player_licences pl WHERE pl.licence_type = w.restriction_licence AND pl.faction_id = s.faction_id))) AS is_obtainable"
 )
 
 
@@ -122,12 +171,15 @@ def list_ships(
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
     class_id: str | None = Query(None),
     faction_id: str | None = Query(None),
+    is_obtainable: bool | None = Query(None),
     limit: int = Query(500, ge=1, le=2000),
     offset: int = Query(0, ge=0),
 ) -> list[ShipSummary]:
     """List all ships in the game catalog."""
     sql = [
-        "SELECT s.ship_id, s.name, s.dlc, s.class_id, s.ship_type, s.role, s.faction_id, s.hull, s.cargo_volume, s.speed_min, s.speed_max, s.icon_path, w.price_avg",
+        "SELECT s.ship_id, s.name, s.dlc, s.class_id, s.ship_type, s.role, s.faction_id, s.hull, s.cargo_volume, s.dps_max, s.speed_min, s.speed_max, s.icon_path, w.price_avg, w.restriction_licence,",
+        "EXISTS(SELECT 1 FROM ships dyn WHERE dyn.macro = s.ship_id AND dyn.is_player_owned = 1) AS is_owned,",
+        "(w.ware_id IS NOT NULL AND s.faction_id NOT IN ('xenon', 'khaak') AND (w.restriction_licence IS NULL OR w.restriction_licence IN ('generaluseship', 'generaluseequipment') OR EXISTS (SELECT 1 FROM player_licences pl WHERE pl.licence_type = w.restriction_licence AND pl.faction_id = s.faction_id))) AS is_obtainable",
         "FROM s.ships s",
         "LEFT JOIN s.wares w ON w.ware_id = REPLACE(s.ship_id, '_macro', '')",
         "WHERE 1=1",
@@ -139,6 +191,14 @@ def list_ships(
     if faction_id is not None:
         sql.append("AND s.faction_id = :faction_id")
         params["faction_id"] = faction_id
+    if is_obtainable:
+        sql.append(
+            "AND w.ware_id IS NOT NULL AND s.faction_id NOT IN ('xenon', 'khaak') "
+            "AND (w.restriction_licence IS NULL OR w.restriction_licence IN ('generaluseship', 'generaluseequipment') OR EXISTS ("
+            "SELECT 1 FROM player_licences pl "
+            "WHERE pl.licence_type = w.restriction_licence AND pl.faction_id = s.faction_id"
+            "))"
+        )
     sql.append("ORDER BY s.ship_id LIMIT :limit OFFSET :offset")
 
     rows = conn.execute(" ".join(sql), params).fetchall()
@@ -153,11 +213,15 @@ def list_ships(
             faction_id=r["faction_id"],
             hull=r["hull"],
             cargo_volume=r["cargo_volume"],
+            dps_max=r["dps_max"],
             speed_min=r["speed_min"],
             speed_max=r["speed_max"],
             icon_url=get_icon_url(r["icon_path"]),
             image_url=get_icon_url(f"ship_{r['ship_id']}"),
             price_avg=r["price_avg"],
+            is_owned=bool(r["is_owned"]),
+            restriction_licence=r["restriction_licence"],
+            is_obtainable=bool(r["is_obtainable"]),
         )
         for r in rows
     ]
@@ -181,6 +245,8 @@ def get_ship(
     r = dict(row)
     r["icon_url"] = get_icon_url(r.pop("icon_path"))
     r["image_url"] = get_icon_url(f"ship_{r['ship_id']}")
+    r["is_owned"] = bool(r["is_owned"])
+    r["is_obtainable"] = bool(r["is_obtainable"])
     r["software"] = [ShipSoftware(**dict(s)) for s in sw_rows]
     r["drop_list_id"] = _resolve_drop_list(conn, r["ship_id"], r["class_id"], r["faction_id"], r["role"])
     return ShipDetail(**r)

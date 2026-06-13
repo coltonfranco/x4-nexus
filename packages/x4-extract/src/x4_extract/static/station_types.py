@@ -65,6 +65,15 @@ def _parse_station(
     ident_el = macro_el.find("properties/identification")
     hull_el = macro_el.find("properties/hull")
     workforce_el = macro_el.find("properties/workforce")
+    dock_el = macro_el.find("properties/dock")
+    docksize_el = macro_el.find("properties/docksize")
+    equip_el = macro_el.find("properties/equip")
+    supply_el = macro_el.find("properties/supply")
+    prod_el = macro_el.find("properties/production")
+    secrecy_el = macro_el.find("properties/secrecy")
+    ownership_el = macro_el.find("properties/ownership")
+    storage_el = macro_el.find("properties/storage")
+    cargo_el = macro_el.find("properties/cargo")
 
     sets = [s.get("ref") for s in macro_el.iterfind("properties/build/sets/set") if s.get("ref")]
 
@@ -76,9 +85,27 @@ def _parse_station(
         "station_id": macro_name,
         "name": ident_el.get("name") if ident_el is not None else None,
         "file_path": file_path,
+        "makerrace": ident_el.get("makerrace") if ident_el is not None else None,
+        "description": ident_el.get("description") if ident_el is not None else None,
         "icon": ident_el.get("icon") if ident_el is not None else None,
         "hull": _int(hull_el, "max"),
-        "workforce_max": _int(workforce_el, "max"),
+        "hull_integrated": _bool_attr(hull_el, "integrated"),
+        "workforce_max": _int(workforce_el, "max") if _int(workforce_el, "max") is not None else _int(workforce_el, "capacity"),
+        "workforce_race": workforce_el.get("race") if workforce_el is not None else None,
+        "drone_capacity": _int(storage_el, "unit"),
+        "storage_capacity": _int(cargo_el, "max") if cargo_el is not None else None,
+        "storage_type": cargo_el.get("tags") if cargo_el is not None else None,
+        "dock_allow": _bool_attr(dock_el, "allow") if dock_el is not None else None,
+        "dock_allowtrade": _bool_attr(dock_el, "allowtrade") if dock_el is not None else None,
+        "dock_allowbuild": _bool_attr(dock_el, "allowbuild") if dock_el is not None else None,
+        "dock_external": _bool_attr(dock_el, "external") if dock_el is not None else None,
+        "dock_playeronly": _bool_attr(dock_el, "playeronly") if dock_el is not None else None,
+        "dock_size_tags": docksize_el.get("tags") if docksize_el is not None else None,
+        "equip_classes": equip_el.get("classes") if equip_el is not None else None,
+        "supply_classes": supply_el.get("classes") if supply_el is not None else None,
+        "production_research": _bool_attr(prod_el, "research") if prod_el is not None else None,
+        "secrecy_level": _int(secrecy_el, "level") if secrecy_el is not None else None,
+        "ownership_claim": _bool_attr(ownership_el, "claim") if ownership_el is not None else None,
         "build_sets": json.dumps(sets) if sets else None,
     })
 
@@ -87,8 +114,18 @@ def write(conn: sqlite3.Connection, result: ExtractResult) -> None:
     conn.execute("DELETE FROM station_types")
     if result.stations:
         conn.executemany(
-            "INSERT INTO station_types (station_id, name, file_path, icon, hull, workforce_max, build_sets) "
-            "VALUES (:station_id, :name, :file_path, :icon, :hull, :workforce_max, :build_sets)",
+            "INSERT INTO station_types (station_id, name, file_path, makerrace, description, icon,"
+            "  hull, hull_integrated, workforce_max, workforce_race,"
+            "  drone_capacity, storage_capacity, storage_type,"
+            "  dock_allow, dock_allowtrade, dock_allowbuild, dock_external, dock_playeronly, dock_size_tags,"
+            "  equip_classes, supply_classes, production_research,"
+            "  secrecy_level, ownership_claim, build_sets) "
+            "VALUES (:station_id, :name, :file_path, :makerrace, :description, :icon,"
+            "  :hull, :hull_integrated, :workforce_max, :workforce_race,"
+            "  :drone_capacity, :storage_capacity, :storage_type,"
+            "  :dock_allow, :dock_allowtrade, :dock_allowbuild, :dock_external, :dock_playeronly, :dock_size_tags,"
+            "  :equip_classes, :supply_classes, :production_research,"
+            "  :secrecy_level, :ownership_claim, :build_sets)",
             result.stations,
         )
 
@@ -103,3 +140,12 @@ def _int(el: etree._Element | None, attr: str) -> int | None:
         return int(v)
     except ValueError:
         return int(float(v))
+
+
+def _bool_attr(el: etree._Element | None, attr: str) -> bool | None:
+    if el is None:
+        return None
+    v = el.get(attr)
+    if v is None:
+        return None
+    return v == "1"

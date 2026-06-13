@@ -88,7 +88,7 @@ def write(conn: sqlite3.Connection, result: ExtractResult) -> None:
 
     # owner_faction is gamestart seed (→ seed.db), not reference; not stored on clusters/sectors.
     conn.executemany(
-        """INSERT OR REPLACE INTO clusters (
+        """INSERT INTO clusters (
             cluster_id, name, dlc, name_id, description_id, environment, sun_class, population_id, max_population, x, y, z, qx, qy, qz, qw
         ) VALUES (
             :cluster_id, :name, :dlc, :name_id, :description_id, :environment, :sun_class, :population_id, :max_population, :x, :y, :z, :qx, :qy, :qz, :qw
@@ -96,7 +96,7 @@ def write(conn: sqlite3.Connection, result: ExtractResult) -> None:
         result.clusters,
     )
     conn.executemany(
-        """INSERT OR REPLACE INTO sectors (
+        """INSERT INTO sectors (
             sector_id, cluster_id, name, dlc, name_id, description_id, sunlight, economy, security, tags, access_licence, x, y, z, qx, qy, qz, qw
         ) VALUES (
             :sector_id, :cluster_id, :name, :dlc, :name_id, :description_id, :sunlight, :economy, :security, :tags, :access_licence, :x, :y, :z, :qx, :qy, :qz, :qw
@@ -104,22 +104,28 @@ def write(conn: sqlite3.Connection, result: ExtractResult) -> None:
         result.sectors,
     )
     conn.executemany(
-        "INSERT OR REPLACE INTO zones (zone_id, sector_id, x, y, z, qx, qy, qz, qw) "
+        "INSERT INTO zones (zone_id, sector_id, x, y, z, qx, qy, qz, qw) "
         "VALUES (:zone_id, :sector_id, :x, :y, :z, :qx, :qy, :qz, :qw)",
         result.zones,
     )
+    # Deduplicate composite-key tables: DLC map files may re-declare the same
+    # gate/highway/region entries.  Last-wins so DLC overrides are preserved.
+    _dedup(result.gates, ("from_zone_id", "to_zone_id"))
+    _dedup(result.superhighways, ("from_zone_id", "to_zone_id"))
+    _dedup(result.regions, ("region_id",))
+
     conn.executemany(
-        "INSERT OR REPLACE INTO gates (from_zone_id, to_zone_id, kind) "
+        "INSERT INTO gates (from_zone_id, to_zone_id, kind) "
         "VALUES (:from_zone_id, :to_zone_id, :kind)",
         result.gates,
     )
     conn.executemany(
-        "INSERT OR IGNORE INTO superhighways (from_zone_id, to_zone_id, kind) "
+        "INSERT INTO superhighways (from_zone_id, to_zone_id, kind) "
         "VALUES (:from_zone_id, :to_zone_id, :kind)",
         result.superhighways,
     )
     conn.executemany(
-        "INSERT OR IGNORE INTO regions (region_id, cluster_id, sector_id, x, y, z, qx, qy, qz, qw) "
+        "INSERT INTO regions (region_id, cluster_id, sector_id, x, y, z, qx, qy, qz, qw) "
         "VALUES (:region_id, :cluster_id, :sector_id, :x, :y, :z, :qx, :qy, :qz, :qw)",
         result.regions,
     )
@@ -446,3 +452,12 @@ def _float(el: etree._Element, attr: str) -> float | None:
         return float(v)
     except ValueError:
         return None
+
+
+def _dedup(rows: list[dict[str, Any]], keys: tuple[str, ...]) -> None:
+    """Deduplicate *rows* in-place by composite key, keeping the last occurrence."""
+    seen: dict[tuple, dict[str, Any]] = {}
+    for r in rows:
+        key = tuple(r[k] for k in keys)
+        seen[key] = r
+    rows[:] = list(seen.values())

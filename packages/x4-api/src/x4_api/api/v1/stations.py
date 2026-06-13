@@ -27,6 +27,11 @@ class LiveStation(PublicModel):
     sector_id: str | None
     is_player_owned: bool
     is_under_construction: bool
+    seed_id: str | None = None
+    dynamic_tags: str | None = None
+    known_to_player: bool
+    basename: str | None = None
+    nameindex: int | None = None
 
 
 class StationOffer(PublicModel):
@@ -48,7 +53,9 @@ def list_stations(
     """Live stations, newest snapshot. Returns [] until a save is ingested."""
     sql = [
         "SELECT station_id, code, name, macro, owner_faction, sector_id, "
-        "is_player_owned, is_under_construction FROM stations WHERE 1=1"
+        "is_player_owned, is_under_construction, seed_id, dynamic_tags, "
+        "known_to_player, basename, nameindex "
+        "FROM stations WHERE 1=1"
     ]
     params: dict[str, object] = {}
     if owner is not None:

@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Currency } from "../components/Currency";
 import { useMemo, useState } from "react";
 import { AlertTriangle, Boxes, ChevronDown, TrendingDown, TrendingUp } from "lucide-react";
+import { PageLoaderPreset } from "../components/PageLoader";
 
 type WareMarket = {
   ware_id: string;
@@ -119,7 +120,7 @@ export default function EconomyPage() {
 
       <div className="flex-1 overflow-auto p-4">
         {isLoading ? (
-          <p className="text-sm text-muted-foreground p-6">Loading…</p>
+          <PageLoaderPreset preset="economy" />
         ) : visible.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground gap-2">
             <Boxes className="h-10 w-10 opacity-30" />
@@ -257,3 +258,4 @@ function Bar({ value, max, color, label }: { value: number; max: number; color: 
     </div>
   );
 }
+

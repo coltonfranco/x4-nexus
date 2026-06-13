@@ -18,6 +18,8 @@ class ExtractResult:
     resources: list[dict[str, Any]] = field(default_factory=list)
     deliveries: list[dict[str, Any]] = field(default_factory=list)
     conditions: list[dict[str, Any]] = field(default_factory=list)
+    sideeffects: list[dict[str, Any]] = field(default_factory=list)
+    rebates: list[dict[str, Any]] = field(default_factory=list)
 
 
 def extract(xml_bytes: bytes) -> ExtractResult:
@@ -58,6 +60,9 @@ def extract(xml_bytes: bytes) -> ExtractResult:
 
         resources_el = proj_el.find("resources")
         price_raw = resources_el.get("price") if resources_el is not None else None
+        maxprice_raw = resources_el.get("maxprice") if resources_el is not None else None
+        payout_raw = resources_el.get("payout") if resources_el is not None else None
+        pricescale_raw = resources_el.get("pricescale") if resources_el is not None else None
 
         out.projects.append({
             "project_id": project_id,
@@ -69,12 +74,20 @@ def extract(xml_bytes: bytes) -> ExtractResult:
             "resilient": 1 if resilient_raw == "true" else 0,
             "chance": float(chance_raw) if chance_raw else None,
             "resource_credits": int(price_raw) if price_raw and price_raw.isdigit() else None,
+            "resource_maxprice": int(maxprice_raw) if maxprice_raw and maxprice_raw.isdigit() else None,
+            "resource_payout": int(payout_raw) if payout_raw and payout_raw.isdigit() else None,
+            "resource_pricescale": int(pricescale_raw) if pricescale_raw and pricescale_raw.isdigit() else None,
+            "research": proj_el.get("research"),
+            "showalways": 1 if proj_el.get("showalways") == "true" else 0,
+            "version": _int(proj_el, "version"),
         })
 
         for effect_el in proj_el.iterfind("effects/effect"):
             stat = effect_el.get("stat")
             change_raw = effect_el.get("change")
             min_raw = effect_el.get("min")
+            max_raw = effect_el.get("max")
+            value_raw = effect_el.get("value")
             if stat and change_raw is not None:
                 try:
                     out.effects.append({
@@ -82,6 +95,8 @@ def extract(xml_bytes: bytes) -> ExtractResult:
                         "stat": stat,
                         "change": int(change_raw),
                         "min_val": int(min_raw) if min_raw else None,
+                        "max_val": int(max_raw) if max_raw else None,
+                        "value": int(value_raw) if value_raw else None,
                     })
                 except ValueError:
                     pass
@@ -134,10 +149,35 @@ def extract(xml_bytes: bytes) -> ExtractResult:
                 "max_value": int(maxval_raw) if maxval_raw else None,
             })
 
+        for se_el in proj_el.iterfind("sideeffects/sideeffect"):
+            se_stat = se_el.get("stat")
+            if not se_stat:
+                continue
+            out.sideeffects.append({
+                "project_id": project_id,
+                "stat": se_stat,
+                "change": _float(se_el, "change"),
+                "beneficial": 1 if se_el.get("beneficial") == "true" else 0,
+                "chance": _float(se_el, "chance"),
+                "setback": se_el.get("setback"),
+                "triggered_project": se_el.get("project"),
+                "text": se_el.get("text"),
+            })
+
+        for rebate_el in proj_el.iterfind("rebates/rebate"):
+            out.rebates.append({
+                "project_id": project_id,
+                "ware_id": rebate_el.get("ware"),
+                "ware_group": rebate_el.get("waregroup"),
+                "value": _float(rebate_el, "value"),
+            })
+
     return out
 
 
 def write(conn: sqlite3.Connection, result: ExtractResult) -> None:
+    conn.execute("DELETE FROM terraform_rebates")
+    conn.execute("DELETE FROM terraform_sideeffects")
     conn.execute("DELETE FROM terraform_project_conditions")
     conn.execute("DELETE FROM terraform_project_deliveries")
     conn.execute("DELETE FROM terraform_project_resources")
@@ -157,14 +197,18 @@ def write(conn: sqlite3.Connection, result: ExtractResult) -> None:
     )
     conn.executemany(
         """INSERT INTO terraform_projects
-            (project_id, group_id, name, description, duration, repeat_cooldown, resilient, chance, resource_credits)
+            (project_id, group_id, name, description, duration, repeat_cooldown, resilient, chance,
+             resource_credits, resource_maxprice, resource_payout, resource_pricescale,
+             research, showalways, version)
            VALUES
-            (:project_id, :group_id, :name, :description, :duration, :repeat_cooldown, :resilient, :chance, :resource_credits)""",
+            (:project_id, :group_id, :name, :description, :duration, :repeat_cooldown, :resilient, :chance,
+             :resource_credits, :resource_maxprice, :resource_payout, :resource_pricescale,
+             :research, :showalways, :version)""",
         result.projects,
     )
     conn.executemany(
-        "INSERT INTO terraform_project_effects (project_id, stat, change, min_val) "
-        "VALUES (:project_id, :stat, :change, :min_val)",
+        "INSERT INTO terraform_project_effects (project_id, stat, change, min_val, max_val, value) "
+        "VALUES (:project_id, :stat, :change, :min_val, :max_val, :value)",
         result.effects,
     )
     conn.executemany(
@@ -182,3 +226,39 @@ def write(conn: sqlite3.Connection, result: ExtractResult) -> None:
         "VALUES (:project_id, :stat, :min_val, :max_val, :min_value, :max_value)",
         result.conditions,
     )
+    if result.sideeffects:
+        conn.executemany(
+            "INSERT INTO terraform_sideeffects (project_id, stat, change, beneficial, chance, setback, triggered_project, text) "
+            "VALUES (:project_id, :stat, :change, :beneficial, :chance, :setback, :triggered_project, :text)",
+            result.sideeffects,
+        )
+    if result.rebates:
+        conn.executemany(
+            "INSERT INTO terraform_rebates (project_id, ware_id, ware_group, value) "
+            "VALUES (:project_id, :ware_id, :ware_group, :value)",
+            result.rebates,
+        )
+
+
+def _int(el: etree._Element | None, attr: str) -> int | None:
+    if el is None:
+        return None
+    v = el.get(attr)
+    if v is None:
+        return None
+    try:
+        return int(v)
+    except ValueError:
+        return None
+
+
+def _float(el: etree._Element | None, attr: str) -> float | None:
+    if el is None:
+        return None
+    v = el.get(attr)
+    if v is None:
+        return None
+    try:
+        return float(v)
+    except ValueError:
+        return None

@@ -34,30 +34,58 @@ export function computeBgGrid(hexSize: number, gridOrigin: [number, number]): [n
   return cells;
 }
 
-export function computeZoneScale(hexSize: number): number {
-  if (hexSize === 0) return 0;
-  // In X4, sector sizes are dynamic. By scaling to 300,000, gates at 200,000
-  // sit comfortably inside the hexes without physically touching the borders.
-  // This perfectly matches the dynamic visual scale of the game's UI.
-  return (hexSize * Math.sqrt(3) / 2) / 300000;
+export function computeZoneScaleMap(hexSize: number, stations: MapStation[]): Map<string, number> {
+  const m = new Map<string, number>();
+  if (hexSize === 0) return m;
+
+  // Find the required radius for each sector to contain all its stations
+  const sectorMaxR = new Map<string, number>();
+  stations.forEach(st => {
+    if (!st.sector_id) return;
+    const px = Math.abs(st.x ?? 0);
+    const pz = Math.abs(st.z ?? 0);
+    const r1 = pz * 2 / Math.sqrt(3);
+    const r2 = px + pz / Math.sqrt(3);
+    const requiredR = Math.max(r1, r2);
+    
+    const current = sectorMaxR.get(st.sector_id) ?? 0;
+    if (requiredR > current) sectorMaxR.set(st.sector_id, requiredR);
+  });
+
+  const defaultScale = (hexSize * Math.sqrt(3) / 2) / 300000;
+  
+  sectorMaxR.forEach((maxR, sectorId) => {
+    if (maxR > 250000) {
+      // Scale it down so the farthest station fits at 85% of the hex boundary
+      const customScale = (hexSize * Math.sqrt(3) / 2) / (maxR * 1.15);
+      m.set(sectorId, customScale);
+    }
+  });
+
+  // Provide a getter-like interface via a Proxy or just return the map and we will use a helper
+  // Wait, the map might not have all sectors. We'll just return the map and fall back to defaultScale.
+  m.set("__default", defaultScale);
+  return m;
 }
 
 export function computeZoneScreenPos(
   zones: Zone[],
   sectorCoords: Map<string, [number, number]>,
-  zoneScale: number,
+  zoneScaleMap: Map<string, number>,
   subSectorSet: Set<string>,
 ): Map<string, [number, number]> {
   const m = new Map<string, [number, number]>();
-  if (zoneScale === 0) return m;
+  if (!zoneScaleMap.has("__default")) return m;
+  const defaultScale = zoneScaleMap.get("__default")!;
+  
   zones.forEach((z) => {
     if (!z.sector_id) return;
     const sp = sectorCoords.get(z.sector_id);
     if (!sp) return;
 
+    const baseScale = zoneScaleMap.get(z.sector_id) ?? defaultScale;
     const isSubSector = subSectorSet.has(z.sector_id);
-    // For subsectors, the hex radius is exactly halved (0.5), so we half the scale to perfectly map 200k to the sub-hex edge.
-    const scale = isSubSector ? zoneScale * 0.5 : zoneScale;
+    const scale = isSubSector ? baseScale * 0.5 : baseScale;
 
     const dx = (z.x ?? 0) * scale;
     const dz = (z.z ?? 0) * scale;
@@ -74,21 +102,29 @@ export function computeZoneScreenPos(
 export function computeStationScreenPos(
   stations: MapStation[],
   sectorCoords: Map<string, [number, number]>,
-  zoneScale: number,
+  zoneScaleMap: Map<string, number>,
   subSectorSet: Set<string>,
 ): Map<string, [number, number]> {
   const m = new Map<string, [number, number]>();
-  if (zoneScale === 0) return m;
+  if (!zoneScaleMap.has("__default")) return m;
+  const defaultScale = zoneScaleMap.get("__default")!;
+  
   const sectorCI = new Map<string, [number, number]>();
   sectorCoords.forEach((v, k) => sectorCI.set(k.toLowerCase(), v));
   const subCI = new Set<string>();
   subSectorSet.forEach((s) => subCI.add(s.toLowerCase()));
+  
   stations.forEach((st) => {
     if (!st.sector_id) return;
     const key = st.sector_id.toLowerCase();
     const sp = sectorCI.get(key);
     if (!sp) return;
-    const scale = subCI.has(key) ? zoneScale * 0.5 : zoneScale;
+    
+    // Find the original case sector_id for map lookup
+    const originalSectorId = Array.from(sectorCoords.keys()).find(k => k.toLowerCase() === key) ?? st.sector_id;
+    const baseScale = zoneScaleMap.get(originalSectorId) ?? defaultScale;
+    
+    const scale = subCI.has(key) ? baseScale * 0.5 : baseScale;
     m.set(st.station_id, [sp[0] + (st.x ?? 0) * scale, sp[1] - (st.z ?? 0) * scale]);
   });
   return m;

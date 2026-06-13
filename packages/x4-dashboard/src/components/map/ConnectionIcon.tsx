@@ -10,9 +10,14 @@ export function ConnectionIcon({ x, y, iconPath, color, size = 24 }: {
       <div style={{
         width: "100%", height: "100%",
         backgroundColor: color,
+        maskImage: `url(/static/icons/map_objects/${iconPath})`,
         WebkitMaskImage: `url(/static/icons/map_objects/${iconPath})`,
-        WebkitMaskSize: "85%",
+        maskMode: "luminance",
+        maskSize: "contain",
+        WebkitMaskSize: "contain",
+        maskRepeat: "no-repeat",
         WebkitMaskRepeat: "no-repeat",
+        maskPosition: "center",
         WebkitMaskPosition: "center",
       }} />
     </foreignObject>

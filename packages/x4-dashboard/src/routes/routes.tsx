@@ -3,13 +3,16 @@ import { Link } from "@tanstack/react-router";
 import { Currency } from "../components/Currency";
 import { useMemo, useState } from "react";
 import { ArrowRight, Gauge, Map as MapIcon, Package, Rocket, TrendingUp } from "lucide-react";
+import { PageLoaderPreset } from "../components/PageLoader";
 
 type TradeRoute = {
   ware_id: string;
   ware_name: string | null;
   buy_station_id: string;
+  buy_station_name: string | null;
   buy_sector: string | null;
   sell_station_id: string;
+  sell_station_name: string | null;
   sell_sector: string | null;
   buy_price: number | null;
   sell_price: number | null;
@@ -141,7 +144,7 @@ export default function RoutesPage() {
 
       <div className="flex-1 overflow-auto p-4">
         {isLoading ? (
-          <p className="text-sm text-muted-foreground p-6">Loading…</p>
+          <PageLoaderPreset preset="routes" />
         ) : shown.length === 0 ? (
           <EmptyState jumpLimited={maxJumps != null} />
         ) : (
@@ -173,15 +176,23 @@ export default function RoutesPage() {
                     </span>
                   </div>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5 min-w-0">
-                    <span className="truncate text-blue-400/90">
-                      {sectorName(r.buy_sector)}
+                    <span className="truncate text-blue-400/90" title={r.buy_station_name ?? r.buy_station_id}>
+                      {r.buy_station_name ? (
+                        <>{r.buy_station_name} <span className="opacity-60 text-[10px]">({sectorName(r.buy_sector)})</span></>
+                      ) : (
+                        sectorName(r.buy_sector)
+                      )}
                       {r.buy_price != null && (
                         <span className="ml-1 opacity-70 tabular-nums">buy @<Currency value={r.buy_price} abbreviate icon={false} /></span>
                       )}
                     </span>
                     <ArrowRight className="h-3 w-3 shrink-0 text-emerald-500" />
-                    <span className="truncate text-amber-400/90">
-                      {sectorName(r.sell_sector)}
+                    <span className="truncate text-amber-400/90" title={r.sell_station_name ?? r.sell_station_id}>
+                      {r.sell_station_name ? (
+                        <>{r.sell_station_name} <span className="opacity-60 text-[10px]">({sectorName(r.sell_sector)})</span></>
+                      ) : (
+                        sectorName(r.sell_sector)
+                      )}
                       {r.sell_price != null && (
                         <span className="ml-1 opacity-70 tabular-nums">sell @<Currency value={r.sell_price} abbreviate icon={false} /></span>
                       )}
@@ -243,3 +254,4 @@ function EmptyState({ jumpLimited }: { jumpLimited: boolean }) {
     </div>
   );
 }
+

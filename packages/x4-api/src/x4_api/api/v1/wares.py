@@ -49,6 +49,11 @@ class WareSummary(PublicModel):
     icon_url: str | None
     has_production: bool
     has_drops: bool
+    shortname: str | None = None
+    description: str | None = None
+    sortorder: int | None = None
+    dismantlefactor: float | None = None
+    research_time: int | None = None
 
 
 class ProductionMethod(PublicModel):
@@ -87,8 +92,9 @@ def list_wares(
     if category is not None and category not in CATEGORIES:
         raise HTTPException(status_code=422, detail=f"Unknown category: {category}")
     sql = [
-        f"SELECT ware_id, name, group_id, ({CATEGORY_SQL}) AS category, transport, volume,",
+        f"SELECT ware_id, name, shortname, description, group_id, ({CATEGORY_SQL}) AS category, transport, volume,",
         "       price_min, price_avg, price_max, tags, icon_path,",
+        "       sortorder, dismantlefactor, research_time,",
         f"       {_FLAGS_SQL}",
         "FROM s.wares WHERE 1=1",
     ]
@@ -109,6 +115,8 @@ def list_wares(
         WareSummary(
             ware_id=r["ware_id"],
             name=r["name"],
+            shortname=r["shortname"],
+            description=r["description"],
             group_id=r["group_id"],
             category=r["category"],
             transport=r["transport"],
@@ -118,6 +126,9 @@ def list_wares(
             price_max=r["price_max"],
             tags=r["tags"],
             icon_url=get_icon_url(r["icon_path"]),
+            sortorder=r["sortorder"],
+            dismantlefactor=r["dismantlefactor"],
+            research_time=r["research_time"],
             has_production=bool(r["has_production"]),
             has_drops=bool(r["has_drops"]),
         )
@@ -132,9 +143,10 @@ def get_ware(
 ) -> WareDetail:
     row = conn.execute(
         f"""
-        SELECT ware_id, name, group_id, ({CATEGORY_SQL}) AS category, transport, volume,
+        SELECT ware_id, name, shortname, description, group_id, ({CATEGORY_SQL}) AS category, transport, volume,
                price_min, price_avg, price_max, storage_class,
                tags, restriction_licence, use_threshold, icon_path,
+               sortorder, dismantlefactor, research_time,
                {_FLAGS_SQL}
         FROM s.wares WHERE ware_id = :id
         """,
@@ -169,6 +181,8 @@ def get_ware(
     return WareDetail(
         ware_id=row["ware_id"],
         name=row["name"],
+        shortname=row["shortname"],
+        description=row["description"],
         group_id=row["group_id"],
         category=row["category"],
         transport=row["transport"],
@@ -183,6 +197,9 @@ def get_ware(
         owners=[r["faction_id"] for r in owner_rows],
         illegal_factions=[r["faction_id"] for r in illegal_rows],
         icon_url=get_icon_url(row["icon_path"]),
+        sortorder=row["sortorder"],
+        dismantlefactor=row["dismantlefactor"],
+        research_time=row["research_time"],
         has_production=bool(row["has_production"]),
         has_drops=bool(row["has_drops"]),
         production=[

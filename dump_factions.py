@@ -1,15 +1,15 @@
-import sqlite3
-
-
-def main():
-    conn = sqlite3.connect('raw.db')
-    row = conn.execute("SELECT content FROM raw_files WHERE filepath='libraries/factions.xml'").fetchone()
-    if row:
-        with open('temp_factions.xml', 'w', encoding='utf-8') as f:
-            f.write(row[0])
-        print("Success")
-    else:
-        print("Not found")
-
-if __name__ == '__main__':
-    main()
+﻿import gzip
+from lxml import etree
+save_path = r'C:\Users\colto\sss\Documents\Egosoft\X4\59308344\save\save_001.xml.gz'
+with gzip.open(save_path, 'rb') as f:
+    context = etree.iterparse(f, events=('end',))
+    count = 0
+    for event, elem in context:
+        if elem.tag == 'faction':
+            print("FACTION:", elem.get('id'), "knownto:", elem.get('knownto'))
+            count += 1
+            if count >= 10:
+                break
+        elem.clear()
+        while elem.getprevious() is not None:
+            del elem.getparent()[0]

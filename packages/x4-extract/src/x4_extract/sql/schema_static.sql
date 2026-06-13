@@ -19,6 +19,8 @@ CREATE TABLE IF NOT EXISTS ware_groups (
 CREATE TABLE IF NOT EXISTS wares (
     ware_id             TEXT PRIMARY KEY,
     name                TEXT NOT NULL,
+    shortname           TEXT,
+    description         TEXT,
     group_id            TEXT,
     transport           TEXT,        -- container | solid | liquid | passenger
     volume              REAL NOT NULL,
@@ -29,7 +31,10 @@ CREATE TABLE IF NOT EXISTS wares (
     tags                TEXT,        -- space-separated ware tags e.g. "equipment crafting"
     restriction_licence TEXT,        -- licence required to trade (NULL = unrestricted)
     use_threshold       REAL,        -- player relation threshold required for use
-    icon_path           TEXT         -- raw path from icons.xml; resolved to /static/icons/{id}.png at query time
+    icon_path           TEXT,        -- raw path from icons.xml; resolved to /static/icons/{id}.png at query time
+    sortorder           INTEGER,     -- display sort order (101, 201, 301…)
+    dismantlefactor     REAL,        -- recycling yield multiplier
+    research_time       INTEGER      -- research duration in seconds
 );
 CREATE INDEX IF NOT EXISTS idx_wares_group ON wares(group_id);
 
@@ -71,15 +76,56 @@ CREATE TABLE IF NOT EXISTS modules (
     file_path          TEXT,
     is_legacy          BOOLEAN DEFAULT 0,
     dlc                TEXT,
-    kind               TEXT,      -- production | habitation | storage | dock | defence
-    size               TEXT,      -- e.g. large, medium
+    kind               TEXT,
+    size               TEXT,
+    makerrace          TEXT,
+    description        TEXT,
+    shortname          TEXT,
+    is_datavault       BOOLEAN,
+    is_landmark        BOOLEAN,
+    is_unique          BOOLEAN,
+    icon               TEXT,
+    hudicon            TEXT,
+    factionhqicon      TEXT,
+    subtype            TEXT,
     produces_ware_id   TEXT,
     storage_capacity   INTEGER,
-    storage_type       TEXT,      -- container, solid, liquid, condensate
-    drone_capacity     INTEGER,   -- storage unit tag
+    storage_type       TEXT,
+    drone_capacity     INTEGER,
     workforce_capacity INTEGER,
+    workforce_race     TEXT,
     hull               INTEGER,
+    hull_min           INTEGER,
+    hull_integrated    BOOLEAN,
+    hull_invulnerable  BOOLEAN,
+    hull_noscrap       BOOLEAN,
     explosiondamage    INTEGER,
+    secrecy_level      INTEGER,
+    dock_allow         BOOLEAN,
+    dock_allowbuild    BOOLEAN,
+    dock_allowtrade    BOOLEAN,
+    dock_allowunits    BOOLEAN,
+    dock_external      BOOLEAN,
+    dock_playeronly    BOOLEAN,
+    dock_priority      INTEGER,
+    dock_showroom      BOOLEAN,
+    dock_size_tags     TEXT,
+    equip_classes      TEXT,
+    supply_classes     TEXT,
+    production_research    BOOLEAN,
+    production_show_active BOOLEAN,
+    builder_units      INTEGER,
+    build_has_storage  BOOLEAN,
+    rotation_speed_max    REAL,
+    rotation_accel_max    REAL,
+    translation_speed_max REAL,
+    translation_accel_max REAL,
+    undock_distance    REAL,
+    undock_speed       REAL,
+    undock_rotate      BOOLEAN,
+    autoaim_allow      BOOLEAN,
+    ownership_claim    BOOLEAN,
+    longrangescan_minlevel INTEGER,
     turrets_s          INTEGER DEFAULT 0,
     turrets_m          INTEGER DEFAULT 0,
     turrets_l          INTEGER DEFAULT 0,
@@ -105,6 +151,7 @@ CREATE TABLE IF NOT EXISTS ships (
     faction_id       TEXT,
     hull             INTEGER,
     cargo_volume     INTEGER,
+    dps_max          REAL,
     speed_min        REAL,
     speed_max        REAL,
     travel_min       REAL,
@@ -168,6 +215,52 @@ CREATE TABLE IF NOT EXISTS ships (
     engines_m      INTEGER DEFAULT 0,
     engines_l      INTEGER DEFAULT 0,
     engines_xl     INTEGER DEFAULT 0,
+
+    -- Docks & Internal Storage
+    dock_s           INTEGER DEFAULT 0,
+    dock_m           INTEGER DEFAULT 0,
+    dock_l           INTEGER DEFAULT 0,
+    dock_xl          INTEGER DEFAULT 0,
+    storage_s        INTEGER DEFAULT 0,
+    storage_m        INTEGER DEFAULT 0,
+    storage_l        INTEGER DEFAULT 0,
+    storage_xl       INTEGER DEFAULT 0,
+    launch_tubes     INTEGER DEFAULT 0,
+
+    -- Acceleration/Jerk Profile
+    accel_forward    REAL,
+    decel_forward    REAL,
+    accel_boost      REAL,
+    accel_travel     REAL,
+    accel_strafe     REAL,
+    accel_angular    REAL,
+    accel_factor_reverse REAL,
+    accel_factor_horizontal REAL,
+    accel_factor_vertical REAL,
+
+    -- Modifiers & Extras
+    modifier_weapon_heat REAL,
+    explosion_damage REAL,
+    explosion_shield_damage REAL,
+    explosion_shield_disruption REAL,
+    variation        TEXT,
+    travel_stability REAL,
+
+    -- Gathering (miners)
+    gatherrate_gas      REAL,
+    gatherrate_ore      REAL,
+    gatherrate_silicon   REAL,
+
+    -- Combat flags
+    can_be_captured     INTEGER,
+
+    -- Direct radar / boost overrides
+    radar_range_direct  REAL,
+    boost_recharge_delay REAL,
+
+    -- Rotation (Xenon / power users)
+    rotation_speed_max  REAL,
+    rotation_accel_max  REAL,
 
     secrecy_level  INTEGER
 );
@@ -300,17 +393,18 @@ CREATE TABLE IF NOT EXISTS equip_engines (
 );
 
 CREATE TABLE IF NOT EXISTS equip_shields (
-    shield_id        TEXT PRIMARY KEY,
-    name             TEXT,
-    file_path        TEXT,
-    is_legacy        BOOLEAN DEFAULT 0,
-    dlc              TEXT,
-    size             TEXT,
-    faction_id       TEXT,
-    mk               INTEGER,
-    capacity         REAL,
-    recharge_rate    REAL,
-    recharge_delay   REAL
+    shield_id             TEXT PRIMARY KEY,
+    name                  TEXT,
+    file_path             TEXT,
+    is_legacy             BOOLEAN DEFAULT 0,
+    dlc                   TEXT,
+    size                  TEXT,
+    faction_id            TEXT,
+    mk                    INTEGER,
+    capacity              REAL,
+    recharge_rate         REAL,
+    recharge_delay        REAL,
+    disruption_stability  REAL
 );
 
 CREATE TABLE IF NOT EXISTS equip_bullets (
@@ -323,11 +417,24 @@ CREATE TABLE IF NOT EXISTS equip_bullets (
     lifetime         REAL,
     amount           INTEGER,
     barrelamount     INTEGER,
+    angle            REAL,           -- spread / accuracy
+    maxhits          INTEGER,        -- shots before despawn
+    range_direct     REAL,           -- direct range override
     reload_rate      REAL,
+    reload_time      REAL,           -- full reload time (missiles)
     damage           REAL,
     shield_damage    REAL,
     hull_damage      REAL,
-    heat_value       REAL
+    shield_disruption REAL,          -- shield disruption effect
+    heat_value       REAL,
+    explosion_hull   REAL,           -- AoE/missile explosion hull damage
+    explosion_shield REAL,           -- AoE/missile explosion shield damage
+    ammo_value       INTEGER,        -- ammo capacity
+    ammo_reload      REAL,           -- ammo reload time
+    missile_lifetime REAL,           -- missile-specific lifetime override
+    missile_range    REAL,           -- missile-specific range override
+    area_damage      REAL,           -- area-of-effect damage
+    area_lifetime    REAL            -- area-of-effect lifetime
 );
 
 CREATE TABLE IF NOT EXISTS equip_weapons (
@@ -336,16 +443,22 @@ CREATE TABLE IF NOT EXISTS equip_weapons (
     file_path        TEXT,
     is_legacy        BOOLEAN DEFAULT 0,
     dlc              TEXT,
-    class_id         TEXT,      -- weapon, turret, missilelauncher
+    class_id         TEXT,
     size             TEXT,
     faction_id       TEXT,
     mk               INTEGER,
-    default_bullet_id TEXT,     -- Foreign Key
+    default_bullet_id TEXT,
     heat_overheat    REAL,
     heat_coolrate    REAL,
     heat_cooldelay   REAL,
     heat_reenable    REAL,
     rotation_speed   REAL,
+    rotation_accel   REAL,
+    reload_rate      REAL,
+    reload_time      REAL,
+    hull_max         INTEGER,
+    ammo_capacity    INTEGER,
+    missile_storage  INTEGER,
     FOREIGN KEY (default_bullet_id) REFERENCES equip_bullets(bullet_id)
 );
 
@@ -426,13 +539,43 @@ CREATE TABLE IF NOT EXISTS terraform_projects (
     duration         INTEGER,
     repeat_cooldown  INTEGER,
     resilient        BOOLEAN,
-    chance           REAL,     -- NULL means guaranteed; a value means probabilistic unlock
+    chance           REAL,
     resource_credits INTEGER,
+    resource_maxprice INTEGER,
+    resource_payout    INTEGER,
+    resource_pricescale INTEGER,
+    research         TEXT,
+    showalways       BOOLEAN,
+    version          INTEGER,
     FOREIGN KEY (group_id) REFERENCES terraform_project_groups(group_id)
 );
 CREATE INDEX IF NOT EXISTS idx_terraform_projects_group ON terraform_projects(group_id);
 
 -- Prerequisite stat conditions a project requires before it can be undertaken.
+CREATE TABLE IF NOT EXISTS terraform_sideeffects (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id     TEXT NOT NULL,
+    stat           TEXT NOT NULL,
+    change         REAL,
+    beneficial     INTEGER,
+    chance         REAL,
+    setback        TEXT,
+    triggered_project TEXT,
+    text           TEXT,
+    FOREIGN KEY (project_id) REFERENCES terraform_projects(project_id)
+);
+CREATE INDEX IF NOT EXISTS idx_terraform_sideeffects_project ON terraform_sideeffects(project_id);
+
+CREATE TABLE IF NOT EXISTS terraform_rebates (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id     TEXT NOT NULL,
+    ware_id        TEXT,
+    ware_group     TEXT,
+    value          REAL,
+    FOREIGN KEY (project_id) REFERENCES terraform_projects(project_id)
+);
+CREATE INDEX IF NOT EXISTS idx_terraform_rebates_project ON terraform_rebates(project_id);
+
 CREATE TABLE IF NOT EXISTS terraform_project_conditions (
     project_id  TEXT NOT NULL,
     stat        TEXT NOT NULL,
@@ -449,6 +592,8 @@ CREATE TABLE IF NOT EXISTS terraform_project_effects (
     stat        TEXT NOT NULL,
     change      INTEGER NOT NULL,
     min_val     INTEGER,
+    max_val     INTEGER,
+    value       INTEGER,
     PRIMARY KEY (project_id, stat),
     FOREIGN KEY (project_id) REFERENCES terraform_projects(project_id)
 );
@@ -479,6 +624,52 @@ CREATE TABLE IF NOT EXISTS game_version (
 
 -- NOTE: faction_relations moved to seed.db (gamestart snapshot, not reference). See docs/data-sources.md.
 
+-- Race definitions from libraries/races.xml.
+-- Shared by all factions of that lineage (e.g. 'argon' race → argon, antigone, …).
+CREATE TABLE IF NOT EXISTS races (
+    race_id         TEXT PRIMARY KEY,
+    name            TEXT,
+    description     TEXT,
+    shortname       TEXT,
+    spacename       TEXT,
+    homespacename   TEXT,
+    names_table     INTEGER,        -- localization table ID
+    tags            TEXT,
+    -- Character physics
+    char_height         REAL,
+    char_walk_speed     REAL,
+    char_run_speed      REAL,
+    char_slow_walk      REAL,
+    char_acceleration   REAL,
+    char_spacesuit_ref  TEXT,
+    -- Event monitor (cutscene camera)
+    event_adjust_y   REAL,
+    event_adjust_z   REAL,
+    event_face_key   TEXT,
+    -- Icons
+    icon_active     TEXT,
+    icon_inactive   TEXT,
+    -- Diplomacy agent icons
+    agent_icon_male     TEXT,
+    agent_icon_female   TEXT,
+    -- Engine trail
+    trail_brightness    REAL,
+    trail_contrast      REAL,
+    trail_saturation    REAL,
+    trail_hue           INTEGER,
+    -- Engine effect
+    engine_color_index  INTEGER,
+    -- Chair (for seated NPCs)
+    chair_ref       TEXT
+);
+
+CREATE TABLE IF NOT EXISTS race_relations (
+    race_id        TEXT NOT NULL,
+    other_race_id  TEXT NOT NULL,
+    relation       REAL NOT NULL,
+    PRIMARY KEY (race_id, other_race_id)
+);
+
 CREATE TABLE IF NOT EXISTS faction_licences (
     licence_type   TEXT NOT NULL,
     faction_id     TEXT NOT NULL,
@@ -508,18 +699,22 @@ CREATE INDEX IF NOT EXISTS idx_region_resources_ware   ON region_resources(ware)
 -- Named loadout presets (game starts, tutorial ships, NPC configurations)
 CREATE TABLE IF NOT EXISTS loadouts (
     loadout_id  TEXT PRIMARY KEY,
-    ship_macro  TEXT NOT NULL
+    ship_macro  TEXT NOT NULL,
+    name        TEXT,
+    description TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_loadouts_ship ON loadouts(ship_macro);
 
 CREATE TABLE IF NOT EXISTS loadout_equipment (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     loadout_id  TEXT NOT NULL REFERENCES loadouts(loadout_id),
-    slot_path   TEXT,           -- e.g. ../con_engine_01; NULL for software/ammo/virtual slots
+    slot_path   TEXT,
     macro       TEXT NOT NULL,
-    kind        TEXT NOT NULL,  -- engine | shield | weapon | turret | thruster | software | ammunition
+    kind        TEXT NOT NULL,
     optional    INTEGER NOT NULL DEFAULT 0,
-    quantity    INTEGER         -- for ammunition entries (exact= count)
+    quantity    INTEGER,
+    weaponmode  TEXT,           -- attackenemies | defend | …
+    ammunition  TEXT            -- missile macro for weapon slots
 );
 CREATE INDEX IF NOT EXISTS idx_loadout_equipment_loadout ON loadout_equipment(loadout_id);
 CREATE INDEX IF NOT EXISTS idx_loadout_equipment_macro   ON loadout_equipment(macro);
@@ -529,10 +724,28 @@ CREATE TABLE IF NOT EXISTS station_types (
     station_id     TEXT PRIMARY KEY,
     name           TEXT,
     file_path      TEXT,
+    makerrace      TEXT,
+    description    TEXT,
     icon           TEXT,
     hull           INTEGER,
+    hull_integrated    BOOLEAN,
     workforce_max  INTEGER,
-    build_sets     TEXT            -- JSON array of set ref strings e.g. '["shipyard_argon"]'
+    workforce_race TEXT,
+    drone_capacity INTEGER,
+    storage_capacity   INTEGER,
+    storage_type       TEXT,
+    dock_allow     BOOLEAN,
+    dock_allowtrade    BOOLEAN,
+    dock_allowbuild    BOOLEAN,
+    dock_external  BOOLEAN,
+    dock_playeronly    BOOLEAN,
+    dock_size_tags TEXT,
+    equip_classes  TEXT,
+    supply_classes TEXT,
+    production_research BOOLEAN,
+    secrecy_level  INTEGER,
+    ownership_claim    BOOLEAN,
+    build_sets     TEXT
 );
 
 -- NOTE: npc_stations moved to seed.db (gamestart placements, not reference). See docs/data-sources.md.
@@ -540,18 +753,31 @@ CREATE TABLE IF NOT EXISTS station_types (
 -- Diplomacy system from libraries/diplomacy.xml.
 CREATE TABLE IF NOT EXISTS diplo_actions (
     action_id          TEXT PRIMARY KEY,
-    category           TEXT,        -- negotiation | espionage | interference
+    category           TEXT,
     name               TEXT,
     description        TEXT,
-    hidden             INTEGER,     -- 0 | 1
+    shortdescription   TEXT,
+    hidden             INTEGER,
+    is_unique          INTEGER,
+    friendgroup        TEXT,
     cost_influence     INTEGER,
     cost_money         INTEGER,
-    success_chance     INTEGER,     -- 0-100
+    cost_maxinfluencefactor INTEGER,
+    success_chance     INTEGER,
+    success_weight     INTEGER,
+    success_selectionbonus TEXT,
+    success_text       TEXT,
     duration_sec       INTEGER,
     cooldown_sec       INTEGER,
-    agent_type         TEXT,        -- negotiation | espionage
+    time_maxinfluencefactor INTEGER,
+    agent_type         TEXT,
     agent_experience   INTEGER,
-    risk               TEXT         -- none | low | medium | high
+    risk               TEXT,
+    reward_influence   INTEGER,
+    reward_text        TEXT,
+    icon_active        TEXT,
+    icon_image         TEXT,
+    triggers_event     INTEGER
 );
 
 -- Specific wares (or tag-based ware groups) required as bribes for an action.
@@ -570,6 +796,34 @@ CREATE TABLE IF NOT EXISTS diplo_gifts (
     faction_id  TEXT NOT NULL,
     PRIMARY KEY (ware_id, faction_id)
 );
+CREATE TABLE IF NOT EXISTS diplo_events (
+    event_id           TEXT PRIMARY KEY,
+    name               TEXT,
+    description        TEXT,
+    shortdescription   TEXT,
+    duration_sec       INTEGER,
+    icon_image         TEXT
+);
+
+CREATE TABLE IF NOT EXISTS diplo_event_options (
+    id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_id           TEXT NOT NULL,
+    option_id          TEXT NOT NULL,
+    name               TEXT,
+    description        TEXT,
+    menuposition       INTEGER,
+    agent_risk         TEXT,
+    cost_influence     INTEGER,
+    cost_money         INTEGER,
+    success_weight     INTEGER,
+    success_selectionbonus TEXT,
+    relation_value     REAL,
+    conclusion_text    TEXT,
+    result_text        TEXT,
+    FOREIGN KEY (event_id) REFERENCES diplo_events(event_id)
+);
+CREATE INDEX IF NOT EXISTS idx_diplo_event_options_event ON diplo_event_options(event_id);
+
 CREATE INDEX IF NOT EXISTS idx_diplo_gifts_faction ON diplo_gifts(faction_id);
 
 -- Agent rank thresholds.

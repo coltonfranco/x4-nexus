@@ -20,9 +20,19 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from x4_api.api.deps import get_db
-from x4_api.api.icons import get_icon_url
+from x4_api.api.icons import ICON_BASE, get_icon_url
 from x4_api.api.schemas import PublicModel
 from x4_api.domain.ware_class import CATEGORY_SQL, equipment_kind, equipment_meta
+
+# Fallback icons for equipment kinds that don't have in-game icon images.
+# Sourced from the game's own ship builder sidebar tab icons.
+_KIND_FALLBACK_ICON: dict[str, str] = {
+    "software":       f"{ICON_BASE}/ship_build_sidebar_tabs/shipbuildst_software.png",
+    "missile":        f"{ICON_BASE}/ship_build_sidebar_tabs/shipbuildst_consumable.png",
+    "countermeasure": f"{ICON_BASE}/ship_build_sidebar_tabs/shipbuildst_consumable.png",
+    "deployable":     f"{ICON_BASE}/ship_build_sidebar_tabs/shipbuildst_consumable.png",
+    "drone":          f"{ICON_BASE}/ship_build_sidebar_tabs/shipbuildst_consumable.png",
+}
 
 router = APIRouter()
 
@@ -56,10 +66,25 @@ class WeaponStats(PublicModel):
     damage: float | None
     shield_damage: float | None
     hull_damage: float | None
+    shield_disruption: float | None
     reload_rate: float | None
+    reload_time: float | None
     bullet_speed: float | None
     bullet_lifetime: float | None
     bullet_amount: int | None
+    bullet_barrel: int | None
+    bullet_angle: float | None
+    bullet_maxhits: int | None
+    bullet_range: float | None
+    heat_value: float | None
+    explosion_hull: float | None
+    explosion_shield: float | None
+    ammo_value: int | None
+    ammo_reload: float | None
+    missile_lifetime: float | None
+    missile_range: float | None
+    area_damage: float | None
+    area_lifetime: float | None
 
 
 class EquipmentItem(PublicModel):
@@ -73,6 +98,7 @@ class EquipmentItem(PublicModel):
     price_avg: int | None
     price_max: int | None
     icon_url: str | None
+    restriction_licence: str | None
     has_production: bool
     engine_stats: EngineStats | None
     shield_stats: ShieldStats | None
@@ -80,7 +106,7 @@ class EquipmentItem(PublicModel):
 
 
 _BASE_COLS = (
-    "ware_id, name, group_id, transport, price_min, price_avg, price_max, tags, icon_path, "
+    "ware_id, name, group_id, transport, price_min, price_avg, price_max, tags, icon_path, restriction_licence, "
     "EXISTS(SELECT 1 FROM s.ware_production p WHERE p.ware_id = wares.ware_id) AS has_production"
 )
 
@@ -108,10 +134,25 @@ def _weapon_stats(row: sqlite3.Row, bullets: dict[str, sqlite3.Row]) -> WeaponSt
         damage=bullet["damage"] if bullet else None,
         shield_damage=bullet["shield_damage"] if bullet else None,
         hull_damage=bullet["hull_damage"] if bullet else None,
+        shield_disruption=bullet["shield_disruption"] if bullet else None,
         reload_rate=bullet["reload_rate"] if bullet else None,
+        reload_time=bullet["reload_time"] if bullet else None,
         bullet_speed=bullet["speed"] if bullet else None,
         bullet_lifetime=bullet["lifetime"] if bullet else None,
         bullet_amount=bullet["amount"] if bullet else None,
+        bullet_barrel=bullet["barrelamount"] if bullet else None,
+        bullet_angle=bullet["angle"] if bullet else None,
+        bullet_maxhits=bullet["maxhits"] if bullet else None,
+        bullet_range=bullet["range_direct"] if bullet else None,
+        heat_value=bullet["heat_value"] if bullet else None,
+        explosion_hull=bullet["explosion_hull"] if bullet else None,
+        explosion_shield=bullet["explosion_shield"] if bullet else None,
+        ammo_value=bullet["ammo_value"] if bullet else None,
+        ammo_reload=bullet["ammo_reload"] if bullet else None,
+        missile_lifetime=bullet["missile_lifetime"] if bullet else None,
+        missile_range=bullet["missile_range"] if bullet else None,
+        area_damage=bullet["area_damage"] if bullet else None,
+        area_lifetime=bullet["area_lifetime"] if bullet else None,
     )
 
 
@@ -145,8 +186,41 @@ def _build_item(
             recharge_rate=s["recharge_rate"],
             recharge_delay=s["recharge_delay"],
         )
-    elif kind in ("weapon", "turret") and (w := weapons.get(macro)) is not None:
+    elif kind in ("weapon", "turret", "missile") and (w := weapons.get(macro)) is not None:
         weapon_stats = _weapon_stats(w, bullets)
+    elif kind == "missile" and (b := bullets.get(macro)) is not None:
+        # Missile wares often don't have a launcher macro — the ware *is*
+        # the bullet.  Directly resolve stats from the bullet table.
+        weapon_stats = WeaponStats(
+            class_id="missile",
+            size=size,
+            mk=mk,
+            rotation_speed=None,
+            heat_overheat=None,
+            heat_coolrate=None,
+            damage=b["damage"],
+            shield_damage=b["shield_damage"],
+            hull_damage=b["hull_damage"],
+            shield_disruption=b["shield_disruption"],
+            reload_rate=b["reload_rate"],
+            reload_time=b["reload_time"],
+            bullet_speed=b["speed"],
+            bullet_lifetime=b["lifetime"],
+            bullet_amount=b["amount"],
+            bullet_barrel=b["barrelamount"],
+            bullet_angle=b["angle"],
+            bullet_maxhits=b["maxhits"],
+            bullet_range=b["range_direct"],
+            heat_value=b["heat_value"],
+            explosion_hull=b["explosion_hull"],
+            explosion_shield=b["explosion_shield"],
+            ammo_value=b["ammo_value"],
+            ammo_reload=b["ammo_reload"],
+            missile_lifetime=b["missile_lifetime"],
+            missile_range=b["missile_range"],
+            area_damage=b["area_damage"],
+            area_lifetime=b["area_lifetime"],
+        )
 
     return EquipmentItem(
         ware_id=row["ware_id"],
@@ -158,7 +232,8 @@ def _build_item(
         price_min=row["price_min"],
         price_avg=row["price_avg"],
         price_max=row["price_max"],
-        icon_url=get_icon_url(row["icon_path"]) or get_icon_url(f"upgrade_{row['ware_id']}_macro"),
+        icon_url=get_icon_url(row["icon_path"]) or get_icon_url(f"upgrade_{row['ware_id']}_macro") or _KIND_FALLBACK_ICON.get(kind),
+        restriction_licence=row["restriction_licence"],
         has_production=bool(row["has_production"]),
         engine_stats=engine_stats,
         shield_stats=shield_stats,

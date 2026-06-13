@@ -89,7 +89,10 @@ def discover_cats(install_path: Path) -> list[Path]:
     `_sig.cat` files are signature variants used by the game's integrity check;
     they are excluded because they replay the same paths.
     """
-    base = sorted(p for p in install_path.glob("*.cat") if not p.stem.endswith("_sig"))
+    base = sorted(
+        (p for p in install_path.glob("*.cat") if not p.stem.endswith("_sig")),
+        key=lambda p: int(p.stem) if p.stem.isdigit() else 0,
+    )
     dlc = sorted(
         p
         for p in install_path.glob("extensions/ego_dlc_*/ext_*.cat")

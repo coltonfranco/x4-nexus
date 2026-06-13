@@ -34,6 +34,7 @@ export type Sector = {
   qy: number | null;
   qz: number | null;
   qw: number | null;
+  known_to_player?: boolean;
 };
 
 export type Zone = {
@@ -59,6 +60,7 @@ export type MapStation = {
   is_player_owned: boolean;
   is_hq: boolean;
   is_under_construction: boolean;
+  known_to_player?: boolean;
   source: string;
 };
 

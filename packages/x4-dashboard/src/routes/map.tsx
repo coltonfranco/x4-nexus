@@ -15,12 +15,14 @@ import type { FillMode } from "../lib/map/overlays/types";
 import type { MapStation } from "../lib/map/types";
 import { useEconomyWares } from "../lib/map/overlays/useAnalysisData";
 import { useAnalysisOverlay } from "../lib/map/overlays/useAnalysisOverlay";
+import { useSettings } from "../lib/settingsStore";
 
 const mapApi = getRouteApi("/map");
 
 export default function MapPage() {
   const search = mapApi.useSearch();
   const data = useMapData();
+  const { settings } = useSettings();
 
   const [selectedSectorId, setSelectedSectorId] = useState<string | null>(null);
   const [hoveredSectorId, setHoveredSectorId] = useState<string | null>(null);
@@ -54,8 +56,13 @@ export default function MapPage() {
     if (search.to) setNavTo(search.to);
   }, [search.ware, search.routes, search.from, search.to]);
 
-  const layout = useMapLayout(data, activeDlcs);
-  const { sectorCoords, hexSize, visibleSectors, clusterMap, resourcesByCluster, factionMap, allDlcs, enabledDlcs } = layout;
+  const layout = useMapLayout(data, activeDlcs, settings.fogOfWar);
+  const { sectorCoords, hexSize, visibleSectors, clusterMap, resourcesByCluster, factionMap, allDlcs, enabledDlcs, visibleGates, visibleHighways } = layout;
+
+  const visibleStations = useMemo(() => {
+    if (!settings.fogOfWar) return data.stations;
+    return data.stations.filter(s => s.sector_id && layout.visibleSectorIds.has(s.sector_id));
+  }, [data.stations, settings.fogOfWar, layout.visibleSectorIds]);
 
   const panZoom = usePanZoom(sectorCoords, visibleSectors, hexSize);
 
@@ -67,9 +74,9 @@ export default function MapPage() {
 
   const overlay = useAnalysisOverlay({
     fillMode, resource, wareId, maxJumps, selectedRouteSector, navFrom, navTo, navFromPos, navToPos,
-    sectorCoords, gates: data.gates, highways: data.highways,
+    sectorCoords, gates: visibleGates, highways: visibleHighways,
     zoneMap: layout.zoneMap, zoneScreenPos: layout.zoneScreenPos,
-    sectors: data.sectors, clusterMap: layout.clusterMap, zoneScale: layout.zoneScale,
+    sectors: visibleSectors, clusterMap: layout.clusterMap, zoneScaleMap: layout.zoneScaleMap,
   });
 
   const sectorName = useCallback((id: string) => {
@@ -142,7 +149,7 @@ export default function MapPage() {
           <div>
             <h1 className="text-lg font-bold leading-none">Universe Map</h1>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {visibleSectors.length} sectors · {data.gates.length} gates · {data.highways.length} highways
+              {visibleSectors.length} sectors · {visibleGates.length} gates · {visibleHighways.length} highways
             </p>
           </div>
         </div>
@@ -157,7 +164,7 @@ export default function MapPage() {
 
       <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
         <MapCanvas
-          data={data}
+          data={{ ...data, stations: visibleStations, gates: visibleGates, highways: visibleHighways }}
           layout={layout}
           toggles={toggles}
           overlay={overlay}

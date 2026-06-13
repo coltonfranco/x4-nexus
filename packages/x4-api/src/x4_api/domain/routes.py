@@ -28,7 +28,9 @@ SELECT t.ware_id, w.name AS ware_name, w.volume,
        t.margin, t.qty,
        bo.price AS buy_price,   -- you buy here (station's sell offer)
        so.price AS sell_price,  -- you sell here (station's buy offer)
-       d.hops AS hops
+       d.hops AS hops,
+       d.manual_distance,
+       d.fast_travel_time
 FROM top_routes_per_ware t
 LEFT JOIN s.wares w ON w.ware_id = t.ware_id
 LEFT JOIN stations bs ON bs.station_id = t.buy_station_id
@@ -76,8 +78,18 @@ def rank_routes(
         profit = units * r["margin"]
 
         hops = r["hops"]
-        eff_hops = hops if hops is not None else _DEFAULT_HOPS
-        trip_seconds = (eff_hops + 1) * _SECTOR_HOP_M / max(ship_speed, 1.0) * _ROUND_TRIP
+        manual_distance = r["manual_distance"]
+        fast_travel_time = r["fast_travel_time"]
+
+        if manual_distance is not None and fast_travel_time is not None:
+            # We add one baseline SECTOR_HOP_M to represent the "last mile" flight 
+            # from the gates to the exact stations.
+            one_way_seconds = (manual_distance + _SECTOR_HOP_M) / max(ship_speed, 1.0) + fast_travel_time
+            trip_seconds = one_way_seconds * _ROUND_TRIP
+        else:
+            eff_hops = hops if hops is not None else _DEFAULT_HOPS
+            trip_seconds = (eff_hops + 1) * _SECTOR_HOP_M / max(ship_speed, 1.0) * _ROUND_TRIP
+
         per_hour = profit / (trip_seconds / 3600.0) if trip_seconds > 0 else float(profit)
 
         out.append(

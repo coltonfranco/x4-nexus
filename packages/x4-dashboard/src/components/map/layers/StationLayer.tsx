@@ -6,47 +6,12 @@
 
 import type { FactionSummary, MapStation, Transform } from "../../../lib/map/types";
 import { stationVisibleAt, type StationTier } from "../../../lib/map/stations";
+import { StationMapIcon } from "../StationMapIcon";
 
 // Tier thresholds, in on-screen sector-hex radius (px). "all" lines up roughly with
 // where the build grid appears (deep single-sector zoom).
 const STATION_ALL_SCREEN_RADIUS = 520;
 const STATION_MAJOR_SCREEN_RADIUS = 110;
-
-const CATEGORY_ICONS: Record<string, string> = {
-  shipyard: "mapob_shipyard.png",
-  wharf: "mapob_wharf.png",
-  equipmentdock: "mapob_equipmentdock.png",
-  tradestation: "mapob_tradestation.png",
-  headquarters: "mapob_playerhq.png",
-  defence: "mapob_defensestation.png",
-  piratebase: "mapob_piratestation.png",
-};
-
-function iconFor(st: MapStation): string {
-  if (st.is_hq) return "mapob_playerhq.png";
-  return (st.category && CATEGORY_ICONS[st.category]) || "mapob_factory.png";
-}
-
-// Map-object icons are bright glyph + outline on an opaque dark badge, so we tint with a
-// *luminance* mask (bright parts take the faction colour, the dark interior drops out).
-// An alpha mask would fill the whole badge and render as a solid coloured square.
-function StationIcon({ iconPath, color, sizeWorld }: { iconPath: string; color: string; sizeWorld: number }) {
-  const url = `url(/static/icons/map_objects/${iconPath})`;
-  return (
-    <foreignObject x={-sizeWorld / 2} y={-sizeWorld / 2} width={sizeWorld} height={sizeWorld}
-      style={{ pointerEvents: "none", overflow: "visible" }}>
-      <div style={{
-        width: "100%", height: "100%",
-        backgroundColor: color,
-        maskImage: url, WebkitMaskImage: url,
-        maskMode: "luminance",
-        maskSize: "contain", WebkitMaskSize: "contain",
-        maskRepeat: "no-repeat", WebkitMaskRepeat: "no-repeat",
-        maskPosition: "center", WebkitMaskPosition: "center",
-      }} />
-    </foreignObject>
-  );
-}
 
 export function StationLayer({
   stations, stationScreenPos, factionMap, hexSize, transform,
@@ -96,7 +61,7 @@ export function StationLayer({
             {st.is_player_owned && !st.is_hq && (
               <circle r={sizeWorld * 0.6} fill="none" stroke="#ffffff" strokeWidth={0.8 / transform.scale} opacity={0.8} />
             )}
-            <StationIcon iconPath={iconFor(st)} color={color} sizeWorld={sizeWorld} />
+            <StationMapIcon station={st} color={color} sizeWorld={sizeWorld} />
           </g>
         );
       })}

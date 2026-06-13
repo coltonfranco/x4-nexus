@@ -5,6 +5,7 @@ import { PriceBar } from "../../components/trade/PriceBar";
 import { WareDetailPanel } from "../../components/trade/WareDetailPanel";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../components/ui/dialog";
 import { Input } from "../../components/ui/input";
+import { PageLoaderPreset } from "../../components/PageLoader";
 import {
   Select,
   SelectContent,
@@ -175,7 +176,7 @@ export default function TradeCatalogPage() {
 
       <div className="flex-1 overflow-auto px-6 py-2">
         {isLoading ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">Loading commodities…</p>
+          <p className="py-8 text-center text-sm text-muted-foreground"><PageLoaderPreset preset="default" /></p>
         ) : rows.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">No commodities match.</p>
         ) : (

@@ -1,10 +1,10 @@
 import * as PopoverPrimitive from "@radix-ui/react-popover";
-import { Check, ChevronDown } from "lucide-react";
+import { Check, ChevronDown, X } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { Badge } from "./badge";
 
 interface MultiSelectProps {
-  options: { label: string; value: string }[];
+  options: { label: string; value: string; node?: React.ReactNode }[];
   selected: Set<string>;
   onChange: (selected: Set<string>) => void;
   placeholder?: string;
@@ -55,7 +55,22 @@ export function MultiSelect({
               </Badge>
             )}
           </div>
-          <ChevronDown className="h-4 w-4 opacity-50 ml-2 shrink-0" />
+          <div className="flex items-center gap-1 shrink-0 ml-2">
+            {selectedCount > 0 && (
+              <div 
+                role="button"
+                className="p-0.5 rounded-sm hover:bg-muted"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  onChange(new Set());
+                }}
+              >
+                <X className="h-3.5 w-3.5 opacity-50 hover:opacity-100 transition-opacity text-muted-foreground" />
+              </div>
+            )}
+            <ChevronDown className="h-4 w-4 opacity-50" />
+          </div>
         </button>
       </PopoverPrimitive.Trigger>
       <PopoverPrimitive.Portal>
@@ -70,13 +85,16 @@ export function MultiSelect({
               return (
                 <div
                   key={option.value}
-                  className="relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                  className="relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-7 pr-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
                   onClick={() => toggleOption(option.value)}
                 >
-                  <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
-                    {isSelected && <Check className="h-4 w-4" />}
-                  </span>
-                  {option.label}
+                  <div className={cn(
+                    "absolute left-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary transition-colors",
+                    isSelected ? "bg-primary text-primary-foreground" : "opacity-50"
+                  )}>
+                    {isSelected && <Check className="h-3 w-3" />}
+                  </div>
+                  {option.node || option.label}
                 </div>
               );
             })}

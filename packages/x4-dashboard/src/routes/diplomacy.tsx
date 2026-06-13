@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "../components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
+import { PageLoaderPreset } from "../components/PageLoader";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -190,7 +191,7 @@ function ActionsTab() {
       </div>
 
       {isLoading ? (
-        <p className="text-sm text-muted-foreground py-4">Loading…</p>
+        <p className="text-sm text-muted-foreground py-4"><PageLoaderPreset preset="factions" /></p>
       ) : (
         <div className="rounded-md border border-border overflow-hidden">
           <table className="w-full text-sm">
@@ -251,7 +252,7 @@ function GiftsTab() {
     });
   }, [gifts, factionMap]);
 
-  if (giftsLoading) return <p className="text-sm text-muted-foreground py-4">Loading…</p>;
+  if (giftsLoading) return <p className="text-sm text-muted-foreground py-4"><PageLoaderPreset preset="factions" /></p>;
 
   return (
     <div className="space-y-4">
@@ -297,7 +298,7 @@ function RanksTab() {
     queryFn: () => fetch("/api/v1/diplomacy/agent-ranks").then((r) => r.json()),
   });
 
-  if (isLoading) return <p className="text-sm text-muted-foreground py-4">Loading…</p>;
+  if (isLoading) return <p className="text-sm text-muted-foreground py-4"><PageLoaderPreset preset="factions" /></p>;
 
   return (
     <div>

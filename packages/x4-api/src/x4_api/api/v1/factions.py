@@ -249,6 +249,55 @@ def faction_strength(
     ]
 
 
+@router.get("/factions/known", response_model=dict[str, bool])
+def list_known_factions(
+    conn: Annotated[sqlite3.Connection, Depends(get_db)],
+) -> dict[str, bool]:
+    """Return {faction_id: is_known} for every static faction."""
+    all_factions = {
+        r["faction_id"]
+        for r in conn.execute("SELECT faction_id FROM s.factions").fetchall()
+    }
+    known: set[str] = {"player"}
+
+    has_live = bool(conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='faction_relations_current'"
+    ).fetchone())
+    if has_live:
+        known.update(
+            r["other_faction_id"]
+            for r in conn.execute(
+                "SELECT other_faction_id FROM faction_relations_current WHERE faction_id = 'player'"
+            ).fetchall()
+        )
+
+    has_stations = bool(conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='stations'"
+    ).fetchone())
+    if has_stations:
+        known.update(
+            r["owner_faction"]
+            for r in conn.execute(
+                "SELECT DISTINCT owner_faction FROM stations WHERE known_to_player = 1 AND owner_faction IS NOT NULL"
+            ).fetchall()
+        )
+
+    has_ss = bool(conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='sector_state'"
+    ).fetchone())
+    if has_ss and has_stations:
+        known.update(
+            r["owner_faction"]
+            for r in conn.execute(
+                "SELECT DISTINCT st.owner_faction FROM stations st "
+                "JOIN sector_state ss ON LOWER(ss.sector_id) = LOWER(st.sector_id) "
+                "WHERE ss.known_to_player = 1 AND st.owner_faction IS NOT NULL"
+            ).fetchall()
+        )
+
+    return {fid: fid in known for fid in sorted(all_factions)}
+
+
 @router.get("/factions/{faction_id}", response_model=FactionDetail)
 def get_faction(
     faction_id: str,

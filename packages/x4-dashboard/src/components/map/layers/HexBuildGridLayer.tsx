@@ -14,18 +14,19 @@ const GRID_KM = 10;
 const GRID_MIN_SCREEN_RADIUS = 700;
 
 export function HexBuildGridLayer({
-  visibleSectors, sectorCoords, subSectorSet, hexSize, zoneScale, transform, viewport,
+  visibleSectors, sectorCoords, subSectorSet, hexSize, zoneScaleMap, transform, viewport,
 }: {
   visibleSectors: Sector[];
   sectorCoords: Map<string, [number, number]>;
   subSectorSet: Set<string>;
   hexSize: number;
-  zoneScale: number;
+  zoneScaleMap: Map<string, number>;
   transform: Transform;
   viewport: { w: number; h: number };
 }) {
-  if (zoneScale === 0 || viewport.w === 0) return null;
+  if (!zoneScaleMap.has("__default") || viewport.w === 0) return null;
   if (hexSize * transform.scale < GRID_MIN_SCREEN_RADIUS) return null;
+  const defaultScale = zoneScaleMap.get("__default")!;
 
   // Visible world-space rect (the grid lives inside the scaled <g>).
   const vMinX = (0 - transform.x) / transform.scale;
@@ -44,7 +45,8 @@ export function HexBuildGridLayer({
     // Skip sectors entirely outside the viewport.
     if (cx + R < vMinX || cx - R > vMaxX || cy + R < vMinY || cy - R > vMaxY) continue;
 
-    const sectorScale = isSub ? zoneScale * 0.5 : zoneScale;
+    const baseScale = zoneScaleMap.get(sector.sector_id) ?? defaultScale;
+    const sectorScale = isSub ? baseScale * 0.5 : baseScale;
     const cellR = (GRID_KM * 1000 * sectorScale) / 2; // small-hex circumradius (world)
     if (cellR <= 0.001) continue;
     const margin = cellR * 2;

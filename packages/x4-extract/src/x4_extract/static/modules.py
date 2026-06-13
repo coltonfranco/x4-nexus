@@ -75,6 +75,8 @@ def _parse_module(
         if m:
             size = _NAME_TO_SIZE.get(m.group(1).lower())
 
+    makerrace = ident_el.get("makerrace") if ident_el is not None else None
+
     # Deep stats
     hull_el = macro_el.find("properties/hull")
     exp_el = macro_el.find("properties/explosiondamage")
@@ -82,6 +84,22 @@ def _parse_module(
     cargo_el = macro_el.find("properties/cargo")
     storage_el = macro_el.find("properties/storage")
     prod_el = macro_el.find("properties/production/queue")
+    prod_parent = macro_el.find("properties/production")
+    dock_el = macro_el.find("properties/dock")
+    docksize_el = macro_el.find("properties/docksize")
+    equip_el = macro_el.find("properties/equip")
+    supply_el = macro_el.find("properties/supply")
+    builder_el = macro_el.find("properties/builder")
+    build_el = macro_el.find("properties/build")
+    undock_el = macro_el.find("properties/undock")
+    secrecy_el = macro_el.find("properties/secrecy")
+    ownership_el = macro_el.find("properties/ownership")
+    rotationspeed_el = macro_el.find("properties/rotationspeed")
+    rotationaccel_el = macro_el.find("properties/rotationacceleration")
+    translationspeed_el = macro_el.find("properties/translationspeed")
+    translationaccel_el = macro_el.find("properties/translationacceleration")
+    longrangescan_el = macro_el.find("properties/longrangescan")
+    autoaim_el = macro_el.find("properties/autoaim")
 
     produces_ware_id = prod_el.get("ware") if prod_el is not None else None
 
@@ -116,13 +134,61 @@ def _parse_module(
         "dlc": dlc_from_path(file_path),
         "kind": kind,
         "size": size,
+        "makerrace": makerrace,
+        "description": ident_el.get("description") if ident_el is not None else None,
+        "shortname": ident_el.get("shortname") if ident_el is not None else None,
+        "is_datavault": _bool_attr(ident_el, "datavault") if ident_el is not None else None,
+        "is_landmark": _bool_attr(ident_el, "landmark") if ident_el is not None else None,
+        "is_unique": _bool_attr(ident_el, "unique") if ident_el is not None else None,
+        "icon": ident_el.get("icon") if ident_el is not None else None,
+        "hudicon": ident_el.get("hudicon") if ident_el is not None else None,
+        "factionhqicon": ident_el.get("factionhqicon") if ident_el is not None else None,
+        "subtype": ident_el.get("type") if ident_el is not None else None,
         "produces_ware_id": produces_ware_id,
         "storage_capacity": storage_capacity,
         "storage_type": storage_type,
         "drone_capacity": _int(storage_el, "unit"),
         "workforce_capacity": _int(workforce_el, "capacity") if _int(workforce_el, "capacity") is not None else _int(workforce_el, "max"),
+        "workforce_race": workforce_el.get("race") if workforce_el is not None else None,
         "hull": _int(hull_el, "max"),
+        "hull_min": _int(hull_el, "min"),
+        "hull_integrated": _bool_attr(hull_el, "integrated"),
+        "hull_invulnerable": _bool_attr(hull_el, "invulnerable"),
+        "hull_noscrap": _bool_attr(hull_el, "noscrap"),
         "explosiondamage": _int(exp_el, "value"),
+        "secrecy_level": _int(secrecy_el, "level") if secrecy_el is not None else None,
+        # Docks
+        "dock_allow": _bool_attr(dock_el, "allow") if dock_el is not None else None,
+        "dock_allowbuild": _bool_attr(dock_el, "allowbuild") if dock_el is not None else None,
+        "dock_allowtrade": _bool_attr(dock_el, "allowtrade") if dock_el is not None else None,
+        "dock_allowunits": _bool_attr(dock_el, "allowunits") if dock_el is not None else None,
+        "dock_external": _bool_attr(dock_el, "external") if dock_el is not None else None,
+        "dock_playeronly": _bool_attr(dock_el, "playeronly") if dock_el is not None else None,
+        "dock_priority": _int(dock_el, "priority") if dock_el is not None else None,
+        "dock_showroom": _bool_attr(dock_el, "showroom") if dock_el is not None else None,
+        "dock_size_tags": docksize_el.get("tags") if docksize_el is not None else None,
+        # Equipment / supply
+        "equip_classes": equip_el.get("classes") if equip_el is not None else None,
+        "supply_classes": supply_el.get("classes") if supply_el is not None else None,
+        # Production
+        "production_research": _bool_attr(prod_parent, "research") if prod_parent is not None else None,
+        "production_show_active": _bool_attr(prod_parent, "showactivestate") if prod_parent is not None else None,
+        # Builder
+        "builder_units": _int(builder_el, "optimalprocessorunits") if builder_el is not None else None,
+        "build_has_storage": _bool_attr(build_el, "buildstorage") if build_el is not None else None,
+        # Movement
+        "rotation_speed_max": _float(rotationspeed_el, "max"),
+        "rotation_accel_max": _float(rotationaccel_el, "max"),
+        "translation_speed_max": _float(translationspeed_el, "max"),
+        "translation_accel_max": _float(translationaccel_el, "max"),
+        "undock_distance": _float(undock_el, "distance"),
+        "undock_speed": _float(undock_el, "speed"),
+        "undock_rotate": _bool_attr(undock_el, "rotate"),
+        # Misc
+        "autoaim_allow": _bool_attr(autoaim_el, "allow") if autoaim_el is not None else None,
+        "ownership_claim": _bool_attr(ownership_el, "claim") if ownership_el is not None else None,
+        "longrangescan_minlevel": _int(longrangescan_el, "minlevel") if longrangescan_el is not None else None,
+        # Hardpoints
         "turrets_s": hardpoints["turret_s"],
         "turrets_m": hardpoints["turret_m"],
         "turrets_l": hardpoints["turret_l"],
@@ -194,9 +260,24 @@ def write(conn: sqlite3.Connection, result: ExtractResult) -> None:
     conn.execute("DELETE FROM modules")
 
     cols = [
-        "module_id", "name", "file_path", "is_legacy", "dlc", "kind", "size", "produces_ware_id",
-        "storage_capacity", "storage_type", "drone_capacity", "workforce_capacity",
-        "hull", "explosiondamage", "turrets_s", "turrets_m", "turrets_l", "turrets_xl",
+        "module_id", "name", "file_path", "is_legacy", "dlc", "kind", "size",
+        "makerrace", "description", "shortname",
+        "is_datavault", "is_landmark", "is_unique",
+        "icon", "hudicon", "factionhqicon", "subtype",
+        "produces_ware_id", "storage_capacity", "storage_type",
+        "drone_capacity", "workforce_capacity", "workforce_race",
+        "hull", "hull_min", "hull_integrated", "hull_invulnerable", "hull_noscrap",
+        "explosiondamage", "secrecy_level",
+        "dock_allow", "dock_allowbuild", "dock_allowtrade", "dock_allowunits",
+        "dock_external", "dock_playeronly", "dock_priority", "dock_showroom", "dock_size_tags",
+        "equip_classes", "supply_classes",
+        "production_research", "production_show_active",
+        "builder_units", "build_has_storage",
+        "rotation_speed_max", "rotation_accel_max",
+        "translation_speed_max", "translation_accel_max",
+        "undock_distance", "undock_speed", "undock_rotate",
+        "autoaim_allow", "ownership_claim", "longrangescan_minlevel",
+        "turrets_s", "turrets_m", "turrets_l", "turrets_xl",
         "shields_s", "shields_m", "shields_l", "shields_xl", "icon_path"
     ]
 
@@ -217,3 +298,24 @@ def _int(el: etree._Element | None, attr: str) -> int | None:
         return int(v)
     except ValueError:
         return int(float(v))
+
+
+def _float(el: etree._Element | None, attr: str) -> float | None:
+    if el is None:
+        return None
+    v = el.get(attr)
+    if v is None:
+        return None
+    try:
+        return float(v)
+    except ValueError:
+        return None
+
+
+def _bool_attr(el: etree._Element | None, attr: str) -> bool | None:
+    if el is None:
+        return None
+    v = el.get(attr)
+    if v is None:
+        return None
+    return v == "1"

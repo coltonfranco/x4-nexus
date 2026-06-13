@@ -150,7 +150,7 @@ def write(conn: sqlite3.Connection, result: ExtractResult) -> None:
         if canonical is not None:
             sector_rows.append((canonical, faction))
     conn.executemany(
-        "INSERT OR REPLACE INTO sector_ownership (sector_id, owner_faction) VALUES (?, ?)",
+        "INSERT INTO sector_ownership (sector_id, owner_faction) VALUES (?, ?)",
         sector_rows,
     )
 
@@ -162,7 +162,7 @@ def write(conn: sqlite3.Connection, result: ExtractResult) -> None:
             cluster_counter[cluster_id][faction] += 1
     conn.execute("DELETE FROM cluster_ownership")
     conn.executemany(
-        "INSERT OR REPLACE INTO cluster_ownership (cluster_id, owner_faction) VALUES (?, ?)",
+        "INSERT INTO cluster_ownership (cluster_id, owner_faction) VALUES (?, ?)",
         [(cid, counter.most_common(1)[0][0]) for cid, counter in cluster_counter.items()],
     )
 

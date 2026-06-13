@@ -1,30 +1,31 @@
 import { Link, Outlet, useRouterState } from "@tanstack/react-router";
 import {
   Boxes,
+  Crown,
+  Cpu,
   Handshake,
   Home,
   Map,
-  Package,
+  PackageOpen,
+  Rocket,
   Shield,
-  Sword,
   TrendingUp,
-  User,
-  Wrench,
 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { SaveSelector } from "../SaveSelector";
+import { SettingsModal } from "../SettingsModal";
 import { ThemeToggle } from "./ThemeToggle";
 
 const navItems = [
   { to: "/", label: "Home", icon: Home },
-  { to: "/empire", label: "Empire", icon: User },
+  { to: "/empire", label: "Empire", icon: Crown },
   { to: "/trade", label: "Trade", icon: TrendingUp },
-  { to: "/equipment", label: "Equipment", icon: Wrench },
+  { to: "/equipment", label: "Equipment", icon: Cpu },
   { to: "/inventory", label: "Inventory", icon: Boxes },
   { to: "/map", label: "Map", icon: Map },
-  { to: "/ships", label: "Ships", icon: Sword },
+  { to: "/ships", label: "Ships", icon: Rocket },
   { to: "/factions", label: "Factions", icon: Shield },
-  { to: "/drops", label: "Drop Tables", icon: Package },
+  { to: "/drops", label: "Drop Tables", icon: PackageOpen },
   { to: "/diplomacy", label: "Diplomacy", icon: Handshake },
 ] as const;
 
@@ -87,8 +88,9 @@ export function AppLayout() {
 
         {/* Bottom */}
         <SaveSelector />
-        <div className="p-3 border-t border-border">
+        <div className="p-3 border-t border-border flex items-center justify-between">
           <ThemeToggle />
+          <SettingsModal />
         </div>
       </aside>
 

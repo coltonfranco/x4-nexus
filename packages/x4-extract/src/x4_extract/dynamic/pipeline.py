@@ -25,6 +25,7 @@ from x4_extract.dynamic.extractors.factions import FactionsCollector
 from x4_extract.dynamic.extractors.meta import MetaCollector
 from x4_extract.dynamic.extractors.player import PlayerCollector
 from x4_extract.dynamic.extractors.resources import ResourceAreasCollector
+from x4_extract.dynamic.extractors.sectors import SectorsCollector
 from x4_extract.dynamic.extractors.ships import ShipsCollector
 from x4_extract.dynamic.extractors.stations import StationsCollector
 from x4_extract.dynamic.materialize import compute_top_routes
@@ -61,11 +62,16 @@ def run(settings: ExtractSettings, save_path: Path) -> Path:
         if version_ok and state.get("source") == source_fp:
             return db_path  # nothing changed since the last successful ingest
 
+        from x4_extract.i18n import Localizer
+        with sqlite3.connect(settings.data_dir / "raw.db") as raw_conn:
+            localizer = Localizer(raw_conn, "044")
+
         collectors: list[Collector] = [
             MetaCollector(save_path=save_path),
-            StationsCollector(),
+            StationsCollector(localizer=localizer),
             FactionsCollector(),
             PlayerCollector(),
+            SectorsCollector(),
             ShipsCollector(),
             ResourceAreasCollector(),
         ]

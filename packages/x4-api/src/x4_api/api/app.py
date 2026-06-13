@@ -27,6 +27,7 @@ from x4_api.api.v1 import (
     modules,
     npc_stations,
     player,
+    races,
     routes,
     saves,
     ships,
@@ -51,6 +52,7 @@ def app() -> FastAPI:
     fast.include_router(wares.router, prefix="/api/v1", tags=["wares"])
     fast.include_router(equipment.router, prefix="/api/v1", tags=["equipment"])
     fast.include_router(factions.router, prefix="/api/v1", tags=["factions"])
+    fast.include_router(races.router, prefix="/api/v1", tags=["races"])
     fast.include_router(map.router, prefix="/api/v1", tags=["map"])
     fast.include_router(modules.router, prefix="/api/v1", tags=["modules"])
     fast.include_router(ships.router, prefix="/api/v1", tags=["ships"])

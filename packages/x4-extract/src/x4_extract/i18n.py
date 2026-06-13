@@ -19,10 +19,13 @@ class Localizer:
         """Load translations from raw.db into memory."""
         # The datalake stores the merged XML in raw_files
         path = f"t/0001-l{language_code}.xml"
-        row = conn.execute(
-            "SELECT content FROM raw_files WHERE filepath = ?", (path,)
-        ).fetchone()
-        
+        try:
+            row = conn.execute(
+                "SELECT content FROM raw_files WHERE filepath = ?", (path,)
+            ).fetchone()
+        except sqlite3.OperationalError:
+            row = None
+            
         if not row:
             # If language file is not found, we just do nothing and return macros
             return

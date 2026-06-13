@@ -9,13 +9,13 @@ import {
   computeOverlappingPaths,
   computeStationScreenPos,
   computeSubSectorSet,
-  computeZoneScale,
+  computeZoneScaleMap,
   computeZoneScreenPos,
 } from "./positions";
 import type { Cluster, FactionSummary, Zone } from "./types";
 import type { MapData } from "./useMapData";
 
-export function useMapLayout(data: MapData, activeDlcs: Set<string> | null) {
+export function useMapLayout(data: MapData, activeDlcs: Set<string> | null, fogOfWar: boolean = true) {
   const { clusters, sectors, zones, gates, highways, connections, resources, factions, stations } = data;
 
   const factionMap = useMemo(() => {
@@ -46,12 +46,34 @@ export function useMapLayout(data: MapData, activeDlcs: Set<string> | null) {
   );
   const enabledDlcs = useMemo(() => activeDlcs ?? new Set(allDlcs), [activeDlcs, allDlcs]);
   const visibleSectors = useMemo(
-    () => sectors.filter((s) => !s.dlc || enabledDlcs.has(s.dlc)),
-    [sectors, enabledDlcs]
+    () => sectors.filter((s) => {
+      if (s.dlc && !enabledDlcs.has(s.dlc)) return false;
+      if (fogOfWar && s.known_to_player === false) return false;
+      return true;
+    }),
+    [sectors, enabledDlcs, fogOfWar]
   );
   const visibleSectorIds = useMemo(
     () => new Set(visibleSectors.map((s) => s.sector_id)),
     [visibleSectors]
+  );
+
+  const visibleZoneIds = useMemo(() => {
+    const s = new Set<string>();
+    zones.forEach((z) => {
+      if (z.sector_id && visibleSectorIds.has(z.sector_id)) s.add(z.zone_id);
+    });
+    return s;
+  }, [zones, visibleSectorIds]);
+
+  const visibleGates = useMemo(
+    () => gates.filter(g => visibleZoneIds.has(g.from_zone_id) || visibleZoneIds.has(g.to_zone_id)),
+    [gates, visibleZoneIds]
+  );
+
+  const visibleHighways = useMemo(
+    () => highways.filter(h => visibleZoneIds.has(h.from_zone_id) || visibleZoneIds.has(h.to_zone_id)),
+    [highways, visibleZoneIds]
   );
 
   const zoneMap = useMemo(() => {
@@ -69,21 +91,21 @@ export function useMapLayout(data: MapData, activeDlcs: Set<string> | null) {
 
   const bgGrid = useMemo(() => computeBgGrid(hexSize, gridOrigin), [hexSize, gridOrigin]);
 
-  const zoneScale = useMemo(() => computeZoneScale(hexSize), [hexSize]);
+  const zoneScaleMap = useMemo(() => computeZoneScaleMap(hexSize, stations), [hexSize, stations]);
 
   const zoneScreenPos = useMemo(
-    () => computeZoneScreenPos(zones, sectorCoords, zoneScale, subSectorSet),
-    [zones, sectorCoords, zoneScale, subSectorSet]
+    () => computeZoneScreenPos(zones, sectorCoords, zoneScaleMap, subSectorSet),
+    [zones, sectorCoords, zoneScaleMap, subSectorSet]
   );
 
   const overlappingPaths = useMemo(
-    () => computeOverlappingPaths(highways, gates, zoneMap, zoneScreenPos, sectorCoords),
-    [highways, gates, zoneMap, zoneScreenPos, sectorCoords]
+    () => computeOverlappingPaths(visibleHighways, visibleGates, zoneMap, zoneScreenPos, sectorCoords),
+    [visibleHighways, visibleGates, zoneMap, zoneScreenPos, sectorCoords]
   );
 
   const stationScreenPos = useMemo(
-    () => computeStationScreenPos(stations, sectorCoords, zoneScale, subSectorSet),
-    [stations, sectorCoords, zoneScale, subSectorSet]
+    () => computeStationScreenPos(stations, sectorCoords, zoneScaleMap, subSectorSet),
+    [stations, sectorCoords, zoneScaleMap, subSectorSet]
   );
 
   return {
@@ -100,10 +122,12 @@ export function useMapLayout(data: MapData, activeDlcs: Set<string> | null) {
     hexSize,
     gridOrigin,
     bgGrid,
-    zoneScale,
+    zoneScaleMap,
     zoneScreenPos,
     overlappingPaths,
     stationScreenPos,
+    visibleGates,
+    visibleHighways,
   };
 }
 

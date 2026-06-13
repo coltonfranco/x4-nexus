@@ -5,6 +5,9 @@ import { Building2, ChevronDown, Coins, FileText, Handshake, Rocket, ScrollText,
 import { Reputation } from "../components/GameValues";
 import { Currency } from "../components/Currency";
 import { getReputationScore } from "../lib/formatters";
+import { ShipDetailPanel } from "./ships";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../components/ui/dialog";
+import { PageLoaderPreset } from "../components/PageLoader";
 
 type Player = { player_id: string | null; name: string | null; credits: number | null; current_ship_id: string | null };
 type Licence = { licence_type: string; faction_id: string };
@@ -12,6 +15,7 @@ type FleetShip = {
   ship_id: string;
   code: string | null;
   name: string | null;
+  macro: string | null;
   catalog_name: string | null;
   class_id: string | null;
   sector_id: string | null;
@@ -52,6 +56,8 @@ const titleCase = (s: string) => s.replace(/_macro$/, "").replace(/_/g, " ").rep
 
 export default function EmpirePage() {
   const [showShips, setShowShips] = useState(false);
+  const [selectedMacroId, setSelectedMacroId] = useState<string | null>(null);
+  const [selectedMacroName, setSelectedMacroName] = useState<string | null>(null);
 
   const { data: player, isLoading } = useQuery<Player | null>({
     queryKey: ["player"],
@@ -113,7 +119,7 @@ export default function EmpirePage() {
     return [...m.entries()].sort((a, b) => b[1].length - a[1].length);
   }, [licences]);
 
-  if (isLoading) return <p className="text-sm text-muted-foreground p-6">Loading…</p>;
+  if (isLoading) return <p className="text-sm text-muted-foreground p-6"><PageLoaderPreset preset="default" /></p>;
   if (!player) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground gap-2">
@@ -179,7 +185,7 @@ export default function EmpirePage() {
                     <Link
                       to="/factions"
                       search={{ faction: r.faction_id }}
-                      className="flex items-center gap-2 min-w-0 hover:underline"
+                      className="flex items-center gap-2 min-w-0 transition-opacity hover:opacity-80"
                     >
                       <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: r.color_hex ?? "#888" }} />
                       <span className="truncate" style={{ color: r.color_hex ?? undefined }}>
@@ -234,7 +240,16 @@ export default function EmpirePage() {
                   {[...fleet]
                     .sort((a, b) => roleKey(a.role).localeCompare(roleKey(b.role)))
                     .map((s) => (
-                      <div key={s.ship_id} className="flex items-center gap-3 px-3 py-1.5 text-xs hover:bg-muted/20">
+                      <div
+                        key={s.ship_id}
+                        className="flex items-center gap-3 px-3 py-1.5 text-xs hover:bg-muted/20 cursor-pointer"
+                        onClick={() => {
+                          if (s.macro) {
+                            setSelectedMacroId(s.macro);
+                            setSelectedMacroName(s.name || s.catalog_name || s.ship_type || "Ship");
+                          }
+                        }}
+                      >
                         <span className={`h-2 w-2 rounded-sm shrink-0 ${ROLE_META[roleKey(s.role)].color}`} />
                         <span className="font-medium truncate w-40">{s.name || s.catalog_name || s.ship_type || "Ship"}</span>
                         <span className="text-muted-foreground w-8 tabular-nums">{CLASS_LABEL[s.class_id ?? ""] ?? ""}</span>
@@ -277,8 +292,10 @@ export default function EmpirePage() {
                 return (
                   <div key={fid}>
                     <div className="flex items-center gap-2 mb-1.5">
-                      <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: f?.color_hex ?? "#888" }} />
-                      <span className="text-sm font-semibold" style={{ color: f?.color_hex ?? undefined }}>{f?.name ?? titleCase(fid)}</span>
+                      <Link to="/factions" search={{ faction: fid }} className="flex items-center gap-2 transition-opacity hover:opacity-80">
+                        <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: f?.color_hex ?? "#888" }} />
+                        <span className="text-sm font-semibold" style={{ color: f?.color_hex ?? undefined }}>{f?.name ?? titleCase(fid)}</span>
+                      </Link>
                       <span className="text-xs text-muted-foreground">{types.length}</span>
                     </div>
                     <div className="flex flex-wrap gap-1.5 pl-4">
@@ -295,6 +312,16 @@ export default function EmpirePage() {
           )}
         </Panel>
       </div>
+
+      <Dialog open={selectedMacroId !== null} onOpenChange={(open) => { if (!open) setSelectedMacroId(null); }}>
+        <DialogContent className="sm:max-w-2xl md:max-w-3xl">
+          <DialogHeader className="sr-only">
+            <DialogTitle>{selectedMacroName ?? "Ship details"}</DialogTitle>
+            <DialogDescription>Detailed stats for {selectedMacroName}</DialogDescription>
+          </DialogHeader>
+          {selectedMacroId && <ShipDetailPanel shipId={selectedMacroId} factions={factions} />}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

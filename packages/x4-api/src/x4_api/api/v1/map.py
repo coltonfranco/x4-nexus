@@ -59,6 +59,7 @@ class SectorSummary(PublicModel):
     qy: float | None = None
     qz: float | None = None
     qw: float | None = None
+    known_to_player: bool = False
 
 
 class ZoneSummary(PublicModel):
@@ -136,11 +137,17 @@ def list_sectors(
     offset: int = Query(0, ge=0),
 ) -> list[SectorSummary]:
     # owner_faction is gamestart seed, LEFT JOINed from seed.sector_ownership.
+    # sector_state is dynamic save knowledge.
+    has_live = bool(conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='sector_state'").fetchone())
+    
+    select_known = "COALESCE(ss.known_to_player, 0) AS known_to_player" if has_live else "0 AS known_to_player"
+    join_live = "LEFT JOIN sector_state ss ON ss.sector_id = LOWER(sec.sector_id) " if has_live else ""
+
     sql = [
         "SELECT sec.sector_id, sec.cluster_id, sec.name AS macro_id, so.owner_faction, sec.dlc, "
         "sec.name_id AS name, sec.description_id AS description, sec.sunlight, sec.economy, sec.security, "
-        "sec.tags, sec.access_licence, sec.x, sec.y, sec.z, sec.qx, sec.qy, sec.qz, sec.qw "
-        "FROM s.sectors sec LEFT JOIN seed.sector_ownership so ON so.sector_id = sec.sector_id WHERE 1=1"
+        f"sec.tags, sec.access_licence, sec.x, sec.y, sec.z, sec.qx, sec.qy, sec.qz, sec.qw, {select_known} "
+        f"FROM s.sectors sec LEFT JOIN seed.sector_ownership so ON so.sector_id = sec.sector_id {join_live}WHERE 1=1"
     ]
     params: dict[str, object] = {"limit": limit, "offset": offset}
     if cluster_id is not None:
@@ -160,12 +167,16 @@ def get_sector(
     sector_id: str,
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
 ) -> SectorSummary:
+    has_live = bool(conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='sector_state'").fetchone())
+    select_known = "COALESCE(ss.known_to_player, 0) AS known_to_player" if has_live else "0 AS known_to_player"
+    join_live = "LEFT JOIN sector_state ss ON ss.sector_id = LOWER(sec.sector_id) " if has_live else ""
+
     row = conn.execute(
-        "SELECT sec.sector_id, sec.cluster_id, sec.name AS macro_id, so.owner_faction, sec.dlc, "
-        "sec.name_id AS name, sec.description_id AS description, sec.sunlight, sec.economy, sec.security, "
-        "sec.tags, sec.access_licence, sec.x, sec.y, sec.z, sec.qx, sec.qy, sec.qz, sec.qw "
-        "FROM s.sectors sec LEFT JOIN seed.sector_ownership so ON so.sector_id = sec.sector_id "
-        "WHERE sec.sector_id = :id",
+        f"SELECT sec.sector_id, sec.cluster_id, sec.name AS macro_id, so.owner_faction, sec.dlc, "
+        f"sec.name_id AS name, sec.description_id AS description, sec.sunlight, sec.economy, sec.security, "
+        f"sec.tags, sec.access_licence, sec.x, sec.y, sec.z, sec.qx, sec.qy, sec.qz, sec.qw, {select_known} "
+        f"FROM s.sectors sec LEFT JOIN seed.sector_ownership so ON so.sector_id = sec.sector_id {join_live}"
+        f"WHERE sec.sector_id = :id",
         {"id": sector_id},
     ).fetchone()
     if row is None:
@@ -330,7 +341,7 @@ def list_map_stations(
             "WHERE 1=1"
         ]
         if sector_id is not None:
-            sql.append("AND st.sector_id = :sector_id")
+            sql.append("AND LOWER(st.sector_id) = LOWER(:sector_id)")
             params["sector_id"] = sector_id
         sql.append("ORDER BY st.station_id LIMIT :limit OFFSET :offset")
     else:
@@ -345,7 +356,7 @@ def list_map_stations(
             "WHERE 1=1"
         ]
         if sector_id is not None:
-            sql.append("AND ns.location_sector = :sector_id")
+            sql.append("AND LOWER(ns.location_sector) = LOWER(:sector_id)")
             params["sector_id"] = sector_id
         sql.append("ORDER BY ns.station_id LIMIT :limit OFFSET :offset")
 

@@ -11,6 +11,7 @@ import {
 } from "../components/ui/dialog";
 import { Input } from "../components/ui/input";
 import { DropListContent, buildDropGroups, DropEntry } from "../components/DropListContent";
+import { PageLoaderPreset } from "../components/PageLoader";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -120,7 +121,7 @@ function DropDetailDialog({ listId, onClose }: { listId: string; onClose: () => 
         </DialogHeader>
 
         <div className="px-6 pb-6 pt-2">
-          {isLoading && <p className="text-sm text-muted-foreground py-4">Loading…</p>}
+          {isLoading && <p className="text-sm text-muted-foreground py-4"><PageLoaderPreset preset="default" /></p>}
           {!isLoading && <DropListContent groups={groups} />}
         </div>
       </DialogContent>
@@ -239,7 +240,7 @@ export default function DropsPage() {
 
       <div className="flex-1 overflow-auto px-6 py-4">
         {isLoading ? (
-          <p className="text-muted-foreground text-sm py-8 text-center">Loading…</p>
+          <p className="text-muted-foreground text-sm py-8 text-center"><PageLoaderPreset preset="default" /></p>
         ) : filtered.length === 0 ? (
           <p className="text-muted-foreground text-sm py-8 text-center">No drop tables match your filters.</p>
         ) : (

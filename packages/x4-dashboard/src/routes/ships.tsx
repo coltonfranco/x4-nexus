@@ -1,14 +1,14 @@
 import React, { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, Outlet, useRouterState } from "@tanstack/react-router";
-import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, ChevronRight, Wrench } from "lucide-react";
+import { useSettings } from "../lib/settingsStore";
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, ChevronRight, Wrench, Info } from "lucide-react";
 import { MultiSelect } from "../components/ui/multi-select";
 import { EntityIcon } from "../components/EntityIcon";
 import { FactionBadge } from "../components/FactionBadge";
 import { StatBar } from "../components/StatBar";
 import { classFull, classShort } from "../lib/formatters";
-import { ShipClassBadge, ShipRoleBadge } from "../components/ShipBadges";
-import { Badge } from "../components/ui/badge";
+import { ShipClassBadge, ShipTypeBadge, ShipSubtypeBadge } from "../components/ShipBadges";
 import { Button } from "../components/ui/button";
 import { ShipImage } from "../components/ShipImage";
 import { DropListContent, buildDropGroups } from "../components/DropListContent";
@@ -19,6 +19,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../components/ui/dialog";
+import {
+  SHIP_HULL_MAX, SHIP_SHIELD_MAX, SHIP_REGEN_MAX,
+  SHIP_SPEED_MAX, SHIP_TRAVEL_MAX, SHIP_BOOST_MAX,
+  SHIP_CARGO_MAX, SHIP_CREW_MAX,
+  SHIP_MISSILE_MAX, SHIP_DPS_MAX
+} from "./ships/builder";
 import { Input } from "../components/ui/input";
 import {
   Select,
@@ -28,6 +34,7 @@ import {
   SelectValue,
 } from "../components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
+import { PageLoaderPreset } from "../components/PageLoader";
 import {
   Table,
   TableBody,
@@ -44,12 +51,17 @@ type ShipSummary = {
   class_id: string;
   faction_id: string | null;
   role: string | null;
+  ship_type: string | null;
   hull: number | null;
   cargo_volume: number | null;
+  dps_max: number | null;
   speed_min: number | null;
   speed_max: number | null;
   icon_url: string | null;
   image_url: string | null;
+  is_owned: boolean;
+  restriction_licence: string | null;
+  is_obtainable: boolean;
 };
 
 type ShipDetail = ShipSummary & {
@@ -102,6 +114,27 @@ type ShipDetail = ShipSummary & {
   engines_m: number;
   engines_l: number;
   engines_xl: number;
+  dock_s: number;
+  dock_m: number;
+  dock_l: number;
+  dock_xl: number;
+  storage_s: number;
+  storage_m: number;
+  storage_l: number;
+  storage_xl: number;
+  launch_tubes: number;
+  accel_forward: number | null;
+  decel_forward: number | null;
+  accel_boost: number | null;
+  accel_travel: number | null;
+  accel_strafe: number | null;
+  accel_angular: number | null;
+  accel_factor_reverse: number | null;
+  accel_factor_horizontal: number | null;
+  accel_factor_vertical: number | null;
+  modifier_weapon_heat: number | null;
+  explosion_damage: number | null;
+  explosion_shield_damage: number | null;
   drop_list_id: string | null;
 };
 
@@ -128,7 +161,10 @@ function renderGroupHeaderContent(groupBy: string, groupKey: string, sampleShip:
     return <ShipClassBadge class_id={sampleShip.class_id} className="text-xs" />;
   }
   if (groupBy === "role" && sampleShip.role) {
-    return <ShipRoleBadge role={sampleShip.role} className="text-xs px-2 py-0.5" />;
+    return <ShipTypeBadge role={sampleShip.role} className="text-xs px-2 py-0.5" />;
+  }
+  if (groupBy === "ship_type" && sampleShip.ship_type) {
+    return <ShipTypeBadge role={sampleShip.role} subtype={sampleShip.ship_type} className="text-xs px-2 py-0.5" />;
   }
   if (groupBy === "faction_id" && sampleShip.faction_id) {
     const faction = factions.find(f => f.faction_id === sampleShip.faction_id);
@@ -150,7 +186,7 @@ function ShipDropTable({ listId }: { listId: string }) {
     queryFn: () => fetch(`/api/v1/drops/lists/${listId}`).then((r) => r.json()),
   });
 
-  if (isLoading) return <p className="text-xs text-muted-foreground py-2">Loading…</p>;
+  if (isLoading) return <p className="text-xs text-muted-foreground py-2"><PageLoaderPreset preset="ships" className="py-12" /></p>;
   if (!data || data.wares.length === 0) return <p className="text-xs text-muted-foreground py-2 italic">No loot data.</p>;
 
   const groups = buildDropGroups(data.wares);
@@ -162,17 +198,66 @@ function ShipDropTable({ listId }: { listId: string }) {
   );
 }
 
-function ShipDetailPanel({ shipId, factions }: { shipId: string, factions: FactionSummary[] }) {
+function ShipDetailStatRow({ label, min, max, maxVal, unit, isLog, format }: {
+  label: string;
+  min: number | null;
+  max: number | null;
+  maxVal: number;
+  unit?: string;
+  isLog?: boolean;
+  format?: (v: number) => string;
+}) {
+  const displayVal = max != null ? (
+    min != null && min !== max ? (
+      `${format ? format(min) : min.toFixed(0)} - ${format ? format(max) : max.toFixed(0)}`
+    ) : (
+      format ? format(max) : (max >= 1000 ? (max/1000).toFixed(1) + 'k' : max.toFixed(max < 10 && max % 1 !== 0 ? 1 : 0))
+    )
+  ) : "—";
+
+  const scaledValue = isLog ? Math.log10((max ?? 0) + 1) : (max ?? 0);
+  const scaledMax = isLog ? Math.log10(maxVal + 1) : maxVal;
+  const pct = Math.max(0, Math.min(100, (scaledValue / scaledMax) * 100));
+  
+  const barColor = 
+    pct >= 66 ? "hsl(142 71% 45%)" :
+    pct >= 33 ? "hsl(38 92% 50%)" :
+    "hsl(0 72% 51%)";
+
+  return (
+    <div className="flex items-center gap-3 py-1 group">
+      <span className="w-[110px] shrink-0 text-[10px] sm:text-[11px] uppercase font-bold tracking-wider text-muted-foreground group-hover:text-foreground transition-colors leading-tight">{label}</span>
+      
+      <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden min-w-[40px]">
+        {max != null && max > 0 && (
+          <div className="h-full rounded-full transition-all duration-300 opacity-90 group-hover:opacity-100" style={{ width: `${pct}%`, backgroundColor: barColor }} />
+        )}
+      </div>
+      
+      <div className="w-[120px] shrink-0 flex justify-end items-baseline gap-1 text-right">
+        <span className="font-mono text-[10px] sm:text-[11px] text-foreground font-medium whitespace-nowrap">
+          {displayVal}
+        </span>
+        {unit && max != null && <span className="text-[9px] sm:text-[10px] text-muted-foreground shrink-0">{unit}</span>}
+      </div>
+    </div>
+  );
+}
+
+export function ShipDetailPanel({ shipId, factions }: { shipId: string, factions: FactionSummary[] }) {
   const { data, isLoading } = useQuery<ShipDetail>({
     queryKey: ["ship", shipId],
     queryFn: () => fetch(`/api/v1/ships/${shipId}`).then((r) => r.json()),
+    staleTime: 5 * 60_000,
   });
 
-  if (isLoading) return <div className="p-6 text-muted-foreground text-sm">Loading…</div>;
+  if (isLoading) return <div className="p-6 text-muted-foreground text-sm"><PageLoaderPreset preset="ships" className="py-12" /></div>;
   if (!data) return null;
 
   const slotSizes = ["s", "m", "l", "xl"] as const;
   const faction = data.faction_id ? factions.find(f => f.faction_id === data.faction_id) : undefined;
+  
+  const cid = classShort(data.class_id).toLowerCase();
 
   return (
     <div className="p-6 space-y-5">
@@ -187,90 +272,149 @@ function ShipDetailPanel({ shipId, factions }: { shipId: string, factions: Facti
           imageClassName="transition-transform hover:scale-105 duration-500"
         />
 
-        <div className="flex-1 flex flex-col justify-center min-w-0">
-          <div className="flex items-center gap-3">
-            {data.image_url && (
-              <EntityIcon src={data.icon_url} alt="Ship Class Icon" size={28} className="opacity-70 shrink-0" />
-            )}
-            <h2 className="text-2xl font-bold tracking-tight truncate" title={data.name}>
-              {data.name}
-            </h2>
+        <div className="flex-1 flex flex-col justify-center min-w-0 py-1">
+          <div>
+            <div className="flex items-center gap-3 min-w-0">
+              {data.image_url && (
+                <EntityIcon src={data.icon_url} alt="Ship Class Icon" size={28} className="opacity-70 shrink-0" />
+              )}
+              <h2 className="text-2xl font-bold tracking-tight truncate" title={data.name}>
+                {data.name}
+              </h2>
+            </div>
+            <div className="flex items-center gap-2 mt-3 flex-wrap">
+              <ShipClassBadge class_id={data.class_id} className="text-sm px-2.5 py-0.5" />
+              <ShipTypeBadge role={data.role} subtype={data.ship_type} className="text-sm" />
+              {faction && <FactionBadge name={faction.name} color_hex={faction.color_hex} faction_id={faction.faction_id} size="md" className="text-sm" />}
+            </div>
           </div>
-          <div className="flex items-center gap-2 mt-3 flex-wrap">
-            <ShipClassBadge class_id={data.class_id} className="px-2.5 py-0.5 text-sm" />
-            <ShipRoleBadge role={data.role} className="px-2.5 py-0.5 text-sm" />
-            {faction && <FactionBadge name={faction.name} color_hex={faction.color_hex} faction_id={faction.faction_id} />}
-            {data.dlc && <Badge variant="outline" className="px-2.5 py-0.5 text-sm">{data.dlc}</Badge>}
-          </div>
-          <Button
-            variant="default"
-            size="sm"
-            className="mt-3 self-start"
-            asChild
-          >
-            <Link to="/ships/builder" search={{ ship_id: data.ship_id }}>
-              <Wrench className="h-3.5 w-3.5 mr-1.5" />
-              Build Loadout
-            </Link>
-          </Button>
         </div>
       </div>
 
       <Tabs defaultValue="stats">
-        <TabsList>
-          <TabsTrigger value="stats">Stats</TabsTrigger>
-          {data.drop_list_id && <TabsTrigger value="drops">Drops</TabsTrigger>}
-        </TabsList>
+        <div className="border-b border-border/40 pb-px">
+          <TabsList className="bg-transparent border-none p-0 h-auto space-x-6">
+            <TabsTrigger 
+              value="stats" 
+              className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-1 pb-3 pt-2 font-medium text-muted-foreground data-[state=active]:text-foreground transition-colors hover:text-foreground"
+            >
+              Stats
+            </TabsTrigger>
+            {data.drop_list_id && (
+              <TabsTrigger 
+                value="drops" 
+                className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-1 pb-3 pt-2 font-medium text-muted-foreground data-[state=active]:text-foreground transition-colors hover:text-foreground"
+              >
+                Drops
+              </TabsTrigger>
+            )}
+          </TabsList>
+        </div>
 
-          <TabsContent value="stats" className="space-y-6 pt-4">
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Performance (Base Chassis + Loadout Ranges)</p>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {([
-                  { label: "Speed", min: data.speed_min, max: data.speed_max, maxVal: MAX_SPEED, unit: "m/s", isLog: false },
-                  { label: "Travel", min: data.travel_min, max: data.travel_max, maxVal: 10000, unit: "m/s", isLog: false },
-                  { label: "Boost", min: data.boost_min, max: data.boost_max, maxVal: 3000, unit: "m/s", isLog: false },
-                  { label: "Radar", min: null, max: data.radar_range, maxVal: 40000, unit: "km", isLog: false, format: (v: number) => (v / 1000).toFixed(0) },
-                  { label: "Hull", min: null, max: data.hull, maxVal: MAX_HULL, unit: "HP", isLog: true },
-                  { label: "Cargo", min: null, max: data.cargo_volume, maxVal: MAX_CARGO, unit: "m³", isLog: true },
-                  { label: "Shield Cap", min: data.shield_capacity_min, max: data.shield_capacity_max, maxVal: 100000, unit: "MJ", isLog: true },
-                  { label: "Shield Reg", min: data.shield_recharge_min, max: data.shield_recharge_max, maxVal: 1000, unit: "MW", isLog: true },
-                ] as {
-                  label: string;
-                  min: number | null;
-                  max: number | null;
-                  maxVal: number;
-                  unit: string;
-                  isLog: boolean;
-                  format?: (v: number) => string;
-                }[]).map(({ label, min, max, maxVal, unit, isLog, format }) => (
-                  <div key={label} className="bg-muted/10 rounded-lg p-3 border border-border/50">
-                    <p className="text-xs font-medium text-muted-foreground mb-1">{label}</p>
-                    <div className="flex items-end gap-1.5 mb-2">
-                      <span className="text-sm font-bold tracking-tight">
-                        {max != null ? (
-                          min != null && min !== max ? (
-                            `${format ? format(min) : min.toFixed(0)} - ${format ? format(max) : max.toFixed(0)}`
-                          ) : (
-                            format ? format(max) : (max > 1000 ? max.toLocaleString() : max.toFixed(0))
-                          )
-                        ) : "—"}
-                      </span>
-                      {max != null && <span className="text-xs text-muted-foreground pb-0.5">{unit}</span>}
-                    </div>
-                    {max != null && max > 0 && (
-                      <StatBar 
-                        value={isLog ? Math.log10(max + 1) : max} 
-                        max={isLog ? Math.log10(maxVal + 1) : maxVal} 
-                      />
-                    )}
-                  </div>
-                ))}
+          <TabsContent value="stats" className="space-y-6 pt-5">
+            <div className="bg-muted/10 border border-border/50 rounded-lg overflow-hidden">
+              <div className="px-4 pt-3 pb-1 flex items-center justify-between border-b border-border/30">
+                <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold flex items-center gap-1.5">
+                  <Info className="w-3.5 h-3.5" />
+                  Bars represent maximum potential relative to the best {classShort(data.class_id)}-class ship
+                </span>
               </div>
+              
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-6 p-5 pt-4">
+                <div className="flex flex-col gap-2">
+                  <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 border-b border-border/50 pb-1.5">Flight</div>
+                  <div className="flex flex-col gap-0.5">
+                    <ShipDetailStatRow label="Top Speed" min={null} max={data.speed_max} maxVal={SHIP_SPEED_MAX[cid] || MAX_SPEED} unit="m/s" />
+                    <ShipDetailStatRow label="Travel Speed" min={null} max={data.travel_max} maxVal={SHIP_TRAVEL_MAX[cid] || 10000} unit="m/s" />
+                    <ShipDetailStatRow label="Boost Speed" min={null} max={data.boost_max} maxVal={SHIP_BOOST_MAX[cid] || 3000} unit="m/s" />
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 border-b border-border/50 pb-1.5">Defense</div>
+                  <div className="flex flex-col gap-0.5">
+                    <ShipDetailStatRow label="Hull Capacity" min={null} max={data.hull} maxVal={SHIP_HULL_MAX[cid] || MAX_HULL} unit="HP" />
+                    <ShipDetailStatRow label="Shield Cap" min={null} max={data.shield_capacity_max} maxVal={SHIP_SHIELD_MAX[cid] || 100000} unit="MJ" />
+                    <ShipDetailStatRow label="Shield Regen" min={null} max={data.shield_recharge_max} maxVal={SHIP_REGEN_MAX[cid] || 1000} unit="MW/s" />
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 border-b border-border/50 pb-1.5">Logistics</div>
+                  <div className="flex flex-col gap-0.5">
+                    <ShipDetailStatRow label="Cargo Bay" min={null} max={data.cargo_volume} maxVal={SHIP_CARGO_MAX[cid] || MAX_CARGO} unit="m³" />
+                    <ShipDetailStatRow label="Crew Capacity" min={null} max={data.people_capacity} maxVal={SHIP_CREW_MAX[cid] || 40} unit="Crew" />
+                    <ShipDetailStatRow label="Deployables" min={null} max={data.deployable_storage} maxVal={100} unit="Units" />
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 border-b border-border/50 pb-1.5">Offense</div>
+                  <div className="flex flex-col gap-0.5">
+                    <ShipDetailStatRow label="Weapon DPS" min={null} max={data.dps_max} maxVal={SHIP_DPS_MAX[cid] || 5000} unit="/s" />
+                    <ShipDetailStatRow label="Missile Cap" min={null} max={data.missile_storage} maxVal={SHIP_MISSILE_MAX[cid] || 100} unit="Ms" />
+                    {data.modifier_weapon_heat && data.modifier_weapon_heat !== 1 ? (
+                      <ShipDetailStatRow label="Heat Mod" min={null} max={data.modifier_weapon_heat} maxVal={2} format={v => `${v}x`} />
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t border-border/30 bg-muted/5 px-6 py-5 flex flex-col md:flex-row gap-10 justify-center">
+                {/* Physics Stats */}
+                <div className="flex flex-col gap-2 items-center md:items-start text-xs border-b md:border-b-0 md:border-r border-border/50 pb-4 md:pb-0 pr-0 md:pr-10">
+                  <span className="text-[10px] text-muted-foreground font-bold tracking-widest uppercase mb-1">Physics</span>
+                  <div className="flex justify-between w-48"><span className="text-muted-foreground uppercase">Mass</span><span className="font-semibold text-foreground">{(data.mass ?? 0).toLocaleString()} kg</span></div>
+                  <div className="flex justify-between w-48"><span className="text-muted-foreground uppercase">Pitch Inertia</span><span className="font-semibold text-foreground">{(data.inertia_pitch ?? 0).toLocaleString()}</span></div>
+                  <div className="flex justify-between w-48"><span className="text-muted-foreground uppercase">Fwd Drag</span><span className="font-semibold text-foreground">{(data.drag_forward ?? 0).toLocaleString()}</span></div>
+                  <div className="flex justify-between w-48"><span className="text-muted-foreground uppercase">Rev Drag</span><span className="font-semibold text-foreground">{(data.drag_reverse ?? 0).toLocaleString()}</span></div>
+                </div>
+
+                {/* Auxiliary Stats */}
+                <div className="flex flex-col gap-2 items-center md:items-start text-xs">
+                  <span className="text-[10px] text-muted-foreground font-bold tracking-widest uppercase mb-1">Auxiliary</span>
+                  <div className="flex justify-between w-48"><span className="text-muted-foreground uppercase">Fwd Accel</span><span className="font-semibold text-foreground">{data.accel_forward ?? 0} m/s²</span></div>
+                  <div className="flex justify-between w-48"><span className="text-muted-foreground uppercase">Radar Range</span><span className="font-semibold text-foreground">{((data.radar_range ?? 0) / 1000).toFixed(0)} km</span></div>
+                  <div className="flex justify-between w-48"><span className="text-muted-foreground uppercase">Drone Bay</span><span className="font-semibold text-foreground">{data.drone_storage ?? 0}</span></div>
+                  <div className="flex justify-between w-48"><span className="text-muted-foreground uppercase">Flares</span><span className="font-semibold text-foreground">{data.countermeasure_storage ?? 0}</span></div>
+                  {data.launch_tubes > 0 && <div className="flex justify-between w-48"><span className="text-muted-foreground uppercase">Launch Tubes</span><span className="font-semibold text-foreground">{data.launch_tubes}</span></div>}
+                </div>
+              </div>
+              
+              {(data.dock_s > 0 || data.dock_m > 0 || data.dock_l > 0 || data.dock_xl > 0 || data.storage_s > 0 || data.storage_m > 0 || data.storage_l > 0 || data.storage_xl > 0) && (
+                <div className="bg-muted/10 border-t border-border/30 p-4 flex flex-col md:flex-row items-center justify-center gap-x-8 gap-y-4">
+                  <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">Ship Docks / Hangars:</span>
+                  <div className="flex flex-wrap items-center justify-center gap-8">
+                    {(["s", "m", "l", "xl"] as const).map(s => {
+                      const d = data[`dock_${s}` as keyof ShipDetail] as number;
+                      const st = data[`storage_${s}` as keyof ShipDetail] as number;
+                      if (d > 0 || st > 0) {
+                        return (
+                          <div key={s} className="flex items-center gap-2 text-xs">
+                            <span className="text-muted-foreground font-semibold uppercase">{s === 'xl' ? 'Extra Large' : s === 'l' ? 'Large' : s === 'm' ? 'Medium' : 'Small'}:</span>
+                            <span className="font-semibold text-foreground">
+                              {d + st} Ships <span className="text-muted-foreground font-normal">({d > 0 ? `${d} Pad${d !== 1 ? 's' : ''}` : '0 Pads'}, {st > 0 ? `${st} Internal` : '0 Internal'})</span>
+                            </span>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
-  
+
             <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Equipment Slots</p>
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Equipment Slots</p>
+                <Button variant="default" size="sm" asChild className="h-7 text-xs px-3 shadow-sm">
+                  <Link to="/ships/builder" search={{ ship_id: data.ship_id }}>
+                    <Wrench className="h-3 w-3 mr-1.5" />
+                    Build Loadout
+                  </Link>
+                </Button>
+              </div>
               <div className="rounded-lg border border-border overflow-hidden">
                 <table className="w-full text-sm">
                   <thead className="bg-muted/30">
@@ -312,52 +456,6 @@ function ShipDetailPanel({ shipId, factions }: { shipId: string, factions: Facti
                 </table>
               </div>
             </div>
-  
-            {(data.people_capacity || data.missile_storage || data.drone_storage || data.countermeasure_storage || data.deployable_storage) && (
-              <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Capacity</p>
-                <div className="grid grid-cols-5 gap-4">
-                  {[
-                    { label: "Crew", value: data.people_capacity },
-                    { label: "Missiles", value: data.missile_storage },
-                    { label: "Drones", value: data.drone_storage },
-                    { label: "Flares", value: data.countermeasure_storage },
-                    { label: "Deploy", value: data.deployable_storage },
-                  ]
-                    .filter((x) => x.value != null && x.value > 0)
-                    .map(({ label, value }) => (
-                      <div key={label} className="bg-muted/10 rounded-lg p-3 border border-border/50">
-                        <p className="text-xs font-medium text-muted-foreground mb-1">{label}</p>
-                        <p className="text-xl font-bold tracking-tight">{value?.toLocaleString()}</p>
-                      </div>
-                    ))}
-                </div>
-              </div>
-            )}
-  
-            {data.mass != null && (
-              <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Physics</p>
-                <div className="grid grid-cols-2 gap-4">
-                  {[
-                    { label: "Mass", value: data.mass, unit: "kg" },
-                    { label: "Forward drag", value: data.drag_forward, unit: "" },
-                    { label: "Reverse drag", value: data.drag_reverse, unit: "" },
-                    { label: "Pitch inertia", value: data.inertia_pitch, unit: "" },
-                  ]
-                    .filter((x) => x.value != null)
-                    .map(({ label, value, unit }) => (
-                      <div key={label} className="flex justify-between items-center text-sm bg-muted/5 rounded-md px-3 py-2 border border-border/40">
-                        <span className="text-muted-foreground text-xs">{label}</span>
-                        <span className="font-mono text-sm tabular-nums font-medium">
-                          {(value as number).toLocaleString()}
-                          {unit && <span className="text-muted-foreground text-xs ml-1 font-sans font-normal">{unit}</span>}
-                        </span>
-                      </div>
-                    ))}
-                </div>
-              </div>
-            )}
           </TabsContent>
 
         {data.drop_list_id && (
@@ -375,22 +473,27 @@ function ShipDetailPanel({ shipId, factions }: { shipId: string, factions: Facti
 
 export default function ShipsPage() {
   const { location } = useRouterState();
+  const { settings } = useSettings();
+  const queryClient = useQueryClient();
 
   const [search, setSearch] = useState("");
   const [selectedClasses, setSelectedClasses] = useState<Set<string>>(new Set());
-  const [selectedFaction, setSelectedFaction] = useState("all");
+  const [selectedFactions, setSelectedFactions] = useState<Set<string>>(new Set());
   const [selectedDlcs, setSelectedDlcs] = useState<Set<string>>(new Set());
   const [selectedTypes, setSelectedTypes] = useState<Set<string>>(new Set());
+  const [selectedSubTypes, setSelectedSubTypes] = useState<Set<string>>(new Set());
+  const [ownedOnly, setOwnedOnly] = useState(false);
+  const [obtainableOnly, setObtainableOnly] = useState(false);
   const [selectedShip, setSelectedShip] = useState<ShipSummary | null>(null);
   
   // State to track which groups are collapsed
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
-  type SortKey = "name" | "class_id" | "faction_id" | "speed_max" | "hull" | "cargo_volume" | "role";
+  type SortKey = "name" | "class_id" | "faction_id" | "speed_max" | "hull" | "cargo_volume" | "dps_max" | "role" | "ship_type";
   const [sortCol, setSortCol] = useState<SortKey>("name");
   const [sortDesc, setSortDesc] = useState(false);
 
-  type GroupByKey = "none" | "class_id" | "role" | "faction_id" | "dlc";
+  type GroupByKey = "none" | "class_id" | "role" | "ship_type" | "faction_id" | "dlc";
   const [groupBy, setGroupBy] = useState<GroupByKey>("none");
 
   const { data: ships = [], isLoading } = useQuery<ShipSummary[]>({
@@ -403,16 +506,28 @@ export default function ShipsPage() {
     queryFn: () => fetch("/api/v1/factions").then((r) => r.json()),
   });
 
+  const { data: knownFactions = {} } = useQuery<Record<string, boolean>>({
+    queryKey: ["factions-known"],
+    queryFn: () => fetch("/api/v1/factions/known").then((r) => r.json()),
+    staleTime: 60_000,
+  });
+
   const factionMap = new Map(factions.map((f) => [f.faction_id, f]));
 
   const filtered = ships.filter((s) => {
+    // Fog of war: hide ships from unknown factions
+    if (settings.fogOfWar && s.faction_id && knownFactions[s.faction_id] === false) return false;
     if (search && !s.name.toLowerCase().includes(search.toLowerCase())) return false;
     if (selectedClasses.size > 0 && !selectedClasses.has(classShort(s.class_id))) return false;
-    if (selectedFaction !== "all" && s.faction_id !== selectedFaction) return false;
+    if (selectedFactions.size > 0 && (!s.faction_id || !selectedFactions.has(s.faction_id))) return false;
     if (selectedTypes.size > 0 && (!s.role || !selectedTypes.has(s.role))) return false;
+    if (selectedTypes.size > 0 && selectedSubTypes.size > 0 && (!s.ship_type || !selectedSubTypes.has(s.ship_type))) return false;
     
     const dlcKey = s.dlc || "base_game";
     if (selectedDlcs.size > 0 && !selectedDlcs.has(dlcKey)) return false;
+    
+    if (ownedOnly && !s.is_owned) return false;
+    if (obtainableOnly && !s.is_obtainable) return false;
 
     return true;
   });
@@ -442,6 +557,7 @@ export default function ShipsPage() {
       if (groupBy === "dlc") key = formatDlc(ship.dlc || "base_game");
       else if (groupBy === "class_id") key = classShort(ship.class_id);
       else if (groupBy === "role") key = ship.role ? ship.role.charAt(0).toUpperCase() + ship.role.slice(1) : "Unknown";
+      else if (groupBy === "ship_type") key = ship.ship_type ? ship.ship_type.charAt(0).toUpperCase() + ship.ship_type.slice(1) : "Unknown";
       else if (groupBy === "faction_id") key = ship.faction_id ? (factionMap.get(ship.faction_id)?.name || ship.faction_id) : "No Faction";
       
       if (!groups[key]) groups[key] = [];
@@ -488,7 +604,23 @@ export default function ShipsPage() {
     }
   };
 
-  const hasFilters = search || selectedClasses.size > 0 || selectedFaction !== "all" || selectedDlcs.size > 0 || selectedTypes.size > 0;
+  const hasFilters = search || selectedClasses.size > 0 || selectedFactions.size > 0 || selectedDlcs.size > 0 || selectedTypes.size > 0 || (selectedTypes.size > 0 && selectedSubTypes.size > 0) || ownedOnly || obtainableOnly;
+
+  const availableSubTypes = selectedTypes.size > 0 
+    ? Array.from(new Set(
+        ships
+          .filter(s => s.role && selectedTypes.has(s.role))
+          .map(s => s.ship_type)
+          .filter(Boolean) as string[]
+      )).sort().map(r => {
+        const matchingShip = ships.find(s => s.ship_type === r && s.role && selectedTypes.has(s.role));
+        return { 
+          value: r, 
+          label: r.charAt(0).toUpperCase() + r.slice(1),
+          node: <ShipSubtypeBadge role={matchingShip?.role} subtype={r} className="px-2.5 py-0.5 text-xs font-normal" />
+        };
+      })
+    : [];
 
   // Child route (e.g. /ships/builder) — delegate to <Outlet />
   if (location.pathname !== "/ships") return <Outlet />;
@@ -525,29 +657,45 @@ export default function ShipsPage() {
           ))}
         </div>
 
-        <Select value={selectedFaction} onValueChange={setSelectedFaction}>
-          <SelectTrigger className="w-44">
-            <SelectValue placeholder="All factions" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All factions</SelectItem>
-            {factions.map((f) => (
-              <SelectItem key={f.faction_id} value={f.faction_id}>
-                {f.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
         <div className="w-48">
           <MultiSelect
-            options={Array.from(new Set(ships.map(s => s.role).filter(Boolean) as string[])).sort().map(r => ({ value: r, label: r.charAt(0).toUpperCase() + r.slice(1) }))}
-            selected={selectedTypes}
-            onChange={setSelectedTypes}
-            placeholder="Types..."
+            options={factions.map(f => ({
+              value: f.faction_id,
+              label: f.name,
+              node: <FactionBadge name={f.name} color_hex={f.color_hex} size="md" className="font-normal" />
+            }))}
+            selected={selectedFactions}
+            onChange={setSelectedFactions}
+            placeholder="Factions..."
             className="h-8 text-xs bg-background"
           />
         </div>
+
+        <div className="w-48">
+          <MultiSelect
+            options={Array.from(new Set(ships.map(s => s.role).filter(Boolean) as string[])).sort().map(r => ({ 
+              value: r, 
+              label: r.charAt(0).toUpperCase() + r.slice(1),
+              node: <ShipTypeBadge role={r} className="px-2.5 py-0.5 text-xs font-normal" />
+            }))}
+            selected={selectedTypes}
+            onChange={setSelectedTypes}
+            placeholder="Roles..."
+            className="h-8 text-xs bg-background"
+          />
+        </div>
+
+        {selectedTypes.size > 0 && availableSubTypes.length > 0 && (
+          <div className="w-48">
+            <MultiSelect
+              options={availableSubTypes}
+              selected={selectedSubTypes}
+              onChange={setSelectedSubTypes}
+              placeholder="Types..."
+              className="h-8 text-xs bg-background"
+            />
+          </div>
+        )}
 
         <div className="w-56">
           <MultiSelect
@@ -558,6 +706,24 @@ export default function ShipsPage() {
             className="h-8 text-xs bg-background"
           />
         </div>
+
+        <Button
+          variant={ownedOnly ? "default" : "outline"}
+          size="sm"
+          onClick={() => setOwnedOnly(!ownedOnly)}
+          className="h-8 text-xs px-3"
+        >
+          Owned Only
+        </Button>
+
+        <Button
+          variant={obtainableOnly ? "default" : "outline"}
+          size="sm"
+          onClick={() => setObtainableOnly(!obtainableOnly)}
+          className="h-8 text-xs px-3"
+        >
+          Obtainable Only
+        </Button>
 
         <div className="ml-auto flex items-center gap-2">
           <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Group By:</span>
@@ -582,9 +748,12 @@ export default function ShipsPage() {
             onClick={() => {
               setSearch("");
               setSelectedClasses(new Set());
-              setSelectedFaction("all");
+              setSelectedFactions(new Set());
               setSelectedDlcs(new Set());
               setSelectedTypes(new Set());
+              setSelectedSubTypes(new Set());
+              setOwnedOnly(false);
+              setObtainableOnly(false);
             }}
             className="h-8 text-xs text-muted-foreground"
           >
@@ -595,7 +764,7 @@ export default function ShipsPage() {
 
       <div className="flex-1 overflow-auto px-6 py-4">
         {isLoading ? (
-          <p className="text-muted-foreground text-sm py-8 text-center">Loading ships…</p>
+          <p className="text-muted-foreground text-sm py-8 text-center"><PageLoaderPreset preset="ships" /></p>
         ) : filtered.length === 0 ? (
           <p className="text-muted-foreground text-sm py-8 text-center">No ships match your filters.</p>
         ) : (
@@ -624,6 +793,9 @@ export default function ShipsPage() {
                 <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort("cargo_volume")}>
                   <div className="flex items-center gap-1">Cargo {sortCol === "cargo_volume" ? (sortDesc ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-20" />}</div>
                 </TableHead>
+                <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort("dps_max")}>
+                  <div className="flex items-center gap-1">DPS {sortCol === "dps_max" ? (sortDesc ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-20" />}</div>
+                </TableHead>
                 <TableHead className="w-12" />
               </TableRow>
             </TableHeader>
@@ -637,7 +809,7 @@ export default function ShipsPage() {
                         className="bg-muted/30 hover:bg-muted/50 cursor-pointer transition-colors"
                         onClick={() => toggleGroup(groupKey)}
                       >
-                        <TableCell colSpan={9} className="py-2.5 px-4">
+                        <TableCell colSpan={10} className="py-2.5 px-4">
                           <div className="flex items-center gap-2 select-none">
                             {isCollapsed ? <ChevronRight className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
                             {renderGroupHeaderContent(groupBy, groupKey, groupShips[0], factions)}
@@ -653,14 +825,21 @@ export default function ShipsPage() {
                           key={ship.ship_id}
                           className="cursor-pointer"
                           onClick={() => setSelectedShip(ship)}
+                          onMouseEnter={() => {
+                            queryClient.prefetchQuery({
+                              queryKey: ["ship", ship.ship_id],
+                              queryFn: () => fetch(`/api/v1/ships/${ship.ship_id}`).then((r) => r.json()),
+                              staleTime: 5 * 60_000,
+                            });
+                          }}
                         >
                           <TableCell>
                             <EntityIcon src={ship.icon_url} alt={ship.name} size={28} />
                           </TableCell>
                           <TableCell className="font-medium">{ship.name}</TableCell>
                           <TableCell>
-                            {ship.role ? (
-                              <ShipRoleBadge role={ship.role} className="text-[10px] px-1.5 py-0" />
+                            {ship.role || ship.ship_type ? (
+                              <ShipTypeBadge role={ship.role} subtype={ship.ship_type} className="text-[10px]" />
                             ) : (
                               <span className="text-muted-foreground text-xs">—</span>
                             )}
@@ -680,7 +859,7 @@ export default function ShipsPage() {
                               <StatBar
                                 value={ship.speed_max}
                                 max={MAX_SPEED}
-                                label={ship.speed_min != null && ship.speed_min !== ship.speed_max ? `${ship.speed_min.toFixed(0)} - ${ship.speed_max.toFixed(0)} m/s` : `${ship.speed_max.toFixed(0)} m/s`}
+                                label={`${ship.speed_max.toFixed(0)} m/s`}
                               />
                             ) : <span className="text-muted-foreground text-xs">—</span>}
                           </TableCell>
@@ -699,6 +878,17 @@ export default function ShipsPage() {
                                 value={Math.log10(ship.cargo_volume + 1)}
                                 max={Math.log10(MAX_CARGO + 1)}
                                 label={`${ship.cargo_volume.toLocaleString()} m³`}
+                              />
+                            ) : (
+                              <span className="text-muted-foreground text-xs">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {ship.dps_max != null && ship.dps_max > 0 ? (
+                              <StatBar
+                                value={Math.log10(ship.dps_max + 1)}
+                                max={Math.log10(50000 + 1)}
+                                label={`${ship.dps_max.toLocaleString(undefined, {maximumFractionDigits: 0})}`}
                               />
                             ) : (
                               <span className="text-muted-foreground text-xs">—</span>

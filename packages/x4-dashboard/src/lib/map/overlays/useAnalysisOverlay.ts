@@ -53,7 +53,7 @@ function relationToUI(rel: number): number {
 }
 
 export function useAnalysisOverlay({
-  fillMode, resource, wareId, maxJumps, selectedRouteSector, navFrom, navTo, navFromPos, navToPos, sectorCoords, gates, highways, zoneMap, zoneScreenPos, sectors, clusterMap, zoneScale,
+  fillMode, resource, wareId, maxJumps, selectedRouteSector, navFrom, navTo, navFromPos, navToPos, sectorCoords, gates, highways, zoneMap, zoneScreenPos, sectors, clusterMap, zoneScaleMap,
 }: {
   fillMode: FillMode;
   resource: string | null;
@@ -71,7 +71,7 @@ export function useAnalysisOverlay({
   zoneScreenPos: Map<string, [number, number]>;
   sectors: Sector[];
   clusterMap: Map<string, Cluster>;
-  zoneScale: number;
+  zoneScaleMap: Map<string, number>;
 }): AnalysisOverlay {
   const resourcesOn = fillMode === "resources";
   const relationsOn = fillMode === "relations";
@@ -295,10 +295,11 @@ export function useAnalysisOverlay({
     }
     
     const pathHops = navFrom && navTo && navFrom !== navTo && navPathResult ? hops : null;
-    const pathDistanceKm = (navFrom && navTo && zoneScale > 0) ? (distSvg / zoneScale) / 1000 : null;
+    const defaultScale = zoneScaleMap.get("__default") ?? 1;
+    const pathDistanceKm = (navFrom && navTo && defaultScale > 0) ? (distSvg / defaultScale) / 1000 : null;
 
     return { navSegments, navOrigin, navDest, pathHops, pathDistanceKm };
-  }, [navPathResult, navFrom, navTo, navFromPos, navToPos, coordsCI, pathToSegments, zoneScale]);
+  }, [navPathResult, navFrom, navTo, navFromPos, navToPos, coordsCI, pathToSegments, zoneScaleMap]);
 
   return useMemo(() => ({
     sectorTint: tradeRoutesOn ? routeData.tint : fill.tint,

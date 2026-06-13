@@ -53,6 +53,8 @@ def extract(xml_bytes: bytes) -> ExtractResult:
             {
                 "ware_id": ware_id,
                 "name": ware_el.get("name", ware_id),
+                "shortname": ware_el.get("shortname"),
+                "description": ware_el.get("description"),
                 "group_id": ware_el.get("group"),
                 "transport": ware_el.get("transport"),
                 "volume": float(ware_el.get("volume") or 1),
@@ -64,6 +66,9 @@ def extract(xml_bytes: bytes) -> ExtractResult:
                 "restriction_licence": restriction_el.get("licence") if restriction_el is not None else None,
                 "use_threshold": _float(use_el, "threshold") if use_el is not None else None,
                 "icon_path": _icon_path(ware_el),
+                "sortorder": _int(ware_el, "sortorder"),
+                "dismantlefactor": None,  # filled below from production
+                "research_time": None,   # filled below from research
             }
         )
 
@@ -79,6 +84,9 @@ def extract(xml_bytes: bytes) -> ExtractResult:
 
         for prod_el in ware_el.iterfind("production"):
             method = prod_el.get("method", "default")
+            dismantle = prod_el.get("dismantlefactor")
+            if dismantle:
+                out.wares[-1]["dismantlefactor"] = float(dismantle)
             out.production.append(
                 {
                     "ware_id": ware_id,
@@ -101,6 +109,10 @@ def extract(xml_bytes: bytes) -> ExtractResult:
                     }
                 )
 
+        research_el = ware_el.find("research")
+        if research_el is not None:
+            out.wares[-1]["research_time"] = _int(research_el, "time")
+
     return out
 
 
@@ -114,12 +126,14 @@ def write(conn: sqlite3.Connection, result: ExtractResult) -> None:
 
     conn.executemany(
         """
-        INSERT INTO wares (ware_id, name, group_id, transport, volume,
+        INSERT INTO wares (ware_id, name, shortname, description, group_id, transport, volume,
                            price_min, price_avg, price_max, storage_class,
-                           tags, restriction_licence, use_threshold, icon_path)
-        VALUES (:ware_id, :name, :group_id, :transport, :volume,
+                           tags, restriction_licence, use_threshold, icon_path,
+                           sortorder, dismantlefactor, research_time)
+        VALUES (:ware_id, :name, :shortname, :description, :group_id, :transport, :volume,
                 :price_min, :price_avg, :price_max, :storage_class,
-                :tags, :restriction_licence, :use_threshold, :icon_path)
+                :tags, :restriction_licence, :use_threshold, :icon_path,
+                :sortorder, :dismantlefactor, :research_time)
         """,
         result.wares,
     )

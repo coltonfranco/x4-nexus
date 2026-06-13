@@ -24,23 +24,29 @@ class LoadoutEquipmentItem(PublicModel):
     kind: str
     optional: bool
     quantity: int | None
+    weaponmode: str | None = None
+    ammunition: str | None = None
 
 
 class LoadoutDetail(PublicModel):
     loadout_id: str
     ship_macro: str
+    name: str | None = None
+    description: str | None = None
     equipment: list[LoadoutEquipmentItem]
 
 
-def _fetch_loadout(conn: sqlite3.Connection, loadout_id: str, ship_macro: str) -> LoadoutDetail:
+def _fetch_loadout(conn: sqlite3.Connection, loadout_id: str, ship_macro: str, name: str | None = None, description: str | None = None) -> LoadoutDetail:
     eq_rows = conn.execute(
-        "SELECT slot_path, macro, kind, optional, quantity "
+        "SELECT slot_path, macro, kind, optional, quantity, weaponmode, ammunition "
         "FROM s.loadout_equipment WHERE loadout_id = :id ORDER BY kind, slot_path",
         {"id": loadout_id},
     ).fetchall()
     return LoadoutDetail(
         loadout_id=loadout_id,
         ship_macro=ship_macro,
+        name=name,
+        description=description,
         equipment=[
             LoadoutEquipmentItem(
                 slot_path=r["slot_path"],
@@ -48,6 +54,8 @@ def _fetch_loadout(conn: sqlite3.Connection, loadout_id: str, ship_macro: str) -
                 kind=r["kind"],
                 optional=bool(r["optional"]),
                 quantity=r["quantity"],
+                weaponmode=r["weaponmode"],
+                ammunition=r["ammunition"],
             )
             for r in eq_rows
         ],
@@ -62,7 +70,7 @@ def list_loadouts(
     offset: int = Query(0, ge=0),
 ) -> list[LoadoutDetail]:
     """List loadout presets with full equipment. Filter by ship_macro to see loadouts for a specific ship."""
-    sql = ["SELECT loadout_id, ship_macro FROM s.loadouts WHERE 1=1"]
+    sql = ["SELECT loadout_id, ship_macro, name, description FROM s.loadouts WHERE 1=1"]
     params: dict[str, object] = {"limit": limit, "offset": offset}
     if ship_macro is not None:
         sql.append("AND ship_macro = :ship_macro")
@@ -70,7 +78,7 @@ def list_loadouts(
     sql.append("ORDER BY loadout_id LIMIT :limit OFFSET :offset")
 
     rows = conn.execute(" ".join(sql), params).fetchall()
-    return [_fetch_loadout(conn, r["loadout_id"], r["ship_macro"]) for r in rows]
+    return [_fetch_loadout(conn, r["loadout_id"], r["ship_macro"], r["name"], r["description"]) for r in rows]
 
 
 @router.get("/loadouts/{loadout_id}", response_model=LoadoutDetail)
@@ -80,9 +88,9 @@ def get_loadout(
 ) -> LoadoutDetail:
     """Get a specific loadout with its full equipment list."""
     row = conn.execute(
-        "SELECT loadout_id, ship_macro FROM s.loadouts WHERE loadout_id = :id",
+        "SELECT loadout_id, ship_macro, name, description FROM s.loadouts WHERE loadout_id = :id",
         {"id": loadout_id},
     ).fetchone()
     if row is None:
         raise HTTPException(status_code=404, detail=f"Unknown loadout_id: {loadout_id}")
-    return _fetch_loadout(conn, row["loadout_id"], row["ship_macro"])
+    return _fetch_loadout(conn, row["loadout_id"], row["ship_macro"], row["name"], row["description"])

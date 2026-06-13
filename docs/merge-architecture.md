@@ -205,43 +205,43 @@ Key implementation details:
 - **`_apply_diff()`**: mutates base_root in place per operation.
 - **`_merge_additive()`**: deep-copies and appends. No dedup.
 - **Excluded dirs**: `aiscripts`, `md`, `cutscenes`, `fx`, `ui`.
+- **Workshop mods**: excluded from DLC processing (`ws_` paths filtered out
+  in the crawler).
+- **Base cat sort**: numeric (`int(stem)`) not string, so `10.cat > 9.cat`.
+- **`_merge_additive()`**: `id`-aware — duplicates are merged by attribute
+  and sub-element, not appended.
 
 ---
 
-## 5. Mitigation strategies for the duplication problem
+## 5. Solution: XML-level merge with sub-element merging
 
-### 5.1 Current approach: per-extractor INSERT OR IGNORE (band-aid)
+### 5.1 How it works (implemented 2026-06-12)
 
-Since we cannot tell at the XML merge layer whether a duplicate root child is
-"intentional", the safest fix is to make extractors tolerant of duplicates:
+`_merge_additive()` now detects duplicate root children by their `id` attribute.
+When a DLC child has the same `id` as an existing base child, instead of
+appending a duplicate:
 
-| SQL | When to use |
-|---|---|
-| `INSERT OR IGNORE` | First-occurrence semantics. Base entry authoritative. |
-| `INSERT OR REPLACE` | Last-occurrence semantics. DLC version may be more complete. |
+1. **Attributes** are merged — DLC values overwrite base values for the same
+   attribute name; base-only attributes are preserved.
+2. **Sub-elements** are appended into the existing base child. This may create
+   duplicate sub-elements (e.g. two identical `<relation>` children), which
+   extractors handle in Python with explicit deduplication.
 
-**Already applied:**
-- `factions.write()` — `INSERT OR IGNORE INTO factions`
-- `factions.write()` — `INSERT OR IGNORE INTO faction_licences`
+Children without an `id` attribute are always appended as new entries (no
+duplicate detection possible, but these schemas don't have the problem).
 
-For **relations**, `INSERT OR IGNORE` is correct because:
-- The DLC duplicate of a base faction has a superset of the same relations
-- Ignoring the duplicate preserves the base relations (correct as-is)
-- The DLC-unique relations come from the DLC's **new** faction entries,
-  not from the duplicate base entry
+### 5.2 Extractor-level deduplication
 
-### 5.2 Robust layer: deduplicate at the XML level (proactive)
+Since sub-element merging can create duplicates within a single entry (e.g.
+two `<relation faction="xenon">` rows under the merged `<faction id="terran">`),
+extractors deduplicate their output in Python before writing to SQLite:
 
-A smarter `_merge_additive()` could detect duplicate top-level elements by
-checking if a DLC root child's `id` attribute already exists. However, this
-would **lose data** — the DLC duplicate may carry **additional relations, tags,
-or DLC-specific licences** that the base entry lacks.
+- **`factions.extract()`**: deduplicates `(faction_id, other_faction_id)` pairs
+  with last-wins semantics, so DLC updates to relation values are preserved.
 
-**Correct XML-layer approach**: Instead of skipping the DLC child entirely,
-merge its sub-elements into the existing base child (e.g., add new `<relation>`
-children that don't exist in the base entry). This is complex to get right
-generically (different XML schemas use different key attributes), so the
-per-extractor approach is the pragmatic choice for V1.
+No `INSERT OR IGNORE` or `INSERT OR REPLACE` is used anywhere in the SQLite
+write path. Duplicates at the SQL level indicate a bug in either the XML merge
+or the extractor's Python dedup — and will fail loudly.
 
 ### 5.3 What NOT to do
 
@@ -251,6 +251,8 @@ per-extractor approach is the pragmatic choice for V1.
   determines which DLC wins in a conflict.
 - **Don't suppress merging for specific paths** — the same path may use `<diff>`
   in one DLC and additive merge in another.
+- **Don't use SQL-level conflict resolution** (`INSERT OR IGNORE`/`REPLACE`) —
+  it silently drops data. Fix the merge instead.
 
 ---
 
@@ -267,23 +269,30 @@ When workshop support is added, it must:
 
 ---
 
-## 7. Files at risk from additive-merge duplication
+## 7. Files protected by the `id`-based merge
 
-| Library file | Duplicate risk | Protection needed |
+The `_merge_additive()` `id`-based dedup covers all library XMLs where
+top-level elements carry an `id` attribute:
+
+| Library file | Duplicate risk | Protection |
 |---|---|---|
-| `libraries/factions.xml` | High (terran DLC includes all factions) | `INSERT OR IGNORE` |
-| `libraries/wares.xml` | High (DLCs add wares) | `INSERT OR IGNORE` |
-| `libraries/waregroups.xml` | Medium | `INSERT OR IGNORE` |
-| `libraries/drops.xml` | Medium | `INSERT OR IGNORE` |
-| `libraries/equipmentmods.xml` | Medium | `INSERT OR IGNORE` |
-| `libraries/loadouts.xml` | Medium | `INSERT OR IGNORE` |
-| `libraries/region_definitions.xml` | Low | `INSERT OR IGNORE` |
-| `libraries/diplomacy.xml` | Medium | `INSERT OR IGNORE` |
-| `libraries/terraforming.xml` | Low | `INSERT OR IGNORE` |
-| `libraries/god.xml` | Low (unique station ids) | `INSERT OR IGNORE` |
-| `libraries/colors.xml` | Low | `INSERT OR IGNORE` |
-| `index/macros.xml` | Medium | `INSERT OR IGNORE` |
+| `libraries/factions.xml` | High (terran DLC includes all factions) | `id`-merge + Python relation dedup |
+| `libraries/wares.xml` | High (DLCs add wares) | `id`-merge |
+| `libraries/waregroups.xml` | Medium | `id`-merge |
+| `libraries/drops.xml` | Medium | `id`-merge |
+| `libraries/equipmentmods.xml` | Medium | `id`-merge |
+| `libraries/loadouts.xml` | Medium | `id`-merge |
+| `libraries/region_definitions.xml` | Low | `id`-merge |
+| `libraries/diplomacy.xml` | Medium | `id`-merge |
+| `libraries/terraforming.xml` | Low | `id`-merge |
+| `libraries/god.xml` | Low (unique station ids) | `id`-merge |
+| `libraries/colors.xml` | Low | `id`-merge |
+| `index/macros.xml` | Medium | `id`-merge |
 | `assets/**/*.xml` (individual) | None (per-file `<diff>`) | N/A |
+
+If an XML uses a key attribute other than `id` (e.g. `name`), duplicate
+detection won't fire and the extractor will hit a UNIQUE constraint — which is
+the desired loud failure to alert us to add key support.
 
 ---
 

@@ -1,15 +1,19 @@
 import { useQuery } from "@tanstack/react-query";
 import { ArrowDown, ArrowUp } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useSettings } from "../lib/settingsStore";
 import { ProductionChain } from "../components/trade/ProductionChain";
 import { Input } from "../components/ui/input";
 import { fmtNum } from "../lib/wareFormat";
+import { getMkGradientClass } from "../lib/formatters";
+import { cn } from "../lib/utils";
 import { useSort } from "../lib/useSort";
 import { Currency } from "../components/Currency";
 import { FactionBadge } from "../components/FactionBadge";
-import { ShipRoleBadge, EquipmentMkBadge, ShipClassBadge } from "../components/ShipBadges";
+import { ShipTypeBadge, EquipmentMkBadge, ShipClassBadge } from "../components/ShipBadges";
 import { StatBar } from "../components/StatBar";
 import { EntityIcon } from "../components/EntityIcon";
+import { PageLoaderPreset } from "../components/PageLoader";
 import {
   Dialog,
   DialogContent,
@@ -68,6 +72,7 @@ type FactionSummary = {
   faction_id: string;
   name: string;
   color_hex: string | null;
+  short_name?: string | null;
 };
 
 // ── Derived weapon metrics ──────────────────────────────────────────────────────
@@ -102,8 +107,9 @@ const CATEGORIES: Category[] = [
     label: "Engines",
     match: (k) => k === "engine",
     metrics: [
-      { key: "travel", label: "Travel", primary: true, get: (e) => e.engine_stats?.travel_thrust ?? null, fmt: (n) => `${n.toFixed(1)}×` },
-      { key: "boost", label: "Boost", primary: true, get: (e) => e.engine_stats?.boost_thrust ?? null, fmt: (n) => `${n.toFixed(1)}×` },
+      { key: "thrust", label: "Thrust", primary: true, get: (e) => e.engine_stats?.thrust_forward ?? null, fmt: (n) => fmtNum(Math.round(n)) + " N" },
+      { key: "travel", label: "Travel", get: (e) => e.engine_stats?.travel_thrust ?? null, fmt: (n) => `${n.toFixed(1)}×` },
+      { key: "boost", label: "Boost", get: (e) => e.engine_stats?.boost_thrust ?? null, fmt: (n) => `${n.toFixed(1)}×` },
     ],
   },
   {
@@ -145,11 +151,32 @@ const CATEGORIES: Category[] = [
       { key: "rotation", label: "Rotation", get: (e) => e.weapon_stats?.rotation_speed ?? null, fmt: (n) => `${Math.round(n)}°/s` },
     ],
   },
-  { id: "missile", label: "Missiles", match: (k) => k === "missile", metrics: [] },
+  {
+    id: "missile",
+    label: "Missiles",
+    match: (k) => k === "missile",
+    metrics: [
+      { key: "damage", label: "Damage", primary: true, get: (e) => e.weapon_stats?.damage ?? null, fmt: (n) => fmtNum(Math.round(n)) },
+      { key: "speed", label: "Speed", get: (e) => e.weapon_stats?.bullet_speed ?? null, fmt: (n) => `${Math.round(n)} m/s` },
+      { key: "reload", label: "Reload", get: (e) => e.weapon_stats?.reload_rate ?? null, fmt: (n) => `${n.toFixed(1)}/s` },
+    ],
+  },
+  {
+    id: "consumable",
+    label: "Consumables",
+    match: (k) => ["countermeasure", "deployable", "drone"].includes(k),
+    metrics: [],
+  },
+  {
+    id: "software",
+    label: "Software",
+    match: (k) => k === "software",
+    metrics: [],
+  },
   {
     id: "other",
     label: "Other",
-    match: (k) => !["engine", "thruster", "shield", "weapon", "turret", "missile"].includes(k),
+    match: (k) => !["engine", "thruster", "shield", "weapon", "turret", "missile", "countermeasure", "deployable", "drone", "software"].includes(k),
     metrics: [],
   },
 ];
@@ -240,7 +267,7 @@ function EquipmentDetailPanel({ item, factions }: { item: Equipment; factions: F
             {item.name}
           </h2>
           <div className="flex items-center gap-2 mt-3 flex-wrap">
-            <ShipRoleBadge role={item.kind} className="px-2.5 py-0.5 text-xs" />
+            <ShipTypeBadge role={item.kind} className="px-2.5 py-0.5 text-xs" />
             <EquipmentMkBadge mk={item.mk} className="px-2.5 py-0.5 text-xs tracking-wider" />
             {item.size && <ShipClassBadge class_id={item.size} className="px-2.5 py-0.5 text-xs tracking-wider" />}
             {faction && <FactionBadge name={faction.name} color_hex={faction.color_hex} faction_id={faction.faction_id} />}
@@ -313,7 +340,15 @@ function EquipmentTable({
     return m;
   }, [metrics, items]);
 
+  // Build faction lookup: short codes ("arg") → full faction
   const factionMap = new Map(factions.map((f) => [f.faction_id, f]));
+  const shortFactionMap = useMemo(() => {
+    const m = new Map(factionMap);
+    for (const f of factions) {
+      if (f.short_name) m.set(f.short_name.toLowerCase(), f);
+    }
+    return m;
+  }, [factions]);
 
   return (
     <table className="w-full text-sm">
@@ -321,6 +356,7 @@ function EquipmentTable({
         <tr className="border-b border-border text-xs text-muted-foreground">
           <th className="w-10 px-3 py-2" />
           <SortHeader label="Name" active={key === "name"} dir={dir} onClick={() => toggle("name", "asc")} />
+          <th className="w-24 px-3 py-2 text-left font-medium text-xs text-muted-foreground">Size</th>
           {metrics.map((m) => (
             <SortHeader
               key={m.key}
@@ -328,7 +364,7 @@ function EquipmentTable({
               active={key === m.key}
               dir={dir}
               onClick={() => toggle(m.key)}
-              className={m.primary ? "w-28" : ""}
+              className="w-28"
             />
           ))}
           <th className="w-12 px-3 py-2 text-left font-medium">Mk</th>
@@ -338,35 +374,37 @@ function EquipmentTable({
       </thead>
       <tbody>
         {sorted.map((e) => {
-          const faction = e.faction_id ? factionMap.get(e.faction_id) : undefined;
+          const faction = e.faction_id
+            ? (shortFactionMap.get(e.faction_id.toLowerCase()) ?? factionMap.get(e.faction_id))
+            : undefined;
           return (
             <tr
               key={e.ware_id}
               className="cursor-pointer border-b border-border transition-colors hover:bg-muted/30"
               onClick={() => onSelect(e)}
             >
-              <td className="px-3 py-2">
-                <EntityIcon src={e.icon_url} alt={e.name} size={28} />
+              <td className="px-3 py-1.5">
+                <div className={cn("w-10 h-10 flex items-center justify-center rounded-lg border", getMkGradientClass(e.mk))}>
+                  <EntityIcon src={e.icon_url} alt={e.name} size={32} />
+                </div>
               </td>
-              <td className="px-3 py-2 font-medium">{e.name}</td>
-              {metrics.map((m) =>
-                m.primary ? (
-                  <td key={m.key} className="px-3 py-2">
-                    {m.get(e) != null ? (
-                      <StatBar value={m.get(e)!} max={maxima[m.key]} label={m.fmt(m.get(e)!)} width={80} />
-                    ) : (
-                      <span className="text-xs text-muted-foreground">—</span>
-                    )}
-                  </td>
+              <td className="px-3 py-2 font-medium text-xs">{e.name}</td>
+              <td className="px-3 py-2">
+                {e.size ? (
+                  <ShipClassBadge class_id={e.size} className="text-[10px] px-1.5 py-0" />
                 ) : (
-                  <td key={m.key} className="px-3 py-2 text-xs tabular-nums text-muted-foreground">
-                    {(() => {
-                      const v = m.get(e);
-                      return v == null ? "—" : m.fmt(v);
-                    })()}
-                  </td>
-                )
-              )}
+                  <span className="text-xs text-muted-foreground">—</span>
+                )}
+              </td>
+              {metrics.map((m) => (
+                <td key={m.key} className="px-3 py-2">
+                  {m.get(e) != null ? (
+                    <StatBar value={m.get(e)!} max={maxima[m.key]} label={m.fmt(m.get(e)!)} width={80} />
+                  ) : (
+                    <span className="text-xs text-muted-foreground">—</span>
+                  )}
+                </td>
+              ))}
               <td className="px-3 py-2">
                 {e.mk != null ? (
                   <EquipmentMkBadge mk={e.mk} className="text-[10px] px-1.5 py-0" />
@@ -398,8 +436,15 @@ export default function EquipmentPage() {
   const [size, setSize] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [selectedEquipment, setSelectedEquipment] = useState<Equipment | null>(null);
+  const { settings } = useSettings();
 
-  const { data: items = [], isLoading } = useQuery<Equipment[]>({
+  const { data: knownFactions = {} } = useQuery<Record<string, boolean>>({
+    queryKey: ["factions-known"],
+    queryFn: () => fetch("/api/v1/factions/known").then((r) => r.json()),
+    staleTime: 60_000,
+  });
+
+  const { data: rawItems = [], isLoading } = useQuery<Equipment[]>({
     queryKey: ["equipment"],
     queryFn: () =>
       fetch("/api/v1/equipment?limit=2000")
@@ -407,6 +452,14 @@ export default function EquipmentPage() {
         .then((d) => (Array.isArray(d) ? d : [])),
     staleTime: 5 * 60_000,
   });
+
+  // Filter by known factions when fog of war is on
+  const items = useMemo(() => {
+    if (!settings.fogOfWar) return rawItems;
+    return rawItems.filter(
+      (e) => e.faction_id == null || knownFactions[e.faction_id] !== false
+    );
+  }, [rawItems, knownFactions, settings.fogOfWar]);
 
   const { data: factions = [] } = useQuery<FactionSummary[]>({
     queryKey: ["factions"],
@@ -494,7 +547,7 @@ export default function EquipmentPage() {
 
       <div className="flex-1 overflow-auto px-6 py-4">
         {isLoading ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">Loading equipment…</p>
+          <p className="py-8 text-center text-sm text-muted-foreground"><PageLoaderPreset preset="equipment" /></p>
         ) : shown.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">No parts match.</p>
         ) : (

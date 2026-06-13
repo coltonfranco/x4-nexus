@@ -69,7 +69,7 @@ export function MapCanvas({
   showFactionLabels?: boolean;
 }) {
   const {
-    sectorCoords, hexSize, zoneScale, bgGrid, zoneScreenPos, overlappingPaths, zoneMap,
+    sectorCoords, hexSize, zoneScaleMap, bgGrid, zoneScreenPos, overlappingPaths, zoneMap,
     visibleSectors, visibleSectorIds, subSectorSet, factionMap, clusterMap, stationScreenPos,
   } = layout;
 
@@ -150,7 +150,7 @@ export function MapCanvas({
 
           <HexBuildGridLayer
             visibleSectors={visibleSectors} sectorCoords={sectorCoords} subSectorSet={subSectorSet}
-            hexSize={hexSize} zoneScale={zoneScale} transform={transform} viewport={viewport}
+            hexSize={hexSize} zoneScaleMap={zoneScaleMap} transform={transform} viewport={viewport}
           />
 
           {toggles.showStations && (
@@ -197,12 +197,17 @@ export function MapCanvas({
           left: tooltipPos[0] * transform.scale + transform.x + 12,
           top: tooltipPos[1] * transform.scale + transform.y + 12,
           pointerEvents: "none", zIndex: 22, maxWidth: 220,
-        }} className="rounded-md border border-border bg-popover/95 px-2 py-1.5 shadow-lg backdrop-blur text-xs">
+        }} className="rounded-md border border-border bg-popover/95 px-2.5 py-2 shadow-lg backdrop-blur text-xs">
           <p className="font-semibold leading-tight">{stationDisplayName(tooltipStation)}</p>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground mt-0.5">
             {(tooltipStation.owner_faction ? factionMap.get(tooltipStation.owner_faction)?.name : null)
               ?? tooltipStation.owner_faction ?? "Unknown"} · {stationCategoryLabel(tooltipStation.category)}
+            {tooltipStation.is_hq && <span className="text-amber-400"> · HQ</span>}
           </p>
+          {tooltipStation.is_under_construction && (
+            <p className="text-sky-400 mt-0.5">Under construction</p>
+          )}
+          {tooltipStation.code && <p className="text-muted-foreground/60 mt-0.5">{tooltipStation.code}</p>}
         </div>
       )}
 
@@ -216,6 +221,51 @@ export function MapCanvas({
           onClose={() => onSelectStation(null)}
         />
       )}
+
+      {/* Current Sector HUD (only visible when zoomed in) */}
+      {(() => {
+        if (transform.scale < 1.2 || viewport.w === 0) return null;
+        const centerMapX = (viewport.w / 2 - transform.x) / transform.scale;
+        const centerMapY = (viewport.h / 2 - transform.y) / transform.scale;
+        
+        let centerSectorId: string | null = null;
+        let minDist = Infinity;
+        for (const [sid, [cx, cy]] of sectorCoords.entries()) {
+          const dx = cx - centerMapX;
+          const dy = cy - centerMapY;
+          const distSq = dx * dx + dy * dy;
+          if (distSq < minDist && distSq < hexSize * hexSize * 1.5) { 
+            minDist = distSq;
+            centerSectorId = sid;
+          }
+        }
+
+        if (!centerSectorId) return null;
+        
+        const sector = data.sectors.find(s => s.sector_id === centerSectorId);
+        const faction = sector?.owner_faction ? factionMap.get(sector.owner_faction) : null;
+        
+        return (
+          <div style={{ position: "absolute", top: 12, left: 12, zIndex: 10, pointerEvents: "none" }}
+            className="flex flex-col gap-1 drop-shadow-md backdrop-blur-sm bg-background/30 px-3 py-2 rounded-lg border border-border/30">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Current Sector</span>
+            <div className="flex items-center gap-2">
+              {faction?.icon_url && toggles.showFactionLogos && (
+                <div style={{
+                  width: '18px', height: '18px', flexShrink: 0,
+                  backgroundColor: faction.color_hex ?? 'rgba(255,255,255,0.85)',
+                  WebkitMaskImage: `url(${faction.icon_url})`,
+                  WebkitMaskSize: 'contain', WebkitMaskRepeat: 'no-repeat', WebkitMaskPosition: 'center',
+                  filter: 'drop-shadow(0 0 2px rgba(0,0,0,0.8))'
+                }} />
+              )}
+              <span className="text-xl font-bold text-foreground/95 tracking-tight" style={{ textShadow: "0 2px 10px rgba(0,0,0,0.8)" }}>
+                {sectorName(centerSectorId)}
+              </span>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Navigation readout (prominent, on the map) — only once a route is plotted. */}
       {navFrom && navTo && (

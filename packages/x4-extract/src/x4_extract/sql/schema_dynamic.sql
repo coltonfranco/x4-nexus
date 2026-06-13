@@ -14,6 +14,12 @@ CREATE TABLE IF NOT EXISTS ingest_state (
     ingested_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS sector_state (
+    sector_id       TEXT PRIMARY KEY,
+    known_to_player INTEGER NOT NULL DEFAULT 0,
+    extra_json      TEXT
+);
+
 CREATE TABLE IF NOT EXISTS save_meta (
     save_path        TEXT PRIMARY KEY,
     save_name        TEXT,
@@ -40,6 +46,11 @@ CREATE TABLE IF NOT EXISTS stations (
     build_pct             REAL,
     is_player_owned       INTEGER NOT NULL DEFAULT 0,
     is_under_construction INTEGER NOT NULL DEFAULT 0,
+    seed_id               TEXT,
+    dynamic_tags          TEXT,
+    known_to_player       INTEGER NOT NULL DEFAULT 0,
+    basename              TEXT,
+    nameindex             INTEGER,
     extra_json            TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_stations_sector ON stations(sector_id);
@@ -109,7 +120,8 @@ CREATE TABLE IF NOT EXISTS sector_distance (
     from_sector_id TEXT NOT NULL,
     to_sector_id   TEXT NOT NULL,
     hops           INTEGER NOT NULL,
-    gate_distance  REAL,
+    manual_distance  REAL,
+    fast_travel_time REAL,
     PRIMARY KEY (from_sector_id, to_sector_id)
 );
 

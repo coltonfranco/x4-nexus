@@ -78,6 +78,11 @@ class StationRow:
     build_pct: float | None
     is_player_owned: int
     is_under_construction: int
+    seed_id: str | None
+    dynamic_tags: str | None
+    known_to_player: int
+    basename: str | None
+    nameindex: int | None
     extra_json: str | None
 
 
@@ -102,6 +107,10 @@ class StationsCollector:
     station_offsets: dict[str, tuple[float | None, float | None, float | None]] = field(
         default_factory=dict
     )
+    # station id -> seed_id from <source entry="...">
+    station_sources: dict[str, str] = field(default_factory=dict)
+    # station id -> list of module macros dynamically built on the station
+    station_modules: dict[str, list[str]] = field(default_factory=dict)
 
     def register(self) -> list[Registration]:
         return [
@@ -126,7 +135,38 @@ class StationsCollector:
                 target=Target(depth=_STATION_POS_DEPTH, tag="position", parent_tag="offset"),
                 visitor=self._on_station_offset,
             ),
+            Registration(
+                target=Target(depth=_STATION_DEPTH + 1, tag="source"),
+                visitor=self._on_station_source,
+            ),
+            Registration(
+                target=Target(depth=_STATION_DEPTH + 2, tag="component", parent_tag="connection"),
+                visitor=self._on_module,
+            ),
         ]
+
+    def _on_station_source(self, elem: etree._Element) -> None:
+        comp = elem.getparent()
+        if comp is None or comp.get("class") != "station":
+            return
+        sid = comp.get("id")
+        entry = elem.get("entry")
+        if sid and entry:
+            self.station_sources[sid] = entry
+
+    def _on_module(self, elem: etree._Element) -> None:
+        # Check if this component is under connection="modules"
+        parent_conn = elem.getparent()
+        if parent_conn is None or parent_conn.get("connection") != "modules":
+            return
+        # Go up to the station
+        station = parent_conn.getparent()
+        if station is None or station.get("class") != "station":
+            return
+        sid = station.get("id")
+        macro = elem.get("macro")
+        if sid and macro:
+            self.station_modules.setdefault(sid, []).append(macro)
 
     def _on_station_offset(self, elem: etree._Element) -> None:
         offset = elem.getparent()
@@ -155,14 +195,41 @@ class StationsCollector:
                 break  # sector is the deepest we need
 
         name = elem.get("name")
+        basename = elem.get("basename")
+        
+        # If there's no native name but there is a basename, use the basename as the 
+        # default name so the localizer will translate it (e.g. {20102,2011} -> Headquarters).
+        if not name and basename:
+            name = basename
+
         if name and self.localizer:
             name = self.localizer.resolve(name)
+            
+        known_to_player = 1 if elem.get("knownto") == "player" else 0
+        nameindex_str = elem.get("nameindex")
+        nameindex = int(nameindex_str) if nameindex_str and nameindex_str.isdigit() else None
 
         extra = {k: v for k, v in elem.attrib.items() if k not in _MAPPED_STATION_ATTRS}
         ox, oy, oz = self.station_offsets.get(elem.get("id") or "", (None, None, None))
+        sid = elem.get("id") or ""
+        seed_id = self.station_sources.get(sid)
+        
+        dynamic_tags: list[str] = []
+        if not seed_id:
+            # For dynamic stations, infer tags from built modules.
+            modules = self.station_modules.get(sid, [])
+            for mod in modules:
+                # X4 convention: buildmodule_ships_l_macro, buildmodule_gen_equip_l_macro etc.
+                if "equip" in mod and "buildmodule" in mod:
+                    if "equipmentdock" not in dynamic_tags:
+                        dynamic_tags.append("equipmentdock")
+                elif "buildmodule" in mod:
+                    if "shipyard" not in dynamic_tags:
+                        dynamic_tags.append("shipyard")
+
         self.station_rows.append(
             StationRow(
-                station_id=elem.get("id") or "",
+                station_id=sid,
                 code=elem.get("code"),
                 name=name,
                 macro=elem.get("macro"),
@@ -176,6 +243,11 @@ class StationsCollector:
                 build_pct=None,
                 is_player_owned=int(elem.get("owner") == "player"),
                 is_under_construction=0,
+                seed_id=seed_id,
+                dynamic_tags=json.dumps(dynamic_tags) if dynamic_tags else None,
+                known_to_player=known_to_player,
+                basename=basename,
+                nameindex=nameindex,
                 extra_json=json.dumps(extra, sort_keys=True) if extra else None,
             )
         )
@@ -240,11 +312,11 @@ class StationsCollector:
                 INSERT OR REPLACE INTO stations
                     (station_id, code, name, macro, owner_faction, sector_id, zone_id,
                      x, y, z, state, build_pct, is_player_owned, is_under_construction,
-                     extra_json)
+                     seed_id, dynamic_tags, known_to_player, basename, nameindex, extra_json)
                 VALUES
                     (:station_id, :code, :name, :macro, :owner_faction, :sector_id, :zone_id,
                      :x, :y, :z, :state, :build_pct, :is_player_owned, :is_under_construction,
-                     :extra_json)
+                     :seed_id, :dynamic_tags, :known_to_player, :basename, :nameindex, :extra_json)
                 """,
                 [dataclasses.asdict(r) for r in self.station_rows],
             )

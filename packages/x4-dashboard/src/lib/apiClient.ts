@@ -163,6 +163,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/factions/known": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Known Factions
+         * @description Return {faction_id: is_known} for every static faction.
+         */
+        get: operations["list_known_factions_api_v1_factions_known_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/factions/{faction_id}": {
         parameters: {
             query?: never;
@@ -328,6 +348,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/map/stations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Map Stations
+         * @description Stations positioned within their sector, for the zoomed-in map view.
+         *
+         *     Prefers live save stations; positions fall back live -> static zone centre, so
+         *     placement is correct at zone granularity even before per-station offsets are
+         *     parsed. With no save ingested, returns gamestart npc placements (which already
+         *     carry coordinates). `category` is derived from gamestart function tags.
+         */
+        get: operations["list_map_stations_api_v1_map_stations_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/map/resources": {
         parameters: {
             query?: never;
@@ -360,6 +405,29 @@ export interface paths {
          * @description List all resources available in a specific sector.
          */
         get: operations["get_sector_resources_api_v1_map_sectors__sector_id__resources_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/map/resources/live": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Live Resources
+         * @description Live, depleting mineable resources per sector, from the active save.
+         *
+         *     Returns [] until a save with resource data is ingested (the dashboard's mining
+         *     heatmap falls back to the static /map/resources in that case).
+         */
+        get: operations["list_live_resources_api_v1_map_resources_live_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1426,6 +1494,8 @@ export interface components {
             price_max: number | null;
             /** Icon Url */
             icon_url: string | null;
+            /** Restriction Licence */
+            restriction_licence: string | null;
             /** Has Production */
             has_production: boolean;
             engine_stats: components["schemas"]["EngineStats"] | null;
@@ -1587,6 +1657,19 @@ export interface components {
             /** Faction Id */
             faction_id: string;
         };
+        /** LiveResourceEntry */
+        LiveResourceEntry: {
+            /** Sector Id */
+            sector_id: string;
+            /** Ware */
+            ware: string;
+            /** Current */
+            current: number | null;
+            /** Max */
+            max: number | null;
+            /** Yield Tier */
+            yield_tier: string | null;
+        };
         /** LiveShip */
         LiveShip: {
             /** Ship Id */
@@ -1634,6 +1717,16 @@ export interface components {
             is_player_owned: boolean;
             /** Is Under Construction */
             is_under_construction: boolean;
+            /** Seed Id */
+            seed_id?: string | null;
+            /** Dynamic Tags */
+            dynamic_tags?: string | null;
+            /** Known To Player */
+            known_to_player: boolean;
+            /** Basename */
+            basename?: string | null;
+            /** Nameindex */
+            nameindex?: number | null;
         };
         /** LoadoutDetail */
         LoadoutDetail: {
@@ -1656,6 +1749,51 @@ export interface components {
             optional: boolean;
             /** Quantity */
             quantity: number | null;
+        };
+        /** MapStation */
+        MapStation: {
+            /** Station Id */
+            station_id: string;
+            /** Name */
+            name?: string | null;
+            /** Code */
+            code?: string | null;
+            /** Macro */
+            macro?: string | null;
+            /** Owner Faction */
+            owner_faction?: string | null;
+            /** Sector Id */
+            sector_id?: string | null;
+            /** Zone Id */
+            zone_id?: string | null;
+            /** X */
+            x?: number | null;
+            /** Y */
+            y?: number | null;
+            /** Z */
+            z?: number | null;
+            /** Category */
+            category?: string | null;
+            /**
+             * Is Player Owned
+             * @default false
+             */
+            is_player_owned: boolean;
+            /**
+             * Is Hq
+             * @default false
+             */
+            is_hq: boolean;
+            /**
+             * Is Under Construction
+             * @default false
+             */
+            is_under_construction: boolean;
+            /**
+             * Source
+             * @default seed
+             */
+            source: string;
         };
         /** ModuleDetail */
         ModuleDetail: {
@@ -1944,6 +2082,11 @@ export interface components {
             qz?: number | null;
             /** Qw */
             qw?: number | null;
+            /**
+             * Known To Player
+             * @default false
+             */
+            known_to_player: boolean;
         };
         /** ShieldStats */
         ShieldStats: {
@@ -1976,6 +2119,8 @@ export interface components {
             hull: number | null;
             /** Cargo Volume */
             cargo_volume: number | null;
+            /** Dps Max */
+            dps_max: number | null;
             /** Speed Min */
             speed_min: number | null;
             /** Speed Max */
@@ -1984,16 +2129,34 @@ export interface components {
             icon_url: string | null;
             /** Image Url */
             image_url: string | null;
+            /** Price Avg */
+            price_avg: number | null;
+            /**
+             * Is Owned
+             * @default false
+             */
+            is_owned: boolean;
+            /** Restriction Licence */
+            restriction_licence?: string | null;
+            /**
+             * Is Obtainable
+             * @default false
+             */
+            is_obtainable: boolean;
             /** Description */
             description: string | null;
             /** Basename */
             basename: string | null;
+            /** Variation */
+            variation: string | null;
             /** Secrecy Level */
             secrecy_level: number | null;
             /** Travel Min */
             travel_min: number | null;
             /** Travel Max */
             travel_max: number | null;
+            /** Travel Stability */
+            travel_stability: number | null;
             /** Boost Min */
             boost_min: number | null;
             /** Boost Max */
@@ -2010,6 +2173,30 @@ export interface components {
             roll_min: number | null;
             /** Roll Max */
             roll_max: number | null;
+            /** Accel Forward */
+            accel_forward: number | null;
+            /** Decel Forward */
+            decel_forward: number | null;
+            /** Accel Boost */
+            accel_boost: number | null;
+            /** Accel Travel */
+            accel_travel: number | null;
+            /** Accel Strafe */
+            accel_strafe: number | null;
+            /** Accel Angular */
+            accel_angular: number | null;
+            /** Accel Factor Reverse */
+            accel_factor_reverse: number | null;
+            /** Accel Factor Horizontal */
+            accel_factor_horizontal: number | null;
+            /** Accel Factor Vertical */
+            accel_factor_vertical: number | null;
+            /** Modifier Weapon Heat */
+            modifier_weapon_heat: number | null;
+            /** Explosion Damage */
+            explosion_damage: number | null;
+            /** Explosion Shield Damage */
+            explosion_shield_damage: number | null;
             /** Shield Capacity Min */
             shield_capacity_min: number | null;
             /** Shield Capacity Max */
@@ -2056,6 +2243,24 @@ export interface components {
             countermeasure_storage: number | null;
             /** Deployable Storage */
             deployable_storage: number | null;
+            /** Dock S */
+            dock_s: number;
+            /** Dock M */
+            dock_m: number;
+            /** Dock L */
+            dock_l: number;
+            /** Dock Xl */
+            dock_xl: number;
+            /** Storage S */
+            storage_s: number;
+            /** Storage M */
+            storage_m: number;
+            /** Storage L */
+            storage_l: number;
+            /** Storage Xl */
+            storage_xl: number;
+            /** Launch Tubes */
+            launch_tubes: number;
             /** Weapons S */
             weapons_s: number;
             /** Weapons M */
@@ -2122,6 +2327,8 @@ export interface components {
             hull: number | null;
             /** Cargo Volume */
             cargo_volume: number | null;
+            /** Dps Max */
+            dps_max: number | null;
             /** Speed Min */
             speed_min: number | null;
             /** Speed Max */
@@ -2130,6 +2337,20 @@ export interface components {
             icon_url: string | null;
             /** Image Url */
             image_url: string | null;
+            /** Price Avg */
+            price_avg: number | null;
+            /**
+             * Is Owned
+             * @default false
+             */
+            is_owned: boolean;
+            /** Restriction Licence */
+            restriction_licence?: string | null;
+            /**
+             * Is Obtainable
+             * @default false
+             */
+            is_obtainable: boolean;
         };
         /** StationOffer */
         StationOffer: {
@@ -2657,6 +2878,28 @@ export interface operations {
             };
         };
     };
+    list_known_factions_api_v1_factions_known_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: boolean;
+                    };
+                };
+            };
+        };
+    };
     get_faction_api_v1_factions__faction_id__get: {
         parameters: {
             query?: never;
@@ -2944,6 +3187,40 @@ export interface operations {
             };
         };
     };
+    list_map_stations_api_v1_map_stations_get: {
+        parameters: {
+            query?: {
+                /** @description Filter by sector macro id */
+                sector_id?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MapStation"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_resources_api_v1_map_resources_get: {
         parameters: {
             query?: {
@@ -2998,6 +3275,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ResourceEntry"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_live_resources_api_v1_map_resources_live_get: {
+        parameters: {
+            query?: {
+                /** @description Filter by ware (ore, silicon, ...) */
+                ware?: string | null;
+                /** @description Filter by sector macro id */
+                sector_id?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LiveResourceEntry"][];
                 };
             };
             /** @description Validation Error */
@@ -3207,6 +3520,7 @@ export interface operations {
             query?: {
                 class_id?: string | null;
                 faction_id?: string | null;
+                is_obtainable?: boolean | null;
                 limit?: number;
                 offset?: number;
             };

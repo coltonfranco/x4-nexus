@@ -139,12 +139,18 @@ def _parse_equipment_macro(macro_name: str, file_path: str, macro_el: etree._Ele
             "capacity": _float(recharge_el, "max"),
             "recharge_rate": _float(recharge_el, "rate"),
             "recharge_delay": _float(recharge_el, "delay"),
+            "disruption_stability": _float(recharge_el, "disruptionstability"),
         })
 
-    elif class_id in ["weapon", "turret", "missilelauncher", "bomblauncher", "spacesuitlaser"]:
+    elif class_id in ["weapon", "turret", "missilelauncher", "bomblauncher", "missileturret", "spacesuitlaser"]:
         bullet_el = macro_el.find("properties/bullet")
         heat_el = macro_el.find("properties/heat")
         rot_el = macro_el.find("properties/rotationspeed")
+        rotaccel_el = macro_el.find("properties/rotationacceleration")
+        reload_el = macro_el.find("properties/reload")
+        hull_el = macro_el.find("properties/hull")
+        ammo_el = macro_el.find("properties/ammunition")
+        storage_el = macro_el.find("properties/storage")
 
         default_bullet_id = bullet_el.get("class") if bullet_el is not None else None
 
@@ -164,6 +170,12 @@ def _parse_equipment_macro(macro_name: str, file_path: str, macro_el: etree._Ele
             "heat_cooldelay": _float(heat_el, "cooldelay"),
             "heat_reenable": _float(heat_el, "reenable"),
             "rotation_speed": _float(rot_el, "max"),
+            "rotation_accel": _float(rotaccel_el, "max"),
+            "reload_rate": _float(reload_el, "rate"),
+            "reload_time": _float(reload_el, "time"),
+            "hull_max": _int(hull_el, "max"),
+            "ammo_capacity": _int(ammo_el, "value"),
+            "missile_storage": _int(storage_el, "missile"),
         })
 
     elif class_id in ["bullet", "missile", "bomb", "spacesuitbomb"]:
@@ -171,11 +183,10 @@ def _parse_equipment_macro(macro_name: str, file_path: str, macro_el: etree._Ele
         reload_el = macro_el.find("properties/reload")
         damage_el = macro_el.find("properties/damage")
         heat_el = macro_el.find("properties/heat")
-
-        speed = _float(bullet_el, "speed") if bullet_el is not None else None
-        lifetime = _float(bullet_el, "lifetime") if bullet_el is not None else None
-        amount = _int(bullet_el, "amount") if bullet_el is not None else 1
-        barrelamount = _int(bullet_el, "barrelamount") if bullet_el is not None else 1
+        explosion_el = macro_el.find("properties/explosiondamage")
+        ammo_el = macro_el.find("properties/ammunition")
+        missile_el = macro_el.find("properties/missile")
+        area_el = macro_el.find("properties/areadamage")
 
         out.bullets.append({
             "bullet_id": macro_name,
@@ -183,15 +194,28 @@ def _parse_equipment_macro(macro_name: str, file_path: str, macro_el: etree._Ele
             "file_path": file_path,
             "is_legacy": "legacy" in file_path.lower(),
             "dlc": dlc_from_path(file_path),
-            "speed": speed,
-            "lifetime": lifetime,
-            "amount": amount,
-            "barrelamount": barrelamount,
-            "reload_rate": _float(reload_el, "rate") if reload_el is not None else None,
-            "damage": _float(damage_el, "value") if damage_el is not None else None,
-            "shield_damage": _float(damage_el, "shield") if damage_el is not None else None,
-            "hull_damage": _float(damage_el, "hull") if damage_el is not None else None,
-            "heat_value": _float(heat_el, "value") if heat_el is not None else None,
+            "speed": _float(bullet_el, "speed"),
+            "lifetime": _float(bullet_el, "lifetime"),
+            "amount": _int(bullet_el, "amount") or 1,
+            "barrelamount": _int(bullet_el, "barrelamount") or 1,
+            "angle": _float(bullet_el, "angle"),
+            "maxhits": _int(bullet_el, "maxhits"),
+            "range_direct": _float(bullet_el, "range"),
+            "reload_rate": _float(reload_el, "rate"),
+            "reload_time": _float(reload_el, "time"),
+            "damage": _float(damage_el, "value"),
+            "shield_damage": _float(damage_el, "shield"),
+            "hull_damage": _float(damage_el, "hull"),
+            "shield_disruption": _float(damage_el, "shielddisruption"),
+            "heat_value": _float(heat_el, "value"),
+            "explosion_hull": _float(explosion_el, "hull"),
+            "explosion_shield": _float(explosion_el, "shield"),
+            "ammo_value": _int(ammo_el, "value"),
+            "ammo_reload": _float(ammo_el, "reload"),
+            "missile_lifetime": _float(missile_el, "lifetime"),
+            "missile_range": _float(missile_el, "range"),
+            "area_damage": _float(area_el, "value"),
+            "area_lifetime": _float(area_el, "lifetime"),
         })
 
     elif class_id in ["satellite", "navbeacon", "resourceprobe", "mine", "countermeasure"]:
@@ -252,19 +276,31 @@ def write(conn: sqlite3.Connection, result: ExtractResult) -> None:
 
     # Shields
     conn.executemany(
-        "INSERT INTO equip_shields (shield_id, name, file_path, is_legacy, dlc, size, faction_id, mk, capacity, recharge_rate, recharge_delay) "
-        "VALUES (:shield_id, :name, :file_path, :is_legacy, :dlc, :size, :faction_id, :mk, :capacity, :recharge_rate, :recharge_delay)",
+        "INSERT INTO equip_shields (shield_id, name, file_path, is_legacy, dlc, size, faction_id, mk, capacity, recharge_rate, recharge_delay, disruption_stability) "
+        "VALUES (:shield_id, :name, :file_path, :is_legacy, :dlc, :size, :faction_id, :mk, :capacity, :recharge_rate, :recharge_delay, :disruption_stability)",
         result.shields,
     )
 
     # Bullets
     conn.executemany(
         "INSERT INTO equip_bullets ("
-        "  bullet_id, name, file_path, is_legacy, dlc, speed, lifetime, amount, barrelamount,"
-        "  reload_rate, damage, shield_damage, hull_damage, heat_value"
+        "  bullet_id, name, file_path, is_legacy, dlc,"
+        "  speed, lifetime, amount, barrelamount, angle, maxhits, range_direct,"
+        "  reload_rate, reload_time,"
+        "  damage, shield_damage, hull_damage, shield_disruption,"
+        "  heat_value, explosion_hull, explosion_shield,"
+        "  ammo_value, ammo_reload,"
+        "  missile_lifetime, missile_range,"
+        "  area_damage, area_lifetime"
         ") VALUES ("
-        "  :bullet_id, :name, :file_path, :is_legacy, :dlc, :speed, :lifetime, :amount, :barrelamount,"
-        "  :reload_rate, :damage, :shield_damage, :hull_damage, :heat_value"
+        "  :bullet_id, :name, :file_path, :is_legacy, :dlc,"
+        "  :speed, :lifetime, :amount, :barrelamount, :angle, :maxhits, :range_direct,"
+        "  :reload_rate, :reload_time,"
+        "  :damage, :shield_damage, :hull_damage, :shield_disruption,"
+        "  :heat_value, :explosion_hull, :explosion_shield,"
+        "  :ammo_value, :ammo_reload,"
+        "  :missile_lifetime, :missile_range,"
+        "  :area_damage, :area_lifetime"
         ")",
         result.bullets,
     )
@@ -273,10 +309,14 @@ def write(conn: sqlite3.Connection, result: ExtractResult) -> None:
     conn.executemany(
         "INSERT INTO equip_weapons ("
         "  weapon_id, name, file_path, is_legacy, dlc, class_id, size, faction_id, mk,"
-        "  default_bullet_id, heat_overheat, heat_coolrate, heat_cooldelay, heat_reenable, rotation_speed"
+        "  default_bullet_id, heat_overheat, heat_coolrate, heat_cooldelay, heat_reenable,"
+        "  rotation_speed, rotation_accel, reload_rate, reload_time, hull_max,"
+        "  ammo_capacity, missile_storage"
         ") VALUES ("
         "  :weapon_id, :name, :file_path, :is_legacy, :dlc, :class_id, :size, :faction_id, :mk,"
-        "  :default_bullet_id, :heat_overheat, :heat_coolrate, :heat_cooldelay, :heat_reenable, :rotation_speed"
+        "  :default_bullet_id, :heat_overheat, :heat_coolrate, :heat_cooldelay, :heat_reenable,"
+        "  :rotation_speed, :rotation_accel, :reload_rate, :reload_time, :hull_max,"
+        "  :ammo_capacity, :missile_storage"
         ")",
         result.weapons,
     )

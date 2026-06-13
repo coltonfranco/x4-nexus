@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Crosshair, Gauge, Shield, Aperture, MoveVertical, Cpu, ShoppingCart, Trash2, X, Wrench, Search, ChevronDown, Check, Minus, Info } from "lucide-react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
+import { useSettings } from "../../lib/settingsStore";
+import { PageLoaderPreset } from "../../components/PageLoader";
 import { Currency } from "../../components/Currency";
 import { EntityIcon } from "../../components/EntityIcon";
 import { FactionBadge } from "../../components/FactionBadge";
@@ -11,7 +13,7 @@ import { cn } from "../../lib/utils";
 import { Card, CardContent } from "../../components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
-import { ShipClassBadge, ShipRoleBadge, EquipmentMkBadge } from "../../components/ShipBadges";
+import { ShipClassBadge, ShipTypeBadge, EquipmentMkBadge } from "../../components/ShipBadges";
 import { FactionCombobox } from "../../components/FactionCombobox";
 import { ShipImage } from "../../components/ShipImage";
 
@@ -32,6 +34,7 @@ type WeaponStats = {
 
 type ShipSummary = { ship_id: string; name: string; class_id: string; faction_id: string | null; role: string | null; icon_url: string | null; image_url: string | null; price_avg: number | null; };
 type ShipDetail = ShipSummary & {
+  ship_type: string | null;
   speed_max: number | null; travel_max: number | null; boost_max: number | null;
   pitch_max: number | null; yaw_max: number | null; roll_max: number | null;
   shield_capacity_max: number | null; shield_recharge_max: number | null; radar_range: number | null;
@@ -48,6 +51,7 @@ type EquipmentItem = {
   ware_id: string; name: string; kind: string; size: string | null; mk: number | null;
   faction_id: string | null; price_min: number | null; price_avg: number | null; price_max: number | null;
   icon_url: string | null;
+  restriction_licence: string | null;
   engine_stats: EngineStats | null; shield_stats: ShieldStats | null; weapon_stats: WeaponStats | null;
 };
 
@@ -61,7 +65,8 @@ const CATEGORIES = [
   { id: "shield",   label: "Shields",   kind: "shield",   slotKey: "shields", icon: Shield },
   { id: "weapon",   label: "Weapons",   kind: "weapon",   slotKey: "weapons", icon: Crosshair },
   { id: "turret",   label: "Turrets",   kind: "turret",   slotKey: "turrets", icon: Aperture },
-  { id: "software", label: "Software",  kind: "software", slotKey: "software", icon: Cpu },
+  { id: "software",   label: "Software",    kind: "software",       slotKey: "software",       icon: Cpu },
+  { id: "consumable", label: "Consumables", kind: "consumable",    slotKey: "consumable",    icon: ShoppingCart },
 ] as const;
 
 // ── Slot helpers ───────────────────────────────────────────────────────────────
@@ -82,6 +87,18 @@ function generateSlots(ship: ShipDetail): SlotDef[] {
       for (let i = 0; i < softwareTypes.length; i++) {
         slots.push({ key: `software-${softwareTypes[i]}-0`, kind: "software", size: softwareTypes[i], index: i });
       }
+      continue;
+    }
+    if (cat.kind === "consumable") {
+      // Consumables have storage counts, not slot counts
+      if ((ship.missile_storage ?? 0) > 0)
+        slots.push({ key: "consumable-missile-0", kind: "missile", size: "missile", index: 0 });
+      if ((ship.countermeasure_storage ?? 0) > 0)
+        slots.push({ key: "consumable-countermeasure-0", kind: "countermeasure", size: "countermeasure", index: 0 });
+      if ((ship.deployable_storage ?? 0) > 0)
+        slots.push({ key: "consumable-deployable-0", kind: "deployable", size: "deployable", index: 0 });
+      if ((ship.drone_storage ?? 0) > 0)
+        slots.push({ key: "consumable-drone-0", kind: "drone", size: "drone", index: 0 });
       continue;
     }
 
@@ -119,17 +136,17 @@ const DPS_MAX: Record<string, number> = { xs: 200, s: 400, m: 1200, l: 3000, xl:
 const RANGE_MAX: Record<string, number> = { xs: 5, s: 10, m: 15, l: 20, xl: 20 };
 const ROTATION_MAX: Record<string, number> = { xs: 250, s: 200, m: 250, l: 100, xl: 50 };
 
-const SHIP_HULL_MAX: Record<string, number> = { xs: 2000, s: 6700, m: 39000, l: 211000, xl: 1190000 };
-const SHIP_SHIELD_MAX: Record<string, number> = { xs: 2000, s: 6300, m: 27597, l: 411000, xl: 998000 };
-const SHIP_REGEN_MAX: Record<string, number> = { xs: 500, s: 970, m: 231, l: 3000, xl: 6300 };
-const SHIP_SPEED_MAX: Record<string, number> = { xs: 4000, s: 1200, m: 1200, l: 500, xl: 1000 };
-const SHIP_TRAVEL_MAX: Record<string, number> = { xs: 50000, s: 15000, m: 15000, l: 12000, xl: 20000 };
-const SHIP_BOOST_MAX: Record<string, number> = { xs: 25000, s: 7000, m: 9000, l: 2500, xl: 2500 };
-const SHIP_ACCEL_MAX: Record<string, number> = { xs: 500, s: 200, m: 150, l: 50, xl: 50 };
-const SHIP_CARGO_MAX: Record<string, number> = { xs: 10, s: 20000, m: 50000, l: 100000, xl: 200000 };
-const SHIP_CREW_MAX: Record<string, number> = { xs: 2, s: 7, m: 25, l: 225, xl: 405 };
-const SHIP_MISSILE_MAX: Record<string, number> = { xs: 20, s: 50, m: 100, l: 310, xl: 500 };
-const SHIP_DPS_MAX: Record<string, number> = { xs: 1000, s: 1824, m: 9000, l: 33567, xl: 110254 };
+export const SHIP_HULL_MAX: Record<string, number> = { xs: 2000, s: 6700, m: 39000, l: 211000, xl: 1190000 };
+export const SHIP_SHIELD_MAX: Record<string, number> = { xs: 2000, s: 6300, m: 27597, l: 411000, xl: 998000 };
+export const SHIP_REGEN_MAX: Record<string, number> = { xs: 500, s: 970, m: 231, l: 3000, xl: 6300 };
+export const SHIP_SPEED_MAX: Record<string, number> = { xs: 4000, s: 1200, m: 1200, l: 500, xl: 1000 };
+export const SHIP_TRAVEL_MAX: Record<string, number> = { xs: 50000, s: 15000, m: 15000, l: 12000, xl: 20000 };
+export const SHIP_BOOST_MAX: Record<string, number> = { xs: 25000, s: 7000, m: 9000, l: 2500, xl: 2500 };
+export const SHIP_ACCEL_MAX: Record<string, number> = { xs: 500, s: 200, m: 150, l: 50, xl: 50 };
+export const SHIP_CARGO_MAX: Record<string, number> = { xs: 10, s: 20000, m: 50000, l: 100000, xl: 200000 };
+export const SHIP_CREW_MAX: Record<string, number> = { xs: 2, s: 7, m: 25, l: 225, xl: 405 };
+export const SHIP_MISSILE_MAX: Record<string, number> = { xs: 20, s: 50, m: 100, l: 310, xl: 500 };
+export const SHIP_DPS_MAX: Record<string, number> = { xs: 1000, s: 1824, m: 9000, l: 33567, xl: 110254 };
 
 type SortOption = { id: string; label: string; eval: (e: EquipmentItem) => number | string; desc?: boolean; };
 
@@ -174,17 +191,18 @@ function getEquipmentStats(item: EquipmentItem): { bars: StatDisplay[], texts: s
 
   if (item.kind === "engine" && item.engine_stats) {
     const e = item.engine_stats;
-    if (e.thrust_forward) bars.push({ label: "Thrust", value: e.thrust_forward, max: THRUST_MAX[size] || 6000, isLog: false, format: fmtStat });
+    if (e.thrust_forward) bars.push({ label: "Thrust", value: e.thrust_forward, max: THRUST_MAX[size] || 6000, isLog: false, format: n => fmtStat(n) + " N" });
     if (e.travel_thrust) bars.push({ label: "Travel", value: e.travel_thrust, max: TRAVEL_MAX[size] || 25, isLog: false, format: n => `${n.toFixed(1)}×`, color: "#3b82f6" });
     if (e.boost_thrust) bars.push({ label: "Boost", value: e.boost_thrust, max: BOOST_MAX[size] || 10, isLog: false, format: n => `${n.toFixed(1)}×`, color: "#f97316" });
   }
   else if (item.kind === "thruster" && item.engine_stats) {
     const e = item.engine_stats;
-    if (e.thrust_strafe) bars.push({ label: "Strafe", value: e.thrust_strafe, max: STRAFE_MAX[size] || 1000, isLog: false, format: fmtStat, color: "#14b8a6" });
+    if (e.thrust_strafe) bars.push({ label: "Strafe", value: e.thrust_strafe, max: STRAFE_MAX[size] || 1000, isLog: false, format: n => fmtStat(n) + " N", color: "#14b8a6" });
+    if (e.thrust_forward) bars.push({ label: "Forward", value: e.thrust_forward, max: THRUST_MAX[size] || 1000, isLog: false, format: n => fmtStat(n) + " N" });
   }
   else if (item.kind === "shield" && item.shield_stats) {
     const s = item.shield_stats;
-    if (s.capacity) bars.push({ label: "Capacity", value: s.capacity, max: SHIELD_MAX[size] || 20000, isLog: false, format: fmtStat });
+    if (s.capacity) bars.push({ label: "Capacity", value: s.capacity, max: SHIELD_MAX[size] || 20000, isLog: false, format: n => fmtStat(n) + " MJ" });
     if (s.recharge_rate) bars.push({ label: "Recharge", value: s.recharge_rate, max: RECHARGE_MAX[size] || 1000, isLog: false, format: n => `${fmtStat(n)}/s`, color: "#06b6d4" });
     if (s.recharge_delay) texts.push(`${s.recharge_delay.toFixed(1)}s delay`);
   }
@@ -194,11 +212,16 @@ function getEquipmentStats(item: EquipmentItem): { bars: StatDisplay[], texts: s
     if (d) bars.push({ label: "DPS", value: d, max: DPS_MAX[size] || 2000, isLog: false, format: fmtStat });
     
     const rawRange = w.bullet_speed && w.bullet_lifetime ? (w.bullet_speed * w.bullet_lifetime) / 1000 : 0;
-    const rnge = Math.min(rawRange, 30);
-    if (rnge > 0) {
-      bars.push({ label: "Range", value: rnge, max: RANGE_MAX[size] || 20, isLog: false, format: n => `${n >= 1000 ? (n/1000).toFixed(1) + 'k' : n.toFixed(1)}km`, color: "#a855f7" });
+    if (rawRange > 0) {
+      bars.push({ label: "Range", value: Math.min(rawRange, RANGE_MAX[size] || 20), max: RANGE_MAX[size] || 20, isLog: false, format: n => `${n.toFixed(1)}km`, color: "#a855f7" });
     }
-    if (w.rotation_speed) bars.push({ label: "Turn", value: w.rotation_speed, max: ROTATION_MAX[size] || 200, isLog: false, format: n => `${n.toFixed(0)}°/s`, color: "#10b981" });
+    if (w.rotation_speed) bars.push({ label: "Rotation", value: w.rotation_speed, max: ROTATION_MAX[size] || 200, isLog: false, format: n => `${n.toFixed(0)}°/s`, color: "#10b981" });
+  }
+  else if (item.kind === "missile" && item.weapon_stats) {
+    const w = item.weapon_stats;
+    if (w.damage) texts.push(`${fmtStat(w.damage)} dmg`);
+    if (w.reload_rate) texts.push(`${w.reload_rate.toFixed(1)}/s reload`);
+    if (w.bullet_speed) texts.push(`${fmtStat(w.bullet_speed)} m/s`);
   }
   return { bars, texts };
 }
@@ -305,7 +328,7 @@ function ShipSelector({
                     s.ship_id === selectedId && "bg-primary/10 text-primary")}>
                   <EntityIcon src={s.icon_url} alt={s.name} size={20} />
                   <span className="flex-1 truncate">{s.name}</span>
-                  <ShipRoleBadge role={s.role} className="text-[8px] px-1 py-0 shrink-0" />
+                  <ShipTypeBadge role={s.role} className="text-[8px] px-1 py-0 shrink-0" />
                   <ShipClassBadge class_id={s.class_id} className="text-[8px] px-1 py-0 shrink-0" />
                 </button>
               ))
@@ -443,20 +466,35 @@ const getWeaponType = (name: string) => {
     .trim() || "Other";
 };
 
+const LICENCE_NAMES: Record<string, string> = {
+  militaryequipment: "Military Equipment",
+  capitalequipment: "Capital Ship",
+  stationequipment: "Station Equipment",
+  police: "Police",
+  illegal: "Illegal",
+};
+const formatLicence = (l: string | null) => l ? (LICENCE_NAMES[l] || l.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())) : "";
+
 // ── Equipment card ─────────────────────────────────────────────────────────────
 
 function EquipmentCard({
-  item, slots, cart, onAdd, onRemove, factionMap, shortToFullFaction
+  item, slots, cart, onAdd, onRemove, factionMap, shortToFullFaction, playerLicenceSet
 }: {
   item: EquipmentItem; slots: SlotDef[]; cart: Record<string, EquipmentItem | null>;
   onAdd: (k: string, i: EquipmentItem) => void; onRemove: (k: string) => void;
   factionMap: Map<string, any>;
   shortToFullFaction: Map<string, string>;
+  playerLicenceSet: Set<string>;
 }) {
   const equippedSlots = slots.filter(s => cart[s.key]?.ware_id === item.ware_id);
   const isEquipped = equippedSlots.length > 0;
   const emptySlots = slots.filter(s => s.kind === item.kind && s.size === item.size && cart[s.key] === null);
-  const canAdd = emptySlots.length > 0;
+  
+  const resolvedFactionId = item.faction_id ? (shortToFullFaction.get(item.faction_id) ?? item.faction_id) : null;
+  const isGeneral = item.restriction_licence === 'generaluseequipment' || item.restriction_licence === 'generaluseship';
+  const isObtainable = !item.restriction_licence || isGeneral || (resolvedFactionId && playerLicenceSet.has(`${resolvedFactionId}:${item.restriction_licence}`));
+  
+  const canAdd = emptySlots.length > 0 && isObtainable;
   const { bars, texts } = getEquipmentStats(item);
 
   return (
@@ -480,7 +518,13 @@ function EquipmentCard({
           }
         }
       }}
-      title={canAdd ? "Click to equip (Shift+Click to fill all)" : "No compatible slots remaining"}
+      title={
+        !isObtainable 
+          ? `Requires ${formatLicence(item.restriction_licence)} Licence` 
+          : canAdd 
+            ? "Click to equip (Shift+Click to fill all)" 
+            : "No compatible slots remaining"
+      }
     >
       {isEquipped && (
         <div className="absolute top-1.5 right-1.5 flex items-stretch rounded-md bg-emerald-500 text-white shadow-sm z-10 overflow-hidden">
@@ -516,10 +560,15 @@ function EquipmentCard({
                 <FactionBadge 
                   name={itemFaction.name} 
                   color_hex={itemFaction.color_hex} 
-                  className="text-[9px] px-1.5 py-0 h-4 min-h-0 font-normal border-opacity-50" 
+                  className={cn("text-[9px] px-1.5 py-0 h-4 min-h-0 font-normal border-opacity-50", !isObtainable && "opacity-50")} 
                 />
               );
             })()
+          )}
+          {!isObtainable && item.restriction_licence && (
+            <span className="text-[8px] bg-destructive/10 text-destructive px-1 py-0 rounded border border-destructive/20 font-bold uppercase" title={`Requires ${formatLicence(item.restriction_licence)} Licence`}>
+              Missing Required Licence
+            </span>
           )}
         </div>
       </div>
@@ -704,6 +753,7 @@ function StatsFooter({ ship, cart, slots }: {
 export default function BuilderPage() {
   const { ship_id } = useSearch({ from: "/ships/builder" });
   const navigate = useNavigate();
+  const { settings } = useSettings();
   const [selectedShipId, setSelectedShipId] = useState<string | undefined>(ship_id);
   const [activeCategory, setActiveCategory] = useState<string>("engine");
   const [cart, setCart] = useState<Record<string, EquipmentItem | null>>({});
@@ -711,10 +761,34 @@ export default function BuilderPage() {
   const [mkFilter, setMkFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [sortFilter, setSortFilter] = useState<string>("");
+  const [obtainableOnly, setObtainableOnly] = useState<boolean>(false);
 
-  const { data: ships = [] } = useQuery<ShipSummary[]>({
+  const { data: knownFactions = {} } = useQuery<Record<string, boolean>>({
+    queryKey: ["factions-known"],
+    queryFn: () => fetch("/api/v1/factions/known").then((r) => r.json()),
+    staleTime: 60_000,
+  });
+
+  const { data: playerLicences = [] } = useQuery<{ faction_id: string; licence_type: string }[]>({
+    queryKey: ["player-licences"],
+    queryFn: () => fetch("/api/v1/player/licences").then(r => r.json()),
+  });
+
+  const playerLicenceSet = useMemo(() => {
+    const set = new Set<string>();
+    for (const l of playerLicences) set.add(`${l.faction_id}:${l.licence_type}`);
+    return set;
+  }, [playerLicences]);
+
+  const { data: allShips = [] } = useQuery<ShipSummary[]>({
     queryKey: ["ships"], queryFn: () => fetch("/api/v1/ships?limit=2000").then(r => r.json()),
   });
+
+  // Filter ships by known factions when fog of war is on
+  const ships = useMemo(() => {
+    if (!settings.fogOfWar) return allShips;
+    return allShips.filter(s => s.faction_id == null || knownFactions[s.faction_id] !== false);
+  }, [allShips, knownFactions, settings.fogOfWar]);
   const { data: shipDetail, isLoading: isShipLoading } = useQuery<ShipDetail>({
     queryKey: ["ship", selectedShipId],
     queryFn: () => fetch(`/api/v1/ships/${selectedShipId}`).then(r => r.json()),
@@ -801,7 +875,20 @@ export default function BuilderPage() {
   const compatibleEquipment = useMemo(() => {
     if (!shipDetail) return [];
     const sizes = new Set(slots.filter(s => s.kind === category.kind).map(s => s.size));
-    let items = equipment.filter(e => e.kind === category.kind && e.size != null && sizes.has(e.size));
+    let items: EquipmentItem[];
+    if (category.kind === "consumable") {
+      // Consumables span multiple equipment kinds
+      const kinds = new Set(slots.filter(s => sizes.has(s.kind)).map(s => s.kind));
+      items = equipment.filter(e => kinds.has(e.kind));
+    } else if (category.kind === "software") {
+      items = equipment.filter(e => e.kind === "software");
+    } else {
+      items = equipment.filter(e => e.kind === category.kind && e.size != null && sizes.has(e.size));
+    }
+    // Fog of war: hide equipment from unknown factions
+    if (settings.fogOfWar) {
+      items = items.filter(e => e.faction_id == null || knownFactions[e.faction_id] !== false);
+    }
     if (factionFilter !== "all") {
       items = items.filter(e => (e.faction_id ? (shortToFullFaction.get(e.faction_id) ?? e.faction_id) : null) === factionFilter);
     }
@@ -810,6 +897,14 @@ export default function BuilderPage() {
     }
     if (typeFilter !== "all" && ["weapon", "turret"].includes(category.kind)) {
       items = items.filter(e => getWeaponType(e.name) === typeFilter);
+    }
+    
+    if (obtainableOnly) {
+      items = items.filter(e => {
+        const resolvedFactionId = e.faction_id ? (shortToFullFaction.get(e.faction_id) ?? e.faction_id) : null;
+        const isGen = e.restriction_licence === 'generaluseequipment' || e.restriction_licence === 'generaluseship';
+        return !e.restriction_licence || isGen || (resolvedFactionId && playerLicenceSet.has(`${resolvedFactionId}:${e.restriction_licence}`));
+      });
     }
     
     const validSorts = [...(CATEGORY_SORTS[category.kind] || []), ...BASE_SORTS];
@@ -828,7 +923,7 @@ export default function BuilderPage() {
     });
 
     return items;
-  }, [equipment, category, shipDetail, slots, factionFilter, mkFilter, typeFilter, sortFilter, shortToFullFaction]);
+  }, [equipment, category, shipDetail, slots, factionFilter, mkFilter, typeFilter, sortFilter, shortToFullFaction, settings.fogOfWar, knownFactions]);
 
   const totalCost = useMemo(() => {
     let t = shipDetail?.price_avg ?? 0;
@@ -849,6 +944,7 @@ export default function BuilderPage() {
     setMkFilter("all"); 
     setTypeFilter("all");
     setSortFilter(""); 
+    setObtainableOnly(false);
   };
 
   const shipFaction = shipDetail?.faction_id ? factionMap.get(shipDetail.faction_id) : undefined;
@@ -863,34 +959,7 @@ export default function BuilderPage() {
       </div>
 
       {isShipLoading ? (
-        <div className="flex-1 flex flex-col min-h-0 animate-pulse">
-          <div className="flex-1 min-h-0 flex">
-            <div className="flex-1 flex flex-col min-w-0 bg-muted/5">
-              <div className="px-4 py-3 border-b border-border bg-card h-14 shrink-0" />
-              <div className="flex-1 p-4 grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}>
-                {Array.from({ length: 12 }).map((_, i) => (
-                  <div key={i} className="h-[140px] bg-muted/20 rounded-xl border border-border/50" />
-                ))}
-              </div>
-            </div>
-            <div className="w-[280px] shrink-0 border-l border-border flex flex-col bg-card">
-              <div className="p-3 border-b border-border bg-muted/5 shrink-0">
-                <div className="aspect-[4/3] rounded-lg bg-muted/20" />
-                <div className="h-4 w-32 bg-muted/20 rounded mx-auto mt-4" />
-                <div className="h-3 w-20 bg-muted/20 rounded mx-auto mt-2" />
-              </div>
-              <div className="p-3 border-b border-border shrink-0">
-                <div className="h-4 w-40 bg-muted/20 rounded" />
-              </div>
-              <div className="flex-1 p-3 space-y-3">
-                <div className="h-8 bg-muted/20 rounded-md w-24" />
-                <div className="h-16 bg-muted/20 rounded-md" />
-                <div className="h-16 bg-muted/20 rounded-md" />
-              </div>
-            </div>
-          </div>
-          <div className="h-[120px] border-t border-border bg-card shrink-0" />
-        </div>
+        <PageLoaderPreset preset="builder" />
       ) : shipDetail ? (
         <div className="flex-1 flex flex-col min-h-0">
           {/* Main row: cards | cart */}
@@ -924,14 +993,25 @@ export default function BuilderPage() {
                 </Tabs>
                 
                 <div className="flex items-center gap-3">
-                  {(factionFilter !== "all" || mkFilter !== "all" || typeFilter !== "all" || sortFilter !== "") && (
+                  {(factionFilter !== "all" || mkFilter !== "all" || typeFilter !== "all" || sortFilter !== "" || obtainableOnly) && (
                     <button
-                      onClick={() => { setFactionFilter("all"); setMkFilter("all"); setTypeFilter("all"); setSortFilter(""); }}
+                      onClick={() => { setFactionFilter("all"); setMkFilter("all"); setTypeFilter("all"); setSortFilter(""); setObtainableOnly(false); }}
                       className="text-[11px] font-medium text-muted-foreground hover:text-foreground flex items-center gap-1.5 px-2 py-1.5 rounded bg-muted/30 hover:bg-muted/50 transition-colors"
                     >
                       <X className="w-3.5 h-3.5" /> Clear filters
                     </button>
                   )}
+                  
+                  <button
+                    onClick={() => setObtainableOnly(!obtainableOnly)}
+                    className={cn(
+                      "text-xs font-medium px-3 h-9 rounded transition-colors flex items-center shrink-0 border",
+                      obtainableOnly ? "bg-primary text-primary-foreground border-primary" : "bg-transparent text-foreground border-input hover:bg-accent hover:text-accent-foreground"
+                    )}
+                  >
+                    Obtainable Only
+                  </button>
+
                   <Select value={sortFilter || (["weapon", "turret"].includes(category.kind) ? "type_asc" : "price_asc")} onValueChange={setSortFilter}>
                     <SelectTrigger className="w-[180px] h-9 text-xs">
                       <div className="flex items-center gap-1.5 text-muted-foreground truncate">
@@ -1032,7 +1112,7 @@ export default function BuilderPage() {
                             )}
                           </div>
                           <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}>
-                            {subcatItems.map(item => <EquipmentCard key={item.ware_id} item={item} slots={slots} cart={cart} onAdd={handleAdd} onRemove={handleRemove} factionMap={factionMap} shortToFullFaction={shortToFullFaction} />)}
+                            {subcatItems.map(item => <EquipmentCard key={item.ware_id} item={item} slots={slots} cart={cart} onAdd={handleAdd} onRemove={handleRemove} factionMap={factionMap} shortToFullFaction={shortToFullFaction} playerLicenceSet={playerLicenceSet} />)}
                           </div>
                         </div>
                       );
@@ -1041,7 +1121,7 @@ export default function BuilderPage() {
                 ) : (
                   <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}>
                     {compatibleEquipment.map(item => (
-                      <EquipmentCard key={item.ware_id} item={item} slots={slots} cart={cart} onAdd={handleAdd} onRemove={handleRemove} factionMap={factionMap} shortToFullFaction={shortToFullFaction} />
+                      <EquipmentCard key={item.ware_id} item={item} slots={slots} cart={cart} onAdd={handleAdd} onRemove={handleRemove} factionMap={factionMap} shortToFullFaction={shortToFullFaction} playerLicenceSet={playerLicenceSet} />
                     ))}
                   </div>
                 )}
@@ -1067,7 +1147,7 @@ export default function BuilderPage() {
                   <p className="text-sm font-bold leading-tight">{shipDetail.name}</p>
                   <div className="flex items-center justify-center gap-1 mt-1 flex-wrap">
                     <ShipClassBadge class_id={shipDetail.class_id} className="text-[9px] px-1.5 py-0" />
-                    <ShipRoleBadge role={shipDetail.role} className="text-[9px] px-1.5 py-0" />
+                    <ShipTypeBadge role={shipDetail.role} subtype={shipDetail.ship_type} className="text-[9px] px-1.5 py-0" />
                   </div>
                   {shipFaction && (
                     <div className="mt-1 flex justify-center">

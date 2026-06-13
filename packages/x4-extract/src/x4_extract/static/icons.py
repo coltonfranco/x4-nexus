@@ -21,6 +21,7 @@ import platform
 import struct
 import subprocess
 import tempfile
+import time
 from pathlib import Path
 
 from lxml import etree
@@ -35,6 +36,11 @@ except ImportError:
     texture2ddecoder = None  # type: ignore[assignment]
 
 logger = logging.getLogger(__name__)
+
+
+def _log(msg: str) -> None:
+    ts = time.strftime("%H:%M:%S")
+    print(f"\033[90m{ts}\033[0m  {msg}", flush=True)
 
 
 def run(settings: ExtractSettings) -> None:
@@ -93,7 +99,7 @@ def run(settings: ExtractSettings) -> None:
 
                 # Check all index paths that might match
                 # The index might have assets/textures/ui/ships/ship_behemoth.gz
-                for idx_path in index.keys():
+                for idx_path in index:
                     if idx_path.startswith(prefix):
                         # Calculate what the `*` matched
                         # The suffix in the XML is usually .tga, but the index has .gz or .dds
@@ -189,7 +195,7 @@ def run(settings: ExtractSettings) -> None:
     with manifest_path.open("w", encoding="utf-8") as f:
         json.dump(new_manifest, f, indent=2)
 
-    print(f"Icons extracted: {processed_count} (skipped {skipped_count} unchanged)")
+    _log(f"  extracted: {processed_count} (skipped {skipped_count} unchanged)")
 
 
 def _decode_dds_to_png(dds_data: bytes, output_path: Path) -> bool:

@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useSearch } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
+import { useSettings } from "../lib/settingsStore";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { ArrowLeft, Info } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../components/ui/tooltip";
@@ -9,6 +10,7 @@ import { Badge } from "../components/ui/badge";
 import { getReputationScore } from "../lib/formatters";
 import { Reputation } from "../components/GameValues";
 import { Currency } from "../components/Currency";
+import { PageLoaderPreset } from "../components/PageLoader";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -130,7 +132,7 @@ function StandingsView({ onSelectFaction }: { onSelectFaction: (id: string) => v
     [strength]
   );
 
-  if (isLoading) return <p className="text-sm text-muted-foreground p-6">Loading…</p>;
+  if (isLoading) return <p className="text-sm text-muted-foreground p-6"><PageLoaderPreset preset="factions" /></p>;
 
   return (
     <div className="flex-1 overflow-auto p-4">
@@ -256,7 +258,7 @@ function FactionDetailPanel({ factionId, onClose }: { factionId: string; onClose
   }, [relations, allFactions]);
 
   if (factionLoading || licencesLoading) {
-    return <div className="p-6 text-muted-foreground text-sm">Loading…</div>;
+    return <div className="p-6 text-muted-foreground text-sm"><PageLoaderPreset preset="factions" /></div>;
   }
   if (!faction) return null;
 
@@ -278,8 +280,14 @@ function FactionDetailPanel({ factionId, onClose }: { factionId: string; onClose
             <div className="flex items-center gap-2 mt-1 flex-wrap">
               {faction.short_name && <Badge variant="secondary">{faction.short_name}</Badge>}
               {faction.primary_race && (
-                <Badge variant="outline" className="capitalize">
-                  {faction.primary_race.replace("race_", "")}
+                <Badge variant="outline" className="capitalize flex items-center gap-1.5">
+                  <img
+                    src={`/static/icons/races/race_${faction.primary_race}.png`}
+                    alt={faction.primary_race}
+                    className="w-4 h-4 object-contain"
+                    onError={(e) => (e.currentTarget.style.display = "none")}
+                  />
+                  {faction.primary_race}
                 </Badge>
               )}
             </div>
@@ -705,16 +713,28 @@ export default function FactionsPage() {
   const search = useSearch({ strict: false }) as { faction?: string };
   const [selectedFactionId, setSelectedFactionId] = useState<string | null>(search.faction ?? null);
   const [view, setView] = useState<"standings" | "matrix">("standings");
+  const { settings } = useSettings();
 
   // Deep-link: ?faction=argon preselects (e.g. from the Empire reputation list).
   useEffect(() => {
     if (search.faction) setSelectedFactionId(search.faction);
   }, [search.faction]);
 
+  const { data: knownFactions = {} } = useQuery<Record<string, boolean>>({
+    queryKey: ["factions-known"],
+    queryFn: () => fetch("/api/v1/factions/known").then((r) => r.json()),
+    staleTime: 60_000,
+  });
+
   const { data: factions = [], isLoading: factionsLoading } = useQuery<FactionSummary[]>({
     queryKey: ["factions"],
     queryFn: () => fetch("/api/v1/factions").then((r) => r.json()),
   });
+
+  const visibleFactions = useMemo(() => {
+    if (!settings.fogOfWar) return factions;
+    return factions.filter((f) => knownFactions[f.faction_id] !== false);
+  }, [factions, knownFactions, settings.fogOfWar]);
 
   const { data: relations = [], isLoading: relationsLoading } = useQuery<AllFactionRelation[]>({
     queryKey: ["faction-relations"],
@@ -728,7 +748,7 @@ export default function FactionsPage() {
       <div className="px-6 py-5 border-b border-border shrink-0">
         <h1 className="text-2xl font-bold">Factions</h1>
         <p className="text-sm text-muted-foreground mt-0.5">
-          {factions.length} factions · {relations.length} relation pairs
+          {visibleFactions.length} factions · {relations.length} relation pairs
         </p>
       </div>
 
@@ -742,7 +762,7 @@ export default function FactionsPage() {
             Factions
           </p>
           <ul className="py-2">
-            {factions.map((f) => {
+            {visibleFactions.map((f) => {
               const isActive = selectedFactionId === f.faction_id;
               return (
                 <li
@@ -774,7 +794,7 @@ export default function FactionsPage() {
         <div className="flex-1 min-w-0 flex flex-col">
           {loading ? (
             <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
-              Loading…
+              <PageLoaderPreset preset="factions" />
             </div>
           ) : selectedFactionId ? (
             <FactionDetailPanel
@@ -804,7 +824,7 @@ export default function FactionsPage() {
                 <StandingsView onSelectFaction={setSelectedFactionId} />
               ) : (
                 <MatrixView
-                  factions={factions}
+                  factions={visibleFactions}
                   relations={relations}
                   onSelectFaction={setSelectedFactionId}
                 />

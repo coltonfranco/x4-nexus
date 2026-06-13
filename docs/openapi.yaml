@@ -128,9 +128,9 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: engine, shield, weapon, turret, thruster, missile, …
+          description: "engine, shield, weapon, turret, thruster, missile, \u2026"
           title: Kind
-        description: engine, shield, weapon, turret, thruster, missile, …
+        description: "engine, shield, weapon, turret, thruster, missile, \u2026"
       - name: size
         in: query
         required: false
@@ -269,18 +269,11 @@ paths:
       tags:
       - factions
       summary: Faction Strength
-      description: 'Relative strength metrics, normalized 0-100, computed from LIVE
-        save state.
-
-
-        Everything here is the *current* universe (dynamic ships/stations/relations)
-        so the
-
-        standings reflect how the game has actually unfolded — seed/static is init
-        state only
-
-        and is not referenced once a save is loaded. The player is ranked alongside
-        AI factions.'
+      description: "Relative strength metrics, normalized 0-100, computed from LIVE\
+        \ save state.\n\nEverything here is the *current* universe (dynamic ships/stations/relations)\
+        \ so the\nstandings reflect how the game has actually unfolded \u2014 seed/static\
+        \ is init state only\nand is not referenced once a save is loaded. The player\
+        \ is ranked alongside AI factions."
       operationId: faction_strength_api_v1_factions_strength_get
       responses:
         '200':
@@ -292,6 +285,23 @@ paths:
                   $ref: '#/components/schemas/FactionStrength'
                 type: array
                 title: Response Faction Strength Api V1 Factions Strength Get
+  /api/v1/factions/known:
+    get:
+      tags:
+      - factions
+      summary: List Known Factions
+      description: 'Return {faction_id: is_known} for every static faction.'
+      operationId: list_known_factions_api_v1_factions_known_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: boolean
+                type: object
+                title: Response List Known Factions Api V1 Factions Known Get
   /api/v1/factions/{faction_id}:
     get:
       tags:
@@ -1110,6 +1120,14 @@ paths:
           - type: string
           - type: 'null'
           title: Faction Id
+      - name: is_obtainable
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Is Obtainable
       - name: limit
         in: query
         required: false
@@ -1365,9 +1383,9 @@ paths:
           anyOf:
           - type: integer
           - type: 'null'
-          description: Filter by quality tier 1–3
+          description: "Filter by quality tier 1\u20133"
           title: Quality
-        description: Filter by quality tier 1–3
+        description: "Filter by quality tier 1\u20133"
       - name: limit
         in: query
         required: false
@@ -2083,10 +2101,10 @@ paths:
         schema:
           type: integer
           minimum: 1
-          description: Ship cargo capacity (m³)
+          description: "Ship cargo capacity (m\xB3)"
           default: 8000
           title: Ship Cargo
-        description: Ship cargo capacity (m³)
+        description: "Ship cargo capacity (m\xB3)"
       - name: ship_speed
         in: query
         required: false
@@ -2189,8 +2207,8 @@ paths:
       tags:
       - economy
       summary: Ware Offer Breakdown
-      description: Per-station offers for one ware — where it's demanded vs supplied
-        (and hoarding).
+      description: "Per-station offers for one ware \u2014 where it's demanded vs\
+        \ supplied (and hoarding)."
       operationId: ware_offer_breakdown_api_v1_economy_wares__ware_id__stations_get
       parameters:
       - name: ware_id
@@ -2892,6 +2910,11 @@ components:
           - type: string
           - type: 'null'
           title: Icon Url
+        restriction_licence:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Restriction Licence
         has_production:
           type: boolean
           title: Has Production
@@ -2920,6 +2943,7 @@ components:
       - price_avg
       - price_max
       - icon_url
+      - restriction_licence
       - has_production
       - engine_stats
       - shield_stats
@@ -3424,6 +3448,29 @@ components:
         is_under_construction:
           type: boolean
           title: Is Under Construction
+        seed_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Seed Id
+        dynamic_tags:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dynamic Tags
+        known_to_player:
+          type: boolean
+          title: Known To Player
+        basename:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Basename
+        nameindex:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Nameindex
       additionalProperties: false
       type: object
       required:
@@ -3435,6 +3482,7 @@ components:
       - sector_id
       - is_player_owned
       - is_under_construction
+      - known_to_player
       title: LiveStation
     LoadoutDetail:
       properties:
@@ -4278,6 +4326,10 @@ components:
           - type: number
           - type: 'null'
           title: Qw
+        known_to_player:
+          type: boolean
+          title: Known To Player
+          default: false
       additionalProperties: false
       type: object
       required:
@@ -4358,6 +4410,11 @@ components:
           - type: integer
           - type: 'null'
           title: Cargo Volume
+        dps_max:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Dps Max
         speed_min:
           anyOf:
           - type: number
@@ -4383,6 +4440,19 @@ components:
           - type: integer
           - type: 'null'
           title: Price Avg
+        is_owned:
+          type: boolean
+          title: Is Owned
+          default: false
+        restriction_licence:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Restriction Licence
+        is_obtainable:
+          type: boolean
+          title: Is Obtainable
+          default: false
         description:
           anyOf:
           - type: string
@@ -4393,6 +4463,11 @@ components:
           - type: string
           - type: 'null'
           title: Basename
+        variation:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Variation
         secrecy_level:
           anyOf:
           - type: integer
@@ -4408,6 +4483,11 @@ components:
           - type: number
           - type: 'null'
           title: Travel Max
+        travel_stability:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Travel Stability
         boost_min:
           anyOf:
           - type: number
@@ -4448,6 +4528,66 @@ components:
           - type: number
           - type: 'null'
           title: Roll Max
+        accel_forward:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Accel Forward
+        decel_forward:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Decel Forward
+        accel_boost:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Accel Boost
+        accel_travel:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Accel Travel
+        accel_strafe:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Accel Strafe
+        accel_angular:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Accel Angular
+        accel_factor_reverse:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Accel Factor Reverse
+        accel_factor_horizontal:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Accel Factor Horizontal
+        accel_factor_vertical:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Accel Factor Vertical
+        modifier_weapon_heat:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Modifier Weapon Heat
+        explosion_damage:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Explosion Damage
+        explosion_shield_damage:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Explosion Shield Damage
         shield_capacity_min:
           anyOf:
           - type: number
@@ -4563,6 +4703,33 @@ components:
           - type: integer
           - type: 'null'
           title: Deployable Storage
+        dock_s:
+          type: integer
+          title: Dock S
+        dock_m:
+          type: integer
+          title: Dock M
+        dock_l:
+          type: integer
+          title: Dock L
+        dock_xl:
+          type: integer
+          title: Dock Xl
+        storage_s:
+          type: integer
+          title: Storage S
+        storage_m:
+          type: integer
+          title: Storage M
+        storage_l:
+          type: integer
+          title: Storage L
+        storage_xl:
+          type: integer
+          title: Storage Xl
+        launch_tubes:
+          type: integer
+          title: Launch Tubes
         weapons_s:
           type: integer
           title: Weapons S
@@ -4633,6 +4800,7 @@ components:
       - role
       - hull
       - cargo_volume
+      - dps_max
       - speed_min
       - speed_max
       - icon_url
@@ -4640,9 +4808,11 @@ components:
       - price_avg
       - description
       - basename
+      - variation
       - secrecy_level
       - travel_min
       - travel_max
+      - travel_stability
       - boost_min
       - boost_max
       - pitch_min
@@ -4651,6 +4821,18 @@ components:
       - yaw_max
       - roll_min
       - roll_max
+      - accel_forward
+      - decel_forward
+      - accel_boost
+      - accel_travel
+      - accel_strafe
+      - accel_angular
+      - accel_factor_reverse
+      - accel_factor_horizontal
+      - accel_factor_vertical
+      - modifier_weapon_heat
+      - explosion_damage
+      - explosion_shield_damage
       - shield_capacity_min
       - shield_capacity_max
       - shield_recharge_min
@@ -4674,6 +4856,15 @@ components:
       - drone_storage
       - countermeasure_storage
       - deployable_storage
+      - dock_s
+      - dock_m
+      - dock_l
+      - dock_xl
+      - storage_s
+      - storage_m
+      - storage_l
+      - storage_xl
+      - launch_tubes
       - weapons_s
       - weapons_m
       - weapons_l
@@ -4754,6 +4945,11 @@ components:
           - type: integer
           - type: 'null'
           title: Cargo Volume
+        dps_max:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Dps Max
         speed_min:
           anyOf:
           - type: number
@@ -4779,6 +4975,19 @@ components:
           - type: integer
           - type: 'null'
           title: Price Avg
+        is_owned:
+          type: boolean
+          title: Is Owned
+          default: false
+        restriction_licence:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Restriction Licence
+        is_obtainable:
+          type: boolean
+          title: Is Obtainable
+          default: false
       additionalProperties: false
       type: object
       required:
@@ -4791,6 +5000,7 @@ components:
       - role
       - hull
       - cargo_volume
+      - dps_max
       - speed_min
       - speed_max
       - icon_url

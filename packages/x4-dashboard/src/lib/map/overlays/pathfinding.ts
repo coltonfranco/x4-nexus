@@ -99,11 +99,13 @@ export function buildAdjacency(
       }
     }
 
-    // Zone <-> Sector center manual
+    // Zone <-> Sector center — use a trivial weight so all gates into a
+    // sector are treated equally.  Real-world distance from the sector
+    // centre to a specific zone is a layout artefact and should not
+    // bias the pathfinder toward one gate over another.
     for (const zId of zIds) {
-      const p = zoneScreenPos.get(zId);
-      if (!p) continue;
-      link(`sector:${sid}`, `zone:${zId}`, "manual", dist(cPos, p) / SPEED_MANUAL);
+      if (!zoneScreenPos.has(zId)) continue;
+      link(`sector:${sid}`, `zone:${zId}`, "manual", 0.001);
     }
   });
 

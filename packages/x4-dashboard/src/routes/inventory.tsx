@@ -6,6 +6,7 @@ import { WareDetailPanel } from "../components/trade/WareDetailPanel";
 import { Badge } from "../components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../components/ui/dialog";
 import { Input } from "../components/ui/input";
+import { PageLoaderPreset } from "../components/PageLoader";
 
 type Ware = {
   ware_id: string;
@@ -236,7 +237,7 @@ export default function InventoryPage() {
 
       <div className="flex-1 overflow-auto px-6 py-2">
         {isLoading ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">Loading inventory…</p>
+          <p className="py-8 text-center text-sm text-muted-foreground"><PageLoaderPreset preset="inventory" /></p>
         ) : rows.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">No items match.</p>
         ) : (
