@@ -10,6 +10,7 @@ import {
   Rocket,
   Shield,
   TrendingUp,
+  User,
 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { SaveSelector } from "../SaveSelector";
@@ -27,6 +28,7 @@ const navItems = [
   { to: "/factions", label: "Factions", icon: Shield },
   { to: "/drops", label: "Drop Tables", icon: PackageOpen },
   { to: "/diplomacy", label: "Diplomacy", icon: Handshake },
+  { to: "/player", label: "Player", icon: User },
 ] as const;
 
 export function AppLayout() {

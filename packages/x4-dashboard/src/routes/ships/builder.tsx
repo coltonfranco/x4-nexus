@@ -9,6 +9,7 @@ import { EntityIcon } from "../../components/EntityIcon";
 import { FactionBadge } from "../../components/FactionBadge";
 import { StatBar } from "../../components/StatBar";
 import { classFull, classShort, getMkGradientClass } from "../../lib/formatters";
+import type { FactionSummary } from "../../lib/map/types";
 import { cn } from "../../lib/utils";
 import { Card, CardContent } from "../../components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "../../components/ui/tabs";
@@ -54,8 +55,6 @@ type EquipmentItem = {
   restriction_licence: string | null;
   engine_stats: EngineStats | null; shield_stats: ShieldStats | null; weapon_stats: WeaponStats | null;
 };
-
-type FactionSummary = { faction_id: string; name: string; color_hex: string | null; short_name?: string | null; };
 
 // ── Categories ─────────────────────────────────────────────────────────────────
 

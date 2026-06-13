@@ -11,6 +11,7 @@ import InventoryPage from "./routes/inventory";
 import MapPage from "./routes/map";
 import ShipsPage from "./routes/ships";
 import BuilderPage from "./routes/ships/builder";
+import { PlayerCard } from "./components/PlayerCard";
 import TradeCatalogPage from "./routes/trade/catalog";
 import { TradeLayout } from "./routes/trade/layout";
 import TradeRoutesPage from "./routes/routes";
@@ -83,6 +84,7 @@ const factionsRoute = createRoute({
 });
 const dropsRoute = createRoute({ getParentRoute: () => rootRoute, path: "/drops", component: DropsPage });
 const diplomacyRoute = createRoute({ getParentRoute: () => rootRoute, path: "/diplomacy", component: DiplomacyPage });
+const playerRoute = createRoute({ getParentRoute: () => rootRoute, path: "/player", component: () => <PlayerCard /> });
 const sectorTestRoute = createRoute({ getParentRoute: () => rootRoute, path: "/sector_test", component: SectorTestPage });
 
 const routeTree = rootRoute.addChildren([
@@ -99,6 +101,7 @@ const routeTree = rootRoute.addChildren([
   factionsRoute,
   dropsRoute,
   diplomacyRoute,
+  playerRoute,
   sectorTestRoute,
 ]);
 

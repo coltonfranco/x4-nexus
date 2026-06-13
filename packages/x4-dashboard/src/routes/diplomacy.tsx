@@ -5,7 +5,9 @@ import { EntityIcon } from "../components/EntityIcon";
 import { FactionBadge } from "../components/FactionBadge";
 import { StatBar } from "../components/StatBar";
 import { Currency } from "../components/Currency";
+import { fmtSeconds } from "../lib/wareFormat";
 import { Badge } from "../components/ui/badge";
+import type { FactionSummary } from "../lib/map/types";
 import {
   Select,
   SelectContent,
@@ -50,19 +52,9 @@ type AgentRank = {
   icon: string | null;
 };
 
-type FactionSummary = { faction_id: string; name: string; color_hex: string | null };
-
 type WareSummary = { ware_id: string; name: string; icon_url: string | null };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function fmtSeconds(sec: number | null): string {
-  if (sec == null) return "—";
-  if (sec < 60) return `${sec}s`;
-  const m = Math.floor(sec / 60);
-  const s = sec % 60;
-  return s > 0 ? `${m}m ${s}s` : `${m}m`;
-}
 
 const CATEGORY_VARIANT: Record<string, "default" | "secondary" | "muted" | "outline" | "destructive"> = {
   negotiation: "default",

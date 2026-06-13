@@ -8,20 +8,12 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../com
 import { EntityIcon } from "../components/EntityIcon";
 import { Badge } from "../components/ui/badge";
 import { getReputationScore } from "../lib/formatters";
+import type { FactionSummary } from '../lib/map/types';
 import { Reputation } from "../components/GameValues";
 import { Currency } from "../components/Currency";
 import { PageLoaderPreset } from "../components/PageLoader";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
-type FactionSummary = {
-  faction_id: string;
-  name: string;
-  color_hex: string | null;
-  primary_race?: string | null;
-  short_name?: string | null;
-  icon_url?: string | null;
-};
 
 type AllFactionRelation = {
   faction_id: string;

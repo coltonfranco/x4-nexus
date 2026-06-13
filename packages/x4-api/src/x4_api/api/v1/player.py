@@ -38,6 +38,7 @@ class LicenceItem(PublicModel):
 class PlayerStat(PublicModel):
     stat_id: str
     value: float
+    display: str
 
 
 class PlayerRelation(PublicModel):
@@ -85,7 +86,14 @@ def player_stats(conn: Annotated[sqlite3.Connection, Depends(get_db)]) -> list[P
     if not has_stats:
         return []
     rows = conn.execute("SELECT stat_id, value FROM player_stats ORDER BY stat_id").fetchall()
-    return [PlayerStat(**dict(r)) for r in rows]
+    return [
+        PlayerStat(
+            stat_id=r["stat_id"],
+            value=r["value"],
+            display=_display_name(r["stat_id"]),
+        )
+        for r in rows
+    ]
 
 
 @router.get("/player/reputation", response_model=list[PlayerRelation])
@@ -104,3 +112,8 @@ def player_reputation(conn: Annotated[sqlite3.Connection, Depends(get_db)]) -> l
         """
     ).fetchall()
     return [PlayerRelation(**dict(r)) for r in rows]
+
+
+def _display_name(stat_id: str) -> str:
+    """Convert snake_case stat_id to Title Case display name."""
+    return " ".join(w.capitalize() for w in stat_id.split("_"))

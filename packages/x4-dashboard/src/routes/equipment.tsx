@@ -1,12 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
-import { ArrowDown, ArrowUp } from "lucide-react";
 import { useMemo, useState } from "react";
+import { SortHeader } from "../components/ui/sort-header";
 import { useSettings } from "../lib/settingsStore";
 import { ProductionChain } from "../components/trade/ProductionChain";
 import { Input } from "../components/ui/input";
 import { FilterPill } from "../components/ui/filter-pill";
 import { fmtNum } from "../lib/wareFormat";
-import { getMkGradientClass } from "../lib/formatters";
+import { getMkGradientClass, classFull, getClassColor } from "../lib/formatters";
 import { cn } from "../lib/utils";
 import { useSort } from "../lib/useSort";
 import { Currency } from "../components/Currency";
@@ -15,6 +15,9 @@ import { ShipTypeBadge, EquipmentMkBadge, ShipClassBadge } from "../components/S
 import { StatBar } from "../components/StatBar";
 import { EntityIcon } from "../components/EntityIcon";
 import { PageLoaderPreset } from "../components/PageLoader";
+import { EquipmentFilterBar } from "../components/EquipmentFilterBar";
+import { getWeaponType } from "../lib/formatters";
+import type { FactionSummary } from '../lib/map/types';
 import {
   Dialog,
   DialogContent,
@@ -59,6 +62,7 @@ type Equipment = {
   size: string | null;
   mk: number | null;
   faction_id: string | null;
+  restriction_licence: string | null;
   price_min: number | null;
   price_avg: number | null;
   price_max: number | null;
@@ -67,13 +71,6 @@ type Equipment = {
   engine_stats: EngineStats | null;
   shield_stats: ShieldStats | null;
   weapon_stats: WeaponStats | null;
-};
-
-type FactionSummary = {
-  faction_id: string;
-  name: string;
-  color_hex: string | null;
-  short_name?: string | null;
 };
 
 // ── Derived weapon metrics ──────────────────────────────────────────────────────
@@ -283,28 +280,7 @@ function EquipmentDetailPanel({ item, factions }: { item: Equipment; factions: F
 }
 
 // ── Comparison table ────────────────────────────────────────────────────────────
-function SortHeader({
-  label,
-  active,
-  dir,
-  onClick,
-  className = "",
-}: {
-  label: string;
-  active: boolean;
-  dir: "asc" | "desc";
-  onClick: () => void;
-  className?: string;
-}) {
-  return (
-    <th className={`px-3 py-2 text-left font-medium ${className}`}>
-      <button onClick={onClick} className={`inline-flex items-center gap-1 hover:text-foreground ${active ? "text-foreground" : ""}`}>
-        {label}
-        {active && (dir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)}
-      </button>
-    </th>
-  );
-}
+
 
 function EquipmentTable({
   category,
@@ -437,6 +413,10 @@ export default function EquipmentPage() {
   const [size, setSize] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [selectedEquipment, setSelectedEquipment] = useState<Equipment | null>(null);
+  const [factionFilter, setFactionFilter] = useState("all");
+  const [mkFilter, setMkFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [obtainableOnly, setObtainableOnly] = useState(false);
   const { settings } = useSettings();
 
   const { data: knownFactions = {} } = useQuery<Record<string, boolean>>({
@@ -444,6 +424,17 @@ export default function EquipmentPage() {
     queryFn: () => fetch("/api/v1/factions/known").then((r) => r.json()),
     staleTime: 60_000,
   });
+
+  const { data: playerLicences = [] } = useQuery<{ faction_id: string; licence_type: string }[]>({
+    queryKey: ["player-licences"],
+    queryFn: () => fetch("/api/v1/player/licences").then(r => r.json()),
+  });
+
+  const playerLicenceSet = useMemo(() => {
+    const set = new Set<string>();
+    for (const l of playerLicences) set.add(`${l.faction_id}:${l.licence_type}`);
+    return set;
+  }, [playerLicences]);
 
   const { data: rawItems = [], isLoading } = useQuery<Equipment[]>({
     queryKey: ["equipment"],
@@ -485,14 +476,61 @@ export default function EquipmentPage() {
     [inCategory]
   );
 
+  const shortToFullFaction = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const f of factions) {
+      if (f.short_name) map.set(f.short_name.toLowerCase(), f.faction_id);
+      map.set(f.faction_id.substring(0, 3), f.faction_id);
+      map.set(f.faction_id, f.faction_id);
+    }
+    return map;
+  }, [factions]);
+
+  const availableFactions = useMemo(() => {
+    const items = inCategory.filter(e => size ? e.size === size : true);
+    const set = new Set(items.map(i => i.faction_id ? (shortToFullFaction.get(i.faction_id) ?? i.faction_id) : null).filter(Boolean) as string[]);
+    return Array.from(set).sort();
+  }, [inCategory, size, shortToFullFaction]);
+
+  const availableMks = useMemo(() => {
+    const items = inCategory.filter(e => size ? e.size === size : true);
+    const set = new Set(items.map(i => i.mk).filter(Boolean) as number[]);
+    return Array.from(set).sort((a, b) => a - b);
+  }, [inCategory, size]);
+
+  const availableTypes = useMemo(() => {
+    if (!["weapon", "turret"].includes(category.id)) return [];
+    const items = inCategory.filter(e => size ? e.size === size : true);
+    const set = new Set(items.map(i => getWeaponType(i.name)));
+    return Array.from(set).sort();
+  }, [inCategory, size, category.id]);
+
   const shown = useMemo(() => {
     const needle = search.trim().toLowerCase();
     return inCategory.filter((e) => {
       if (size && e.size !== size) return false;
       if (needle && !e.name.toLowerCase().includes(needle)) return false;
+      
+      if (factionFilter !== "all") {
+        const resolvedFaction = e.faction_id ? (shortToFullFaction.get(e.faction_id) ?? e.faction_id) : null;
+        if (resolvedFaction !== factionFilter) return false;
+      }
+      if (mkFilter !== "all" && e.mk?.toString() !== mkFilter) return false;
+      if (typeFilter !== "all" && ["weapon", "turret"].includes(category.id)) {
+        if (getWeaponType(e.name) !== typeFilter) return false;
+      }
+      
+      if (obtainableOnly) {
+        const resolvedFactionId = e.faction_id ? (shortToFullFaction.get(e.faction_id) ?? e.faction_id) : null;
+        const isGen = e.restriction_licence === 'generaluseequipment' || e.restriction_licence === 'generaluseship';
+        if (!(!e.restriction_licence || isGen || (resolvedFactionId && playerLicenceSet.has(`${resolvedFactionId}:${e.restriction_licence}`)))) {
+          return false;
+        }
+      }
+
       return true;
     });
-  }, [inCategory, size, search]);
+  }, [inCategory, size, search, factionFilter, mkFilter, typeFilter, category.id, shortToFullFaction, obtainableOnly, playerLicenceSet]);
 
   return (
     <div className="flex h-full flex-col">
@@ -509,6 +547,9 @@ export default function EquipmentPage() {
               onClick={() => {
                 setCatId(c.id);
                 setSize(null);
+                setFactionFilter("all");
+                setMkFilter("all");
+                setTypeFilter("all");
               }}
               className={`rounded-t-md border-b-2 px-3 py-2 text-sm font-medium transition-colors ${
                 c.id === catId
@@ -522,21 +563,53 @@ export default function EquipmentPage() {
         </div>
       </div>
 
-      {/* Size + search toolbar */}
+      {/* Toolbar: Sizes + Filters + Search */}
       <div className="flex flex-wrap items-center gap-3 border-b border-border bg-muted/20 px-6 py-3">
         {sizes.length > 0 && (
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1.5 shrink-0">
             <FilterPill active={size === null} onClick={() => setSize(null)}>
               All sizes
             </FilterPill>
             {sizes.map((s) => (
-              <FilterPill key={s} active={size === s} onClick={() => setSize(s)} className="uppercase">
-                {s}
+              <FilterPill
+                key={s}
+                active={false}
+                onClick={() => setSize(s)}
+                className={cn(
+                  "border border-transparent",
+                  size === s
+                    ? cn(getClassColor(s), "border-current opacity-100 font-bold")
+                    : size === null
+                    ? "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground"
+                    : "bg-muted/30 text-muted-foreground opacity-60 hover:opacity-100 hover:bg-muted"
+                )}
+              >
+                {classFull(s)}
               </FilterPill>
             ))}
           </div>
         )}
-        <Input placeholder="Search…" value={search} onChange={(e) => setSearch(e.target.value)} className="ml-auto w-48" />
+        
+        <EquipmentFilterBar
+          categoryKind={category.id}
+          availableFactions={availableFactions}
+          factions={factions}
+          factionFilter={factionFilter}
+          setFactionFilter={setFactionFilter}
+          availableMks={availableMks}
+          mkFilter={mkFilter}
+          setMkFilter={setMkFilter}
+          availableTypes={availableTypes}
+          typeFilter={typeFilter}
+          setTypeFilter={setTypeFilter}
+          showObtainableOnly={true}
+          obtainableOnly={obtainableOnly}
+          setObtainableOnly={setObtainableOnly}
+          showSort={false} // Table has its own column headers for sorting
+        />
+        
+        <div className="flex-1 min-w-[200px]" />
+        <Input placeholder="Search…" value={search} onChange={(e) => setSearch(e.target.value)} className="w-64 max-w-full shrink-0" />
       </div>
 
       <div className="flex-1 overflow-auto px-6 py-4">

@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { StatBar } from "./StatBar";
 import { PageLoaderPreset } from "./PageLoader";
 import { classShort } from "../lib/formatters";
+import type { FactionSummary } from '../lib/map/types';
 import {
   SHIP_HULL_MAX, SHIP_SHIELD_MAX, SHIP_REGEN_MAX,
   SHIP_SPEED_MAX, SHIP_TRAVEL_MAX, SHIP_BOOST_MAX,
@@ -20,8 +21,6 @@ import {
 } from "../routes/ships/builder";
 
 type ShipDetail = any; // large type — inferred from API
-type FactionSummary = { faction_id: string; name: string; color_hex: string | null };
-
 function ShipDetailStatRow({ label, min, max, maxVal, unit, isLog, format }: {
   label: string; min: number | null; max: number | null; maxVal: number;
   unit?: string; isLog?: boolean; format?: (v: number) => string;

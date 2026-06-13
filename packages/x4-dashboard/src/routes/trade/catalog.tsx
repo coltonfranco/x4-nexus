@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowDown, ArrowUp, ChevronRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { useMemo, useState } from "react";
+import { SortHeader } from "../../components/ui/sort-header";
 import { PriceBar } from "../../components/trade/PriceBar";
 import { WareDetailPanel } from "../../components/trade/WareDetailPanel";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../components/ui/dialog";
@@ -29,31 +30,6 @@ type Ware = {
 };
 
 type SortKey = "name" | "group" | "price";
-
-function SortHeader({
-  label,
-  col,
-  sort,
-  dir,
-  onSort,
-  className = "",
-}: {
-  label: string;
-  col: SortKey;
-  sort: SortKey;
-  dir: "asc" | "desc";
-  onSort: (c: SortKey) => void;
-  className?: string;
-}) {
-  return (
-    <th className={`px-3 py-2 text-left text-xs font-medium text-muted-foreground ${className}`}>
-      <button onClick={() => onSort(col)} className={`inline-flex items-center gap-1 hover:text-foreground ${sort === col ? "text-foreground" : ""}`}>
-        {label}
-        {sort === col && (dir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)}
-      </button>
-    </th>
-  );
-}
 
 function CommodityRow({ ware, groupName, onSelect }: { ware: Ware; groupName: string; onSelect: (id: string) => void }) {
   const qc = useQueryClient();
@@ -190,9 +166,9 @@ export default function TradeCatalogPage() {
             <thead className="sticky top-0 bg-background">
               <tr className="border-b border-border">
                 <th />
-                <SortHeader label="Ware" col="name" sort={sort} dir={dir} onSort={onSort} />
-                <SortHeader label="Group" col="group" sort={sort} dir={dir} onSort={onSort} />
-                <SortHeader label="Price range" col="price" sort={sort} dir={dir} onSort={onSort} />
+                <SortHeader label="Ware" active={sort === "name"} dir={dir} onClick={() => onSort("name")} className="text-xs text-muted-foreground" />
+                <SortHeader label="Group" active={sort === "group"} dir={dir} onClick={() => onSort("group")} className="text-xs text-muted-foreground" />
+                <SortHeader label="Price range" active={sort === "price"} dir={dir} onClick={() => onSort("price")} className="text-xs text-muted-foreground" />
               </tr>
             </thead>
             <tbody>

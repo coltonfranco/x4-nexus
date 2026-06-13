@@ -163,7 +163,7 @@ export type ConflictEntry = {
   fighter_count: number;
   hostile_pair_count: number;
   intensity: number;
-  factions: { faction_id: string; fighter_count: number }[];
+  factions: { faction_id: string; faction_name: string; fighter_count: number }[];
 };
 
 export function useConflictData(enabled: boolean) {

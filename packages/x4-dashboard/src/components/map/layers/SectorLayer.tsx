@@ -60,12 +60,14 @@ export function SectorLayer({
 
         const tint = sectorTint?.get(sidLower) ?? null;
         const isDimmed = dimOthers && !tint;
-        const baseFill = dimOthers 
-          ? (isSelected ? MAP_THEME.hexStroke : MAP_THEME.hexHover) 
-          : (isSelected ? `${factionColor}40` : `${factionColor}2a`);
+        const baseFill = tint
+          ? tint.fill
+          : dimOthers 
+            ? (isSelected ? MAP_THEME.hexStroke : MAP_THEME.hexHover) 
+            : (isSelected ? `${factionColor}40` : `${factionColor}2a`);
 
         const stroke = isSelected ? "#ffffff"
-          : tint ? tint.fill
+          : tint ? (isHovered ? "#ffffff" : tint.fill)
           : isDimmed ? (isHovered ? MAP_THEME.hexLabel : MAP_THEME.hexFill)
           : isHovered ? factionColor : `${factionColor}80`;
 
@@ -96,7 +98,7 @@ export function SectorLayer({
 
             <polygon points={hexPoints(cx, cy, renderedHexSize)} fill={baseFill} />
             {tint && (
-              <polygon points={hexPoints(cx, cy, renderedHexSize)} fill={`${tint.fill}${alpha(tint.opacity)}`} />
+              <polygon points={hexPoints(cx, cy, renderedHexSize)} fill={`${tint.fill}${alpha(tint.opacity)}`} style={tint.animate ? { animation: tint.animate } : undefined} />
             )}
             <polygon points={hexPoints(cx, cy, renderedHexSize)}
               fill="none"

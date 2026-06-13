@@ -23,6 +23,7 @@ those children in `extra_json` (prefixed by element) so nothing useful is lost.
 
 from __future__ import annotations
 
+import contextlib
 import dataclasses
 import json
 import sqlite3
@@ -144,17 +145,15 @@ class StatsCollector:
 
     def register(self) -> list[Registration]:
         return [
-            Registration(Target(depth=2, tag="stat", parent_tag="stats"), self._on_stat),
+            Registration(Target(depth=3, tag="stat", parent_tag="stats"), self._on_stat),
         ]
 
     def _on_stat(self, elem: etree._Element) -> None:
         sid = elem.get("id")
         val = elem.get("value")
         if sid and val is not None:
-            try:
+            with contextlib.suppress(ValueError):
                 self.stats[sid] = float(val)
-            except ValueError:
-                pass  # non-numeric stat values are rare; skip them
 
     def tables(self, tier: Tier) -> tuple[str, ...]:
         return ("player_stats",) if tier is Tier.VOLATILE else ()

@@ -7,6 +7,7 @@ import { Currency } from "../Currency";
 import { ProductionChain } from "./ProductionChain";
 import { WareDropSources } from "./WareDropSources";
 import { WareTradeOffers } from "./WareTradeOffers";
+import type { FactionSummary } from "../../lib/map/types";
 
 type ProductionInput = { ware_id: string; amount: number };
 type ProductionMethod = {
@@ -38,8 +39,6 @@ type WareDetail = {
   illegal_factions: string[];
   production: ProductionMethod[];
 };
-
-type FactionSummary = { faction_id: string; name: string; color_hex: string | null };
 
 export function WareDetailPanel({ wareId }: { wareId: string }) {
   const { data, isLoading } = useQuery<WareDetail>({

@@ -2,8 +2,7 @@ import * as React from "react";
 import * as PopoverPrimitive from "@radix-ui/react-popover";
 import { Check, ChevronDown, Search } from "lucide-react";
 import { cn } from "../lib/utils";
-
-type FactionSummary = { faction_id: string; name: string; color_hex: string | null; };
+import type { FactionSummary } from '../lib/map/types';
 
 interface FactionComboboxProps {
   factions: FactionSummary[];

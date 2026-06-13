@@ -566,6 +566,7 @@ def list_cluster_connections(
 
 class ConflictFaction(PublicModel):
     faction_id: str
+    faction_name: str
     fighter_count: int
 
 
@@ -653,8 +654,10 @@ def list_conflicts(
                 WHERE sf2.sector_id = sf.sector_id
             )
         )
-        SELECT sf.sector_id, sf.owner_faction, sf.cnt
+        SELECT sf.sector_id, sf.owner_faction, sf.cnt,
+               COALESCE(f.name, sf.owner_faction) AS faction_name
         FROM sector_fighters sf
+        LEFT JOIN s.factions f ON f.faction_id = sf.owner_faction
         WHERE sf.sector_id IN (SELECT sector_id FROM hostile_sectors)
         ORDER BY sf.sector_id, sf.cnt DESC
     """).fetchall()
@@ -663,10 +666,10 @@ def list_conflicts(
         return []
 
     from collections import defaultdict
-    by_sector: dict[str, dict[str, int]] = defaultdict(dict)
+    by_sector: dict[str, dict[str, tuple[int, str]]] = defaultdict(dict)
     totals: dict[str, int] = defaultdict(int)
-    for sector, faction, cnt in breakdown_rows:
-        by_sector[sector][faction] = cnt
+    for sector, faction, cnt, fname in breakdown_rows:
+        by_sector[sector][faction] = (cnt, fname)
         totals[sector] += cnt
 
     max_count = max(totals.values())
@@ -677,9 +680,9 @@ def list_conflicts(
             hostile_pair_count=len(factions),
             intensity=round(totals[sector] / max_count, 4) if max_count else 0.0,
             factions=[
-                ConflictFaction(faction_id=f, fighter_count=c)
-                for f, c in sorted(factions.items(), key=lambda x: -x[1])
+                ConflictFaction(faction_id=f, faction_name=fn, fighter_count=fc)
+                for f, (fc, fn) in sorted(factions.items(), key=lambda x: -(x[1][0]))
             ],
         )
-        for sector, factions in sorted(by_sector.items(), key=lambda x: -totals[x[0]])
+        for sector, factions in sorted(by_sector.items(), key=lambda x: -(totals[x[0]]))
     ]

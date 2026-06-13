@@ -68,6 +68,13 @@ export type Gate = { from_zone_id: string; to_zone_id: string; kind: string | nu
 export type Highway = { from_zone_id: string; to_zone_id: string; kind: string };
 export type SectorConnection = { from_sector_id: string; to_sector_id: string; kind: string | null };
 export type ClusterResourceEntry = { cluster_id: string; ware: string; yield_level: string };
-export type FactionSummary = { faction_id: string; name: string; color_hex: string | null; icon_url: string | null; };
+export type FactionSummary = {
+  faction_id: string;
+  name: string;
+  color_hex: string | null;
+  icon_url?: string | null;
+  short_name?: string | null;
+  primary_race?: string | null;
+};
 
 export type Transform = { x: number; y: number; scale: number };

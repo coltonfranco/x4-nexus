@@ -12,7 +12,7 @@ import type { FillMode } from "./types";
 import { useResourceData, useTopRoutes, useWareOffers, usePlayerRelations, useConflictData, type ResourceSource } from "./useAnalysisData";
 import type { Cluster, Gate, Highway, Sector, Zone } from "../types";
 
-export type SectorTint = { fill: string; opacity: number };
+export type SectorTint = { fill: string; opacity: number; animate?: string };
 export type RouteInfo = { wareName: string; sellSector: string; profitPerHour: number; hops: number | null };
 export type RouteMarker = { id: string; coord: [number, number]; color: string; routes: RouteInfo[] };
 
@@ -81,7 +81,7 @@ export function useAnalysisOverlay({
 
   const resourceData = useResourceData(resourcesOn);
   const relations = usePlayerRelations(relationsOn);
-  const conflicts = useConflictData(fillMode === "conflict");
+  const conflicts = useConflictData(true); // always pre-warm
   const offers = useWareOffers(wareOn ? wareId : null);
   const routes = useTopRoutes(tradeRoutesOn || !!selectedRouteSector);
 
@@ -171,17 +171,38 @@ export function useAnalysisOverlay({
       data.forEach((c) => {
         const sid = c.sector_id.toLowerCase();
         const t = c.intensity;
-        const r = Math.round(180 + 59 * t);
-        const g = Math.round(60 - 40 * t);
-        const b = Math.round(60 - 40 * t);
-        const fill = `rgb(${r},${g},${b})`;
-        tint.set(sid, { fill, opacity: 0.2 + 0.65 * t });
+        // Yellow (small skirmish) -> Orange (medium) -> Bright Red (large battle)
+        let r, g, b;
+        if (t < 0.5) {
+          const p = t * 2; // 0 to 1
+          r = 255;
+          g = Math.round(230 - p * 90); // 230 down to 140
+          b = 0;
+        } else {
+          const p = (t - 0.5) * 2; // 0 to 1
+          r = 255;
+          g = Math.round(140 - p * 110); // 140 down to 30
+          b = Math.round(0 + p * 30); // 0 up to 30
+        }
+        const toHex = (n: number) => Math.max(0, Math.min(255, n)).toString(16).padStart(2, "0");
+        const fill = `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+        
+        let animate: string | undefined;
+        if (t > 0.8) {
+          animate = "conflict-blink-intense 0.3s cubic-bezier(0.4, 0, 0.6, 1) infinite alternate";
+        } else if (t > 0.5) {
+          animate = "conflict-pulse-fast 0.6s ease-in-out infinite alternate";
+        } else if (t > 0.2) {
+          animate = "conflict-pulse-slow 2s ease-in-out infinite alternate";
+        }
+        
+        tint.set(sid, { fill, opacity: Math.min(1, 0.35 + 0.65 * t), animate });
         const top = c.factions.slice(0, 3);
         const label = top.map((f) => `${f.faction_id.slice(0, 4)}(${f.fighter_count})`).join(" vs ");
         badges.set(sid, c.factions.length >= 2 ? label : `${c.fighter_count}`);
-        tooltips.set(sid, c.factions.map((f) => `${f.faction_id}: ${f.fighter_count} fighters`).join("\n"));
+        tooltips.set(sid, c.factions.map((f) => `${f.faction_name}: ${f.fighter_count} fighters`).join("\n"));
       });
-      return { ...empty, tint, badges, tooltips, dim: true, loading: conflicts.isLoading };
+      return { ...empty, tint, badges, tooltips, dim: true, loading: false };
     }
 
 

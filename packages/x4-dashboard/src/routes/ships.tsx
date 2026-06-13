@@ -8,6 +8,7 @@ import { EntityIcon } from "../components/EntityIcon";
 import { FactionBadge } from "../components/FactionBadge";
 import { StatBar } from "../components/StatBar";
 import { classFull, classShort } from "../lib/formatters";
+import type { FactionSummary } from '../lib/map/types';
 import { ShipClassBadge, ShipTypeBadge, ShipSubtypeBadge } from "../components/ShipBadges";
 import { Button } from "../components/ui/button";
 import { ShipDetailPanel } from "../components/ShipDetailPanel";
@@ -55,12 +56,6 @@ type ShipSummary = {
   is_owned: boolean;
   restriction_licence: string | null;
   is_obtainable: boolean;
-};
-
-type FactionSummary = {
-  faction_id: string;
-  name: string;
-  color_hex: string | null;
 };
 
 const CLASSES = ["XS", "S", "M", "L", "XL"] as const;

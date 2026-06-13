@@ -5,6 +5,7 @@ import { Building2, ChevronDown, Coins, FileText, Handshake, Rocket, ScrollText,
 import { Reputation } from "../components/GameValues";
 import { Currency } from "../components/Currency";
 import { getReputationScore } from "../lib/formatters";
+import { prettyId } from "../lib/wareFormat";
 import { ShipDetailPanel } from "../components/ShipDetailPanel";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../components/ui/dialog";
 import { PageLoaderPreset } from "../components/PageLoader";
@@ -52,7 +53,6 @@ const ROLE_META: Record<string, { label: string; color: string }> = {
 };
 const roleKey = (r: string | null) => (r && ROLE_META[r] ? r : "other");
 const CLASS_LABEL: Record<string, string> = { ship_xs: "XS", ship_s: "S", ship_m: "M", ship_l: "L", ship_xl: "XL" };
-const titleCase = (s: string) => s.replace(/_macro$/, "").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
 export default function EmpirePage() {
   const [showShips, setShowShips] = useState(false);
@@ -103,7 +103,7 @@ export default function EmpirePage() {
   const sectorName = useMemo(() => {
     const m = new Map<string, string>();
     for (const s of sectors) if (s.name) m.set(s.sector_id.toLowerCase(), s.name);
-    return (id: string | null) => (id ? (m.get(id.toLowerCase()) ?? titleCase(id)) : "Unknown");
+    return (id: string | null) => (id ? (m.get(id.toLowerCase()) ?? prettyId(id)) : "Unknown");
   }, [sectors]);
   const factionName = useMemo(() => new Map(factions.map((f) => [f.faction_id, f])), [factions]);
 
@@ -189,7 +189,7 @@ export default function EmpirePage() {
                     >
                       <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: r.color_hex ?? "#888" }} />
                       <span className="truncate" style={{ color: r.color_hex ?? undefined }}>
-                        {r.faction_name ?? titleCase(r.faction_id)}
+                        {r.faction_name ?? prettyId(r.faction_id)}
                       </span>
                     </Link>
                     <div className="flex items-center gap-1.5 shrink-0">
@@ -294,14 +294,14 @@ export default function EmpirePage() {
                     <div className="flex items-center gap-2 mb-1.5">
                       <Link to="/factions" search={{ faction: fid }} className="flex items-center gap-2 transition-opacity hover:opacity-80">
                         <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: f?.color_hex ?? "#888" }} />
-                        <span className="text-sm font-semibold" style={{ color: f?.color_hex ?? undefined }}>{f?.name ?? titleCase(fid)}</span>
+                        <span className="text-sm font-semibold" style={{ color: f?.color_hex ?? undefined }}>{f?.name ?? prettyId(fid)}</span>
                       </Link>
                       <span className="text-xs text-muted-foreground">{types.length}</span>
                     </div>
                     <div className="flex flex-wrap gap-1.5 pl-4">
                       {types.map((t) => (
                         <span key={t} className="rounded-full border border-border bg-muted/30 px-2 py-0.5 text-xs text-muted-foreground">
-                          {titleCase(t)}
+                          {prettyId(t)}
                         </span>
                       ))}
                     </div>

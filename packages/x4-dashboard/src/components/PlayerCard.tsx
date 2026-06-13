@@ -1,0 +1,229 @@
+import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
+import {
+  Activity, Box, Briefcase, Compass, Crosshair, Globe,
+  Handshake, Mountain, Shield, Swords, Timer, TrendingUp, User,
+} from "lucide-react";
+
+// ── Types ──────────────────────────────────────────────────────────────────────
+
+type PlayerStat = { stat_id: string; value: number; display: string };
+
+type StatGroup = {
+  label: string;
+  icon: typeof Activity;
+  stats: PlayerStat[];
+};
+
+// ── Category definitions ───────────────────────────────────────────────────────
+
+const CATEGORY_PREFIXES: Record<string, { label: string; icon: typeof Activity }> = {
+  "bullets_":         { label: "Marksmanship",  icon: Crosshair },
+  "missiles_":        { label: "Missiles",      icon: Crosshair },
+  "ships_destroyed":  { label: "Combat",        icon: Swords },
+  "xenon_":           { label: "Combat",        icon: Swords },
+  "khaak_":           { label: "Combat",        icon: Swords },
+  "capships_":        { label: "Combat",        icon: Swords },
+  "turrets_":         { label: "Combat",        icon: Swords },
+  "fight_":           { label: "Combat",        icon: Swords },
+  "boarding_":        { label: "Combat",        icon: Swords },
+  "lasertowers_":     { label: "Combat",        icon: Swords },
+  "mines_":           { label: "Combat",        icon: Swords },
+  "countermeasures_": { label: "Combat",        icon: Swords },
+  "pilots_":          { label: "Combat",        icon: Swords },
+  "drones_":          { label: "Combat",        icon: Swords },
+
+  "distance_":        { label: "Travel",        icon: Compass },
+  "time_":            { label: "Travel",        icon: Timer },
+  "gates_":           { label: "Travel",        icon: Compass },
+  "accelerators_":    { label: "Travel",        icon: Compass },
+  "anomalies_":       { label: "Travel",        icon: Compass },
+  "clusters_":        { label: "Exploration",   icon: Globe },
+  "sectors_":         { label: "Exploration",   icon: Globe },
+
+  "trade_":           { label: "Economy",       icon: TrendingUp },
+  "trades_":          { label: "Economy",       icon: TrendingUp },
+  "money_":           { label: "Economy",       icon: TrendingUp },
+  "stations_":        { label: "Economy",       icon: Briefcase },
+  "station_":         { label: "Economy",       icon: Briefcase },
+  "discounts_":       { label: "Economy",       icon: TrendingUp },
+  "commissions_":     { label: "Economy",       icon: TrendingUp },
+  "objects_":         { label: "Economy",       icon: Box },
+
+  "missions_":        { label: "Missions",      icon: Shield },
+  "escort_":          { label: "Missions",      icon: Shield },
+  "passenger_":       { label: "Missions",      icon: Shield },
+
+  "diplomacy_":       { label: "Diplomacy",     icon: Handshake },
+  "terraforming_":    { label: "Terraforming",  icon: Mountain },
+
+  "venture_":         { label: "Ventures",      icon: Globe },
+
+  "ships_owned":      { label: "Fleet",         icon: Briefcase },
+  "ships_boarded":    { label: "Fleet",         icon: Swords },
+  "ships_claimed":    { label: "Fleet",         icon: Briefcase },
+
+  "staff_":           { label: "Personnel",     icon: User },
+  "population":       { label: "Personnel",     icon: User },
+
+  "weapon_mods":      { label: "Modifications", icon: Activity },
+  "engine_mods":      { label: "Modifications", icon: Activity },
+  "shield_mods":      { label: "Modifications", icon: Activity },
+  "ship_mods":        { label: "Modifications", icon: Activity },
+  "clothing_mods":    { label: "Modifications", icon: Activity },
+  "paint_mods":       { label: "Modifications", icon: Activity },
+};
+
+function categorizeStats(stats: PlayerStat[]): StatGroup[] {
+  const groups = new Map<string, { label: string; icon: typeof Activity; stats: PlayerStat[] }>();
+  const other: PlayerStat[] = [];
+
+  for (const stat of stats) {
+    let matched = false;
+    for (const [prefix, group] of Object.entries(CATEGORY_PREFIXES)) {
+      if (stat.stat_id === prefix || stat.stat_id.startsWith(prefix)) {
+        if (!groups.has(group.label)) {
+          groups.set(group.label, { ...group, stats: [] });
+        }
+        groups.get(group.label)!.stats.push(stat);
+        matched = true;
+        break;
+      }
+    }
+    if (!matched) {
+      other.push(stat);
+    }
+  }
+
+  const result = Array.from(groups.values());
+  if (other.length > 0) {
+    result.push({ label: "Other", icon: Box, stats: other });
+  }
+  return result;
+}
+
+// ── Formatting helpers ─────────────────────────────────────────────────────────
+
+function fmtValue(stat: PlayerStat): string {
+  const v = stat.value;
+  if (stat.stat_id.endsWith("_percent")) return `${v.toFixed(1)}%`;
+  if (stat.stat_id.includes("_rank")) return `${v}`;
+  if (stat.stat_id.includes("_score")) return v.toLocaleString();
+  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
+  if (v >= 1_000) return `${(v / 1_000).toFixed(1)}k`;
+  if (v === Math.floor(v)) return v.toLocaleString();
+  return v.toFixed(1);
+}
+
+// ── Player Card ────────────────────────────────────────────────────────────────
+
+export function PlayerCard() {
+  const { data: meta } = useQuery<{
+    player_name?: string; player_credits?: number;
+    game_version?: string; in_game_time_sec?: number;
+  } | null>({
+    queryKey: ["player-meta"],
+    queryFn: () => fetch("/api/v1/player").then(r => r.ok ? r.json() : null),
+    staleTime: 60_000,
+  });
+
+  const { data: stats = [] } = useQuery<PlayerStat[]>({
+    queryKey: ["player-stats"],
+    queryFn: () => fetch("/api/v1/player/stats").then(r => r.json()),
+    staleTime: 60_000,
+  });
+
+  const groups = useMemo(() => categorizeStats(stats), [stats]);
+
+  const playTime = meta?.in_game_time_sec
+    ? `${Math.floor(meta.in_game_time_sec / 3600)}h ${Math.floor((meta.in_game_time_sec % 3600) / 60)}m`
+    : null;
+
+  if (!meta) return null;
+
+  return (
+    <div className="flex flex-col h-full overflow-auto">
+      {/* ── Header: profile image + name + meta ── */}
+      <div className="relative px-6 pt-8 pb-6 border-b border-border">
+        <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent" />
+        <div className="relative flex items-center gap-5">
+          {/* Profile image — use a game icon as avatar */}
+          <div className="shrink-0 w-20 h-20 rounded-full border-2 border-primary/30 bg-muted/20 flex items-center justify-center overflow-hidden shadow-lg">
+            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+              <User className="w-8 h-8 text-primary/70" />
+            </div>
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-2xl font-bold tracking-tight truncate">
+              {meta.player_name || "Player"}
+            </h1>
+            <div className="flex items-center gap-3 mt-1.5 text-sm text-muted-foreground">
+              {meta.player_credits != null && (
+                <span className="tabular-nums font-mono font-medium text-amber-500">
+                  {meta.player_credits.toLocaleString()} Cr
+                </span>
+              )}
+              {playTime && (
+                <>
+                  <span className="text-border">·</span>
+                  <Timer className="w-3.5 h-3.5" />
+                  <span>{playTime}</span>
+                </>
+              )}
+              {meta.game_version && (
+                <>
+                  <span className="text-border">·</span>
+                  <span>v{meta.game_version}</span>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Stats grid ── */}
+      <div className="flex-1 overflow-auto p-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 max-w-6xl">
+          {groups.map((group) => (
+            <div
+              key={group.label}
+              className="rounded-lg border border-border bg-card/50 overflow-hidden"
+            >
+              {/* Group header */}
+              <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border bg-muted/20">
+                <group.icon className="w-4 h-4 text-muted-foreground" />
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  {group.label}
+                </span>
+                <span className="ml-auto text-[10px] text-muted-foreground/60 tabular-nums">
+                  {group.stats.length}
+                </span>
+              </div>
+              {/* Group rows */}
+              <div className="divide-y divide-border/50">
+                {group.stats.map((stat) => (
+                  <div
+                    key={stat.stat_id}
+                    className="flex items-center justify-between px-4 py-2 hover:bg-muted/10 transition-colors"
+                  >
+                    <span className="text-sm">{stat.display}</span>
+                    <span className="text-sm font-mono tabular-nums font-medium text-foreground/80">
+                      {fmtValue(stat)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {stats.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-2">
+            <Activity className="w-10 h-10 opacity-30" />
+            <p className="text-sm">No stats yet — ingest a save to see your player card</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
