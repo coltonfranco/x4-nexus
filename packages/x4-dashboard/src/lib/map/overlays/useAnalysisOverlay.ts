@@ -12,7 +12,7 @@ import type { FillMode } from "./types";
 import { useResourceData, useTopRoutes, useWareOffers, usePlayerRelations, useConflictData, useTensionData, useSectorForces, type ResourceSource, type SectorResources, type BorderTensionEntry, type ConflictEntry, type SectorForceEntry } from "./useAnalysisData";
 import type { Cluster, Gate, Highway, Sector, Zone } from "../types";
 
-export type SectorTint = { fill: string; opacity: number; animate?: string };
+export type SectorTint = { fill: string; opacity: number; animate?: string; innerDangerBorder?: boolean };
 export type RouteInfo = { wareName: string; sellSector: string; profitPerHour: number; hops: number | null };
 export type RouteMarker = { id: string; coord: [number, number]; color: string; routes: RouteInfo[] };
 
@@ -84,7 +84,7 @@ export function useAnalysisOverlay({
   const wareOn = fillMode === "trade" && !!wareId;
 
   const resourceData = useResourceData(resourcesOn);
-  const relations = usePlayerRelations(relationsOn);
+  const relations = usePlayerRelations(relationsOn || fillMode === "conflict");
   const conflicts = useConflictData(true); // always pre-warm
   const tensions = useTensionData(fillMode === "conflict");
   const forces = useSectorForces(fillMode === "conflict");
@@ -193,6 +193,26 @@ export function useAnalysisOverlay({
         }
       });
       
+      const hostileFactions = new Set<string>();
+      if (relations.data) {
+        for (const rel of relations.data) {
+          if (rel.relation <= -0.1) {
+            hostileFactions.add(rel.faction_id);
+          }
+        }
+      }
+
+      sectors.forEach((s) => {
+        const sid = s.sector_id.toLowerCase();
+        let owner = s.owner_faction;
+        if (!owner && s.cluster_id) {
+          owner = clusterMap.get(s.cluster_id)?.owner_faction ?? null;
+        }
+        if (owner && hostileFactions.has(owner)) {
+          tint.set(sid, { fill: "transparent", opacity: 1, innerDangerBorder: true });
+        }
+      });
+      
       const data = conflicts.data ?? [];
       data.forEach((c) => {
         const sid = c.sector_id.toLowerCase();
@@ -222,7 +242,13 @@ export function useAnalysisOverlay({
           animate = "conflict-pulse-slow 2s ease-in-out infinite alternate";
         }
         
-        tint.set(sid, { fill, opacity: Math.min(1, 0.35 + 0.65 * t), animate });
+        const existingTint = tint.get(sid);
+        tint.set(sid, { 
+          fill, 
+          opacity: Math.min(1, 0.35 + 0.65 * t), 
+          animate,
+          innerDangerBorder: existingTint?.innerDangerBorder
+        });
         sectorConflicts.set(sid, c);
       });
       

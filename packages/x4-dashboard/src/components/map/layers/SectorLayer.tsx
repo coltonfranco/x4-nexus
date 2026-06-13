@@ -103,6 +103,14 @@ export function SectorLayer({
               stroke={stroke}
               strokeWidth={isSelected ? 2 : tint ? 1.6 : 1.2} />
 
+            {tint?.innerDangerBorder && (
+              <polygon points={hexPoints(cx, cy, renderedHexSize * 0.88)}
+                fill="none"
+                stroke="#ef4444"
+                strokeWidth={2.5}
+                style={{ animation: "conflict-pulse-slow 2s ease-in-out infinite alternate" }} />
+            )}
+
             {badge && (
               <text x={cx} y={cy + fontSize * 2.1} textAnchor="middle"
                 fontSize={fontSize * 0.8} fill="rgba(255,255,255,0.9)"
