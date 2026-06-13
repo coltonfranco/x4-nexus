@@ -16,16 +16,13 @@ export type AdjacencyEdge = {
 
 export type Adjacency = Map<string, AdjacencyEdge[]>;
 
-const SPEED_MANUAL = 100;
-const SPEED_LOCALHIGHWAY = 500;
-const SPEED_SUPERHIGHWAY = 1500;
-const SPEED_ACCELERATOR = 2000;
+// All fast-travel connections use the same trivial weight so Dijkstra
+// finds the fewest-hop path.  Screen-pixel distances have no relationship
+// to in-game travel time and should not bias the pathfinder.
+const GATE_WEIGHT = 0.001;
+const HIGHWAY_WEIGHT = 0.001;
+const MANUAL_WEIGHT = 0.001;
 
-
-function dist(p1: [number, number], p2: [number, number]) {
-  const dx = p1[0] - p2[0], dy = p1[1] - p2[1];
-  return Math.sqrt(dx * dx + dy * dy);
-}
 
 export function buildAdjacency(
   gates: Gate[],
@@ -48,26 +45,20 @@ export function buildAdjacency(
 
   // 1. Add Gate connections
   for (const g of gates) {
-    const p1 = zoneScreenPos.get(g.from_zone_id);
-    const p2 = zoneScreenPos.get(g.to_zone_id);
-    if (!p1 || !p2) continue;
+    if (!zoneScreenPos.has(g.from_zone_id) || !zoneScreenPos.has(g.to_zone_id)) continue;
     
     const isAccelerator = g.kind === "accelerator";
     const kind = isAccelerator ? "accelerator" : "jump_gate";
-    const weight = isAccelerator ? dist(p1, p2) / SPEED_ACCELERATOR : 0.001; // nearly instant
-    link(`zone:${g.from_zone_id}`, `zone:${g.to_zone_id}`, kind, weight);
+    link(`zone:${g.from_zone_id}`, `zone:${g.to_zone_id}`, kind, GATE_WEIGHT);
   }
 
   // 2. Add Highway connections
   for (const h of highways) {
-    const p1 = zoneScreenPos.get(h.from_zone_id);
-    const p2 = zoneScreenPos.get(h.to_zone_id);
-    if (!p1 || !p2) continue;
+    if (!zoneScreenPos.has(h.from_zone_id) || !zoneScreenPos.has(h.to_zone_id)) continue;
     
     const isLocal = h.kind === "localhighway";
     const kind = isLocal ? "localhighway" : "superhighway";
-    const weight = dist(p1, p2) / (isLocal ? SPEED_LOCALHIGHWAY : SPEED_SUPERHIGHWAY);
-    link(`zone:${h.from_zone_id}`, `zone:${h.to_zone_id}`, kind, weight);
+    link(`zone:${h.from_zone_id}`, `zone:${h.to_zone_id}`, kind, HIGHWAY_WEIGHT);
   }
 
   // 3. Add intra-sector manual connections
@@ -92,10 +83,8 @@ export function buildAdjacency(
       for (let j = i + 1; j < zIds.length; j++) {
         const za = zIds[i];
         const zb = zIds[j];
-        const pa = zoneScreenPos.get(za);
-        const pb = zoneScreenPos.get(zb);
-        if (!pa || !pb) continue;
-        link(`zone:${za}`, `zone:${zb}`, "manual", dist(pa, pb) / SPEED_MANUAL);
+        if (!zoneScreenPos.has(za) || !zoneScreenPos.has(zb)) continue;
+        link(`zone:${za}`, `zone:${zb}`, "manual", MANUAL_WEIGHT);
       }
     }
 
@@ -105,7 +94,7 @@ export function buildAdjacency(
     // bias the pathfinder toward one gate over another.
     for (const zId of zIds) {
       if (!zoneScreenPos.has(zId)) continue;
-      link(`sector:${sid}`, `zone:${zId}`, "manual", 0.001);
+      link(`sector:${sid}`, `zone:${zId}`, "manual", MANUAL_WEIGHT);
     }
   });
 
