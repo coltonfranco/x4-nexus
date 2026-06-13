@@ -106,7 +106,7 @@ export function SectorLayer({
             {tint?.innerDangerBorder && (
               <polygon points={hexPoints(cx, cy, renderedHexSize * 0.88)}
                 fill="none"
-                stroke="#ef4444"
+                stroke={typeof tint.innerDangerBorder === 'string' ? tint.innerDangerBorder : "#ef4444"}
                 strokeWidth={2.5}
                 style={{ animation: "conflict-pulse-slow 2s ease-in-out infinite alternate" }} />
             )}

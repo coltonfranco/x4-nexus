@@ -277,11 +277,11 @@ export function useAnalysisOverlay({
         const fill = `#${toHex(r)}${toHex(g)}${toHex(b)}`;
         
         let animate: string | undefined;
-        if (t > 0.9) {
+        if (c.type === "battle") {
           animate = "conflict-blink-intense 0.3s cubic-bezier(0.4, 0, 0.6, 1) infinite alternate";
-        } else if (t > 0.5) {
+        } else if (c.type === "invasion") {
           animate = "conflict-pulse-fast 0.6s ease-in-out infinite alternate";
-        } else if (t > 0.2) {
+        } else if (c.type === "skirmish") {
           animate = "conflict-pulse-slow 2s ease-in-out infinite alternate";
         }
         

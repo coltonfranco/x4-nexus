@@ -14,13 +14,13 @@ export function MapLegend({ fillMode }: { fillMode: FillMode }) {
             <div className="text-[10px] uppercase tracking-wider text-muted-foreground/80 mb-1.5">Sector Battles</div>
             <div className="grid grid-cols-[16px_1fr] gap-x-2 gap-y-1.5 items-center">
               <div className="w-2.5 h-2.5 rounded-full bg-red-500 animate-[conflict-blink-intense_0.5s_infinite]" />
-              <span>Intense Battle (40+ ships)</span>
+              <span>Intense Battle (10+ ships per side)</span>
               
               <div className="w-2.5 h-2.5 rounded-full bg-orange-500 animate-[conflict-pulse-fast_1s_infinite]" />
-              <span>Invasion (15-39 ships)</span>
+              <span>Invasion (5+ hostiles vs Owner)</span>
               
               <div className="w-2.5 h-2.5 rounded-full bg-yellow-500 animate-[conflict-pulse-slow_2s_infinite]" />
-              <span>Skirmish (1-14 ships)</span>
+              <span>Skirmish (Minor Conflict)</span>
             </div>
           </div>
 
