@@ -1,0 +1,2175 @@
+$ uv run python -c "
+import gzip
+from lxml import etree
+
+save = r'C:\Users\colto\sss\Documents\Egosoft\X4\59308344\save\save_001.xml.gz'
+
+with gzip.open(save, 'rb') as f:
+    for event, elem in etree.iterparse(f, events=('end',), tag='resourceareas', huge_tree=True):
+        sector = None
+        node = elem.getparent()
+        for _ in range(8):
+            if node is None: break
+            if node.get('class') == 'sector':
+                sector = node.get('macro')
+                break
+            node = node.getparent()
+        
+        print(f'<resourceareas> sector={sector}')
+        for child in elem:
+            if callable(child.tag): continue
+            print(f'  <{child.tag}>')
+            for gc in child:
+                if callable(gc.tag): continue
+                print(f'    <{gc.tag}> {dict(gc.attrib)}')
+        print()
+        elem.clear()
+"
+[exit 0]
+<resourceareas> sector=cluster_43_sector001_macro
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <reservations> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+
+<resourceareas> sector=cluster_18_sector001_macro
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+    <reservations> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+    <reservations> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <reservations> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <reservations> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <reservations> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+
+<resourceareas> sector=cluster_05_sector001_macro
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+
+<resourceareas> sector=cluster_37_sector001_macro
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+    <reservations> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <reservations> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <reservations> {}
+    <fields> {}
+
+<resourceareas> sector=cluster_33_sector001_macro
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+
+<resourceareas> sector=cluster_410_sector001_macro
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <reservations> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <reservations> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <reservations> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <reservations> {}
+    <fields> {}
+
+<resourceareas> sector=cluster_08_sector001_macro
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+    <reservations> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+
+<resourceareas> sector=cluster_50_sector002_macro
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <events> {}
+    <offset> {}
+    <fields> {}
+
+<resourceareas> sector=cluster_50_sector001_macro
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+
+<resourceareas> sector=cluster_49_sector001_macro
+  <area>
+    <offset> {}
+    <reservations> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+    <reservations> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+
+<resourceareas> sector=cluster_415_sector001_macro
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <reservations> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+
+<resourceareas> sector=cluster_02_sector001_macro
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+    <reservations> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+
+<resourceareas> sector=cluster_40_sector001_macro
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+
+<resourceareas> sector=cluster_604_sector001_macro
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+
+<resourceareas> sector=cluster_606_sector002_macro
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+
+<resourceareas> sector=cluster_723_sector001_macro
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+
+<resourceareas> sector=cluster_602_sector001_macro
+  <area>
+    <offset> {}
+    <reservations> {}
+    <fields> {}
+  <area>
+    <events> {}
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <reservations> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+
+<resourceareas> sector=cluster_416_sector002_macro
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <reservations> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+
+<resourceareas> sector=cluster_41_sector001_macro
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <reservations> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <reservations> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <reservations> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+
+<resourceareas> sector=cluster_601_sector001_macro
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+
+<resourceareas> sector=cluster_500_sector001_macro
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+
+<resourceareas> sector=cluster_500_sector003_macro
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+
+<resourceareas> sector=cluster_500_sector002_macro
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+
+<resourceareas> sector=cluster_110_sector001_macro
+  <area>
+    <offset> {}
+    <reservations> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+    <reservations> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+    <reservations> {}
+
+<resourceareas> sector=cluster_112_sector002_macro
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <reservations> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+
+<resourceareas> sector=cluster_112_sector001_macro
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <reservations> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <reservations> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <reservations> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <reservations> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+
+<resourceareas> sector=cluster_605_sector001_macro
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+
+<resourceareas> sector=cluster_19_sector001_macro
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+    <reservations> {}
+  <area>
+    <offset> {}
+    <reservations> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+
+<resourceareas> sector=cluster_19_sector002_macro
+  <area>
+    <offset> {}
+    <reservations> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <offset> {}
+  <area>
+    <events> {}
+    <offset> {}
+  <area>
+    <offset> {}
+    <reservations> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <reservations> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+
+<resourceareas> sector=cluster_31_sector001_macro
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+
+<resourceareas> sector=cluster_420_sector001_macro
+  <area>
+    <offset> {}
+    <reservations> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <reservations> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <events> {}
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <reservations> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <reservations> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+
+<resourceareas> sector=cluster_48_sector001_macro
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+    <fields> {}
+  <area>
+    <offset> {}
+ 
+
+[… truncated 108683 chars …]

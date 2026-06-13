@@ -9,7 +9,7 @@ import { RESOURCE_COLORS, STATUS_COLORS } from "../constants";
 import { heatColor } from "./heat";
 import { buildAdjacency, findPath, type TravelSegmentKind, type PathResult } from "./pathfinding";
 import type { FillMode } from "./types";
-import { useResourceData, useTopRoutes, useWareOffers, usePlayerRelations, useConflictData, type ResourceSource, type SectorResources } from "./useAnalysisData";
+import { useResourceData, useTopRoutes, useWareOffers, usePlayerRelations, useConflictData, useTensionData, useSectorForces, type ResourceSource, type SectorResources, type BorderTensionEntry, type ConflictEntry, type SectorForceEntry } from "./useAnalysisData";
 import type { Cluster, Gate, Highway, Sector, Zone } from "../types";
 
 export type SectorTint = { fill: string; opacity: number; animate?: string };
@@ -27,6 +27,8 @@ export type AnalysisOverlay = {
   sectorBadges: Map<string, string>;
   sectorTooltips: Map<string, string>;
   sectorConflicts: Map<string, ConflictEntry>;
+  borderTensions: Map<string, BorderTensionEntry>;
+  sectorForces: Map<string, SectorForceEntry>;
   sectorResources: Map<string, SectorResources>;
   alternateDots: Map<string, string[]>;       // lowercase sector → alt resource colors
   dimOthers: boolean;
@@ -84,6 +86,8 @@ export function useAnalysisOverlay({
   const resourceData = useResourceData(resourcesOn);
   const relations = usePlayerRelations(relationsOn);
   const conflicts = useConflictData(true); // always pre-warm
+  const tensions = useTensionData(fillMode === "conflict");
+  const forces = useSectorForces(fillMode === "conflict");
   const offers = useWareOffers(wareOn ? wareId : null);
   const routes = useTopRoutes(tradeRoutesOn || !!selectedRouteSector);
 
@@ -135,8 +139,12 @@ export function useAnalysisOverlay({
       source: null as ResourceSource | null,
       loading: false,
       tooltips: new Map<string, string>(),
-      sectorConflicts: new Map<string, ConflictEntry>(),
-      sectorResources: new Map<string, SectorResources>(),
+      sectorTooltips: new Map(),
+      sectorConflicts: new Map(),
+      borderTensions: new Map(),
+      sectorForces: new Map(),
+      sectorResources: new Map(),
+      alternateDots: new Map(),
     };
 
     if (fillMode === "relations") {
@@ -170,6 +178,21 @@ export function useAnalysisOverlay({
     if (fillMode === "conflict") {
       const tint = new Map<string, SectorTint>();
       const sectorConflicts = new Map<string, ConflictEntry>();
+      const borderTensions = new Map<string, BorderTensionEntry>();
+      const sectorForces = new Map<string, SectorForceEntry>();
+      const dots = new Map<string, string[]>();
+      
+      const forceData = forces.data ?? [];
+      forceData.forEach((f) => {
+        const sid = f.sector_id.toLowerCase();
+        sectorForces.set(sid, f);
+        
+        const playerForce = f.factions.find((fac) => fac.faction_id === "player");
+        if (playerForce && playerForce.fighter_count > 0) {
+          dots.set(sid, ["#22c55e"]);
+        }
+      });
+      
       const data = conflicts.data ?? [];
       data.forEach((c) => {
         const sid = c.sector_id.toLowerCase();
@@ -202,7 +225,17 @@ export function useAnalysisOverlay({
         tint.set(sid, { fill, opacity: Math.min(1, 0.35 + 0.65 * t), animate });
         sectorConflicts.set(sid, c);
       });
-      return { ...empty, tint, sectorConflicts, dim: true, loading: false };
+      
+      const tensionData = tensions.data ?? [];
+      tensionData.forEach(t => {
+        // Deterministic key: "sectorA_sectorB" where A < B
+        const a = t.from_sector_id.toLowerCase();
+        const b = t.to_sector_id.toLowerCase();
+        const key = a < b ? `${a}_${b}` : `${b}_${a}`;
+        borderTensions.set(key, t);
+      });
+      
+      return { ...empty, tint, sectorConflicts, borderTensions, sectorForces, dots, dim: true, loading: false };
     }
 
 
@@ -263,7 +296,7 @@ export function useAnalysisOverlay({
     }
 
     return empty; // faction, or trade-routes view (no fill tint)
-  }, [fillMode, wareOn, resource, resourceData.data, resourceData.isLoading, offers.data, offers.isLoading, relations.data, relations.isLoading, sectors, clusterMap]);
+  }, [fillMode, wareOn, resource, resourceData.data, resourceData.isLoading, offers.data, offers.isLoading, relations.data, relations.isLoading, conflicts.data, tensions.data, sectors, clusterMap]);
 
   // ── Trade routes: one marker per buy sector, plus a profit tint so the whole hex
   // reads as "better/worse run" and is a big click target. Filtered by max jumps. ──
@@ -354,6 +387,8 @@ export function useAnalysisOverlay({
     sectorBadges: tradeRoutesOn ? routeData.badges : fill.badges,
     sectorTooltips: fill.tooltips,
     sectorConflicts: fill.sectorConflicts,
+    borderTensions: fill.borderTensions,
+    sectorForces: fill.sectorForces,
     sectorResources: fill.sectorResources,
     alternateDots: fill.dots,
     dimOthers: fill.dim || tradeRoutesOn,

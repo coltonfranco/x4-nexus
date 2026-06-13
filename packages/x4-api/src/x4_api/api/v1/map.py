@@ -591,6 +591,19 @@ class ClusterResourceEntry(PublicModel):
     yield_level: str  # low | medium | high | veryhigh (best yield present in the cluster)
 
 
+class BorderTensionEntry(PublicModel):
+    from_sector_id: str
+    to_sector_id: str
+    from_forces: list[ConflictFaction]
+    to_forces: list[ConflictFaction]
+    intensity: float
+
+class SectorForceEntry(PublicModel):
+    sector_id: str
+    fighter_count: int
+    factions: list[ConflictFaction]
+    sides: list[ConflictSide] | None = None
+
 @router.get("/map/cluster-resources", response_model=list[ClusterResourceEntry])
 def list_cluster_resources(
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
@@ -613,6 +626,86 @@ def list_cluster_resources(
         ORDER BY c.cluster_id, rr.ware
     """).fetchall()
     return [ClusterResourceEntry(**dict(r)) for r in rows]
+
+
+@router.get("/map/forces", response_model=list[SectorForceEntry])
+def list_forces(
+    conn: Annotated[sqlite3.Connection, Depends(get_db)],
+) -> list[SectorForceEntry]:
+    """Return total fighter counts per sector and breakdown by faction."""
+    has_ships = bool(conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='ships'"
+    ).fetchone())
+    if not has_ships:
+        return []
+
+    breakdown_rows = conn.execute("""
+        SELECT sh.sector_id, sh.owner_faction, COUNT(*) AS cnt, f.name AS faction_name
+        FROM ships sh
+        JOIN s.ships c ON c.ship_id = sh.macro
+        LEFT JOIN s.factions f ON f.faction_id = sh.owner_faction
+        WHERE c.role = 'fight'
+          AND sh.owner_faction IS NOT NULL
+          AND sh.sector_id IS NOT NULL
+          AND (sh.state IS NULL OR sh.state = '')
+        GROUP BY sh.sector_id, sh.owner_faction
+        ORDER BY sh.sector_id, cnt DESC
+    """).fetchall()
+
+    from collections import defaultdict
+    by_sector: dict[str, list[ConflictFaction]] = defaultdict(list)
+    totals: dict[str, int] = defaultdict(int)
+
+    for sector, faction, cnt, fname in breakdown_rows:
+        sector_id = sector.lower()
+        totals[sector_id] += cnt
+        by_sector[sector_id].append(ConflictFaction(
+            faction_id=faction, 
+            faction_name=fname or faction, 
+            fighter_count=cnt
+        ))
+
+    hostile_rows = conn.execute("SELECT faction_id, other_faction_id FROM faction_relations_current WHERE relation < -0.1").fetchall()
+    hostile_set = set()
+    for row in hostile_rows:
+        hostile_set.add((row[0], row[1]))
+        hostile_set.add((row[1], row[0]))
+
+    results = []
+    for sector_id, f_count in totals.items():
+        factions = by_sector[sector_id]
+        
+        # group into sides
+        sides: list[list[ConflictFaction]] = []
+        for cf in factions:
+            placed = False
+            for side in sides:
+                is_hostile = False
+                for existing_cf in side:
+                    if (cf.faction_id, existing_cf.faction_id) in hostile_set:
+                        is_hostile = True
+                        break
+                if not is_hostile:
+                    side.append(cf)
+                    placed = True
+                    break
+            if not placed:
+                sides.append([cf])
+        
+        conflict_sides = []
+        for side_factions in sides:
+            side_fcnt = sum(f.fighter_count for f in side_factions)
+            conflict_sides.append(ConflictSide(factions=side_factions, fighter_count=side_fcnt))
+        conflict_sides.sort(key=lambda s: -s.fighter_count)
+
+        results.append(SectorForceEntry(
+            sector_id=sector_id,
+            fighter_count=f_count,
+            factions=factions,
+            sides=conflict_sides
+        ))
+    
+    return results
 
 
 @router.get("/map/conflicts", response_model=list[ConflictEntry])
@@ -747,30 +840,34 @@ def list_conflicts(
         second_largest = second_largest_side.fighter_count if second_largest_side else 0
         total_fighters = sum(s.fighter_count for s in conflict_sides)
 
-        if total_fighters < 3 and second_largest == 0:
-            continue  # Stray 1-2 ships wandering into an empty hostile sector. Ignore entirely.
-
+        so_id, so_name = sector_owners_map.get(sector, (None, None))
+        is_neutral = so_id is None or so_id == "ownerless"
+        
         ctype = "skirmish"
         invader_name = None
         
-        so_id, so_name = sector_owners_map[sector]
-        is_neutral = so_id is None or so_id == "ownerless"
-        
-        if largest >= 10 and second_largest >= 10:
-            ctype = "battle"
-        elif largest >= 5 and second_largest < 5:
-            # Check if largest side is hostile to sector owner
-            if not is_neutral and largest_side:
-                is_hostile_to_owner = False
-                for f in largest_side.factions:
-                    if (f.faction_id, so_id) in hostile_set:
-                        is_hostile_to_owner = True
-                        break
+        is_invasion = False
+        if not is_neutral and largest_side:
+            for f in largest_side.factions:
+                if (f.faction_id, so_id) in hostile_set:
+                    is_invasion = True
+                    break
+
+        if second_largest < 5:
+            # The secondary force (the attackers, or defenders if overwhelmed) is tiny.
+            # This is only a notable conflict if the LARGEST force is actively invading the sector.
+            if not is_invasion or largest < 5:
+                continue
                 
-                if is_hostile_to_owner:
-                    ctype = "invasion"
-                    invader_faction = max(largest_side.factions, key=lambda x: x.fighter_count)
-                    invader_name = invader_faction.faction_name
+            ctype = "invasion"
+            invader_faction = max(largest_side.factions, key=lambda x: x.fighter_count)
+            invader_name = invader_faction.faction_name
+        else:
+            # A real fight with at least 5 ships on both sides.
+            if largest >= 10 and second_largest >= 10:
+                ctype = "battle"
+            else:
+                ctype = "skirmish"
 
         # Intensity scales depending on the type of conflict.
         # For battles, the second_largest force dictates how "massive" it really is.
@@ -806,5 +903,144 @@ def list_conflicts(
         )
     
     # Re-sort results by intensity
+    results.sort(key=lambda x: -x.intensity)
+    return results
+
+
+@router.get("/map/tensions", response_model=list[BorderTensionEntry])
+def list_tensions(
+    conn: Annotated[sqlite3.Connection, Depends(get_db)],
+) -> list[BorderTensionEntry]:
+    """Sectors with amassing hostile forces on adjacent borders."""
+    has_ships = bool(conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='ships'"
+    ).fetchone())
+    has_rels = bool(conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='faction_relations_current'"
+    ).fetchone())
+    if not has_ships or not has_rels:
+        return []
+
+    breakdown_rows = conn.execute("""
+        WITH sector_fighters AS (
+            SELECT sh.sector_id, sh.owner_faction, COUNT(*) AS cnt
+            FROM ships sh
+            JOIN s.ships c ON c.ship_id = sh.macro
+            WHERE c.role = 'fight'
+              AND sh.owner_faction IS NOT NULL
+              AND sh.sector_id IS NOT NULL
+              AND (sh.state IS NULL OR sh.state = '')
+            GROUP BY sh.sector_id, sh.owner_faction
+        ),
+        sector_owners AS (
+            SELECT s.sector_id, so.owner_faction
+            FROM s.sectors s
+            LEFT JOIN seed.sector_ownership so ON so.sector_id = s.sector_id
+            WHERE so.owner_faction IS NOT NULL
+        ),
+        sector_factions AS (
+            SELECT sector_id, owner_faction, cnt FROM sector_fighters
+            UNION ALL
+            SELECT sector_id, owner_faction, 0 AS cnt FROM sector_owners
+        ),
+        merged_factions AS (
+            SELECT LOWER(sector_id) AS sector_id, owner_faction, SUM(cnt) AS cnt
+            FROM sector_factions
+            GROUP BY LOWER(sector_id), owner_faction
+        )
+        SELECT mf.sector_id, mf.owner_faction, mf.cnt,
+               COALESCE(f.name, mf.owner_faction) AS faction_name,
+               so.owner_faction AS sector_owner_id
+        FROM merged_factions mf
+        LEFT JOIN s.factions f ON f.faction_id = mf.owner_faction
+        LEFT JOIN seed.sector_ownership so ON LOWER(so.sector_id) = mf.sector_id
+    """).fetchall()
+
+    from collections import defaultdict
+    sector_forces: dict[str, list[dict]] = defaultdict(list)
+    sector_owners_map: dict[str, str | None] = {}
+    
+    for sector, faction, cnt, fname, so_id in breakdown_rows:
+        sector_forces[sector].append({"faction_id": faction, "faction_name": fname, "cnt": cnt})
+        if sector not in sector_owners_map:
+            sector_owners_map[sector] = so_id
+
+    connections = conn.execute("""
+        SELECT DISTINCT
+            CASE WHEN z1.sector_id < z2.sector_id THEN z1.sector_id ELSE z2.sector_id END AS from_sector_id,
+            CASE WHEN z1.sector_id < z2.sector_id THEN z2.sector_id ELSE z1.sector_id END AS to_sector_id
+        FROM s.gates g
+        JOIN s.zones z1 ON z1.zone_id = g.from_zone_id
+        JOIN s.zones z2 ON z2.zone_id = g.to_zone_id
+        WHERE z1.sector_id != z2.sector_id
+        UNION
+        SELECT DISTINCT
+            CASE WHEN z1.sector_id < z2.sector_id THEN z1.sector_id ELSE z2.sector_id END AS from_sector_id,
+            CASE WHEN z1.sector_id < z2.sector_id THEN z2.sector_id ELSE z1.sector_id END AS to_sector_id
+        FROM s.superhighways sh
+        JOIN s.zones z1 ON z1.zone_id = sh.from_zone_id
+        JOIN s.zones z2 ON z2.zone_id = sh.to_zone_id
+        WHERE z1.sector_id != z2.sector_id
+    """).fetchall()
+
+    hostile_rows = conn.execute("SELECT faction_id, other_faction_id FROM faction_relations_current WHERE relation < -0.1").fetchall()
+    hostile_set = set()
+    for f1, f2 in hostile_rows:
+        hostile_set.add((f1, f2))
+        hostile_set.add((f2, f1))
+
+    results = []
+
+    for c_from, c_to in connections:
+        c_from = c_from.lower()
+        c_to = c_to.lower()
+        
+        forces_a = sector_forces.get(c_from, [])
+        forces_b = sector_forces.get(c_to, [])
+        
+        if not forces_a or not forces_b:
+            continue
+
+        owner_a = sector_owners_map.get(c_from)
+        owner_b = sector_owners_map.get(c_to)
+
+        hostile_in_a = set()
+        hostile_in_b = set()
+        
+        for fa in forces_a:
+            for fb in forces_b:
+                if (fa["faction_id"], fb["faction_id"]) in hostile_set:
+                    # Condition 1: Mutual standoff. Both sides have 10+ ships.
+                    mutual_standoff = fa["cnt"] >= 10 and fb["cnt"] >= 10
+                    
+                    # Condition 2: Invasion threat. One side has 20+ ships and is hostile to the other side's SECTOR OWNER.
+                    a_invading_b = fa["cnt"] >= 20 and owner_b and (fa["faction_id"], owner_b) in hostile_set
+                    b_invading_a = fb["cnt"] >= 20 and owner_a and (fb["faction_id"], owner_a) in hostile_set
+                    
+                    if mutual_standoff or a_invading_b or b_invading_a:
+                        hostile_in_a.add(fa["faction_id"])
+                        hostile_in_b.add(fb["faction_id"])
+                        
+        if hostile_in_a and hostile_in_b:
+            a_involved = [fa for fa in forces_a if fa["faction_id"] in hostile_in_a]
+            b_involved = [fb for fb in forces_b if fb["faction_id"] in hostile_in_b]
+            
+            total_fighters = sum(fa["cnt"] for fa in a_involved) + sum(fb["cnt"] for fb in b_involved)
+            intensity = min(1.0, total_fighters / 150.0)
+            
+            from_forces = [ConflictFaction(faction_id=f["faction_id"], faction_name=f["faction_name"], fighter_count=f["cnt"]) for f in a_involved]
+            to_forces = [ConflictFaction(faction_id=f["faction_id"], faction_name=f["faction_name"], fighter_count=f["cnt"]) for f in b_involved]
+            
+            from_forces.sort(key=lambda x: -x.fighter_count)
+            to_forces.sort(key=lambda x: -x.fighter_count)
+            
+            results.append(BorderTensionEntry(
+                from_sector_id=c_from,
+                to_sector_id=c_to,
+                from_forces=from_forces,
+                to_forces=to_forces,
+                intensity=round(intensity, 4)
+            ))
+            
     results.sort(key=lambda x: -x.intensity)
     return results

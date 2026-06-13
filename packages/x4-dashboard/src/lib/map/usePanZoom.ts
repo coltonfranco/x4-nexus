@@ -59,6 +59,17 @@ export function usePanZoom(
     hasAutoFit.current = true;
   }, [fitView]);
 
+  const zoomToSector = useCallback((sectorId: string) => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const pos = sectorCoords.get(sectorId);
+    if (!pos) return;
+    const [cx, cy] = pos;
+    // zoom in to scale 3.0 centered on sector
+    const scale = 3.0;
+    setTransform({ x: rect.width / 2 - cx * scale, y: rect.height / 2 - cy * scale, scale });
+  }, [sectorCoords]);
+
   const onWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
     const rect = containerRef.current?.getBoundingClientRect();
@@ -93,6 +104,7 @@ export function usePanZoom(
     isPanning,
     fitView,
     resetView,
+    zoomToSector,
     handlers: { onWheel, onMouseDown, onMouseMove, onMouseUp },
   };
 }

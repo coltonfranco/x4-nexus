@@ -1,7 +1,7 @@
 // The pannable/zoomable SVG canvas: composes the grid, link, sector, and overlay layers,
 // and renders screen-space HUD bits (route tooltip, nav readout, zoom, legend).
 
-import { type RefObject, useState } from "react";
+import { type RefObject, useState, Fragment } from "react";
 import { X } from "lucide-react";
 
 import { stationCategoryLabel, stationDisplayName } from "../../lib/map/stations";
@@ -9,7 +9,7 @@ import { RESOURCE_COLORS } from "../../lib/map/constants";
 
 import type { MapData } from "../../lib/map/useMapData";
 import type { MapLayout } from "../../lib/map/useMapLayout";
-import type { MapStation, Transform } from "../../lib/map/types";
+import type { MapStation, Transform, Sector } from "../../lib/map/types";
 import type { AnalysisOverlay } from "../../lib/map/overlays/useAnalysisOverlay";
 import { HexGridLayer } from "./layers/HexGridLayer";
 import { HexBuildGridLayer } from "./layers/HexBuildGridLayer";
@@ -86,6 +86,8 @@ export function MapCanvas({
     hoveredStation && hoveredStation.station_id !== selectedStation?.station_id ? hoveredStation : null;
   const tooltipPos = tooltipStation ? stationScreenPos.get(tooltipStation.station_id) ?? null : null;
 
+  const [hoveredLinkId, setHoveredLinkId] = useState<string | null>(null);
+
   return (
     <div
       ref={containerRef}
@@ -106,21 +108,6 @@ export function MapCanvas({
         <g transform={`translate(${transform.x.toFixed(2)},${transform.y.toFixed(2)}) scale(${transform.scale.toFixed(4)})`}>
 
           {toggles.showGrid && <HexGridLayer cells={bgGrid} hexSize={hexSize} />}
-
-          <HighwayLayer
-            highways={data.highways}
-            showHighways={toggles.showHighways}
-            showLocalHighways={toggles.showLocalHighways}
-            zoneMap={zoneMap} zoneScreenPos={zoneScreenPos} sectorCoords={sectorCoords}
-            visibleSectorIds={visibleSectorIds} overlappingPaths={overlappingPaths} transform={transform}
-          />
-
-          <GateLayer
-            gates={data.gates}
-            showGates={toggles.showGates}
-            zoneMap={zoneMap} zoneScreenPos={zoneScreenPos} sectorCoords={sectorCoords}
-            visibleSectorIds={visibleSectorIds} overlappingPaths={overlappingPaths} transform={transform}
-          />
 
           <SectorLayer
             visibleSectors={visibleSectors} sectorCoords={sectorCoords} subSectorSet={subSectorSet}
@@ -153,6 +140,23 @@ export function MapCanvas({
           <HexBuildGridLayer
             visibleSectors={visibleSectors} sectorCoords={sectorCoords} subSectorSet={subSectorSet}
             hexSize={hexSize} zoneScaleMap={zoneScaleMap} transform={transform} viewport={viewport}
+          />
+
+          <HighwayLayer
+            highways={data.highways}
+            showHighways={toggles.showHighways}
+            showLocalHighways={toggles.showLocalHighways}
+            zoneMap={zoneMap} zoneScreenPos={zoneScreenPos} sectorCoords={sectorCoords}
+            visibleSectorIds={visibleSectorIds} overlappingPaths={overlappingPaths} transform={transform}
+            borderTensions={overlay.borderTensions} setHoveredLinkId={setHoveredLinkId}
+          />
+
+          <GateLayer
+            gates={data.gates}
+            showGates={toggles.showGates}
+            zoneMap={zoneMap} zoneScreenPos={zoneScreenPos} sectorCoords={sectorCoords}
+            visibleSectorIds={visibleSectorIds} overlappingPaths={overlappingPaths} transform={transform}
+            borderTensions={overlay.borderTensions} setHoveredLinkId={setHoveredLinkId}
           />
 
           {toggles.showStations && (
@@ -213,11 +217,21 @@ export function MapCanvas({
         </div>
       )}
 
-      {/* Sector hover tooltip (screen-space, conflict). */}
-      {hoveredSectorId && overlay.sectorConflicts?.has(hoveredSectorId.toLowerCase()) && (() => {
-        const c = overlay.sectorConflicts.get(hoveredSectorId.toLowerCase())!;
+      {/* Sector hover tooltip (screen-space, conflict or forces). */}
+      {hoveredSectorId && (overlay.sectorConflicts?.has(hoveredSectorId.toLowerCase()) || overlay.sectorForces?.has(hoveredSectorId.toLowerCase())) && (() => {
+        const hid = hoveredSectorId.toLowerCase();
+        const conflict = overlay.sectorConflicts?.get(hid);
+        const forces = overlay.sectorForces?.get(hid);
         const pos = layout.sectorCoords.get(hoveredSectorId);
         if (!pos) return null;
+        
+        const sectorObj = data.sectors.find((s: Sector) => s.sector_id.toLowerCase() === hid);
+        let owner = sectorObj?.owner_faction;
+        if (!owner && sectorObj?.cluster_id) {
+          owner = layout.clusterMap.get(sectorObj.cluster_id)?.owner_faction ?? null;
+        }
+        const ownerHex = owner ? layout.factionMap.get(owner)?.color_hex : undefined;
+
         return (
           <div style={{
             position: "absolute",
@@ -226,17 +240,20 @@ export function MapCanvas({
             pointerEvents: "none", zIndex: 22, maxWidth: 260,
           }} className="rounded-md border border-border bg-popover/95 px-3 py-2.5 shadow-lg backdrop-blur text-sm">
             <p className="font-semibold border-b border-border/50 pb-1.5 mb-2">
-              {sectorName(hoveredSectorId)} <span className="text-muted-foreground font-normal ml-1 capitalize">
-                {c.type === "invasion" ? `${c.invader_name} Invasion` : c.type}
-              </span>
+              <span style={{ color: ownerHex ?? 'inherit' }}>{sectorName(hoveredSectorId)}</span>
+              {conflict && (
+                <span className="text-muted-foreground font-normal ml-1 capitalize">
+                  {conflict.type === "invasion" ? `${conflict.invader_name} Invasion` : conflict.type}
+                </span>
+              )}
             </p>
-            {c.type === "invasion" && (
+            {conflict?.type === "invasion" && (
               <p className="text-[11px] text-muted-foreground mb-3 leading-snug">
-                {c.invader_name} has launched an assault against {c.sector_owner_name || "the local sector owner"}.
+                {conflict.invader_name} has launched an assault against {conflict.sector_owner_name || "the local sector owner"}.
               </p>
             )}
             <div className="flex flex-col gap-3">
-              {c.sides.map((side, i) => (
+              {forces?.sides ? forces.sides.map((side, i) => (
                 <div key={i} className="flex flex-col gap-1.5 border-b border-border/30 pb-2.5 last:border-0 last:pb-0 relative">
                   {i > 0 && <div className="absolute -top-[17px] left-1/2 -translate-x-1/2 bg-popover/95 px-2 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">VS</div>}
                   {side.factions.map(f => {
@@ -258,11 +275,185 @@ export function MapCanvas({
                     </div>
                   )}
                 </div>
-              ))}
+              )) : (
+                <div className="flex flex-col gap-1.5 pb-1">
+                  {forces?.factions.map(f => {
+                    const faction = factionMap.get(f.faction_id);
+                    return (
+                      <div key={f.faction_id} className="flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: faction?.color_hex ?? '#888' }} />
+                          <span>{faction?.name ?? f.faction_name}</span>
+                        </div>
+                        <span className="tabular-nums font-medium">{f.fighter_count}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
             <div className="mt-2 pt-2 border-t border-border/50 flex justify-between text-xs font-semibold text-muted-foreground">
               <span>Total Fighters</span>
-              <span className="tabular-nums">{c.fighter_count}</span>
+              <span className="tabular-nums">{forces?.fighter_count}</span>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Border Tension tooltip */}
+      {hoveredLinkId && (() => {
+        const parts = hoveredLinkId.split("-");
+        if (parts.length !== 3) return null;
+        const z1 = zoneMap.get(parts[1]);
+        const z2 = zoneMap.get(parts[2]);
+        if (!z1?.sector_id || !z2?.sector_id) return null;
+        
+        const a = z1.sector_id.toLowerCase();
+        const b = z2.sector_id.toLowerCase();
+        const tension = overlay.borderTensions?.get(`${a}_${b}`) || overlay.borderTensions?.get(`${b}_${a}`);
+        if (!tension) return null;
+        
+        const p1 = zoneScreenPos.get(parts[1]) ?? sectorCoords.get(z1.sector_id);
+        const p2 = zoneScreenPos.get(parts[2]) ?? sectorCoords.get(z2.sector_id);
+        if (!p1 || !p2) return null;
+        
+        const cx = (p1[0] + p2[0]) / 2;
+        const cy = (p1[1] + p2[1]) / 2;
+
+        const sA = data.sectors.find((s: Sector) => s.sector_id.toLowerCase() === a);
+        const sB = data.sectors.find((s: Sector) => s.sector_id.toLowerCase() === b);
+        
+        let ownerA = sA?.owner_faction;
+        if (!ownerA && sA?.cluster_id) ownerA = layout.clusterMap.get(sA.cluster_id)?.owner_faction ?? null;
+        
+        let ownerB = sB?.owner_faction;
+        if (!ownerB && sB?.cluster_id) ownerB = layout.clusterMap.get(sB.cluster_id)?.owner_faction ?? null;
+
+        const hexA = ownerA ? layout.factionMap.get(ownerA)?.color_hex : undefined;
+        const hexB = ownerB ? layout.factionMap.get(ownerB)?.color_hex : undefined;
+
+        let dotColorClass = "bg-yellow-500";
+        let textColorClass = "text-yellow-500";
+        let borderColorClass = "border-yellow-500/50";
+        let isPulsing = false;
+        
+        if (tension.intensity >= 0.8) {
+          dotColorClass = "bg-red-500";
+          textColorClass = "text-red-400";
+          borderColorClass = "border-red-500/50";
+          isPulsing = true;
+        } else if (tension.intensity >= 0.5) {
+          dotColorClass = "bg-red-500";
+          textColorClass = "text-red-400";
+          borderColorClass = "border-red-500/50";
+        } else if (tension.intensity >= 0.3) {
+          dotColorClass = "bg-orange-500";
+          textColorClass = "text-orange-400";
+          borderColorClass = "border-orange-500/50";
+        }
+
+        const entryA = overlay.sectorForces?.get(a);
+        const entryB = overlay.sectorForces?.get(b);
+        const forcesA: any[] = entryA?.factions ?? tension.from_forces;
+        const forcesB: any[] = entryB?.factions ?? tension.to_forces;
+
+        return (
+          <div style={{
+            position: "absolute",
+            left: cx * transform.scale + transform.x + 12,
+            top: cy * transform.scale + transform.y + 12,
+            pointerEvents: "none", zIndex: 22, maxWidth: 320,
+          }} className={`rounded-md border ${borderColorClass} bg-popover/95 px-3 py-2.5 shadow-lg backdrop-blur text-sm`}>
+            <p className={`font-semibold ${textColorClass} border-b border-border/50 pb-1.5 mb-2 flex items-center gap-2`}>
+              <span className={`w-2 h-2 rounded-full ${dotColorClass} ${isPulsing ? 'animate-pulse' : ''}`} /> Border Tension
+            </p>
+            <div className="flex gap-4">
+              <div className="flex-1 flex flex-col gap-1.5 border-r border-border/30 pr-4">
+                <p className="text-xs font-medium text-muted-foreground mb-1">
+                  <span style={{ color: hexA ?? 'inherit' }}>{sectorName(tension.from_sector_id)}</span>
+                </p>
+                {entryA?.sides ? (
+                  entryA.sides.map((side: any, i: number) => (
+                    <Fragment key={i}>
+                      {i > 0 && <div className="text-center text-xs font-bold text-muted-foreground my-1 border-t border-border/20 pt-1">vs</div>}
+                      {side.factions.map((f: any) => {
+                        const faction = factionMap.get(f.faction_id);
+                        return (
+                          <div key={f.faction_id} className="flex items-center justify-between gap-3 text-xs">
+                            <div className="flex items-center gap-1.5">
+                              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: faction?.color_hex ?? '#888' }} />
+                              <span>{faction?.name ?? f.faction_name}</span>
+                            </div>
+                            <span className="tabular-nums font-medium">{f.fighter_count}</span>
+                          </div>
+                        );
+                      })}
+                      {side.factions.length > 1 && (
+                        <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground mt-0.5 pl-3.5">
+                          <span className="text-[10px]">Alliance Total</span>
+                          <span className="tabular-nums font-medium">{side.fighter_count}</span>
+                        </div>
+                      )}
+                    </Fragment>
+                  ))
+                ) : (
+                  forcesA.map((f: any) => {
+                    const faction = factionMap.get(f.faction_id);
+                    return (
+                      <div key={f.faction_id} className="flex items-center justify-between gap-3 text-xs">
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: faction?.color_hex ?? '#888' }} />
+                          <span>{faction?.name ?? ('faction_name' in f ? (f as any).faction_name : f.faction_id)}</span>
+                        </div>
+                        <span className="tabular-nums font-medium">{f.fighter_count}</span>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+              <div className="flex-1 flex flex-col gap-1.5 pl-1">
+                <p className="text-xs font-medium text-muted-foreground mb-1">
+                  <span style={{ color: hexB ?? 'inherit' }}>{sectorName(tension.to_sector_id)}</span>
+                </p>
+                {entryB?.sides ? (
+                  entryB.sides.map((side: any, i: number) => (
+                    <Fragment key={i}>
+                      {i > 0 && <div className="text-center text-xs font-bold text-muted-foreground my-1 border-t border-border/20 pt-1">vs</div>}
+                      {side.factions.map((f: any) => {
+                        const faction = factionMap.get(f.faction_id);
+                        return (
+                          <div key={f.faction_id} className="flex items-center justify-between gap-3 text-xs">
+                            <div className="flex items-center gap-1.5">
+                              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: faction?.color_hex ?? '#888' }} />
+                              <span>{faction?.name ?? f.faction_name}</span>
+                            </div>
+                            <span className="tabular-nums font-medium">{f.fighter_count}</span>
+                          </div>
+                        );
+                      })}
+                      {side.factions.length > 1 && (
+                        <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground mt-0.5 pl-3.5">
+                          <span className="text-[10px]">Alliance Total</span>
+                          <span className="tabular-nums font-medium">{side.fighter_count}</span>
+                        </div>
+                      )}
+                    </Fragment>
+                  ))
+                ) : (
+                  forcesB.map((f: any) => {
+                    const faction = factionMap.get(f.faction_id);
+                    return (
+                      <div key={f.faction_id} className="flex items-center justify-between gap-3 text-xs">
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: faction?.color_hex ?? '#888' }} />
+                          <span>{faction?.name ?? ('faction_name' in f ? (f as any).faction_name : f.faction_id)}</span>
+                        </div>
+                        <span className="tabular-nums font-medium">{f.fighter_count}</span>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
             </div>
           </div>
         );

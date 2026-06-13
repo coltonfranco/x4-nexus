@@ -243,6 +243,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/races": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Races */
+        get: operations["list_races_api_v1_races_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/races/{race_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Race */
+        get: operations["get_race_api_v1_races__race_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/race-relations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Race Relations */
+        get: operations["list_race_relations_api_v1_race_relations_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/map/clusters": {
         parameters: {
             query?: never;
@@ -522,6 +573,71 @@ export interface paths {
          * @description Return best resource yield per ware per cluster, for map overlay display.
          */
         get: operations["list_cluster_resources_api_v1_map_cluster_resources_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/map/forces": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Forces
+         * @description Return total fighter counts per sector and breakdown by faction.
+         */
+        get: operations["list_forces_api_v1_map_forces_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/map/conflicts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Conflicts
+         * @description Sectors with active fighter presence from mutually-hostile factions.
+         *
+         *     Returns one row per sector with a conflict score.  ``intensity`` is
+         *     0.0–1.0 normalized across all sectors; ``fighter_count`` is the raw
+         *     number of combat-class ships from the hostile factions in that sector.
+         *     Returns [] until a save is ingested.
+         */
+        get: operations["list_conflicts_api_v1_map_conflicts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/map/tensions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Tensions
+         * @description Sectors with amassing hostile forces on adjacent borders.
+         */
+        get: operations["list_tensions_api_v1_map_tensions_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1080,6 +1196,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/player/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Player Stats
+         * @description Flat key-value player statistics from the save file.
+         */
+        get: operations["player_stats_api_v1_player_stats_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/player/reputation": {
         parameters: {
             query?: never;
@@ -1251,6 +1387,19 @@ export interface components {
             /** Ware Id */
             ware_id: string;
         };
+        /** BorderTensionEntry */
+        BorderTensionEntry: {
+            /** From Sector Id */
+            from_sector_id: string;
+            /** To Sector Id */
+            to_sector_id: string;
+            /** From Forces */
+            from_forces: components["schemas"]["ConflictFaction"][];
+            /** To Forces */
+            to_forces: components["schemas"]["ConflictFaction"][];
+            /** Intensity */
+            intensity: number;
+        };
         /** BribeWare */
         BribeWare: {
             /** Ware Id */
@@ -1314,6 +1463,43 @@ export interface components {
             qz?: number | null;
             /** Qw */
             qw?: number | null;
+        };
+        /** ConflictEntry */
+        ConflictEntry: {
+            /** Sector Id */
+            sector_id: string;
+            /** Fighter Count */
+            fighter_count: number;
+            /** Hostile Pair Count */
+            hostile_pair_count: number;
+            /** Intensity */
+            intensity: number;
+            /** Type */
+            type: string;
+            /** Invader Name */
+            invader_name?: string | null;
+            /** Sector Owner Name */
+            sector_owner_name?: string | null;
+            /** Factions */
+            factions: components["schemas"]["ConflictFaction"][];
+            /** Sides */
+            sides: components["schemas"]["ConflictSide"][];
+        };
+        /** ConflictFaction */
+        ConflictFaction: {
+            /** Faction Id */
+            faction_id: string;
+            /** Faction Name */
+            faction_name: string;
+            /** Fighter Count */
+            fighter_count: number;
+        };
+        /** ConflictSide */
+        ConflictSide: {
+            /** Factions */
+            factions: components["schemas"]["ConflictFaction"][];
+            /** Fighter Count */
+            fighter_count: number;
         };
         /** DiploAction */
         DiploAction: {
@@ -1698,6 +1884,10 @@ export interface components {
             ship_type: string | null;
             /** Cargo Volume */
             cargo_volume: number | null;
+            /** Level */
+            level: number | null;
+            /** Thruster */
+            thruster: string | null;
         };
         /** LiveStation */
         LiveStation: {
@@ -1734,6 +1924,10 @@ export interface components {
             loadout_id: string;
             /** Ship Macro */
             ship_macro: string;
+            /** Name */
+            name?: string | null;
+            /** Description */
+            description?: string | null;
             /** Equipment */
             equipment: components["schemas"]["LoadoutEquipmentItem"][];
         };
@@ -1749,6 +1943,10 @@ export interface components {
             optional: boolean;
             /** Quantity */
             quantity: number | null;
+            /** Weaponmode */
+            weaponmode?: string | null;
+            /** Ammunition */
+            ammunition?: string | null;
         };
         /** MapStation */
         MapStation: {
@@ -1807,6 +2005,26 @@ export interface components {
             kind: string | null;
             /** Size */
             size: string | null;
+            /** Makerrace */
+            makerrace?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Shortname */
+            shortname?: string | null;
+            /** Is Datavault */
+            is_datavault?: boolean | null;
+            /** Is Landmark */
+            is_landmark?: boolean | null;
+            /** Is Unique */
+            is_unique?: boolean | null;
+            /** Icon */
+            icon?: string | null;
+            /** Hudicon */
+            hudicon?: string | null;
+            /** Factionhqicon */
+            factionhqicon?: string | null;
+            /** Subtype */
+            subtype?: string | null;
             /** Produces Ware Id */
             produces_ware_id: string | null;
             /** Storage Capacity */
@@ -1817,12 +2035,74 @@ export interface components {
             drone_capacity: number | null;
             /** Workforce Capacity */
             workforce_capacity: number | null;
+            /** Workforce Race */
+            workforce_race?: string | null;
             /** Icon Url */
             icon_url: string | null;
             /** Hull */
             hull: number | null;
+            /** Hull Min */
+            hull_min?: number | null;
+            /** Hull Integrated */
+            hull_integrated?: boolean | null;
+            /** Hull Invulnerable */
+            hull_invulnerable?: boolean | null;
+            /** Hull Noscrap */
+            hull_noscrap?: boolean | null;
             /** Explosiondamage */
             explosiondamage: number | null;
+            /** Secrecy Level */
+            secrecy_level?: number | null;
+            /** Dock Allow */
+            dock_allow?: boolean | null;
+            /** Dock Allowbuild */
+            dock_allowbuild?: boolean | null;
+            /** Dock Allowtrade */
+            dock_allowtrade?: boolean | null;
+            /** Dock Allowunits */
+            dock_allowunits?: boolean | null;
+            /** Dock External */
+            dock_external?: boolean | null;
+            /** Dock Playeronly */
+            dock_playeronly?: boolean | null;
+            /** Dock Priority */
+            dock_priority?: number | null;
+            /** Dock Showroom */
+            dock_showroom?: boolean | null;
+            /** Dock Size Tags */
+            dock_size_tags?: string | null;
+            /** Equip Classes */
+            equip_classes?: string | null;
+            /** Supply Classes */
+            supply_classes?: string | null;
+            /** Production Research */
+            production_research?: boolean | null;
+            /** Production Show Active */
+            production_show_active?: boolean | null;
+            /** Builder Units */
+            builder_units?: number | null;
+            /** Build Has Storage */
+            build_has_storage?: boolean | null;
+            /** Rotation Speed Max */
+            rotation_speed_max?: number | null;
+            /** Rotation Accel Max */
+            rotation_accel_max?: number | null;
+            /** Translation Speed Max */
+            translation_speed_max?: number | null;
+            /** Translation Accel Max */
+            translation_accel_max?: number | null;
+            /** Undock Distance */
+            undock_distance?: number | null;
+            /** Undock Speed */
+            undock_speed?: number | null;
+            /** Undock Rotate */
+            undock_rotate?: boolean | null;
+            /** Autoaim Allow */
+            autoaim_allow?: boolean | null;
+            /** Ownership Claim */
+            ownership_claim?: boolean | null;
+            /** Longrangescan Minlevel */
+            longrangescan_minlevel?: number | null;
             /** Turrets S */
             turrets_s: number;
             /** Turrets M */
@@ -1852,6 +2132,26 @@ export interface components {
             kind: string | null;
             /** Size */
             size: string | null;
+            /** Makerrace */
+            makerrace?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Shortname */
+            shortname?: string | null;
+            /** Is Datavault */
+            is_datavault?: boolean | null;
+            /** Is Landmark */
+            is_landmark?: boolean | null;
+            /** Is Unique */
+            is_unique?: boolean | null;
+            /** Icon */
+            icon?: string | null;
+            /** Hudicon */
+            hudicon?: string | null;
+            /** Factionhqicon */
+            factionhqicon?: string | null;
+            /** Subtype */
+            subtype?: string | null;
             /** Produces Ware Id */
             produces_ware_id: string | null;
             /** Storage Capacity */
@@ -1862,6 +2162,8 @@ export interface components {
             drone_capacity: number | null;
             /** Workforce Capacity */
             workforce_capacity: number | null;
+            /** Workforce Race */
+            workforce_race?: string | null;
             /** Icon Url */
             icon_url: string | null;
         };
@@ -1927,6 +2229,15 @@ export interface components {
             /** Initial Relation */
             initial_relation: number | null;
         };
+        /** PlayerStat */
+        PlayerStat: {
+            /** Stat Id */
+            stat_id: string;
+            /** Value */
+            value: number;
+            /** Display */
+            display: string;
+        };
         /** ProductionInput */
         ProductionInput: {
             /** Ware Id */
@@ -1946,6 +2257,87 @@ export interface components {
             workforce: number | null;
             /** Inputs */
             inputs: components["schemas"]["ProductionInput"][];
+        };
+        /** RaceDetail */
+        RaceDetail: {
+            /** Race Id */
+            race_id: string;
+            /** Name */
+            name: string | null;
+            /** Description */
+            description?: string | null;
+            /** Shortname */
+            shortname?: string | null;
+            /** Tags */
+            tags?: string | null;
+            /** Icon Url */
+            icon_url?: string | null;
+            /** Spacename */
+            spacename?: string | null;
+            /** Homespacename */
+            homespacename?: string | null;
+            /** Names Table */
+            names_table?: number | null;
+            /** Char Height */
+            char_height?: number | null;
+            /** Char Walk Speed */
+            char_walk_speed?: number | null;
+            /** Char Run Speed */
+            char_run_speed?: number | null;
+            /** Char Slow Walk */
+            char_slow_walk?: number | null;
+            /** Char Acceleration */
+            char_acceleration?: number | null;
+            /** Char Spacesuit Ref */
+            char_spacesuit_ref?: string | null;
+            /** Event Adjust Y */
+            event_adjust_y?: number | null;
+            /** Event Adjust Z */
+            event_adjust_z?: number | null;
+            /** Event Face Key */
+            event_face_key?: string | null;
+            /** Icon Inactive */
+            icon_inactive?: string | null;
+            /** Agent Icon Male */
+            agent_icon_male?: string | null;
+            /** Agent Icon Female */
+            agent_icon_female?: string | null;
+            /** Trail Brightness */
+            trail_brightness?: number | null;
+            /** Trail Contrast */
+            trail_contrast?: number | null;
+            /** Trail Saturation */
+            trail_saturation?: number | null;
+            /** Trail Hue */
+            trail_hue?: number | null;
+            /** Engine Color Index */
+            engine_color_index?: number | null;
+            /** Chair Ref */
+            chair_ref?: string | null;
+        };
+        /** RaceRelation */
+        RaceRelation: {
+            /** Race Id */
+            race_id: string;
+            /** Other Race Id */
+            other_race_id: string;
+            /** Relation */
+            relation: number;
+        };
+        /** RaceSummary */
+        RaceSummary: {
+            /** Race Id */
+            race_id: string;
+            /** Name */
+            name: string | null;
+            /** Description */
+            description?: string | null;
+            /** Shortname */
+            shortname?: string | null;
+            /** Tags */
+            tags?: string | null;
+            /** Icon Url */
+            icon_url?: string | null;
         };
         /** RegionSummary */
         RegionSummary: {
@@ -2041,6 +2433,15 @@ export interface components {
             to_sector_id: string;
             /** Kind */
             kind: string | null;
+        };
+        /** SectorForceEntry */
+        SectorForceEntry: {
+            /** Sector Id */
+            sector_id: string;
+            /** Fighter Count */
+            fighter_count: number;
+            /** Factions */
+            factions: components["schemas"]["ConflictFaction"][];
         };
         /** SectorSummary */
         SectorSummary: {
@@ -2197,6 +2598,24 @@ export interface components {
             explosion_damage: number | null;
             /** Explosion Shield Damage */
             explosion_shield_damage: number | null;
+            /** Explosion Shield Disruption */
+            explosion_shield_disruption: number | null;
+            /** Gatherrate Gas */
+            gatherrate_gas: number | null;
+            /** Gatherrate Ore */
+            gatherrate_ore: number | null;
+            /** Gatherrate Silicon */
+            gatherrate_silicon: number | null;
+            /** Can Be Captured */
+            can_be_captured: number | null;
+            /** Radar Range Direct */
+            radar_range_direct: number | null;
+            /** Boost Recharge Delay */
+            boost_recharge_delay: number | null;
+            /** Rotation Speed Max */
+            rotation_speed_max: number | null;
+            /** Rotation Accel Max */
+            rotation_accel_max: number | null;
             /** Shield Capacity Min */
             shield_capacity_min: number | null;
             /** Shield Capacity Max */
@@ -2500,6 +2919,16 @@ export interface components {
             has_production: boolean;
             /** Has Drops */
             has_drops: boolean;
+            /** Shortname */
+            shortname?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Sortorder */
+            sortorder?: number | null;
+            /** Dismantlefactor */
+            dismantlefactor?: number | null;
+            /** Research Time */
+            research_time?: number | null;
             /** Storage Class */
             storage_class: string | null;
             /** Restriction Licence */
@@ -2608,6 +3037,16 @@ export interface components {
             has_production: boolean;
             /** Has Drops */
             has_drops: boolean;
+            /** Shortname */
+            shortname?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Sortorder */
+            sortorder?: number | null;
+            /** Dismantlefactor */
+            dismantlefactor?: number | null;
+            /** Research Time */
+            research_time?: number | null;
         };
         /** WeaponStats */
         WeaponStats: {
@@ -2629,14 +3068,44 @@ export interface components {
             shield_damage: number | null;
             /** Hull Damage */
             hull_damage: number | null;
+            /** Shield Disruption */
+            shield_disruption: number | null;
             /** Reload Rate */
             reload_rate: number | null;
+            /** Reload Time */
+            reload_time: number | null;
             /** Bullet Speed */
             bullet_speed: number | null;
             /** Bullet Lifetime */
             bullet_lifetime: number | null;
             /** Bullet Amount */
             bullet_amount: number | null;
+            /** Bullet Barrel */
+            bullet_barrel: number | null;
+            /** Bullet Angle */
+            bullet_angle: number | null;
+            /** Bullet Maxhits */
+            bullet_maxhits: number | null;
+            /** Bullet Range */
+            bullet_range: number | null;
+            /** Heat Value */
+            heat_value: number | null;
+            /** Explosion Hull */
+            explosion_hull: number | null;
+            /** Explosion Shield */
+            explosion_shield: number | null;
+            /** Ammo Value */
+            ammo_value: number | null;
+            /** Ammo Reload */
+            ammo_reload: number | null;
+            /** Missile Lifetime */
+            missile_lifetime: number | null;
+            /** Missile Range */
+            missile_range: number | null;
+            /** Area Damage */
+            area_damage: number | null;
+            /** Area Lifetime */
+            area_lifetime: number | null;
         };
         /** ZoneSummary */
         ZoneSummary: {
@@ -2989,6 +3458,77 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_races_api_v1_races_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RaceSummary"][];
+                };
+            };
+        };
+    };
+    get_race_api_v1_races__race_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                race_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RaceDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_race_relations_api_v1_race_relations_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RaceRelation"][];
                 };
             };
         };
@@ -3450,10 +3990,69 @@ export interface operations {
             };
         };
     };
+    list_forces_api_v1_map_forces_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SectorForceEntry"][];
+                };
+            };
+        };
+    };
+    list_conflicts_api_v1_map_conflicts_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConflictEntry"][];
+                };
+            };
+        };
+    };
+    list_tensions_api_v1_map_tensions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BorderTensionEntry"][];
+                };
+            };
+        };
+    };
     list_modules_api_v1_modules_get: {
         parameters: {
             query?: {
-                /** @description Filter by kind: production, habitation, storage, dock, defence, connectionmodule */
                 kind?: string | null;
                 limit?: number;
                 offset?: number;
@@ -4271,6 +4870,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LicenceItem"][];
+                };
+            };
+        };
+    };
+    player_stats_api_v1_player_stats_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlayerStat"][];
                 };
             };
         };

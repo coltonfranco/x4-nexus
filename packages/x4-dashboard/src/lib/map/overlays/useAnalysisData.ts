@@ -183,3 +183,40 @@ export function useConflictData(enabled: boolean) {
     staleTime: 30_000,
   });
 }
+
+export type BorderTensionEntry = {
+  from_sector_id: string;
+  to_sector_id: string;
+  from_forces: { faction_id: string; faction_name: string; fighter_count: number }[];
+  to_forces: { faction_id: string; faction_name: string; fighter_count: number }[];
+  intensity: number;
+};
+
+export function useTensionData(enabled: boolean) {
+  return useQuery<BorderTensionEntry[]>({
+    queryKey: ["map-tensions"],
+    enabled,
+    queryFn: () => fetch("/api/v1/map/tensions").then((r) => r.json()).then(data => {
+      console.log("FETCHED TENSIONS:", data);
+      return data;
+    }),
+    staleTime: 30_000,
+  });
+}
+
+export type SectorForceEntry = {
+  sector_id: string;
+  fighter_count: number;
+  factions: { faction_id: string; faction_name: string; fighter_count: number }[];
+  sides?: ConflictSide[];
+};
+
+export function useSectorForces(enabled: boolean) {
+  return useQuery<SectorForceEntry[]>({
+    queryKey: ["map-forces"],
+    enabled,
+    queryFn: () => fetch("/api/v1/map/forces").then((r) => r.json()),
+    staleTime: 30_000,
+  });
+}
+

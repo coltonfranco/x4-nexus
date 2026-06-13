@@ -7,6 +7,7 @@ import { ControlPanel } from "../components/map/ControlPanel";
 import { MapCanvas, type MapToggles } from "../components/map/MapCanvas";
 import { NavPanel } from "../components/map/NavPanel";
 import { SectorDetailPanel } from "../components/map/SectorDetailPanel";
+import { SectorSearch } from "../components/map/SectorSearch";
 import { sectorDisplayName } from "../lib/map/names";
 import { useMapData } from "../lib/map/useMapData";
 import { useMapLayout } from "../lib/map/useMapLayout";
@@ -153,13 +154,25 @@ export default function MapPage() {
             </p>
           </div>
         </div>
-        <button
-          onClick={panZoom.resetView}
-          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground px-2 py-1.5 rounded hover:bg-muted/40 transition-colors"
-        >
-          <RotateCcw className="w-3.5 h-3.5" />
-          Reset
-        </button>
+        <div className="flex items-center gap-4">
+          <SectorSearch
+            sectors={visibleSectors}
+            sectorName={sectorName}
+            factionMap={layout.factionMap}
+            clusterMap={layout.clusterMap}
+            onSelectSector={(id) => {
+              handleSelectSector(id);
+              panZoom.zoomToSector(id);
+            }}
+          />
+          <button
+            onClick={panZoom.resetView}
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground px-2 py-1.5 rounded hover:bg-muted/40 transition-colors"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            Reset
+          </button>
+        </div>
       </div>
 
       <div style={{ flex: 1, display: "flex", minHeight: 0 }}>

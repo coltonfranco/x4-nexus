@@ -8,6 +8,7 @@ import { ConnectionIcon } from "../ConnectionIcon";
 import { MAP_THEME } from "../../../lib/map/constants";
 import type { OverlappingPaths } from "../../../lib/map/positions";
 import type { Gate, Highway, Transform, Zone } from "../../../lib/map/types";
+import type { BorderTensionEntry } from "../../../lib/map/overlays/useAnalysisData";
 
 type LinkContext = {
   zoneMap: Map<string, Zone>;
@@ -16,11 +17,13 @@ type LinkContext = {
   visibleSectorIds: Set<string>;
   overlappingPaths: OverlappingPaths;
   transform: Transform;
+  borderTensions?: Map<string, BorderTensionEntry>;
+  setHoveredLinkId?: (id: string | null) => void;
 };
 
 export function HighwayLayer({
   highways, showHighways, showLocalHighways,
-  zoneMap, zoneScreenPos, sectorCoords, visibleSectorIds, overlappingPaths, transform,
+  zoneMap, zoneScreenPos, sectorCoords, visibleSectorIds, overlappingPaths, transform, borderTensions, setHoveredLinkId
 }: LinkContext & { highways: Highway[]; showHighways: boolean; showLocalHighways: boolean }) {
   return (
     <>
@@ -81,28 +84,62 @@ export function HighwayLayer({
 
         const lineLen = Math.max(10, Math.sqrt(Math.pow(l2[0]-l1[0], 2) + Math.pow(l2[1]-l1[1], 2)));
 
+        const a = z1.sector_id.toLowerCase();
+        const b = z2.sector_id.toLowerCase();
+        const tension = !isLocal ? (borderTensions?.get(`${a}_${b}`) || borderTensions?.get(`${b}_${a}`)) : undefined;
+        
+        let finalStroke: string = stroke;
+        let finalAnim: string | undefined = undefined;
+        let isTension = false;
+        
+        if (tension) {
+          isTension = true;
+          if (tension.intensity >= 0.8) {
+            finalStroke = "rgb(239, 68, 68)"; // Red
+            finalAnim = "conflict-pulse-fast 0.6s ease-in-out infinite alternate";
+          } else if (tension.intensity >= 0.5) {
+            finalStroke = "rgb(239, 68, 68)"; // Red
+          } else if (tension.intensity >= 0.3) {
+            finalStroke = "rgb(249, 115, 22)"; // Orange
+          } else {
+            finalStroke = "rgb(234, 179, 8)"; // Yellow
+          }
+        }
+
+        const linkId = `hw-${hw.from_zone_id}-${hw.to_zone_id}`;
+
         return (
-          <g key={`hw-${hw.from_zone_id}-${hw.to_zone_id}`}>
+          <g key={linkId}>
             <line
               x1={l1[0]} y1={l1[1]} x2={l2[0]} y2={l2[1]}
-              stroke={stroke} strokeWidth={strokeWidth} opacity={showAnimation ? opacity * 0.2 : opacity * 0.6} />
+              stroke={finalStroke} strokeWidth={strokeWidth} opacity={showAnimation ? opacity * 0.2 : opacity * 0.6} />
             {showAnimation && (
               <line
                 x1={l1[0]} y1={l1[1]} x2={l2[0]} y2={l2[1]}
-                stroke={stroke} strokeWidth={strokeWidth} strokeLinecap="round" strokeDasharray={isLocal ? `6 ${lineLen}` : "3 6"} opacity={opacity * 1.5}>
+                stroke={finalStroke} strokeWidth={strokeWidth} strokeLinecap="round" strokeDasharray={isLocal ? `6 ${lineLen}` : "3 6"} opacity={opacity * 1.5}
+                style={{ animation: finalAnim }}>
                 <animate attributeName="stroke-dashoffset" from="0" to={isLocal ? -lineLen : -9} dur={isLocal ? "2s" : "0.5s"} repeatCount="indefinite" />
               </line>
             )}
             {showIcons ? (
-              <>
-                <ConnectionIcon x={p1[0]} y={p1[1]} iconPath="mapob_superhighway.png" color={stroke} size={iconSize} />
-                <ConnectionIcon x={p2[0]} y={p2[1]} iconPath="mapob_superhighway.png" color={stroke} size={iconSize} />
-              </>
+              <g style={{ animation: finalAnim }}>
+                <ConnectionIcon x={p1[0]} y={p1[1]} iconPath="mapob_superhighway.png" color={finalStroke} size={iconSize} />
+                <ConnectionIcon x={p2[0]} y={p2[1]} iconPath="mapob_superhighway.png" color={finalStroke} size={iconSize} />
+              </g>
             ) : (
-              <>
-                <circle cx={p1[0]} cy={p1[1]} r={dotSize} fill={stroke} opacity={nodeOpacity} />
-                <circle cx={p2[0]} cy={p2[1]} r={dotSize} fill={stroke} opacity={nodeOpacity} />
-              </>
+              <g style={{ animation: finalAnim }}>
+                <circle cx={p1[0]} cy={p1[1]} r={dotSize} fill={finalStroke} opacity={nodeOpacity} />
+                <circle cx={p2[0]} cy={p2[1]} r={dotSize} fill={finalStroke} opacity={nodeOpacity} />
+              </g>
+            )}
+            {setHoveredLinkId && isTension && (
+              <line
+                x1={p1[0]} y1={p1[1]} x2={p2[0]} y2={p2[1]}
+                stroke="transparent" strokeWidth={Math.max(12, strokeWidth * 4)}
+                className="cursor-pointer"
+                onPointerEnter={() => setHoveredLinkId(linkId)}
+                onPointerLeave={() => setHoveredLinkId(null)}
+              />
             )}
           </g>
         );
@@ -113,7 +150,7 @@ export function HighwayLayer({
 
 export function GateLayer({
   gates, showGates,
-  zoneMap, zoneScreenPos, sectorCoords, visibleSectorIds, overlappingPaths, transform,
+  zoneMap, zoneScreenPos, sectorCoords, visibleSectorIds, overlappingPaths, transform, borderTensions, setHoveredLinkId
 }: LinkContext & { gates: Gate[]; showGates: boolean }) {
   if (!showGates) return null;
   return (
@@ -165,25 +202,59 @@ export function GateLayer({
           }
         }
 
+        const a = z1.sector_id.toLowerCase();
+        const b = z2.sector_id.toLowerCase();
+        const tension = borderTensions?.get(`${a}_${b}`) || borderTensions?.get(`${b}_${a}`);
+        
+        let finalStroke: string = stroke;
+        let finalAnim: string | undefined = undefined;
+        let isTension = false;
+        
+        if (tension) {
+          isTension = true;
+          if (tension.intensity >= 0.8) {
+            finalStroke = "rgb(239, 68, 68)"; // Red
+            finalAnim = "conflict-pulse-fast 0.6s ease-in-out infinite alternate";
+          } else if (tension.intensity >= 0.5) {
+            finalStroke = "rgb(239, 68, 68)"; // Red
+          } else if (tension.intensity >= 0.3) {
+            finalStroke = "rgb(249, 115, 22)"; // Orange
+          } else {
+            finalStroke = "rgb(234, 179, 8)"; // Yellow
+          }
+        }
+
+        const linkId = `gate-${g.from_zone_id}-${g.to_zone_id}`;
+        
         return (
-          <g key={`gate-${g.from_zone_id}-${g.to_zone_id}`}>
+          <g key={linkId}>
             <line
               x1={l1[0]} y1={l1[1]} x2={l2[0]} y2={l2[1]}
-              stroke={stroke} strokeWidth={strokeWidth} opacity={showAnimation ? baseOpacity : baseOpacity * 0.7}>
-              {showAnimation && (
+              stroke={finalStroke} strokeWidth={strokeWidth} opacity={showAnimation ? baseOpacity : baseOpacity * 0.7}
+              style={{ animation: finalAnim }}>
+              {showAnimation && !finalAnim && (
                 <animate attributeName="opacity" values={animVals} dur={dur} repeatCount="indefinite" />
               )}
             </line>
             {showIcons ? (
-              <>
-                <ConnectionIcon x={p1[0]} y={p1[1]} iconPath={iconPath} color={stroke} size={iconSize} />
-                <ConnectionIcon x={p2[0]} y={p2[1]} iconPath={iconPath} color={stroke} size={iconSize} />
-              </>
+              <g style={{ animation: finalAnim }}>
+                <ConnectionIcon x={p1[0]} y={p1[1]} iconPath={iconPath} color={finalStroke} size={iconSize} />
+                <ConnectionIcon x={p2[0]} y={p2[1]} iconPath={iconPath} color={finalStroke} size={iconSize} />
+              </g>
             ) : (
-              <>
-                <circle cx={p1[0]} cy={p1[1]} r={dotSize} fill={stroke} opacity={0.6} />
-                <circle cx={p2[0]} cy={p2[1]} r={dotSize} fill={stroke} opacity={0.6} />
-              </>
+              <g style={{ animation: finalAnim }}>
+                <circle cx={p1[0]} cy={p1[1]} r={dotSize} fill={finalStroke} opacity={0.6} />
+                <circle cx={p2[0]} cy={p2[1]} r={dotSize} fill={finalStroke} opacity={0.6} />
+              </g>
+            )}
+            {setHoveredLinkId && isTension && (
+              <line
+                x1={p1[0]} y1={p1[1]} x2={p2[0]} y2={p2[1]}
+                stroke="transparent" strokeWidth={Math.max(12, strokeWidth * 4)}
+                className="cursor-pointer"
+                onPointerEnter={() => setHoveredLinkId(linkId)}
+                onPointerLeave={() => setHoveredLinkId(null)}
+              />
             )}
           </g>
         );

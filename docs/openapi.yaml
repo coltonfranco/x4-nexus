@@ -1076,6 +1076,23 @@ paths:
                 type: array
                 title: Response List Cluster Resources Api V1 Map Cluster Resources
                   Get
+  /api/v1/map/forces:
+    get:
+      tags:
+      - map
+      summary: List Forces
+      description: Return total fighter counts per sector and breakdown by faction.
+      operationId: list_forces_api_v1_map_forces_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/SectorForceEntry'
+                type: array
+                title: Response List Forces Api V1 Map Forces Get
   /api/v1/map/conflicts:
     get:
       tags:
@@ -1097,6 +1114,23 @@ paths:
                   $ref: '#/components/schemas/ConflictEntry'
                 type: array
                 title: Response List Conflicts Api V1 Map Conflicts Get
+  /api/v1/map/tensions:
+    get:
+      tags:
+      - map
+      summary: List Tensions
+      description: Sectors with amassing hostile forces on adjacent borders.
+      operationId: list_tensions_api_v1_map_tensions_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/BorderTensionEntry'
+                type: array
+                title: Response List Tensions Api V1 Map Tensions Get
   /api/v1/modules:
     get:
       tags:
@@ -2389,6 +2423,36 @@ components:
       required:
       - ware_id
       title: BlueprintItem
+    BorderTensionEntry:
+      properties:
+        from_sector_id:
+          type: string
+          title: From Sector Id
+        to_sector_id:
+          type: string
+          title: To Sector Id
+        from_forces:
+          items:
+            $ref: '#/components/schemas/ConflictFaction'
+          type: array
+          title: From Forces
+        to_forces:
+          items:
+            $ref: '#/components/schemas/ConflictFaction'
+          type: array
+          title: To Forces
+        intensity:
+          type: number
+          title: Intensity
+      additionalProperties: false
+      type: object
+      required:
+      - from_sector_id
+      - to_sector_id
+      - from_forces
+      - to_forces
+      - intensity
+      title: BorderTensionEntry
     BribeWare:
       properties:
         ware_id:
@@ -4910,6 +4974,26 @@ components:
       - to_sector_id
       - kind
       title: SectorConnection
+    SectorForceEntry:
+      properties:
+        sector_id:
+          type: string
+          title: Sector Id
+        fighter_count:
+          type: integer
+          title: Fighter Count
+        factions:
+          items:
+            $ref: '#/components/schemas/ConflictFaction'
+          type: array
+          title: Factions
+      additionalProperties: false
+      type: object
+      required:
+      - sector_id
+      - fighter_count
+      - factions
+      title: SectorForceEntry
     SectorSummary:
       properties:
         sector_id:

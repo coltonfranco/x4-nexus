@@ -1,23 +1,18 @@
 """Extract live mineable resources per sector from a streamed X4 save file.
 
-Resources live directly under each sector component (probed against a real save,
-quicksave.xml.gz, 2026-06-11):
+Game version 9 (June 2026) changed the resource format.  Old saves used nested
+``<ware>/<recharge>`` and ``<ware>/<yield>`` elements; v9 stores everything as
+attributes on ``<area>`` elements directly:
 
-    component[sector] → resourceareas → area →
-        wares  → ware(ware=...) → recharge(max, current, time)
-        yields → ware(ware=...) → yield(name)
+    <resourceareas>
+      <area id="…" yieldid="sphere_large_ore_high_slow" yield="284305" starttime="…">
+        <fields/>
+      </area>
 
-`recharge current/max` is the depleting/regenerating stockpile the player mines — the
-data static extraction cannot provide. A sector can have several `<area>` elements; we
-aggregate per (sector, ware), summing current/max so the row reflects the whole sector.
+``yieldid`` encodes the ware and yield tier:
+``{shape}_{size}_{ware}_{yield_tier}_{recharge_speed}``.
 
-We target the **leaf** elements (`<recharge>`, `<yield>`) and walk up, because the
-streaming dispatcher clears child subtrees as it goes — a container element's children
-are already gone by the time its own end-event fires (see savefile/dispatch.py). The
-`resourceareas` ancestor guard keeps us from matching unrelated `<recharge>` elements
-(e.g. shield regen on ships/stations).
-
-Tier: VOLATILE — `current` changes every tick as fields are mined and recharge.
+Tier: VOLATILE — yield values change as fields are mined.
 """
 
 from __future__ import annotations
@@ -32,13 +27,23 @@ from x4_extract.dynamic.collector import Tier, hash_rows
 from x4_extract.savefile.dispatch import Registration, Target
 
 
-def _int(v: str | None) -> int | None:
-    if v is None:
-        return None
-    try:
-        return int(v)
-    except ValueError:
-        return None
+def _parse_yieldid(yieldid: str) -> tuple[str, str] | None:
+    """Parse 'sphere_large_ore_high_slow' → ('ore', 'high').  Returns None if unparseable."""
+    parts = yieldid.split("_")
+    # Known ware names to scan for (longest first to avoid partial matches)
+    WARES = [
+        "rawscrap", "nividium", "silicon", "hydrogen", "methane",
+        "helium", "ore", "ice",
+    ]
+    for ware in WARES:
+        try:
+            idx = parts.index(ware)
+            # The tier is the next token after the ware
+            tier = parts[idx + 1] if idx + 1 < len(parts) else None
+            return (ware, tier)
+        except ValueError:
+            continue
+    return None
 
 
 @dataclass(slots=True)
@@ -53,65 +58,54 @@ class SectorResourceRow:
 
 @dataclass(slots=True)
 class ResourceAreasCollector:
-    """Accumulates per-sector mineable resource levels in one streaming pass."""
-
     rows_by_key: dict[tuple[str, str], SectorResourceRow] = field(default_factory=dict)
 
     def register(self) -> list[Registration]:
         return [
-            Registration(target=Target(tag="recharge"), visitor=self._on_recharge),
-            Registration(target=Target(tag="yield"), visitor=self._on_yield),
+            Registration(target=Target(tag="area"), visitor=self._on_area),
         ]
 
-    def _on_recharge(self, elem: etree._Element) -> None:
-        ware_el = elem.getparent()
-        if ware_el is None or ware_el.tag != "ware":
+    def _on_area(self, elem: etree._Element) -> None:
+        parent = elem.getparent()
+        if parent is None or parent.tag != "resourceareas":
             return
-        ware = ware_el.get("ware")
-        sector_id = self._sector_via_resourceareas(ware_el)
-        if not ware or not sector_id:
-            return
-        row = self._row(sector_id, ware)
-        row.current = (row.current or 0) + (_int(elem.get("current")) or 0)
-        row.max = (row.max or 0) + (_int(elem.get("max")) or 0)
-        time = _int(elem.get("time"))
-        if time is not None:
-            row.recharge_time = time
 
-    def _on_yield(self, elem: etree._Element) -> None:
-        ware_el = elem.getparent()
-        if ware_el is None or ware_el.tag != "ware":
+        yieldid = elem.get("yieldid")
+        if not yieldid:
             return
-        ware = ware_el.get("ware")
-        sector_id = self._sector_via_resourceareas(ware_el)
-        if not ware or not sector_id:
-            return
-        row = self._row(sector_id, ware)
-        if row.yield_tier is None:
-            row.yield_tier = elem.get("name")
 
-    # Walk up from a <ware>: only attribute when a <resourceareas> ancestor is present,
-    # and return the enclosing sector's macro id.
-    def _sector_via_resourceareas(self, ware_el: etree._Element) -> str | None:
-        seen_resourceareas = False
-        node: etree._Element | None = ware_el
+        parsed = _parse_yieldid(yieldid)
+        if parsed is None:
+            return
+        ware, tier = parsed
+
+        yield_val = elem.get("yield")
+        current = int(yield_val) if yield_val and yield_val.isdigit() else None
+
+        # Walk up to find the enclosing sector
+        sector_id = None
+        node = parent.getparent() if parent is not None else None
         for _ in range(6):
-            node = node.getparent() if node is not None else None
             if node is None:
                 break
-            if node.tag == "resourceareas":
-                seen_resourceareas = True
             if node.get("class") == "sector":
-                return node.get("macro") if seen_resourceareas else None
-        return None
+                sector_id = node.get("macro")
+                break
+            node = node.getparent()
 
-    def _row(self, sector_id: str, ware: str) -> SectorResourceRow:
+        if not sector_id:
+            return
+
         key = (sector_id, ware)
         row = self.rows_by_key.get(key)
         if row is None:
-            row = SectorResourceRow(sector_id, ware, None, None, None, None)
+            row = SectorResourceRow(sector_id, ware, 0, None, tier, None)
             self.rows_by_key[key] = row
-        return row
+
+        if current is not None:
+            row.current = (row.current or 0) + current
+        if row.yield_tier is None:
+            row.yield_tier = tier
 
     # --- tiered contract -------------------------------------------------------
     def tables(self, tier: Tier) -> tuple[str, ...]:
