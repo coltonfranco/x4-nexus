@@ -393,6 +393,64 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/races:
+    get:
+      tags:
+      - races
+      summary: List Races
+      operationId: list_races_api_v1_races_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/RaceSummary'
+                type: array
+                title: Response List Races Api V1 Races Get
+  /api/v1/races/{race_id}:
+    get:
+      tags:
+      - races
+      summary: Get Race
+      operationId: get_race_api_v1_races__race_id__get
+      parameters:
+      - name: race_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Race Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RaceDetail'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/race-relations:
+    get:
+      tags:
+      - races
+      summary: List Race Relations
+      operationId: list_race_relations_api_v1_race_relations_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/RaceRelation'
+                type: array
+                title: Response List Race Relations Api V1 Race Relations Get
   /api/v1/map/clusters:
     get:
       tags:
@@ -1018,6 +1076,27 @@ paths:
                 type: array
                 title: Response List Cluster Resources Api V1 Map Cluster Resources
                   Get
+  /api/v1/map/conflicts:
+    get:
+      tags:
+      - map
+      summary: List Conflicts
+      description: "Sectors with active fighter presence from mutually-hostile factions.\n\
+        \nReturns one row per sector with a conflict score.  ``intensity`` is\n0.0\u2013\
+        1.0 normalized across all sectors; ``fighter_count`` is the raw\nnumber of\
+        \ combat-class ships from the hostile factions in that sector.\nReturns []\
+        \ until a save is ingested."
+      operationId: list_conflicts_api_v1_map_conflicts_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/ConflictEntry'
+                type: array
+                title: Response List Conflicts Api V1 Map Conflicts Get
   /api/v1/modules:
     get:
       tags:
@@ -1032,11 +1111,7 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: 'Filter by kind: production, habitation, storage, dock, defence,
-            connectionmodule'
           title: Kind
-        description: 'Filter by kind: production, habitation, storage, dock, defence,
-          connectionmodule'
       - name: limit
         in: query
         required: false
@@ -1896,6 +1971,23 @@ paths:
                   $ref: '#/components/schemas/LicenceItem'
                 type: array
                 title: Response List Licences Api V1 Player Licences Get
+  /api/v1/player/stats:
+    get:
+      tags:
+      - player
+      summary: Player Stats
+      description: Flat key-value player statistics from the save file.
+      operationId: player_stats_api_v1_player_stats_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/PlayerStat'
+                type: array
+                title: Response Player Stats Api V1 Player Stats Get
   /api/v1/player/reputation:
     get:
       tags:
@@ -2449,6 +2541,88 @@ components:
       required:
       - cluster_id
       title: ClusterSummary
+    ConflictEntry:
+      properties:
+        sector_id:
+          type: string
+          title: Sector Id
+        fighter_count:
+          type: integer
+          title: Fighter Count
+        hostile_pair_count:
+          type: integer
+          title: Hostile Pair Count
+        intensity:
+          type: number
+          title: Intensity
+        type:
+          type: string
+          title: Type
+        invader_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Invader Name
+        sector_owner_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Sector Owner Name
+        factions:
+          items:
+            $ref: '#/components/schemas/ConflictFaction'
+          type: array
+          title: Factions
+        sides:
+          items:
+            $ref: '#/components/schemas/ConflictSide'
+          type: array
+          title: Sides
+      additionalProperties: false
+      type: object
+      required:
+      - sector_id
+      - fighter_count
+      - hostile_pair_count
+      - intensity
+      - type
+      - factions
+      - sides
+      title: ConflictEntry
+    ConflictFaction:
+      properties:
+        faction_id:
+          type: string
+          title: Faction Id
+        faction_name:
+          type: string
+          title: Faction Name
+        fighter_count:
+          type: integer
+          title: Fighter Count
+      additionalProperties: false
+      type: object
+      required:
+      - faction_id
+      - faction_name
+      - fighter_count
+      title: ConflictFaction
+    ConflictSide:
+      properties:
+        factions:
+          items:
+            $ref: '#/components/schemas/ConflictFaction'
+          type: array
+          title: Factions
+        fighter_count:
+          type: integer
+          title: Fighter Count
+      additionalProperties: false
+      type: object
+      required:
+      - factions
+      - fighter_count
+      title: ConflictSide
     DiploAction:
       properties:
         action_id:
@@ -3395,6 +3569,16 @@ components:
           - type: integer
           - type: 'null'
           title: Cargo Volume
+        level:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Level
+        thruster:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Thruster
       additionalProperties: false
       type: object
       required:
@@ -3411,6 +3595,8 @@ components:
       - role
       - ship_type
       - cargo_volume
+      - level
+      - thruster
       title: LiveShip
     LiveStation:
       properties:
@@ -3492,6 +3678,16 @@ components:
         ship_macro:
           type: string
           title: Ship Macro
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
         equipment:
           items:
             $ref: '#/components/schemas/LoadoutEquipmentItem'
@@ -3525,6 +3721,16 @@ components:
           - type: integer
           - type: 'null'
           title: Quantity
+        weaponmode:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Weaponmode
+        ammunition:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Ammunition
       additionalProperties: false
       type: object
       required:
@@ -3633,6 +3839,56 @@ components:
           - type: string
           - type: 'null'
           title: Size
+        makerrace:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Makerrace
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        shortname:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Shortname
+        is_datavault:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Is Datavault
+        is_landmark:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Is Landmark
+        is_unique:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Is Unique
+        icon:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon
+        hudicon:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Hudicon
+        factionhqicon:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Factionhqicon
+        subtype:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Subtype
         produces_ware_id:
           anyOf:
           - type: string
@@ -3658,6 +3914,11 @@ components:
           - type: integer
           - type: 'null'
           title: Workforce Capacity
+        workforce_race:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Workforce Race
         icon_url:
           anyOf:
           - type: string
@@ -3668,11 +3929,161 @@ components:
           - type: integer
           - type: 'null'
           title: Hull
+        hull_min:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Hull Min
+        hull_integrated:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Hull Integrated
+        hull_invulnerable:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Hull Invulnerable
+        hull_noscrap:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Hull Noscrap
         explosiondamage:
           anyOf:
           - type: integer
           - type: 'null'
           title: Explosiondamage
+        secrecy_level:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Secrecy Level
+        dock_allow:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Dock Allow
+        dock_allowbuild:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Dock Allowbuild
+        dock_allowtrade:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Dock Allowtrade
+        dock_allowunits:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Dock Allowunits
+        dock_external:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Dock External
+        dock_playeronly:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Dock Playeronly
+        dock_priority:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Dock Priority
+        dock_showroom:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Dock Showroom
+        dock_size_tags:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dock Size Tags
+        equip_classes:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Equip Classes
+        supply_classes:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Supply Classes
+        production_research:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Production Research
+        production_show_active:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Production Show Active
+        builder_units:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Builder Units
+        build_has_storage:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Build Has Storage
+        rotation_speed_max:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Rotation Speed Max
+        rotation_accel_max:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Rotation Accel Max
+        translation_speed_max:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Translation Speed Max
+        translation_accel_max:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Translation Accel Max
+        undock_distance:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Undock Distance
+        undock_speed:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Undock Speed
+        undock_rotate:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Undock Rotate
+        autoaim_allow:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Autoaim Allow
+        ownership_claim:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Ownership Claim
+        longrangescan_minlevel:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Longrangescan Minlevel
         turrets_s:
           type: integer
           title: Turrets S
@@ -3745,6 +4156,56 @@ components:
           - type: string
           - type: 'null'
           title: Size
+        makerrace:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Makerrace
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        shortname:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Shortname
+        is_datavault:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Is Datavault
+        is_landmark:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Is Landmark
+        is_unique:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Is Unique
+        icon:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon
+        hudicon:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Hudicon
+        factionhqicon:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Factionhqicon
+        subtype:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Subtype
         produces_ware_id:
           anyOf:
           - type: string
@@ -3770,6 +4231,11 @@ components:
           - type: integer
           - type: 'null'
           title: Workforce Capacity
+        workforce_race:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Workforce Race
         icon_url:
           anyOf:
           - type: string
@@ -3960,6 +4426,24 @@ components:
       - relation
       - initial_relation
       title: PlayerRelation
+    PlayerStat:
+      properties:
+        stat_id:
+          type: string
+          title: Stat Id
+        value:
+          type: number
+          title: Value
+        display:
+          type: string
+          title: Display
+      additionalProperties: false
+      type: object
+      required:
+      - stat_id
+      - value
+      - display
+      title: PlayerStat
     ProductionInput:
       properties:
         ware_id:
@@ -4004,6 +4488,201 @@ components:
       - workforce
       - inputs
       title: ProductionMethod
+    RaceDetail:
+      properties:
+        race_id:
+          type: string
+          title: Race Id
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        shortname:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Shortname
+        tags:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Tags
+        icon_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon Url
+        spacename:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Spacename
+        homespacename:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Homespacename
+        names_table:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Names Table
+        char_height:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Char Height
+        char_walk_speed:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Char Walk Speed
+        char_run_speed:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Char Run Speed
+        char_slow_walk:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Char Slow Walk
+        char_acceleration:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Char Acceleration
+        char_spacesuit_ref:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Char Spacesuit Ref
+        event_adjust_y:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Event Adjust Y
+        event_adjust_z:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Event Adjust Z
+        event_face_key:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Event Face Key
+        icon_inactive:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon Inactive
+        agent_icon_male:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Agent Icon Male
+        agent_icon_female:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Agent Icon Female
+        trail_brightness:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Trail Brightness
+        trail_contrast:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Trail Contrast
+        trail_saturation:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Trail Saturation
+        trail_hue:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Trail Hue
+        engine_color_index:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Engine Color Index
+        chair_ref:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Chair Ref
+      additionalProperties: false
+      type: object
+      required:
+      - race_id
+      - name
+      title: RaceDetail
+    RaceRelation:
+      properties:
+        race_id:
+          type: string
+          title: Race Id
+        other_race_id:
+          type: string
+          title: Other Race Id
+        relation:
+          type: number
+          title: Relation
+      additionalProperties: false
+      type: object
+      required:
+      - race_id
+      - other_race_id
+      - relation
+      title: RaceRelation
+    RaceSummary:
+      properties:
+        race_id:
+          type: string
+          title: Race Id
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        shortname:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Shortname
+        tags:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Tags
+        icon_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon Url
+      additionalProperties: false
+      type: object
+      required:
+      - race_id
+      - name
+      title: RaceSummary
     RegionSummary:
       properties:
         region_id:
@@ -4588,6 +5267,51 @@ components:
           - type: number
           - type: 'null'
           title: Explosion Shield Damage
+        explosion_shield_disruption:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Explosion Shield Disruption
+        gatherrate_gas:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Gatherrate Gas
+        gatherrate_ore:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Gatherrate Ore
+        gatherrate_silicon:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Gatherrate Silicon
+        can_be_captured:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Can Be Captured
+        radar_range_direct:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Radar Range Direct
+        boost_recharge_delay:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Boost Recharge Delay
+        rotation_speed_max:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Rotation Speed Max
+        rotation_accel_max:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Rotation Accel Max
         shield_capacity_min:
           anyOf:
           - type: number
@@ -4833,6 +5557,15 @@ components:
       - modifier_weapon_heat
       - explosion_damage
       - explosion_shield_damage
+      - explosion_shield_disruption
+      - gatherrate_gas
+      - gatherrate_ore
+      - gatherrate_silicon
+      - can_be_captured
+      - radar_range_direct
+      - boost_recharge_delay
+      - rotation_speed_max
+      - rotation_accel_max
       - shield_capacity_min
       - shield_capacity_max
       - shield_recharge_min
@@ -5348,6 +6081,31 @@ components:
         has_drops:
           type: boolean
           title: Has Drops
+        shortname:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Shortname
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        sortorder:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Sortorder
+        dismantlefactor:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Dismantlefactor
+        research_time:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Research Time
         storage_class:
           anyOf:
           - type: string
@@ -5620,6 +6378,31 @@ components:
         has_drops:
           type: boolean
           title: Has Drops
+        shortname:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Shortname
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        sortorder:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Sortorder
+        dismantlefactor:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Dismantlefactor
+        research_time:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Research Time
       additionalProperties: false
       type: object
       required:
@@ -5684,11 +6467,21 @@ components:
           - type: number
           - type: 'null'
           title: Hull Damage
+        shield_disruption:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Shield Disruption
         reload_rate:
           anyOf:
           - type: number
           - type: 'null'
           title: Reload Rate
+        reload_time:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Reload Time
         bullet_speed:
           anyOf:
           - type: number
@@ -5704,6 +6497,71 @@ components:
           - type: integer
           - type: 'null'
           title: Bullet Amount
+        bullet_barrel:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Bullet Barrel
+        bullet_angle:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Bullet Angle
+        bullet_maxhits:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Bullet Maxhits
+        bullet_range:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Bullet Range
+        heat_value:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Heat Value
+        explosion_hull:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Explosion Hull
+        explosion_shield:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Explosion Shield
+        ammo_value:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Ammo Value
+        ammo_reload:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Ammo Reload
+        missile_lifetime:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Missile Lifetime
+        missile_range:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Missile Range
+        area_damage:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Area Damage
+        area_lifetime:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Area Lifetime
       additionalProperties: false
       type: object
       required:
@@ -5716,10 +6574,25 @@ components:
       - damage
       - shield_damage
       - hull_damage
+      - shield_disruption
       - reload_rate
+      - reload_time
       - bullet_speed
       - bullet_lifetime
       - bullet_amount
+      - bullet_barrel
+      - bullet_angle
+      - bullet_maxhits
+      - bullet_range
+      - heat_value
+      - explosion_hull
+      - explosion_shield
+      - ammo_value
+      - ammo_reload
+      - missile_lifetime
+      - missile_range
+      - area_damage
+      - area_lifetime
       title: WeaponStats
     ZoneSummary:
       properties:

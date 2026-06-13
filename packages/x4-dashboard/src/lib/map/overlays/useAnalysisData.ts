@@ -158,12 +158,21 @@ export function usePlayerRelations(enabled: boolean) {
   });
 }
 
+export type ConflictSide = {
+  factions: { faction_id: string; faction_name: string; fighter_count: number }[];
+  fighter_count: number;
+};
+
 export type ConflictEntry = {
   sector_id: string;
   fighter_count: number;
   hostile_pair_count: number;
   intensity: number;
+  type: "battle" | "invasion" | "skirmish";
+  invader_name: string | null;
+  sector_owner_name: string | null;
   factions: { faction_id: string; faction_name: string; fighter_count: number }[];
+  sides: ConflictSide[];
 };
 
 export function useConflictData(enabled: boolean) {

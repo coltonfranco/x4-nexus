@@ -9,7 +9,7 @@ import { RESOURCE_COLORS, STATUS_COLORS } from "../constants";
 import { heatColor } from "./heat";
 import { buildAdjacency, findPath, type TravelSegmentKind, type PathResult } from "./pathfinding";
 import type { FillMode } from "./types";
-import { useResourceData, useTopRoutes, useWareOffers, usePlayerRelations, useConflictData, type ResourceSource } from "./useAnalysisData";
+import { useResourceData, useTopRoutes, useWareOffers, usePlayerRelations, useConflictData, type ResourceSource, type SectorResources } from "./useAnalysisData";
 import type { Cluster, Gate, Highway, Sector, Zone } from "../types";
 
 export type SectorTint = { fill: string; opacity: number; animate?: string };
@@ -26,6 +26,8 @@ export type AnalysisOverlay = {
   sectorTint: Map<string, SectorTint> | null; // keyed by lowercase sector id; null → faction base
   sectorBadges: Map<string, string>;
   sectorTooltips: Map<string, string>;
+  sectorConflicts: Map<string, ConflictEntry>;
+  sectorResources: Map<string, SectorResources>;
   alternateDots: Map<string, string[]>;       // lowercase sector → alt resource colors
   dimOthers: boolean;
   routeMarkers: RouteMarker[];
@@ -133,6 +135,8 @@ export function useAnalysisOverlay({
       source: null as ResourceSource | null,
       loading: false,
       tooltips: new Map<string, string>(),
+      sectorConflicts: new Map<string, ConflictEntry>(),
+      sectorResources: new Map<string, SectorResources>(),
     };
 
     if (fillMode === "relations") {
@@ -165,8 +169,7 @@ export function useAnalysisOverlay({
 
     if (fillMode === "conflict") {
       const tint = new Map<string, SectorTint>();
-      const badges = new Map<string, string>();
-      const tooltips = new Map<string, string>();
+      const sectorConflicts = new Map<string, ConflictEntry>();
       const data = conflicts.data ?? [];
       data.forEach((c) => {
         const sid = c.sector_id.toLowerCase();
@@ -188,7 +191,7 @@ export function useAnalysisOverlay({
         const fill = `#${toHex(r)}${toHex(g)}${toHex(b)}`;
         
         let animate: string | undefined;
-        if (t > 0.8) {
+        if (t > 0.9) {
           animate = "conflict-blink-intense 0.3s cubic-bezier(0.4, 0, 0.6, 1) infinite alternate";
         } else if (t > 0.5) {
           animate = "conflict-pulse-fast 0.6s ease-in-out infinite alternate";
@@ -197,12 +200,9 @@ export function useAnalysisOverlay({
         }
         
         tint.set(sid, { fill, opacity: Math.min(1, 0.35 + 0.65 * t), animate });
-        const top = c.factions.slice(0, 3);
-        const label = top.map((f) => `${f.faction_id.slice(0, 4)}(${f.fighter_count})`).join(" vs ");
-        badges.set(sid, c.factions.length >= 2 ? label : `${c.fighter_count}`);
-        tooltips.set(sid, c.factions.map((f) => `${f.faction_name}: ${f.fighter_count} fighters`).join("\n"));
+        sectorConflicts.set(sid, c);
       });
-      return { ...empty, tint, badges, tooltips, dim: true, loading: false };
+      return { ...empty, tint, sectorConflicts, dim: true, loading: false };
     }
 
 
@@ -215,11 +215,14 @@ export function useAnalysisOverlay({
         if (!wareYields) return { ...empty, source, loading, dim: true };
         const tint = new Map<string, SectorTint>();
         const badges = new Map<string, string>();
+        const sectorResources = new Map<string, SectorResources>();
         wareYields.forEach((y, sid) => {
           tint.set(sid, { fill: heatColor(y.intensity), opacity: 0.2 + 0.65 * y.intensity });
           badges.set(sid, y.label);
+          const sr = resourceData.data?.bySector.get(sid);
+          if (sr) sectorResources.set(sid, sr);
         });
-        return { ...empty, tint, badges, dim: true, source, loading };
+        return { ...empty, tint, badges, sectorResources, dim: true, source, loading };
       }
       // Overview: dominant resource fill + alternate dots.
       const bySector = resourceData.data?.bySector;
@@ -232,7 +235,7 @@ export function useAnalysisOverlay({
         const alt = sr.all.slice(1).map((e) => RESOURCE_COLORS[e.ware] ?? "hsl(var(--muted-foreground))");
         if (alt.length) dots.set(sid, alt);
       });
-      return { ...empty, tint, dots, dim: true, source, loading };
+      return { ...empty, tint, dots, sectorResources: bySector, dim: true, source, loading };
     }
 
     if (wareOn) {
@@ -350,6 +353,8 @@ export function useAnalysisOverlay({
     sectorTint: tradeRoutesOn ? routeData.tint : fill.tint,
     sectorBadges: tradeRoutesOn ? routeData.badges : fill.badges,
     sectorTooltips: fill.tooltips,
+    sectorConflicts: fill.sectorConflicts,
+    sectorResources: fill.sectorResources,
     alternateDots: fill.dots,
     dimOthers: fill.dim || tradeRoutesOn,
     routeMarkers,

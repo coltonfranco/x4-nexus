@@ -60,11 +60,9 @@ export function SectorLayer({
 
         const tint = sectorTint?.get(sidLower) ?? null;
         const isDimmed = dimOthers && !tint;
-        const baseFill = tint
-          ? tint.fill
-          : dimOthers 
-            ? (isSelected ? MAP_THEME.hexStroke : MAP_THEME.hexHover) 
-            : (isSelected ? `${factionColor}40` : `${factionColor}2a`);
+        const baseFill = dimOthers 
+          ? (isSelected ? MAP_THEME.hexStroke : MAP_THEME.hexHover) 
+          : (isSelected ? `${factionColor}40` : `${factionColor}2a`);
 
         const stroke = isSelected ? "#ffffff"
           : tint ? (isHovered ? "#ffffff" : tint.fill)
