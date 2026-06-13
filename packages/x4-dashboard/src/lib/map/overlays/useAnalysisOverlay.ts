@@ -305,12 +305,9 @@ export function useAnalysisOverlay({
       const tensionData = tensions.data ?? [];
       if (toggles.showTensions) {
         tensionData.forEach((t) => {
-          // Both sides must be active (forces loaded)
-          const sidA = t.from_sector_id.toLowerCase();
-          const sidB = t.to_sector_id.toLowerCase();
-          if (!sectorForces.has(sidA) || !sectorForces.has(sidB)) return;
-
-          const key = [sidA, sidB].sort().join("-");
+          const a = t.from_sector_id.toLowerCase();
+          const b = t.to_sector_id.toLowerCase();
+          const key = a < b ? `${a}_${b}` : `${b}_${a}`;
           borderTensions.set(key, t);
         });
       }
