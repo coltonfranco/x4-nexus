@@ -2,6 +2,7 @@
 // a centered name label, and an optional overlay badge.
 
 import { hexPoints } from "../../../lib/map/geometry";
+import { MAP_THEME } from "../../../lib/map/constants";
 import { sectorDisplayName } from "../../../lib/map/names";
 import type { Cluster, FactionSummary, Sector, Transform } from "../../../lib/map/types";
 import type { SectorTint } from "../../../lib/map/overlays/useAnalysisOverlay";
@@ -48,7 +49,7 @@ export function SectorLayer({
         const cluster = sector.cluster_id ? clusterMap.get(sector.cluster_id) : null;
         const clusterFaction = cluster?.owner_faction ? factionMap.get(cluster.owner_faction) : null;
         const effectiveFaction = ownerFaction ?? clusterFaction;
-        const factionColor = effectiveFaction?.color_hex ?? "#2d3748";
+        const factionColor = effectiveFaction?.color_hex ?? MAP_THEME.sectorFallback;
 
         const isSubSector = subSectorSet.has(sector.sector_id);
         const renderedHexSize = isSubSector ? hexSize * 0.5 : hexSize;
@@ -59,12 +60,12 @@ export function SectorLayer({
         const tint = sectorTint?.get(sidLower) ?? null;
         const isDimmed = dimOthers && !tint;
         const baseFill = dimOthers 
-          ? (isSelected ? "#64748b40" : "#64748b2e") 
+          ? (isSelected ? MAP_THEME.hexStroke : MAP_THEME.hexHover) 
           : (isSelected ? `${factionColor}40` : `${factionColor}2a`);
 
         const stroke = isSelected ? "#ffffff"
           : tint ? tint.fill
-          : isDimmed ? (isHovered ? "#94a3b8" : "#64748b66")
+          : isDimmed ? (isHovered ? MAP_THEME.hexLabel : MAP_THEME.hexFill)
           : isHovered ? factionColor : `${factionColor}80`;
 
         const badge = sectorBadges?.get(sidLower);
@@ -80,7 +81,7 @@ export function SectorLayer({
         const shadowAlpha = Math.max(0, Math.min(0.5, 0.5 * (2.2 - transform.scale))); 
         const textShadow = labelBgAlpha < 0.4 ? '0px 0px 4px rgba(0,0,0,1), 0px 0px 8px rgba(0,0,0,1)' : 'none';
         
-        let borderColor = `rgba(148, 163, 184, ${labelBgAlpha * 0.25})`;
+        let borderColor = `rgba(148, 163, 184, ${labelBgAlpha * 0.25})`;  // hexLabel-derived
         if (showFactionLabels && effectiveFaction?.color_hex) {
            borderColor = labelBgAlpha > 0.1 ? `${effectiveFaction.color_hex}80` : 'transparent';
         }

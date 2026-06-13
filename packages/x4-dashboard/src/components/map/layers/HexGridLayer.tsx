@@ -1,6 +1,7 @@
 // Background hex grid — faint cells tiled across the canvas behind everything.
 
 import { hexPoints } from "../../../lib/map/geometry";
+import { MAP_THEME } from "../../../lib/map/constants";
 
 export function HexGridLayer({ cells, hexSize }: { cells: [number, number][]; hexSize: number }) {
   return (
@@ -9,7 +10,7 @@ export function HexGridLayer({ cells, hexSize }: { cells: [number, number][]; he
         <polygon key={`bg-${i}`}
           points={hexPoints(cx, cy, hexSize)}
           fill="none"
-          stroke="rgba(255,255,255,0.05)"
+          stroke={MAP_THEME.gridLine}
           strokeWidth={0.6}
           style={{ pointerEvents: "none" }}
         />

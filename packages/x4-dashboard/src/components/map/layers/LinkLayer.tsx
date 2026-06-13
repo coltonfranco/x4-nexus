@@ -5,6 +5,7 @@
 // two components in one module rather than a single forced abstraction.
 
 import { ConnectionIcon } from "../ConnectionIcon";
+import { MAP_THEME } from "../../../lib/map/constants";
 import type { OverlappingPaths } from "../../../lib/map/positions";
 import type { Gate, Highway, Transform, Zone } from "../../../lib/map/types";
 
@@ -41,7 +42,7 @@ export function HighwayLayer({
         const p2 = zoneScreenPos.get(hw.to_zone_id) ?? sectorCoords.get(z2.sector_id);
         if (!p1 || !p2) return null;
 
-        const stroke = isLocal ? "#6366f1" : "#4aaeff"; // Indigo for local, cyan for super
+        const stroke = isLocal ? MAP_THEME.localhighway : MAP_THEME.superhighway;
         const baseScreenStroke = isLocal ? 1.0 : 2.0;
         const screenStroke = Math.max(0.5, Math.min(6, baseScreenStroke * Math.pow(transform.scale, 0.7)));
         const strokeWidth = screenStroke / transform.scale;
@@ -125,7 +126,7 @@ export function GateLayer({
         const p2 = zoneScreenPos.get(g.to_zone_id) ?? sectorCoords.get(z2.sector_id);
         if (!p1 || !p2) return null;
         const isAccelerator = g.kind === "accelerator";
-        const stroke = isAccelerator ? "#fcd34d" : "#64748b"; // Yellow for accelerator, Slate for warp gate
+        const stroke = isAccelerator ? MAP_THEME.accelerator : MAP_THEME.gate; // Yellow for accelerator, Slate for warp gate
 
         const baseScreenStroke = isAccelerator ? 1.5 : 1.0;
         const screenStroke = Math.max(0.5, Math.min(6, baseScreenStroke * Math.pow(transform.scale, 0.7)));

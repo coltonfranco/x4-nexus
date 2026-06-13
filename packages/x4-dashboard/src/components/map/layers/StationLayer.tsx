@@ -4,6 +4,7 @@
 // main facilities, and zooming into a sector (grid territory) reveals every station.
 // Markers shrink as the user zooms in so they don't dominate the in-sector view.
 
+import { MAP_THEME } from "../../../lib/map/constants";
 import type { FactionSummary, MapStation, Transform } from "../../../lib/map/types";
 import { stationVisibleAt, type StationTier } from "../../../lib/map/stations";
 import { StationMapIcon } from "../StationMapIcon";
@@ -46,7 +47,7 @@ export function StationLayer({
         const sizeWorld = screenPx / transform.scale;
 
         const faction = st.owner_faction ? factionMap.get(st.owner_faction) : null;
-        const color = st.is_hq ? "#fcd34d" : (faction?.color_hex ?? "#94a3b8");
+        const color = st.is_hq ? MAP_THEME.stationPlayer : (faction?.color_hex ?? MAP_THEME.station);
         const isSelected = st.station_id === selectedStationId;
 
         return (

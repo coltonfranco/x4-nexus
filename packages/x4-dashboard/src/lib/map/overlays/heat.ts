@@ -1,11 +1,20 @@
-// Heat ramp for the mining overlay, matching the app-wide convention: red = low (bad),
-// green = high (good). Low → high: red → amber → green.
+// Heat ramp for the mining overlay: red = low, green = high.
+import { STATUS_COLORS } from "../constants";
+
+const RED   = hexToRgb(STATUS_COLORS.danger);
+const AMBER = hexToRgb(STATUS_COLORS.warning);
+const GREEN = hexToRgb(STATUS_COLORS.success);
 
 const STOPS: [number, [number, number, number]][] = [
-  [0.0, [239, 68, 68]],   // red    (#ef4444) — low
-  [0.5, [245, 158, 11]],  // amber  (#f59e0b) — mid
-  [1.0, [34, 197, 94]],   // green  (#22c55e) — high
+  [0.0, RED],
+  [0.5, AMBER],
+  [1.0, GREEN],
 ];
+
+function hexToRgb(hex: string): [number, number, number] {
+  const v = parseInt(hex.slice(1), 16);
+  return [(v >> 16) & 0xff, (v >> 8) & 0xff, v & 0xff];
+}
 
 export function heatColor(t: number): string {
   const x = Math.max(0, Math.min(1, t));

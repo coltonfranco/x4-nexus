@@ -5,6 +5,7 @@ import { Currency } from "../components/Currency";
 import { WareDetailPanel } from "../components/trade/WareDetailPanel";
 import { Badge } from "../components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../components/ui/dialog";
+import { FilterPill } from "../components/ui/filter-pill";
 import { Input } from "../components/ui/input";
 import { PageLoaderPreset } from "../components/PageLoader";
 
@@ -204,34 +205,21 @@ export default function InventoryPage() {
         </p>
         <div className="mt-3 flex flex-wrap items-center gap-1.5">
           <Input placeholder="Search…" value={search} onChange={(e) => setSearch(e.target.value)} className="mr-2 w-52" />
-          <button
-            onClick={() => setFilter("all")}
-            className={`rounded-full px-2.5 py-1 text-xs font-medium ${filter === "all" ? "bg-primary text-primary-foreground" : "bg-muted/50 text-muted-foreground hover:text-foreground"}`}
-          >
+          <FilterPill active={filter === "all"} onClick={() => setFilter("all")}>
             All
-          </button>
+          </FilterPill>
           {BUCKETS.filter((b) => counts[b]).map((b) => (
-            <button
-              key={b}
-              onClick={() => setFilter(b)}
-              className={`rounded-full px-2.5 py-1 text-xs font-medium ${filter === b ? "bg-primary text-primary-foreground" : "bg-muted/50 text-muted-foreground hover:text-foreground"}`}
-            >
+            <FilterPill key={b} active={filter === b} onClick={() => setFilter(b)}>
               {b} <span className="opacity-60">{counts[b]}</span>
-            </button>
+            </FilterPill>
           ))}
           <div className="mx-1 h-4 w-px bg-border" />
-          <button
-            onClick={() => setFilter("Craftable")}
-            className={`rounded-full px-2.5 py-1 text-xs font-medium ${filter === "Craftable" ? "bg-primary text-primary-foreground" : "bg-muted/50 text-muted-foreground hover:text-foreground"}`}
-          >
+          <FilterPill active={filter === "Craftable"} onClick={() => setFilter("Craftable")}>
             Craftable <span className="opacity-60">{counts.Craftable}</span>
-          </button>
-          <button
-            onClick={() => setFilter("Drops")}
-            className={`rounded-full px-2.5 py-1 text-xs font-medium ${filter === "Drops" ? "bg-primary text-primary-foreground" : "bg-muted/50 text-muted-foreground hover:text-foreground"}`}
-          >
+          </FilterPill>
+          <FilterPill active={filter === "Drops"} onClick={() => setFilter("Drops")}>
             Drops <span className="opacity-60">{counts.Drops}</span>
-          </button>
+          </FilterPill>
         </div>
       </div>
 

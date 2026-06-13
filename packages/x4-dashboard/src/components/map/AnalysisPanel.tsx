@@ -4,7 +4,7 @@
 
 import { useState } from "react";
 
-import { RESOURCE_COLORS, RESOURCE_ORDER } from "../../lib/map/constants";
+import { RESOURCE_COLORS, RESOURCE_ORDER, STATUS_COLORS } from "../../lib/map/constants";
 import type { EconomyWare, FillMode } from "../../lib/map/overlays/types";
 import type { ResourceSource } from "../../lib/map/overlays/useAnalysisData";
 
@@ -73,7 +73,7 @@ export function AnalysisPanel({
           <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-1">
             <span>enemy (-30)</span>
             <span className="h-2 flex-1 rounded-full" style={{
-              background: "linear-gradient(to right, #ef4444, #4b5563, #22c55e)",
+              background: `linear-gradient(to right, ${STATUS_COLORS.danger}, ${STATUS_COLORS.neutral}, ${STATUS_COLORS.success})`,
             }} />
             <span>friend (+30)</span>
           </div>
@@ -129,7 +129,7 @@ export function AnalysisPanel({
                   routes
                 </button>
               </div>
-              <Legend items={[["#22c55e", "surplus (supply > demand)"], ["#ef4444", "deficit (demand > supply)"]]} />
+              <Legend items={[[STATUS_COLORS.success, "surplus (supply > demand)"], [STATUS_COLORS.danger, "deficit (demand > supply)"]]} />
               <p className="text-[11px] text-muted-foreground/60">Brighter = larger net volume.</p>
             </>
           ) : (
@@ -180,7 +180,7 @@ function HeatLegend() {
     <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
       <span>low</span>
       <span className="h-2 flex-1 rounded-full" style={{
-        background: "linear-gradient(to right, #ef4444, #f59e0b, #22c55e)",
+        background: `linear-gradient(to right, ${STATUS_COLORS.danger}, ${STATUS_COLORS.warning}, ${STATUS_COLORS.success})`,
       }} />
       <span>high</span>
     </div>

@@ -1,16 +1,17 @@
 // Overlays drawn above the sectors: a highlighted route path and the navigation path.
 // (Trade routes themselves are shown as a profit tint on the sector hexes, not markers.)
 
+import { STATUS_COLORS } from "../../../lib/map/constants";
 import type { Transform } from "../../../lib/map/types";
 import type { PathSegment } from "../../../lib/map/overlays/useAnalysisOverlay";
 
 function getSegmentColor(kind: string): string {
   switch (kind) {
-    case "jump_gate": return "#22c55e"; // Green
+    case "jump_gate": return STATUS_COLORS.success; // Green
     case "accelerator":
     case "superhighway":
-    case "localhighway": return "#eab308"; // Yellow
-    case "manual": return "#ef4444"; // Red
+    case "localhighway": return STATUS_COLORS.warning; // Yellow
+    case "manual": return STATUS_COLORS.danger; // Red
     default: return "#0ea5e9";
   }
 }
@@ -77,8 +78,8 @@ export function NavLayer({ segments, origin, dest, transform }: {
       )}
       {/* Only mark endpoints once a real route exists; a lone origin is shown by the
           selected sector's highlighted bounds, not a distracting dot. */}
-      {origin && dest && <Endpoint p={origin} color="#22c55e" w={w} />}
-      {origin && dest && <Endpoint p={dest} color="#ef4444" w={w} />}
+      {origin && dest && <Endpoint p={origin} color={STATUS_COLORS.success} w={w} />}
+      {origin && dest && <Endpoint p={dest} color={STATUS_COLORS.danger} w={w} />}
     </g>
   );
 }

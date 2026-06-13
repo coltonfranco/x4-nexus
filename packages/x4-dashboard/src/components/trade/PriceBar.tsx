@@ -27,7 +27,7 @@ export function PriceBar({
           className="absolute inset-0 rounded-full opacity-70"
           style={{
             background:
-              "linear-gradient(to right, hsl(217 91% 60%), hsl(38 92% 50%), hsl(142 71% 45%))",
+              "linear-gradient(to right, hsl(var(--info)), hsl(var(--warning)), hsl(var(--success)))",
           }}
         />
         <div

@@ -4,6 +4,7 @@
 // (the on-screen cell count stays small no matter how large the sector is).
 
 import { hexPoints } from "../../../lib/map/geometry";
+import { MAP_THEME } from "../../../lib/map/constants";
 import { SQRT3 } from "../../../lib/map/constants";
 import type { Sector, Transform } from "../../../lib/map/types";
 
@@ -79,7 +80,7 @@ export function HexBuildGridLayer({
     <g style={{ pointerEvents: "none" }}>
       {polys.map((pts, i) => (
         <polygon key={`bz-${i}`} points={pts} fill="none"
-          stroke="rgba(120,180,255,0.12)" strokeWidth={0.8 / transform.scale} />
+          stroke={MAP_THEME.buildGrid} strokeWidth={0.8 / transform.scale} />
       ))}
     </g>
   );

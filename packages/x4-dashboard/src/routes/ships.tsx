@@ -220,9 +220,9 @@ function ShipDetailStatRow({ label, min, max, maxVal, unit, isLog, format }: {
   const pct = Math.max(0, Math.min(100, (scaledValue / scaledMax) * 100));
   
   const barColor = 
-    pct >= 66 ? "hsl(142 71% 45%)" :
-    pct >= 33 ? "hsl(38 92% 50%)" :
-    "hsl(0 72% 51%)";
+    pct >= 66 ? "hsl(var(--success))" :
+    pct >= 33 ? "hsl(var(--warning))" :
+    "hsl(var(--destructive))";
 
   return (
     <div className="flex items-center gap-3 py-1 group">

@@ -9,9 +9,9 @@ type Props = {
 };
 
 function autoColor(pct: number): string {
-  if (pct >= 66) return "hsl(142 71% 45%)";   // green
-  if (pct >= 33) return "hsl(38 92% 50%)";    // amber
-  return "hsl(0 72% 51%)";                    // red
+  if (pct >= 66) return "hsl(var(--success))";
+  if (pct >= 33) return "hsl(var(--warning))";
+  return "hsl(var(--destructive))";
 }
 
 export function StatBar({ value, max, label, color, width = 80 }: Props) {

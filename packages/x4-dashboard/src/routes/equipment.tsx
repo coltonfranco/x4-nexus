@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useSettings } from "../lib/settingsStore";
 import { ProductionChain } from "../components/trade/ProductionChain";
 import { Input } from "../components/ui/input";
+import { FilterPill } from "../components/ui/filter-pill";
 import { fmtNum } from "../lib/wareFormat";
 import { getMkGradientClass } from "../lib/formatters";
 import { cn } from "../lib/utils";
@@ -525,20 +526,13 @@ export default function EquipmentPage() {
       <div className="flex flex-wrap items-center gap-3 border-b border-border bg-muted/20 px-6 py-3">
         {sizes.length > 0 && (
           <div className="flex items-center gap-1">
-            <button
-              onClick={() => setSize(null)}
-              className={`rounded-full px-2.5 py-1 text-xs font-medium ${size === null ? "bg-primary text-primary-foreground" : "bg-muted/50 text-muted-foreground hover:text-foreground"}`}
-            >
+            <FilterPill active={size === null} onClick={() => setSize(null)}>
               All sizes
-            </button>
+            </FilterPill>
             {sizes.map((s) => (
-              <button
-                key={s}
-                onClick={() => setSize(s)}
-                className={`rounded-full px-2.5 py-1 text-xs font-medium uppercase ${size === s ? "bg-primary text-primary-foreground" : "bg-muted/50 text-muted-foreground hover:text-foreground"}`}
-              >
+              <FilterPill key={s} active={size === s} onClick={() => setSize(s)} className="uppercase">
                 {s}
-              </button>
+              </FilterPill>
             ))}
           </div>
         )}

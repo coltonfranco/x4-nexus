@@ -5,7 +5,7 @@
 
 import { useMemo } from "react";
 
-import { RESOURCE_COLORS } from "../constants";
+import { RESOURCE_COLORS, STATUS_COLORS } from "../constants";
 import { heatColor } from "./heat";
 import { buildAdjacency, findPath, type TravelSegmentKind, type PathResult } from "./pathfinding";
 import type { FillMode } from "./types";
@@ -151,7 +151,7 @@ export function useAnalysisOverlay({
           badges.set(sec.sector_id.toLowerCase(), `${relUI >= 0 ? "+" : ""}${Math.round(relUI)}`);
 
           if (Math.abs(relUI) >= 0.5) {
-            const fill = relUI > 0 ? "#22c55e" : "#ef4444";
+            const fill = relUI > 0 ? STATUS_COLORS.success : STATUS_COLORS.danger;
             const opacity = 0.15 + 0.65 * mag;
             tint.set(sec.sector_id.toLowerCase(), { fill, opacity });
           }
@@ -182,9 +182,9 @@ export function useAnalysisOverlay({
       const tint = new Map<string, SectorTint>();
       const dots = new Map<string, string[]>();
       bySector.forEach((sr, sid) => {
-        const color = RESOURCE_COLORS[sr.dominant.ware] ?? "#9ca3af";
+        const color = RESOURCE_COLORS[sr.dominant.ware] ?? "hsl(var(--muted-foreground))";
         tint.set(sid, { fill: color, opacity: 0.35 + 0.5 * sr.dominant.intensity });
-        const alt = sr.all.slice(1).map((e) => RESOURCE_COLORS[e.ware] ?? "#9ca3af");
+        const alt = sr.all.slice(1).map((e) => RESOURCE_COLORS[e.ware] ?? "hsl(var(--muted-foreground))");
         if (alt.length) dots.set(sid, alt);
       });
       return { ...empty, tint, dots, dim: true, source, loading };
@@ -208,7 +208,7 @@ export function useAnalysisOverlay({
       bySector.forEach((a, sid) => {
         const net = a.supply - a.demand;
         const mag = Math.abs(net) / maxAbs;
-        tint.set(sid, { fill: net >= 0 ? "#22c55e" : "#ef4444", opacity: 0.15 + 0.75 * mag });
+        tint.set(sid, { fill: net >= 0 ? STATUS_COLORS.success : STATUS_COLORS.danger, opacity: 0.15 + 0.75 * mag });
         badges.set(sid, `${net >= 0 ? "+" : ""}${compact(net)}`);
       });
       return { ...empty, tint, badges, dim: true, loading: offers.isLoading };
@@ -252,7 +252,7 @@ export function useAnalysisOverlay({
         color: `hsl(${140 - 35 * (1 - t)}, 80%, ${45 + 15 * t}%)`,
         routes: list.slice(0, 4),
       });
-      tint.set(sid, { fill: "#22c55e", opacity: 0.2 + 0.65 * t });
+      tint.set(sid, { fill: STATUS_COLORS.success, opacity: 0.2 + 0.65 * t });
       badges.set(sid, `${compact(list[0].profitPerHour)}/h`);
     });
     return { markers, tint, badges };

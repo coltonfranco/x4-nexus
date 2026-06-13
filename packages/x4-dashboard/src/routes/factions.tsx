@@ -86,21 +86,21 @@ const METRICS: {
   {
     key: "military_score",
     label: "Military",
-    color: "hsl(0 72% 51%)",
+    color: "hsl(var(--destructive))",
     detail: (f) =>
       `${f.fight_ship_count} combat ships · ${f.military_station_count} military stations`,
   },
   {
     key: "economic_score",
     label: "Economic",
-    color: "hsl(142 71% 45%)",
+    color: "hsl(var(--success))",
     detail: (f) =>
       `${f.economic_station_count} stations · ${f.trade_ship_count} traders · ${f.mine_ship_count} miners`,
   },
   {
     key: "diplomatic_score",
     label: "Diplomatic",
-    color: "hsl(221 83% 53%)",
+    color: "hsl(var(--info))",
     detail: (f) => `avg relation ${f.avg_relation.toFixed(1)} / 30`,
   },
   {

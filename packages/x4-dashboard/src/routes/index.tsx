@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Factory, Shield, Sword } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import { STATUS_COLORS } from "../lib/map/constants";
 
 type Health = {
   ok: boolean;
@@ -63,7 +64,7 @@ export default function IndexPage() {
               <div className="flex items-center gap-2">
                 <span
                   className="h-2 w-2 rounded-full"
-                  style={{ backgroundColor: data?.ok ? "#22c55e" : "#ef4444" }}
+                  style={{ backgroundColor: data?.ok ? STATUS_COLORS.success : STATUS_COLORS.danger }}
                 />
                 <span className="text-sm font-medium">{data?.ok ? "Online" : "Degraded"}</span>
                 <span className="text-xs text-muted-foreground ml-auto">v{data?.api_version}</span>

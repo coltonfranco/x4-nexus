@@ -33,9 +33,9 @@ type FactionStrength = {
 };
 
 const STANDING_CATS = [
-  { key: "military_score", label: "Military", color: "hsl(0 72% 51%)" },
-  { key: "economic_score", label: "Economic", color: "hsl(142 71% 45%)" },
-  { key: "diplomatic_score", label: "Diplomatic", color: "hsl(221 83% 53%)" },
+  { key: "military_score", label: "Military", color: "hsl(var(--destructive))" },
+  { key: "economic_score", label: "Economic", color: "hsl(var(--success))" },
+  { key: "diplomatic_score", label: "Diplomatic", color: "hsl(var(--info))" },
   { key: "territory_score", label: "Territory", color: "hsl(38 92% 50%)" },
 ] as const;
 type Faction = { faction_id: string; name: string; color_hex: string | null };
