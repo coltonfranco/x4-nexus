@@ -9,6 +9,7 @@ import { DropListContent, buildDropGroups } from "./DropListContent";
 
 import { Button } from "./ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
+import { StatBar } from "./StatBar";
 import { PageLoaderPreset } from "./PageLoader";
 import { classShort } from "../lib/formatters";
 import {
@@ -34,15 +35,13 @@ function ShipDetailStatRow({ label, min, max, maxVal, unit, isLog, format }: {
   ) : "—";
   const scaledValue = isLog ? Math.log10((max ?? 0) + 1) : (max ?? 0);
   const scaledMax = isLog ? Math.log10(maxVal + 1) : maxVal;
-  const pct = Math.max(0, Math.min(100, (scaledValue / scaledMax) * 100));
-  const barColor = pct >= 66 ? "hsl(var(--success))" : pct >= 33 ? "hsl(var(--warning))" : "hsl(var(--destructive))";
 
   return (
     <div className="flex items-center gap-3 py-1 group">
       <span className="w-[110px] shrink-0 text-[10px] sm:text-[11px] uppercase font-bold tracking-wider text-muted-foreground group-hover:text-foreground transition-colors leading-tight">{label}</span>
-      <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden min-w-[40px]">
+      <div className="flex-1 min-w-[40px]">
         {max != null && max > 0 && (
-          <div className="h-full rounded-full transition-all duration-300 opacity-90 group-hover:opacity-100" style={{ width: `${pct}%`, backgroundColor: barColor }} />
+          <StatBar value={scaledValue} max={scaledMax} width={100} height={6} className="w-full" />
         )}
       </div>
       <div className="w-[120px] shrink-0 flex justify-end items-baseline gap-1 text-right">

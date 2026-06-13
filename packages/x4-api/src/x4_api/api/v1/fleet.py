@@ -32,6 +32,8 @@ class LiveShip(PublicModel):
     role: str | None              # fight | trade | mine | build | auxiliary | ...
     ship_type: str | None         # scout | fighter | miner | freighter | ...
     cargo_volume: int | None
+    level: float | None           # pilot skill 0-5
+    thruster: str | None          # equipped thruster macro
 
 
 @router.get("/fleet", response_model=list[LiveShip])
@@ -47,7 +49,7 @@ def list_fleet(
     # LEFT JOIN the static ship catalog (by macro) for role/type/name/cargo.
     sql = [
         "SELECT sh.ship_id, sh.code, sh.name, sh.macro, sh.owner_faction, sh.class_id, "
-        "sh.sector_id, sh.state, sh.is_player_owned, "
+        "sh.sector_id, sh.state, sh.level, sh.thruster, sh.is_player_owned, "
         "c.name AS catalog_name, c.role, c.ship_type, c.cargo_volume "
         "FROM ships sh LEFT JOIN s.ships c ON c.ship_id = sh.macro WHERE 1=1"
     ]

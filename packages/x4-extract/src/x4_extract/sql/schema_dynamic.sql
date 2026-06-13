@@ -183,6 +183,8 @@ CREATE TABLE IF NOT EXISTS ships (
     x REAL, y REAL, z REAL,
     commander_id  TEXT,
     state         TEXT,
+    level         REAL,
+    thruster      TEXT,
     is_player_owned INTEGER NOT NULL DEFAULT 0,
     extra_json    TEXT
 );

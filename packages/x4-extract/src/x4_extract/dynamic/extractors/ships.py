@@ -26,7 +26,7 @@ from x4_extract.dynamic.collector import Tier, hash_rows
 from x4_extract.savefile.dispatch import Registration, Target
 
 _SHIP_CLASSES = ("ship_xs", "ship_s", "ship_m", "ship_l", "ship_xl")
-_MAPPED_SHIP_ATTRS = frozenset({"id", "code", "name", "macro", "owner", "class", "state"})
+_MAPPED_SHIP_ATTRS = frozenset({"id", "code", "name", "macro", "owner", "class", "state", "level", "thruster"})
 _ANCESTOR_WALK_LIMIT = 40  # docked/subordinate ships nest deeply
 
 
@@ -45,6 +45,8 @@ class ShipRow:
     z: float | None
     commander_id: str | None
     state: str | None
+    level: float | None
+    thruster: str | None
     is_player_owned: int
     extra_json: str | None
 
@@ -85,6 +87,8 @@ class ShipsCollector:
                 z=None,
                 commander_id=None,
                 state=elem.get("state"),
+                level=_float(elem.get("level")),
+                thruster=elem.get("thruster"),
                 is_player_owned=int(owner == "player"),
                 extra_json=json.dumps(extra, sort_keys=True) if extra else None,
             )
@@ -123,10 +127,19 @@ class ShipsCollector:
             """
             INSERT OR REPLACE INTO ships
                 (ship_id, code, name, macro, owner_faction, class_id, sector_id, zone_id,
-                 x, y, z, commander_id, state, is_player_owned, extra_json)
+                 x, y, z, commander_id, state, level, thruster, is_player_owned, extra_json)
             VALUES
                 (:ship_id, :code, :name, :macro, :owner_faction, :class_id, :sector_id, :zone_id,
-                 :x, :y, :z, :commander_id, :state, :is_player_owned, :extra_json)
+                 :x, :y, :z, :commander_id, :state, :level, :thruster, :is_player_owned, :extra_json)
             """,
             [dataclasses.asdict(r) for r in self.rows],
         )
+
+
+def _float(v: str | None) -> float | None:
+    if v is None:
+        return None
+    try:
+        return float(v)
+    except ValueError:
+        return None
