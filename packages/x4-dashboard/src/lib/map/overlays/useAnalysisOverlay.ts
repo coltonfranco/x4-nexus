@@ -217,11 +217,18 @@ export function useAnalysisOverlay({
 
         const f = sectorForces.get(sid);
         if (f) {
+          let hostileCount = 0;
+          let friendlyCount = 0;
           for (const fac of f.factions) {
-            if (hostileFactions.has(fac.faction_id) && fac.fighter_count > 0) {
-              isDangerous = true;
-              break;
+            if (hostileFactions.has(fac.faction_id)) {
+              hostileCount += fac.fighter_count;
+            } else {
+              friendlyCount += fac.fighter_count;
             }
+          }
+          // If hostile ships outnumber or equal friendly/neutral ships, it's dangerous
+          if (hostileCount > 0 && hostileCount >= friendlyCount) {
+            isDangerous = true;
           }
         }
 
