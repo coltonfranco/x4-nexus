@@ -5,6 +5,7 @@ import { MapIcon, RotateCcw } from "lucide-react";
 import { AnalysisPanel } from "../components/map/AnalysisPanel";
 import { ControlPanel } from "../components/map/ControlPanel";
 import { MapCanvas, type MapToggles } from "../components/map/MapCanvas";
+import { MapLegend } from "../components/map/MapLegend";
 import { NavPanel } from "../components/map/NavPanel";
 import { SectorDetailPanel } from "../components/map/SectorDetailPanel";
 import { SectorSearch } from "../components/map/SectorSearch";
@@ -15,7 +16,7 @@ import { usePanZoom } from "../lib/map/usePanZoom";
 import type { FillMode } from "../lib/map/overlays/types";
 import type { MapStation } from "../lib/map/types";
 import { useEconomyWares } from "../lib/map/overlays/useAnalysisData";
-import { useAnalysisOverlay } from "../lib/map/overlays/useAnalysisOverlay";
+import { useAnalysisOverlay, type ConflictToggles } from "../lib/map/overlays/useAnalysisOverlay";
 import { useSettings } from "../lib/settingsStore";
 
 const mapApi = getRouteApi("/map");
@@ -35,6 +36,13 @@ export default function MapPage() {
     showGrid: true,
     showStations: true,
     showFactionLogos: true,
+  });
+
+  const [conflictToggles, setConflictToggles] = useState<ConflictToggles>({
+    showConflicts: true,
+    showTensions: true,
+    showDanger: true,
+    showPlayer: true,
   });
   const [activeDlcs, setActiveDlcs] = useState<Set<string> | null>(null);
 
@@ -78,6 +86,7 @@ export default function MapPage() {
     sectorCoords, gates: visibleGates, highways: visibleHighways,
     zoneMap: layout.zoneMap, zoneScreenPos: layout.zoneScreenPos,
     sectors: visibleSectors, clusterMap: layout.clusterMap, zoneScaleMap: layout.zoneScaleMap,
+    conflictToggles,
   });
 
   const sectorName = useCallback((id: string) => {
@@ -175,7 +184,7 @@ export default function MapPage() {
         </div>
       </div>
 
-      <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
+      <div style={{ flex: 1, display: "flex", minHeight: 0, position: "relative" }}>
         <MapCanvas
           data={{ ...data, stations: visibleStations, gates: visibleGates, highways: visibleHighways }}
           layout={layout}
@@ -199,6 +208,7 @@ export default function MapPage() {
           onSelectStation={handleSelectStation}
           showFactionLabels={toggles.showFactionLogos}
         />
+        <MapLegend fillMode={fillMode} />
 
         {/* Right panel: overlay controls (top), detail/map controls, navigation (bottom). */}
         <aside style={{ width: 236, flexShrink: 0, borderLeft: "1px solid hsl(var(--border))", display: "flex", flexDirection: "column", overflowY: "auto" }}
@@ -221,6 +231,8 @@ export default function MapPage() {
             maxJumps={maxJumps}
             onMaxJumpsChange={setMaxJumps}
             overlayLoading={overlay.isLoading}
+            conflictToggles={conflictToggles}
+            onToggleConflict={(k, v) => setConflictToggles(prev => ({ ...prev, [k]: v }))}
           />
 
           {selectedSector ? (

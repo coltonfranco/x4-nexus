@@ -57,8 +57,15 @@ function relationToUI(rel: number): number {
   return Math.sign(rel) * 10 * Math.log10(abs * 1000);
 }
 
+export type ConflictToggles = {
+  showConflicts: boolean;
+  showTensions: boolean;
+  showDanger: boolean;
+  showPlayer: boolean;
+};
+
 export function useAnalysisOverlay({
-  fillMode, resource, wareId, maxJumps, selectedRouteSector, navFrom, navTo, navFromPos, navToPos, sectorCoords, gates, highways, zoneMap, zoneScreenPos, sectors, clusterMap, zoneScaleMap,
+  fillMode, resource, wareId, maxJumps, selectedRouteSector, navFrom, navTo, navFromPos, navToPos, sectorCoords, gates, highways, zoneMap, zoneScreenPos, sectors, clusterMap, zoneScaleMap, conflictToggles,
 }: {
   fillMode: FillMode;
   resource: string | null;
@@ -77,6 +84,7 @@ export function useAnalysisOverlay({
   sectors: Sector[];
   clusterMap: Map<string, Cluster>;
   zoneScaleMap: Map<string, number>;
+  conflictToggles?: ConflictToggles;
 }): AnalysisOverlay {
   const resourcesOn = fillMode === "resources";
   const relationsOn = fillMode === "relations";
@@ -182,14 +190,18 @@ export function useAnalysisOverlay({
       const sectorForces = new Map<string, SectorForceEntry>();
       const dots = new Map<string, string[]>();
       
+      const toggles = conflictToggles ?? { showConflicts: true, showTensions: true, showDanger: true, showPlayer: true };
+
       const forceData = forces.data ?? [];
       forceData.forEach((f) => {
         const sid = f.sector_id.toLowerCase();
         sectorForces.set(sid, f);
         
-        const playerForce = f.factions.find((fac) => fac.faction_id === "player");
-        if (playerForce && playerForce.fighter_count > 0) {
-          dots.set(sid, ["#22c55e"]);
+        if (toggles.showPlayer) {
+          const playerForce = f.factions.find((fac) => fac.faction_id === "player");
+          if (playerForce && playerForce.fighter_count > 0) {
+            dots.set(sid, ["#22c55e"]);
+          }
         }
       });
       
@@ -232,8 +244,14 @@ export function useAnalysisOverlay({
           }
         }
 
-        if (isDangerous) {
-          tint.set(sid, { fill: "transparent", opacity: 1, innerDangerBorder: true });
+        if (isDangerous && toggles.showDanger) {
+          let dangerColor = "#eab308"; // Yellow (1-4 ships)
+          if (hostileCount >= 10) {
+            dangerColor = "#ef4444"; // Red (10+ ships)
+          } else if (hostileCount >= 5) {
+            dangerColor = "#f97316"; // Orange (5-9 ships)
+          }
+          tint.set(sid, { fill: "transparent", opacity: 1, innerDangerBorder: dangerColor });
         }
       });
       
@@ -267,23 +285,34 @@ export function useAnalysisOverlay({
         }
         
         const existingTint = tint.get(sid);
-        tint.set(sid, { 
+        const newTint = { 
           fill, 
           opacity: Math.min(1, 0.35 + 0.65 * t), 
           animate,
           innerDangerBorder: existingTint?.innerDangerBorder
-        });
-        sectorConflicts.set(sid, c);
+        };
+
+        if (toggles.showConflicts) {
+          tint.set(sid, newTint);
+          sectorConflicts.set(sid, c);
+        } else if (newTint.innerDangerBorder) {
+          // If conflicts are hidden but danger border is shown, keep the tint for danger border
+          tint.set(sid, { fill: "transparent", opacity: 1, innerDangerBorder: newTint.innerDangerBorder });
+        }
       });
       
       const tensionData = tensions.data ?? [];
-      tensionData.forEach(t => {
-        // Deterministic key: "sectorA_sectorB" where A < B
-        const a = t.from_sector_id.toLowerCase();
-        const b = t.to_sector_id.toLowerCase();
-        const key = a < b ? `${a}_${b}` : `${b}_${a}`;
-        borderTensions.set(key, t);
-      });
+      if (toggles.showTensions) {
+        tensionData.forEach((t) => {
+          // Both sides must be active (forces loaded)
+          const sidA = t.from_sector_id.toLowerCase();
+          const sidB = t.to_sector_id.toLowerCase();
+          if (!sectorForces.has(sidA) || !sectorForces.has(sidB)) return;
+
+          const key = [sidA, sidB].sort().join("-");
+          borderTensions.set(key, t);
+        });
+      }
       
       return { ...empty, tint, sectorConflicts, borderTensions, sectorForces, dots, dim: true, loading: false };
     }

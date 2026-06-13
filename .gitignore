@@ -39,5 +39,8 @@ packages/x4-dashboard/.vite/
 Thumbs.db
 desktop.ini
 
+# Design handoff (theme reference)
+design_handoff_x4_theme/
+
 # Logs
 *.log

@@ -5,8 +5,9 @@
 import { useState } from "react";
 
 import { RESOURCE_COLORS, RESOURCE_ORDER, STATUS_COLORS } from "../../lib/map/constants";
-import type { EconomyWare, FillMode } from "../../lib/map/overlays/types";
-import type { ResourceSource } from "../../lib/map/overlays/useAnalysisData";
+import type { FillMode } from "../../lib/map/overlays/types";
+import { type EconomyWare, type ResourceSource } from "../../lib/map/overlays/useAnalysisData";
+import type { ConflictToggles } from "../../lib/map/overlays/useAnalysisOverlay";
 
 const TABS: { id: FillMode; label: string }[] = [
   { id: "faction", label: "Faction" },
@@ -22,6 +23,8 @@ export function AnalysisPanel({
   wareId, wareName, onWareChange, onClearWare, economyWares, waresLoading,
   routesLoading, markerCount, maxJumps, onMaxJumpsChange,
   overlayLoading,
+  conflictToggles,
+  onToggleConflict,
 }: {
   fillMode: FillMode;
   onFillModeChange: (m: FillMode) => void;
@@ -39,7 +42,9 @@ export function AnalysisPanel({
   markerCount: number;
   maxJumps: number | null;
   onMaxJumpsChange: (j: number | null) => void;
-  overlayLoading: boolean;
+  overlayLoading?: boolean;
+  conflictToggles?: ConflictToggles;
+  onToggleConflict?: (key: keyof ConflictToggles, value: boolean) => void;
 }) {
   const [wareFilter, setWareFilter] = useState("");
   const filtered = economyWares
@@ -66,10 +71,30 @@ export function AnalysisPanel({
         <p className="text-[11px] text-muted-foreground">Sectors colored by owning faction.</p>
       )}
 
-      {fillMode === "conflict" && (
-        <p className="text-[11px] text-muted-foreground">
-          Hot zones — sectors with fighters from mutually-hostile factions. Red = heavy conflict.
-        </p>
+      {fillMode === "conflict" && conflictToggles && onToggleConflict && (
+        <div className="flex flex-col gap-2">
+          <p className="text-[11px] text-muted-foreground/80 mb-1">
+            Toggle which conflict elements to show on the map.
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { key: "showDanger", label: "Danger Zones" },
+              { key: "showTensions", label: "Border Tensions" },
+              { key: "showConflicts", label: "Sector Battles" },
+              { key: "showPlayer", label: "Player Ships" },
+            ].map(({ key, label }) => (
+              <label key={key} className="flex items-center gap-2 text-[11px] text-muted-foreground hover:text-foreground cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={conflictToggles[key as keyof ConflictToggles]}
+                  onChange={(e) => onToggleConflict(key as keyof ConflictToggles, e.target.checked)}
+                  className="rounded border-border bg-muted/30 text-primary focus:ring-primary/60"
+                />
+                {label}
+              </label>
+            ))}
+          </div>
+        </div>
       )}
 
       {fillMode === "relations" && (
