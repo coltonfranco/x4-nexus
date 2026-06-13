@@ -196,7 +196,8 @@ export function useAnalysisOverlay({
       const hostileFactions = new Set<string>();
       if (relations.data) {
         for (const rel of relations.data) {
-          if (rel.relation <= -0.1) {
+          const uiRel = relationToUI(rel.relation);
+          if (uiRel <= -20) {
             hostileFactions.add(rel.faction_id);
           }
         }
@@ -204,11 +205,27 @@ export function useAnalysisOverlay({
 
       sectors.forEach((s) => {
         const sid = s.sector_id.toLowerCase();
+        let isDangerous = false;
+
         let owner = s.owner_faction;
         if (!owner && s.cluster_id) {
           owner = clusterMap.get(s.cluster_id)?.owner_faction ?? null;
         }
         if (owner && hostileFactions.has(owner)) {
+          isDangerous = true;
+        }
+
+        const f = sectorForces.get(sid);
+        if (f) {
+          for (const fac of f.factions) {
+            if (hostileFactions.has(fac.faction_id) && fac.fighter_count > 0) {
+              isDangerous = true;
+              break;
+            }
+          }
+        }
+
+        if (isDangerous) {
           tint.set(sid, { fill: "transparent", opacity: 1, innerDangerBorder: true });
         }
       });
