@@ -5,7 +5,7 @@ import { Building2, ChevronDown, Coins, FileText, Handshake, Rocket, ScrollText,
 import { Reputation } from "../components/GameValues";
 import { Currency } from "../components/Currency";
 import { getReputationScore } from "../lib/formatters";
-import { ShipDetailPanel } from "./ships";
+import { ShipDetailPanel } from "../components/ShipDetailPanel";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../components/ui/dialog";
 import { PageLoaderPreset } from "../components/PageLoader";
 
