@@ -136,6 +136,43 @@ class MetaCollector:
         )
 
 
+# ── Player stats (flat key-value from <savegame>/<stats>) ──────────────────────
+
+@dataclass(slots=True)
+class StatsCollector:
+    stats: dict[str, float] = field(default_factory=dict)
+
+    def register(self) -> list[Registration]:
+        return [
+            Registration(Target(depth=2, tag="stat", parent_tag="stats"), self._on_stat),
+        ]
+
+    def _on_stat(self, elem: etree._Element) -> None:
+        sid = elem.get("id")
+        val = elem.get("value")
+        if sid and val is not None:
+            try:
+                self.stats[sid] = float(val)
+            except ValueError:
+                pass  # non-numeric stat values are rare; skip them
+
+    def tables(self, tier: Tier) -> tuple[str, ...]:
+        return ("player_stats",) if tier is Tier.VOLATILE else ()
+
+    def fingerprint(self, tier: Tier) -> str:
+        if tier is not Tier.VOLATILE or not self.stats:
+            return ""
+        return hash_rows([{"stat_id": k, "value": v} for k, v in sorted(self.stats.items())])
+
+    def flush(self, conn: sqlite3.Connection, tier: Tier | None = None) -> None:
+        if tier not in (None, Tier.VOLATILE) or not self.stats:
+            return
+        conn.executemany(
+            "INSERT OR REPLACE INTO player_stats (stat_id, value) VALUES (?, ?)",
+            sorted(self.stats.items()),
+        )
+
+
 def _attrs(elem: etree._Element) -> dict[str, str]:
     """All attributes coerced to str (lxml may type values as bytes)."""
     return {

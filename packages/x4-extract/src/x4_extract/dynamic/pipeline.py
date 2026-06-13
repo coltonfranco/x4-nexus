@@ -22,7 +22,7 @@ from x4_extract.db import apply_schema, open_db
 from x4_extract.dynamic.collector import TIERS, Collector, Tier, combined_fingerprint
 from x4_extract.dynamic.distance import build_sector_distance
 from x4_extract.dynamic.extractors.factions import FactionsCollector
-from x4_extract.dynamic.extractors.meta import MetaCollector
+from x4_extract.dynamic.extractors.meta import MetaCollector, StatsCollector
 from x4_extract.dynamic.extractors.player import PlayerCollector
 from x4_extract.dynamic.extractors.resources import ResourceAreasCollector
 from x4_extract.dynamic.extractors.sectors import SectorsCollector
@@ -37,7 +37,7 @@ _FINGERPRINT_BLOCK = 1 << 16  # 64 KiB head+tail sample is enough to detect a re
 # that differs forces a full re-ingest even when the save file itself is unchanged —
 # otherwise a newly-added table (e.g. sector_resources) would never be populated for
 # saves already ingested under the old pipeline.
-_PIPELINE_VERSION = "3"
+_PIPELINE_VERSION = "4"
 
 
 def dynamic_db_path(settings: ExtractSettings, save_path: Path) -> Path:
@@ -68,6 +68,7 @@ def run(settings: ExtractSettings, save_path: Path) -> Path:
 
         collectors: list[Collector] = [
             MetaCollector(save_path=save_path),
+            StatsCollector(),
             StationsCollector(localizer=localizer),
             FactionsCollector(),
             PlayerCollector(),

@@ -9,7 +9,7 @@ import { RESOURCE_COLORS, STATUS_COLORS } from "../constants";
 import { heatColor } from "./heat";
 import { buildAdjacency, findPath, type TravelSegmentKind, type PathResult } from "./pathfinding";
 import type { FillMode } from "./types";
-import { useResourceData, useTopRoutes, useWareOffers, usePlayerRelations, type ResourceSource } from "./useAnalysisData";
+import { useResourceData, useTopRoutes, useWareOffers, usePlayerRelations, useConflictData, type ResourceSource } from "./useAnalysisData";
 import type { Cluster, Gate, Highway, Sector, Zone } from "../types";
 
 export type SectorTint = { fill: string; opacity: number };
@@ -25,6 +25,7 @@ export type PathSegment = {
 export type AnalysisOverlay = {
   sectorTint: Map<string, SectorTint> | null; // keyed by lowercase sector id; null → faction base
   sectorBadges: Map<string, string>;
+  sectorTooltips: Map<string, string>;
   alternateDots: Map<string, string[]>;       // lowercase sector → alt resource colors
   dimOthers: boolean;
   routeMarkers: RouteMarker[];
@@ -80,6 +81,7 @@ export function useAnalysisOverlay({
 
   const resourceData = useResourceData(resourcesOn);
   const relations = usePlayerRelations(relationsOn);
+  const conflicts = useConflictData(fillMode === "conflict");
   const offers = useWareOffers(wareOn ? wareId : null);
   const routes = useTopRoutes(tradeRoutesOn || !!selectedRouteSector);
 
@@ -130,6 +132,7 @@ export function useAnalysisOverlay({
       dim: false,
       source: null as ResourceSource | null,
       loading: false,
+      tooltips: new Map<string, string>(),
     };
 
     if (fillMode === "relations") {
@@ -158,6 +161,27 @@ export function useAnalysisOverlay({
         }
       });
       return { ...empty, tint, badges, dim: true, loading: relations.isLoading };
+    }
+
+    if (fillMode === "conflict") {
+      const tint = new Map<string, SectorTint>();
+      const badges = new Map<string, string>();
+      const tooltips = new Map<string, string>();
+      const data = conflicts.data ?? [];
+      data.forEach((c) => {
+        const sid = c.sector_id.toLowerCase();
+        const t = c.intensity;
+        const r = Math.round(180 + 59 * t);
+        const g = Math.round(60 - 40 * t);
+        const b = Math.round(60 - 40 * t);
+        const fill = `rgb(${r},${g},${b})`;
+        tint.set(sid, { fill, opacity: 0.2 + 0.65 * t });
+        const top = c.factions.slice(0, 3);
+        const label = top.map((f) => `${f.faction_id.slice(0, 4)}(${f.fighter_count})`).join(" vs ");
+        badges.set(sid, c.factions.length >= 2 ? label : `${c.fighter_count}`);
+        tooltips.set(sid, c.factions.map((f) => `${f.faction_id}: ${f.fighter_count} fighters`).join("\n"));
+      });
+      return { ...empty, tint, badges, tooltips, dim: true, loading: conflicts.isLoading };
     }
 
 
@@ -304,6 +328,7 @@ export function useAnalysisOverlay({
   return useMemo(() => ({
     sectorTint: tradeRoutesOn ? routeData.tint : fill.tint,
     sectorBadges: tradeRoutesOn ? routeData.badges : fill.badges,
+    sectorTooltips: fill.tooltips,
     alternateDots: fill.dots,
     dimOthers: fill.dim || tradeRoutesOn,
     routeMarkers,

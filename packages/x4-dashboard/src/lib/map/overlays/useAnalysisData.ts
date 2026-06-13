@@ -157,3 +157,20 @@ export function usePlayerRelations(enabled: boolean) {
     queryFn: () => fetch("/api/v1/player/reputation").then((r) => r.json()),
   });
 }
+
+export type ConflictEntry = {
+  sector_id: string;
+  fighter_count: number;
+  hostile_pair_count: number;
+  intensity: number;
+  factions: { faction_id: string; fighter_count: number }[];
+};
+
+export function useConflictData(enabled: boolean) {
+  return useQuery<ConflictEntry[]>({
+    queryKey: ["map-conflicts"],
+    enabled,
+    queryFn: () => fetch("/api/v1/map/conflicts").then((r) => r.json()),
+    staleTime: 30_000,
+  });
+}

@@ -2,7 +2,7 @@
 // tints by dominant/selected resource. Trade shows routes until a ware is picked, then the
 // ware's supply/demand. Navigation (path) is always live on top — see useAnalysisOverlay.
 
-export type FillMode = "faction" | "relations" | "resources" | "trade";
+export type FillMode = "faction" | "relations" | "resources" | "trade" | "conflict";
 
 export type EconomyWare = {
   ware_id: string;

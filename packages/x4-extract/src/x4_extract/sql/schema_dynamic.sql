@@ -191,6 +191,11 @@ CREATE TABLE IF NOT EXISTS ships (
 CREATE INDEX IF NOT EXISTS idx_dyn_ships_owner  ON ships(owner_faction);
 CREATE INDEX IF NOT EXISTS idx_dyn_ships_sector ON ships(sector_id);
 
+CREATE TABLE IF NOT EXISTS player_stats (
+    stat_id  TEXT PRIMARY KEY,
+    value    REAL
+);
+
 CREATE TABLE IF NOT EXISTS ship_cargo (
     ship_id TEXT NOT NULL,
     ware_id TEXT NOT NULL,

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from collections import defaultdict
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -563,6 +564,19 @@ def list_cluster_connections(
     return [ClusterConnection(**dict(r)) for r in rows]
 
 
+class ConflictFaction(PublicModel):
+    faction_id: str
+    fighter_count: int
+
+
+class ConflictEntry(PublicModel):
+    sector_id: str
+    fighter_count: int
+    hostile_pair_count: int
+    intensity: float  # 0.0–1.0 normalized across all sectors
+    factions: list[ConflictFaction]
+
+
 class ClusterResourceEntry(PublicModel):
     cluster_id: str
     ware: str
@@ -591,3 +605,81 @@ def list_cluster_resources(
         ORDER BY c.cluster_id, rr.ware
     """).fetchall()
     return [ClusterResourceEntry(**dict(r)) for r in rows]
+
+
+@router.get("/map/conflicts", response_model=list[ConflictEntry])
+def list_conflicts(
+    conn: Annotated[sqlite3.Connection, Depends(get_db)],
+) -> list[ConflictEntry]:
+    """Sectors with active fighter presence from mutually-hostile factions.
+
+    Returns one row per sector with a conflict score.  ``intensity`` is
+    0.0–1.0 normalized across all sectors; ``fighter_count`` is the raw
+    number of combat-class ships from the hostile factions in that sector.
+    Returns [] until a save is ingested.
+    """
+    has_ships = bool(conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='ships'"
+    ).fetchone())
+    has_rels = bool(conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='faction_relations_current'"
+    ).fetchone())
+    if not has_ships or not has_rels:
+        return []
+
+    # Per-sector faction breakdown for hostile sectors
+    breakdown_rows = conn.execute("""
+        WITH hostile_pairs AS (
+            SELECT r.faction_id AS a, r.other_faction_id AS b
+            FROM faction_relations_current r
+            WHERE r.relation < -0.1
+        ),
+        sector_fighters AS (
+            SELECT sh.sector_id, sh.owner_faction, COUNT(*) AS cnt
+            FROM ships sh
+            JOIN s.ships c ON c.ship_id = sh.macro
+            WHERE c.role = 'fight'
+              AND sh.owner_faction IS NOT NULL
+              AND sh.sector_id IS NOT NULL
+              AND (sh.state IS NULL OR sh.state = '')
+            GROUP BY sh.sector_id, sh.owner_faction
+        ),
+        hostile_sectors AS (
+            SELECT DISTINCT sf.sector_id
+            FROM sector_fighters sf
+            WHERE EXISTS (
+                SELECT 1 FROM sector_fighters sf2
+                JOIN hostile_pairs h ON (h.a = sf.owner_faction AND h.b = sf2.owner_faction)
+                WHERE sf2.sector_id = sf.sector_id
+            )
+        )
+        SELECT sf.sector_id, sf.owner_faction, sf.cnt
+        FROM sector_fighters sf
+        WHERE sf.sector_id IN (SELECT sector_id FROM hostile_sectors)
+        ORDER BY sf.sector_id, sf.cnt DESC
+    """).fetchall()
+
+    if not breakdown_rows:
+        return []
+
+    from collections import defaultdict
+    by_sector: dict[str, dict[str, int]] = defaultdict(dict)
+    totals: dict[str, int] = defaultdict(int)
+    for sector, faction, cnt in breakdown_rows:
+        by_sector[sector][faction] = cnt
+        totals[sector] += cnt
+
+    max_count = max(totals.values())
+    return [
+        ConflictEntry(
+            sector_id=sector,
+            fighter_count=totals[sector],
+            hostile_pair_count=len(factions),
+            intensity=round(totals[sector] / max_count, 4) if max_count else 0.0,
+            factions=[
+                ConflictFaction(faction_id=f, fighter_count=c)
+                for f, c in sorted(factions.items(), key=lambda x: -x[1])
+            ],
+        )
+        for sector, factions in sorted(by_sector.items(), key=lambda x: -totals[x[0]])
+    ]

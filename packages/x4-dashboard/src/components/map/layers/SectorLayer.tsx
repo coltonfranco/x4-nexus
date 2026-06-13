@@ -16,7 +16,7 @@ export function SectorLayer({
   visibleSectors, sectorCoords, subSectorSet, factionMap, clusterMap,
   hexSize, transform,
   selectedSectorId, hoveredSectorId, onSelect, onHover, onContext,
-  sectorTint = null, sectorBadges, alternateDots, dimOthers = false,
+  sectorTint = null, sectorBadges, sectorTooltips, alternateDots, dimOthers = false,
   showFactionLabels = false,
 }: {
   visibleSectors: Sector[];
@@ -33,6 +33,7 @@ export function SectorLayer({
   onContext?: (id: string, cx: number, cy: number) => void;
   sectorTint?: Map<string, SectorTint> | null;
   sectorBadges?: Map<string, string>;
+  sectorTooltips?: Map<string, string>;
   alternateDots?: Map<string, string[]>;
   dimOthers?: boolean;
   showFactionLabels?: boolean;
@@ -107,6 +108,9 @@ export function SectorLayer({
                 fontSize={fontSize * 0.8} fill="rgba(255,255,255,0.9)"
                 style={{ pointerEvents: "none", fontVariantNumeric: "tabular-nums" }}>
                 {badge}
+                {sectorTooltips?.get(sidLower) && (
+                  <title>{sectorTooltips.get(sidLower)}</title>
+                )}
               </text>
             )}
 

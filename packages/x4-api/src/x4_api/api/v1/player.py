@@ -35,12 +35,17 @@ class LicenceItem(PublicModel):
     faction_id: str
 
 
+class PlayerStat(PublicModel):
+    stat_id: str
+    value: float
+
+
 class PlayerRelation(PublicModel):
-    faction_id: str            # the other faction
+    faction_id: str
     faction_name: str | None
     color_hex: str | None
-    relation: float            # current (save) relation, -1..1
-    initial_relation: float | None  # gamestart value, for drift
+    relation: float
+    initial_relation: float | None
 
 
 @router.get("/player", response_model=PlayerAccount)
@@ -69,6 +74,18 @@ def list_licences(conn: Annotated[sqlite3.Connection, Depends(get_db)]) -> list[
         "SELECT licence_type, faction_id FROM player_licences ORDER BY licence_type, faction_id"
     ).fetchall()
     return [LicenceItem(**dict(r)) for r in rows]
+
+
+@router.get("/player/stats", response_model=list[PlayerStat])
+def player_stats(conn: Annotated[sqlite3.Connection, Depends(get_db)]) -> list[PlayerStat]:
+    """Flat key-value player statistics from the save file."""
+    has_stats = bool(conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='player_stats'"
+    ).fetchone())
+    if not has_stats:
+        return []
+    rows = conn.execute("SELECT stat_id, value FROM player_stats ORDER BY stat_id").fetchall()
+    return [PlayerStat(**dict(r)) for r in rows]
 
 
 @router.get("/player/reputation", response_model=list[PlayerRelation])

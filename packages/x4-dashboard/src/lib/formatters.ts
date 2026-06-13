@@ -72,3 +72,11 @@ export function getMkGradientClass(mk: number | null | undefined): string {
     default: return "bg-muted/20 border-border/50";
   }
 }
+
+export const getWeaponType = (name: string) => {
+  return name
+    .replace(/^(ARG|TEL|PAR|SPL|TER|BOR|PIO|VIG|RIP|XEN|KHA|ATF)\s+/i, '')
+    .replace(/^(S|M|L|XL)\s+/i, '')
+    .replace(/\s+Mk\d+$/i, '')
+    .trim() || "Other";
+};

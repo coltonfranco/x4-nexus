@@ -13,6 +13,7 @@ const TABS: { id: FillMode; label: string }[] = [
   { id: "relations", label: "Relations" },
   { id: "resources", label: "Resources" },
   { id: "trade", label: "Trade" },
+  { id: "conflict", label: "Conflict" },
 ];
 
 export function AnalysisPanel({
@@ -48,7 +49,7 @@ export function AnalysisPanel({
   return (
     <div className="p-4 border-b border-border flex flex-col gap-3">
       <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Sector overlay</p>
-      <div className="grid grid-cols-2 gap-1.5">
+      <div className="grid grid-cols-3 gap-1.5">
         {TABS.map((t) => (
           <button key={t.id} onClick={() => onFillModeChange(t.id)}
             className={`text-xs px-2 py-1.5 rounded border transition-colors ${
@@ -63,6 +64,12 @@ export function AnalysisPanel({
 
       {fillMode === "faction" && (
         <p className="text-[11px] text-muted-foreground">Sectors colored by owning faction.</p>
+      )}
+
+      {fillMode === "conflict" && (
+        <p className="text-[11px] text-muted-foreground">
+          Hot zones — sectors with fighters from mutually-hostile factions. Red = heavy conflict.
+        </p>
       )}
 
       {fillMode === "relations" && (

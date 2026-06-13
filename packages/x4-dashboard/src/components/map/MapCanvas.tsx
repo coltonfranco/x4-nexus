@@ -144,6 +144,7 @@ export function MapCanvas({
               onContextSector(id, mapPos);
             }}
             sectorTint={overlay.sectorTint} sectorBadges={overlay.sectorBadges}
+            sectorTooltips={overlay.sectorTooltips}
             alternateDots={overlay.alternateDots} dimOthers={overlay.dimOthers}
             showFactionLabels={showFactionLabels}
           />
