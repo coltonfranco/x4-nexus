@@ -227,10 +227,11 @@ export function useAnalysisOverlay({
           isDangerous = true;
         }
 
+        let hostileCount = 0;
+        let friendlyCount = 0;
+
         const f = sectorForces.get(sid);
         if (f) {
-          let hostileCount = 0;
-          let friendlyCount = 0;
           for (const fac of f.factions) {
             if (hostileFactions.has(fac.faction_id)) {
               hostileCount += fac.fighter_count;
