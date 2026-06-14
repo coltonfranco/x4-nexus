@@ -44,7 +44,7 @@ export function AppLayout() {
   return (
     <div
       style={{ display: "flex", height: "100vh" }}
-      className="bg-background text-foreground"
+      className="bg-transparent text-foreground"
     >
       {/* Sidebar */}
       <aside
