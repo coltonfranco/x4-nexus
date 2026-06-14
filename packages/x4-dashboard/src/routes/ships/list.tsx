@@ -1,37 +1,38 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, Outlet, useRouterState } from "@tanstack/react-router";
-import { useSettings } from "../lib/settingsStore";
+import { useSettings } from "../../lib/settingsStore";
 import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, ChevronRight, Wrench, Search } from "lucide-react";
-import { MultiSelect } from "../components/ui/multi-select";
-import { EntityIcon } from "../components/EntityIcon";
-import { FactionBadge } from "../components/FactionBadge";
-import { StatBar } from "../components/StatBar";
-import { Currency } from "../components/Currency";
-import { classFull, classShort, getClassColor } from "../lib/formatters";
-import { cn } from "../lib/utils";
-import type { FactionSummary } from '../lib/map/types';
-import { ShipClassBadge, ShipTypeBadge, ShipSubtypeBadge } from "../components/ShipBadges";
-import { Button } from "../components/ui/button";
-import { ShipDetailPanel } from "../components/ShipDetailPanel";
+import { MultiSelect } from "../../components/ui/multi-select";
+import { EntityIcon } from "../../components/EntityIcon";
+import { FactionBadge } from "../../components/FactionBadge";
+import { StatBar } from "../../components/StatBar";
+import { Currency } from "../../components/Currency";
+import { classFull, classShort, getClassColor } from "../../lib/formatters";
+import { cn } from "../../lib/utils";
+import type { FactionSummary } from '../../lib/map/types';
+import { ShipClassBadge, ShipTypeBadge, ShipSubtypeBadge } from "../../components/ShipBadges";
+import { Button } from "../../components/ui/button";
+import { ShipDetailPanel } from "../../components/ShipDetailPanel";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "../components/ui/dialog";
+} from "../../components/ui/dialog";
 
-import { Input } from "../components/ui/input";
-import { Switch } from "../components/ui/switch";
+import { Input } from "../../components/ui/input";
+import { Switch } from "../../components/ui/switch";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "../components/ui/select";
-import { PageLoaderPreset } from "../components/PageLoader";
+} from "../../components/ui/select";
+import { PageLoaderPreset } from "../../components/PageLoader";
+import { HUDCard } from "../../components/HUDCard";
 import {
   Table,
   TableBody,
@@ -39,7 +40,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "../components/ui/table";
+} from "../../components/ui/table";
 
 type ShipSummary = {
   ship_id: string;
@@ -116,6 +117,12 @@ export default function ShipsPage() {
   const [obtainableOnly, setObtainableOnly] = useState(false);
   const [selectedShip, setSelectedShip] = useState<ShipSummary | null>(null);
   
+  useEffect(() => {
+    if (location.pathname !== "/ships") {
+      setSelectedShip(null);
+    }
+  }, [location.pathname]);
+
   // State to track which groups are collapsed
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
@@ -252,8 +259,6 @@ export default function ShipsPage() {
       })
     : [];
 
-  // Child route (e.g. /ships/builder) — delegate to <Outlet />
-  if (location.pathname !== "/ships") return <Outlet />;
 
   return (
     <div className="flex flex-col h-full">
@@ -266,10 +271,7 @@ export default function ShipsPage() {
       </div>
 
       <div className="flex-1 overflow-hidden px-6 pb-6 pt-0 flex flex-col">
-        <div className="flex flex-col h-full border border-border/50 relative" style={{ backgroundColor: 'rgba(16, 20, 34, 0.55)' }}>
-          {/* Tech HUD Corner Accents */}
-          <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-primary/60 pointer-events-none" />
-          <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-primary/60 pointer-events-none" />
+        <HUDCard className="h-full">
 
           <div className="flex flex-wrap items-center gap-3 px-6 py-3 border-b border-border/50 bg-muted/5 relative z-10">
             <div className="relative">
@@ -404,7 +406,7 @@ export default function ShipsPage() {
 
       <div className="flex-1 overflow-auto px-6 py-4">
         {isLoading ? (
-          <p className="text-muted-foreground text-sm py-8 text-center"><PageLoaderPreset preset="ships" /></p>
+          <div className="h-full flex flex-col justify-center"><PageLoaderPreset preset="ships" /></div>
         ) : filtered.length === 0 ? (
           <p className="text-muted-foreground text-sm py-8 text-center">No ships match your filters.</p>
         ) : (
@@ -583,7 +585,7 @@ export default function ShipsPage() {
           </Table>
         )}
       </div>
-      </div>
+        </HUDCard>
       </div>
 
       <Dialog

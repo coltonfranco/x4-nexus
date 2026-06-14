@@ -7,6 +7,8 @@ import { sectorDisplayName } from "../../../lib/map/names";
 import type { Cluster, FactionSummary, Sector, Transform } from "../../../lib/map/types";
 import type { SectorTint } from "../../../lib/map/overlays/useAnalysisOverlay";
 
+import { GRID_MIN_SCREEN_RADIUS } from "./HexBuildGridLayer";
+
 // 0..1 opacity → two-digit hex alpha suffix for an #rrggbb color.
 function alpha(o: number): string {
   return Math.round(Math.max(0, Math.min(1, o)) * 255).toString(16).padStart(2, "0");
@@ -18,6 +20,7 @@ export function SectorLayer({
   selectedSectorId, hoveredSectorId, onSelect, onHover, onContext,
   sectorTint = null, sectorBadges, sectorTooltips, alternateDots, dimOthers = false,
   showFactionLabels = false,
+  showSectorNames = true,
 }: {
   visibleSectors: Sector[];
   sectorCoords: Map<string, [number, number]>;
@@ -37,6 +40,7 @@ export function SectorLayer({
   alternateDots?: Map<string, string[]>;
   dimOthers?: boolean;
   showFactionLabels?: boolean;
+  showSectorNames?: boolean;
 }) {
   return (
     <>
@@ -60,32 +64,61 @@ export function SectorLayer({
 
         const tint = sectorTint?.get(sidLower) ?? null;
         const isDimmed = dimOthers && !tint;
-        const baseFill = dimOthers 
-          ? (isSelected ? MAP_THEME.hexStroke : MAP_THEME.hexHover) 
-          : (isSelected ? `${factionColor}40` : `${factionColor}2a`);
 
-        const stroke = isSelected ? "#ffffff"
-          : tint ? (isHovered ? "#ffffff" : tint.fill)
-          : isDimmed ? (isHovered ? MAP_THEME.hexLabel : MAP_THEME.hexFill)
-          : isHovered ? factionColor : `${factionColor}80`;
+        let fill = `${factionColor}3d`;
+        let stroke = `${factionColor}d9`;
+        let sw = 1.4;
+        let dash: string | undefined = undefined;
+        let labelColor = "#cfd8e6";
+        let marker: string | null = null;
+        let animate: string | undefined = undefined;
+
+        if (tint) {
+          fill = tint.fill;
+          stroke = tint.stroke;
+          sw = tint.strokeWidth ?? sw;
+          dash = tint.strokeDasharray ?? undefined;
+          marker = tint.marker ?? null;
+          labelColor = tint.labelColor ?? labelColor;
+          animate = tint.animate ?? undefined;
+          if (tint.innerDangerBorder) {
+            stroke = typeof tint.innerDangerBorder === 'string' ? tint.innerDangerBorder : "#ef4444";
+            animate = "conflict-pulse-slow 2s ease-in-out infinite alternate";
+          }
+        } else if (dimOthers) {
+          fill = "rgba(255,255,255,0.035)";
+          stroke = "rgba(255,255,255,0.12)";
+          if (isDimmed) stroke = "transparent";
+        } else {
+          labelColor = "#eef3fa";
+        }
+
+        if (stroke === "transparent") {
+          stroke = MAP_THEME.gridLine;
+          sw = 0.6;
+        }
+
+        if (isSelected) {
+          stroke = MAP_THEME.navHighlight; // Bright cyan
+        } else if (isHovered && !tint) {
+          stroke = "#ffffff";
+        }
 
         const badge = sectorBadges?.get(sidLower);
         const dots = alternateDots?.get(sidLower);
+
+        const showBuildGrid = hexSize * transform.scale >= GRID_MIN_SCREEN_RADIUS;
+        if (showBuildGrid) {
+          fill = "transparent";
+        }
 
         const fontSize = Math.max(3, Math.min(16, (renderedHexSize * 0.28) / Math.pow(transform.scale, 0.6)));
         const dotR = Math.max(1.5, Math.min(4, (renderedHexSize * 0.085) / Math.pow(transform.scale, 0.5)));
         const dotSpacing = dotR * 2.5;
 
-        // Smoothly fade out the solid background box as the user zooms in (scale > 1.5)
-        // so it doesn't dominate detailed station views.
-        const labelBgAlpha = Math.max(0, Math.min(0.85, 0.85 * (2.2 - transform.scale))); 
-        const shadowAlpha = Math.max(0, Math.min(0.5, 0.5 * (2.2 - transform.scale))); 
-        const textShadow = labelBgAlpha < 0.4 ? '0px 0px 4px rgba(0,0,0,1), 0px 0px 8px rgba(0,0,0,1)' : 'none';
-        
-        let borderColor = `rgba(148, 163, 184, ${labelBgAlpha * 0.25})`;  // hexLabel-derived
-        if (showFactionLabels && effectiveFaction?.color_hex) {
-           borderColor = labelBgAlpha > 0.1 ? `${effectiveFaction.color_hex}80` : 'transparent';
-        }
+        const nameSize = sectorDisplayName(sector).length > 16 ? fontSize * 0.8 : fontSize;
+
+        const scaledDash = dash ? dash.split(" ").map(d => (Number(d) / Math.pow(transform.scale, 0.5)).toFixed(2)).join(" ") : undefined;
 
         return (
           <g key={sector.sector_id} style={{ cursor: "pointer" }}
@@ -94,27 +127,82 @@ export function SectorLayer({
             onMouseEnter={() => onHover(sector.sector_id)}
             onMouseLeave={() => onHover(null)}>
 
-            <polygon points={hexPoints(cx, cy, renderedHexSize)} fill={baseFill} />
-            {tint && (
-              <polygon points={hexPoints(cx, cy, renderedHexSize)} fill={`${tint.fill}${alpha(tint.opacity)}`} style={tint.animate ? { animation: tint.animate } : undefined} />
-            )}
-            <polygon points={hexPoints(cx, cy, renderedHexSize)}
-              fill="none"
-              stroke={stroke}
-              strokeWidth={isSelected ? 2 : tint ? 1.6 : 1.2} />
+            <polygon 
+              points={hexPoints(cx, cy, renderedHexSize)} 
+              fill={fill} 
+              stroke={stroke} 
+              strokeWidth={sw} 
+              strokeDasharray={scaledDash} 
+              style={animate ? { animation: animate } : undefined} 
+            />
 
-            {tint?.innerDangerBorder && (
-              <polygon points={hexPoints(cx, cy, renderedHexSize * 0.88)}
-                fill="none"
-                stroke={typeof tint.innerDangerBorder === 'string' ? tint.innerDangerBorder : "#ef4444"}
-                strokeWidth={2.5}
-                style={{ animation: "conflict-pulse-slow 2s ease-in-out infinite alternate" }} />
+            {showSectorNames && (
+            <text x={cx} y={cy - 3} textAnchor="middle" fill={labelColor} 
+                  fontSize={nameSize} fontWeight="600" 
+                  stroke="rgba(5,8,14,0.85)" strokeWidth={2.6} strokeLinejoin="round" paintOrder="stroke" 
+                  style={{ pointerEvents: "none", fontFamily: "'Space Grotesk', sans-serif" }}>
+              {sectorDisplayName(sector)}
+            </text>
             )}
+
+            {showFactionLabels && effectiveFaction && (() => {
+              const iconSize = Math.max(5, Math.min(14, fontSize * 0.9));
+              const textY = cy + 11;
+              const nameStr = effectiveFaction.short_name ?? effectiveFaction.name;
+              // Total row width: icon + gap + text (approx)
+              const approxTextWidth = nameStr.length * fontSize * 0.42;
+              const gap = iconSize * 0.35;
+              const rowW = effectiveFaction.icon_url ? iconSize + gap + approxTextWidth : approxTextWidth;
+              const rowX = cx - rowW / 2;
+
+              return (
+                <g>
+                  {effectiveFaction.icon_url && (
+                    <foreignObject
+                      x={rowX}
+                      y={textY - iconSize * 0.82}
+                      width={iconSize}
+                      height={iconSize}
+                      style={{ pointerEvents: "none", overflow: "visible" }}
+                    >
+                      <div
+                        style={{
+                          width: iconSize,
+                          height: iconSize,
+                          backgroundColor: effectiveFaction.color_hex ?? "rgba(255,255,255,0.8)",
+                          WebkitMaskImage: `url(${effectiveFaction.icon_url})`,
+                          WebkitMaskSize: "contain",
+                          WebkitMaskRepeat: "no-repeat",
+                          WebkitMaskPosition: "center",
+                          filter: "drop-shadow(0 0 2px rgba(0,0,0,0.9))",
+                        }}
+                      />
+                    </foreignObject>
+                  )}
+                  <text
+                    x={effectiveFaction.icon_url ? rowX + iconSize + gap : cx}
+                    y={textY}
+                    textAnchor={effectiveFaction.icon_url ? "start" : "middle"}
+                    fill="rgba(220,228,242,0.65)"
+                    fontSize={fontSize * 0.7}
+                    fontWeight="500"
+                    stroke="rgba(5,8,14,0.8)"
+                    strokeWidth={2}
+                    strokeLinejoin="round"
+                    paintOrder="stroke"
+                    style={{ pointerEvents: "none", fontFamily: "'Space Grotesk', sans-serif" }}
+                  >
+                    {nameStr}
+                  </text>
+                </g>
+              );
+            })()}
 
             {badge && (
-              <text x={cx} y={cy + fontSize * 2.1} textAnchor="middle"
-                fontSize={fontSize * 0.8} fill="rgba(255,255,255,0.9)"
-                style={{ pointerEvents: "none", fontVariantNumeric: "tabular-nums" }}>
+              <text x={cx} y={cy + (showFactionLabels ? 24 : 13)} textAnchor="middle" 
+                    fill="#e6eefb" fontSize={fontSize * 0.85} fontWeight="600" 
+                    stroke="rgba(5,8,14,0.85)" strokeWidth={2.4} strokeLinejoin="round" paintOrder="stroke" 
+                    style={{ pointerEvents: "none", fontFamily: "'IBM Plex Mono', monospace" }}>
                 {badge}
                 {sectorTooltips?.get(sidLower) && (
                   <title>{sectorTooltips.get(sidLower)}</title>
@@ -123,84 +211,13 @@ export function SectorLayer({
             )}
 
             {dots && dots.length > 0 && (
-              <g transform={`translate(${cx - ((dots.length - 1) * dotSpacing) / 2},${cy + fontSize * 1.5})`}>
+              <g transform={`translate(${cx - ((dots.length - 1) * dotSpacing) / 2},${cy + (showFactionLabels ? 30 : 20)})`}>
                 {dots.map((color, i) => (
                   <circle key={i} cx={i * dotSpacing} cy={0} r={dotR}
                     fill={color} opacity={0.9} style={{ pointerEvents: "none" }} />
                 ))}
               </g>
             )}
-
-            <foreignObject
-              x={cx - renderedHexSize * 1.25}
-              y={cy - renderedHexSize * 0.85}
-              width={renderedHexSize * 2.5}
-              height={fontSize * 8}
-              style={{ pointerEvents: "none", userSelect: "none", overflow: "visible" }}
-            >
-              <div style={{
-                width: '100%', height: '100%',
-                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start'
-              }}>
-                <div style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  backgroundColor: `rgba(15, 23, 42, ${labelBgAlpha})`,
-                  padding: `${fontSize * 0.2}px ${fontSize * 0.4}px`,
-                  borderRadius: `${fontSize * 0.4}px`,
-                  boxShadow: `0 0 ${fontSize * 0.3}px rgba(0,0,0,${shadowAlpha})`,
-                  border: `${Math.max(1, fontSize * 0.05)}px solid ${borderColor}`,
-                  gap: `${fontSize * 0.15}px`,
-                  transition: 'background-color 0.1s, border-color 0.1s, box-shadow 0.1s',
-                }}>
-                  <span style={{
-                    color: 'rgba(255,255,255,0.9)',
-                    fontSize: `${fontSize * 0.9}px`,
-                    fontWeight: 600,
-                    lineHeight: 1.1,
-                    textAlign: 'center',
-                    textShadow: textShadow,
-                  }}>
-                    {sectorDisplayName(sector)}
-                  </span>
-                  
-                  {showFactionLabels && effectiveFaction && (
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: `${fontSize * 0.25}px`,
-                    }}>
-                      {effectiveFaction.icon_url && (
-                        <div style={{
-                          width: `${fontSize * 0.9}px`, 
-                          height: `${fontSize * 0.9}px`, 
-                          backgroundColor: effectiveFaction.color_hex ?? 'rgba(255,255,255,0.85)',
-                          WebkitMaskImage: `url(${effectiveFaction.icon_url})`,
-                          WebkitMaskSize: 'contain',
-                          WebkitMaskRepeat: 'no-repeat',
-                          WebkitMaskPosition: 'center',
-                          filter: labelBgAlpha < 0.4 ? 'drop-shadow(0 0 4px rgba(0,0,0,1))' : 'drop-shadow(0 0 2px rgba(0,0,0,0.5))',
-                          transition: 'filter 0.1s'
-                        }} />
-                      )}
-                      {transform.scale >= 0.8 && (
-                        <span style={{
-                          color: effectiveFaction.color_hex ?? 'rgba(255,255,255,0.7)',
-                          fontSize: `${fontSize * 0.65}px`,
-                          fontWeight: 500,
-                          lineHeight: 1,
-                          whiteSpace: 'nowrap',
-                          textShadow: textShadow,
-                        }}>
-                          {effectiveFaction.name}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </foreignObject>
           </g>
         );
       })}

@@ -29,7 +29,7 @@ export function SettingsModal() {
             <DialogDescription>Configure your dashboard experience.</DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-6 py-4">
+          <div className="space-y-6 mt-6 mb-6">
             <div className="flex items-start justify-between gap-4">
               <div className="space-y-1">
                 <label className="text-sm font-medium leading-none">

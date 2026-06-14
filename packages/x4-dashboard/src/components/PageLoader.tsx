@@ -1,4 +1,4 @@
-import { type LucideIcon, Activity, Boxes, Cpu, Loader2, Map, Rocket, Shield, TrendingUp } from "lucide-react";
+import { type LucideIcon, Activity, Boxes, Cpu, Crown, Loader2, Map, PackageOpen, Rocket, Shield, TrendingUp, User, Target } from "lucide-react";
 import { cn } from "../lib/utils";
 
 type PageLoaderProps = {
@@ -18,13 +18,13 @@ const presets: Record<string, { icon: LucideIcon; message: string; subtitle: str
     icon: Activity,
     message: "Calculating optimal trajectories…",
     subtitle: "Cross-referencing live station offers across the gate network",
-    color: "emerald",
+    color: "blue",
   },
   economy: {
     icon: TrendingUp,
     message: "Sweeping market databanks…",
     subtitle: "Aggregating galaxy-wide supply and demand",
-    color: "amber",
+    color: "blue",
   },
   ships: {
     icon: Rocket,
@@ -48,25 +48,55 @@ const presets: Record<string, { icon: LucideIcon; message: string; subtitle: str
     icon: Map,
     message: "Charting the universe…",
     subtitle: "Rendering sector topology and station positions",
-    color: "sky",
+    color: "blue",
   },
   factions: {
     icon: Shield,
     message: "Loading faction registry…",
     subtitle: "Retrieving diplomatic relations and territory data",
-    color: "violet",
+    color: "blue",
   },
   inventory: {
     icon: Boxes,
     message: "Loading inventory…",
     subtitle: "Scanning personal and station storage",
-    color: "amber",
+    color: "blue",
+  },
+  trade: {
+    icon: TrendingUp,
+    message: "Accessing trade network…",
+    subtitle: "Loading commodity exchange databanks",
+    color: "blue",
+  },
+  empire: {
+    icon: Crown,
+    message: "Surveying your empire…",
+    subtitle: "Aggregating fleet and station assets",
+    color: "blue",
+  },
+  drops: {
+    icon: PackageOpen,
+    message: "Loading drop tables…",
+    subtitle: "Cataloging container contents and loot",
+    color: "blue",
+  },
+  missions: {
+    icon: Target,
+    message: "Scanning mission board…",
+    subtitle: "Retrieving active objectives and available offers",
+    color: "blue",
+  },
+  player: {
+    icon: User,
+    message: "Loading player profile…",
+    subtitle: "Retrieving personal statistics and records",
+    color: "blue",
   },
   default: {
     icon: Loader2,
     message: "Loading…",
     subtitle: "",
-    color: "muted-foreground",
+    color: "blue",
   },
 };
 
@@ -95,9 +125,9 @@ export function PageLoader({ icon, message, subtitle, color, className }: PageLo
   const [ring1, ring2, iconRing, glow, textColor] = ringColor.split(" ");
 
   return (
-    <div className={cn("flex flex-col items-center justify-center h-full text-center gap-6 pb-20", className)}>
+    <div className={cn("flex flex-col items-center justify-center w-full h-full flex-1 text-center gap-6 p-4", className)}>
       {/* Animated rings */}
-      <div className="relative flex items-center justify-center mt-12 mb-4">
+      <div className="relative flex items-center justify-center">
         <div
           className={cn("absolute h-32 w-32 rounded-full border-2 animate-ping", ring1)}
           style={{ animationDuration: "3s" }}
@@ -114,7 +144,6 @@ export function PageLoader({ icon, message, subtitle, color, className }: PageLo
 
       <div className="space-y-2">
         <p className="text-base font-semibold text-foreground flex items-center justify-center gap-2">
-          <Loader2 className={cn("h-5 w-5 animate-spin", textColor)} />
           {msg}
         </p>
         {sub && <p className="text-sm text-muted-foreground opacity-70">{sub}</p>}

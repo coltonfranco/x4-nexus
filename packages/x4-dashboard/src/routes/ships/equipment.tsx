@@ -1,32 +1,35 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { SortHeader } from "../components/ui/sort-header";
-import { useSettings } from "../lib/settingsStore";
-import { ProductionChain } from "../components/trade/ProductionChain";
-import { Input } from "../components/ui/input";
-import { FilterPill } from "../components/ui/filter-pill";
-import { fmtNum } from "../lib/wareFormat";
-import { getMkGradientClass, classFull, getClassColor } from "../lib/formatters";
-import { cn } from "../lib/utils";
-import { useSort } from "../lib/useSort";
-import { Currency } from "../components/Currency";
-import { FactionBadge } from "../components/FactionBadge";
+import { SortHeader } from "../../components/ui/sort-header";
+import { useSettings } from "../../lib/settingsStore";
+import { ProductionChain } from "../../components/trade/ProductionChain";
+import { Input } from "../../components/ui/input";
+import { FilterPill } from "../../components/ui/filter-pill";
+import { fmtNum } from "../../lib/wareFormat";
+import { getMkGradientClass, classFull, getClassColor } from "../../lib/formatters";
+import { cn } from "../../lib/utils";
+import { useSort } from "../../lib/useSort";
+import { Currency } from "../../components/Currency";
+import { FactionBadge } from "../../components/FactionBadge";
+import { PageTabs, PageTab } from "../../components/ui/page-tabs";
+import { Search } from "lucide-react";
 
-import { ShipTypeBadge, EquipmentMkBadge, ShipClassBadge } from "../components/ShipBadges";
-import { StatBar } from "../components/StatBar";
-import { EntityIcon } from "../components/EntityIcon";
-import { PageLoaderPreset } from "../components/PageLoader";
-import { EquipmentFilterBar } from "../components/EquipmentFilterBar";
-import { getWeaponType } from "../lib/formatters";
-import type { FactionSummary } from '../lib/map/types';
+import { ShipTypeBadge, EquipmentMkBadge, ShipClassBadge } from "../../components/ShipBadges";
+import { StatBar } from "../../components/StatBar";
+import { EntityIcon } from "../../components/EntityIcon";
+import { PageLoaderPreset } from "../../components/PageLoader";
+import { HUDCard } from "../../components/HUDCard";
+import { EquipmentFilterBar } from "../../components/EquipmentFilterBar";
+import { getWeaponType } from "../../lib/formatters";
+import type { FactionSummary } from '../../lib/map/types';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "../components/ui/dialog";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
+} from "../../components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
 
 type EngineStats = {
   mk: number | null;
@@ -392,7 +395,7 @@ function EquipmentTable({
               {metrics.map((m) => (
                 <TableCell key={m.key} className="px-3 py-2">
                   {m.get(e) != null ? (
-                    <StatBar value={m.get(e)!} max={maxima[m.key]} label={m.fmt(m.get(e)!)} />
+                    <StatBar value={Math.log10(m.get(e)! + 1)} max={Math.log10(maxima[m.key] + 1)} label={m.fmt(m.get(e)!)} />
                   ) : (
                     <span className="text-xs text-muted-foreground">—</span>
                   )}
@@ -542,10 +545,11 @@ export default function EquipmentPage() {
           Compare ship parts — pick a category and size, ranked by the stat that matters.
         </p>
         {/* Category tabs */}
-        <div className="mt-4 flex flex-wrap gap-1">
+        <PageTabs>
           {CATEGORIES.filter((c) => counts[c.id] > 0).map((c) => (
-            <button
+            <PageTab
               key={c.id}
+              active={c.id === catId}
               onClick={() => {
                 setCatId(c.id);
                 setSize(null);
@@ -553,26 +557,27 @@ export default function EquipmentPage() {
                 setMkFilter("all");
                 setTypeFilter("all");
               }}
-              className={`rounded-t-md border-b-2 px-3 py-2 text-sm font-medium transition-colors ${
-                c.id === catId
-                  ? "border-primary text-foreground"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
-              }`}
             >
-              {c.label} <span className="text-xs text-muted-foreground">{counts[c.id]}</span>
-            </button>
+              {c.label} <span className="text-xs text-muted-foreground ml-1">{counts[c.id]}</span>
+            </PageTab>
           ))}
-        </div>
+        </PageTabs>
       </div>
 
       <div className="flex-1 overflow-hidden px-6 pb-6 pt-4 flex flex-col">
-        <div className="flex flex-col h-full border border-border/50 relative" style={{ backgroundColor: 'rgba(16, 20, 34, 0.55)' }}>
-          {/* Tech HUD Corner Accents */}
-          <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-primary/60 pointer-events-none" />
-          <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-primary/60 pointer-events-none" />
+        <HUDCard className="h-full">
 
           {/* Toolbar: Sizes + Filters + Search */}
           <div className="flex flex-wrap items-center gap-3 border-b border-border/50 bg-muted/5 px-6 py-3 relative z-10">
+            <div className="relative shrink-0">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search parts…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-48 bg-muted/50 border-input focus-visible:ring-1 focus-visible:ring-primary/50 pl-9"
+              />
+            </div>
         {sizes.length > 0 && (
           <div className="flex items-center gap-1.5 shrink-0">
             <FilterPill active={size === null} onClick={() => setSize(null)}>
@@ -615,14 +620,11 @@ export default function EquipmentPage() {
           setObtainableOnly={setObtainableOnly}
           showSort={false} // Table has its own column headers for sorting
         />
-        
-        <div className="flex-1 min-w-[200px]" />
-        <Input placeholder="Search…" value={search} onChange={(e) => setSearch(e.target.value)} className="w-64 max-w-full shrink-0" />
       </div>
 
       <div className="flex-1 overflow-auto px-6 py-4">
         {isLoading ? (
-          <p className="py-8 text-center text-sm text-muted-foreground"><PageLoaderPreset preset="equipment" /></p>
+          <div className="h-full flex flex-col justify-center"><PageLoaderPreset preset="equipment" /></div>
         ) : shown.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">No parts match.</p>
         ) : (
@@ -634,7 +636,7 @@ export default function EquipmentPage() {
           />
         )}
           </div>
-        </div>
+        </HUDCard>
       </div>
 
       <Dialog open={selectedEquipment !== null} onOpenChange={(open) => { if (!open) setSelectedEquipment(null); }}>

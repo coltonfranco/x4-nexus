@@ -10,6 +10,7 @@ import { prettyId } from "../lib/wareFormat";
 import { ShipDetailPanel } from "../components/ShipDetailPanel";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../components/ui/dialog";
 import { PageLoaderPreset } from "../components/PageLoader";
+import { HUDCard } from "../components/HUDCard";
 
 type Player = { player_id: string | null; name: string | null; credits: number | null; current_ship_id: string | null };
 type Licence = { licence_type: string; faction_id: string };
@@ -125,7 +126,7 @@ export default function EmpirePage() {
     return [...m.entries()].sort((a, b) => b[1].length - a[1].length);
   }, [licences]);
 
-  if (isLoading) return <p className="text-sm text-muted-foreground p-6"><PageLoaderPreset preset="default" /></p>;
+  if (isLoading) return <div className="h-full flex flex-col justify-center text-sm text-muted-foreground"><PageLoaderPreset preset="empire" /></div>;
   if (!player) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground gap-2">
@@ -147,12 +148,7 @@ export default function EmpirePage() {
       </div>
 
       <div className="flex-1 overflow-hidden px-6 pb-6 pt-4 flex flex-col">
-        <div className="flex flex-col h-full border border-border/50 relative overflow-hidden" style={{ backgroundColor: 'rgba(16, 20, 34, 0.55)' }}>
-          {/* Tech HUD Corner Accents */}
-          <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-primary/60 pointer-events-none z-10" />
-          <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-primary/60 pointer-events-none z-10" />
-
-          <div className="flex-1 overflow-auto p-6">
+          <div className="flex-1 overflow-auto p-2">
             <div className="max-w-5xl mx-auto w-full space-y-6">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <StatCard tone="text-gold" big value={<Currency value={player.credits} abbreviate />} label="Credits" />
@@ -320,7 +316,6 @@ export default function EmpirePage() {
             </div>
           </div>
         </div>
-      </div>
 
       <Dialog open={selectedMacroId !== null} onOpenChange={(open) => { if (!open) setSelectedMacroId(null); }}>
         <DialogContent className="sm:max-w-2xl md:max-w-3xl">
@@ -337,21 +332,23 @@ export default function EmpirePage() {
 
 function StatCard({ icon: Icon, tone, value, label, big }: { icon?: typeof Coins; tone: string; value: ReactNode; label: string; big?: boolean }) {
   return (
-    <div className="rounded-lg border border-border bg-card p-4 flex flex-col gap-1">
-      {Icon && <Icon className={`h-4 w-4 ${tone}`} />}
-      <span className={`font-bold tabular-nums leading-tight ${big ? "text-2xl" : "text-xl"} ${tone}`}>{value}</span>
-      <span className="text-xs text-muted-foreground">{label}</span>
-    </div>
+    <HUDCard className="p-4 flex flex-col gap-1 justify-center">
+      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+        {Icon && <Icon className={`h-3.5 w-3.5 ${tone}`} />}
+        {label}
+      </div>
+      <span className={`font-bold tabular-nums leading-tight ${big ? "text-4xl" : "text-3xl"} ${tone}`}>{value}</span>
+    </HUDCard>
   );
 }
 
 function Panel({ title, icon: Icon, children }: { title: string; icon: typeof Coins; children: ReactNode }) {
   return (
-    <div className="rounded-lg border border-border bg-card p-4">
-      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">
+    <HUDCard className="p-4">
+      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-4 border-b border-border/50 pb-3">
         <Icon className="h-3.5 w-3.5" /> {title}
       </div>
       {children}
-    </div>
+    </HUDCard>
   );
 }

@@ -3,6 +3,8 @@
  *  Route: /styleguide
  */
 
+import { Currency } from "../components/Currency";
+
 export default function StyleguidePage() {
   return (
     <div style={{ padding: 40, fontFamily: "var(--font-ui)", background: "var(--bg)", color: "var(--text)", minHeight: "100vh" }}>
@@ -53,7 +55,7 @@ export default function StyleguidePage() {
         <TextSample label="text-muted" color="var(--text-muted)" size={9.5} upper ls={2}>Eyebrow Label</TextSample>
         <TextSample label="text-faint" color="var(--text-faint)" size={9.5}>Faint meta</TextSample>
         <TextSample label="text-ghost" color="var(--text-ghost)" size={12}>Placeholder</TextSample>
-        <TextSample label="font-data + gold" color="var(--gold)" font="var(--font-data)" size={12} weight={700}>12,450,000 Cr</TextSample>
+        <TextSample label="font-data + gold" color="var(--gold)" font="var(--font-data)" size={12} weight={700}><Currency value={12450000} /></TextSample>
       </Section>
 
       {/* ── Badges ──────────────────────────────────────────── */}
@@ -132,7 +134,7 @@ export default function StyleguidePage() {
           </div>
           <div style={{ ...cardStyle, borderLeft: "3px solid var(--gold)" }}>
             <div style={{ fontFamily: "var(--font-data)", fontSize: 23, fontWeight: 700, color: "var(--gold)", marginBottom: 4 }}>
-              12.4M Cr
+              <Currency value={12400000} abbreviate />
             </div>
             <div style={{ fontFamily: "var(--font-data)", fontSize: 9.5, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 2 }}>
               Net Worth

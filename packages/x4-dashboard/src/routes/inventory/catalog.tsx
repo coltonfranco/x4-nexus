@@ -1,15 +1,17 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronRight, Coins } from "lucide-react";
-import { SortHeader } from "../components/ui/sort-header";
+import { ChevronRight, Coins, Search } from "lucide-react";
+import { SortHeader } from "../../components/ui/sort-header";
 import { useMemo, useState } from "react";
-import { Currency } from "../components/Currency";
-import { WareDetailPanel } from "../components/trade/WareDetailPanel";
-import { Badge } from "../components/ui/badge";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../components/ui/dialog";
-import { FilterPill } from "../components/ui/filter-pill";
-import { Input } from "../components/ui/input";
-import { PageLoaderPreset } from "../components/PageLoader";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
+import { Currency } from "../../components/Currency";
+import { WareDetailPanel } from "../../components/trade/WareDetailPanel";
+import { Badge } from "../../components/ui/badge";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../components/ui/dialog";
+import { FilterPill } from "../../components/ui/filter-pill";
+import { Input } from "../../components/ui/input";
+import { PageLoaderPreset } from "../../components/PageLoader";
+import { HUDCard } from "../../components/HUDCard";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
+import { PageTabs, PageTab } from "../../components/ui/page-tabs";
 
 type Ware = {
   ware_id: string;
@@ -175,41 +177,49 @@ export default function InventoryPage() {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="px-6 py-5">
+      <div className="px-6 pt-5">
         <h1 className="text-2xl font-bold tracking-tight">Inventory &amp; Crafting</h1>
         <p className="text-xs uppercase tracking-widest text-muted-foreground mt-1 font-semibold">
           {wares.length} inventory items · paint mods, crafting materials, mission items, contraband and curiosities
         </p>
+        <PageTabs>
+          <PageTab active={filter === "all"} onClick={() => setFilter("all")}>
+            All
+          </PageTab>
+          {BUCKETS.filter((b) => counts[b]).map((b) => (
+            <PageTab key={b} active={filter === b} onClick={() => setFilter(b)}>
+              {b} <span className="opacity-60 ml-1">{counts[b]}</span>
+            </PageTab>
+          ))}
+          <div className="mx-1 mt-2 h-4 w-px bg-border" />
+          <PageTab active={filter === "Craftable"} onClick={() => setFilter("Craftable")}>
+            Craftable <span className="opacity-60 ml-1">{counts.Craftable}</span>
+          </PageTab>
+          <PageTab active={filter === "Drops"} onClick={() => setFilter("Drops")}>
+            Drops <span className="opacity-60 ml-1">{counts.Drops}</span>
+          </PageTab>
+        </PageTabs>
       </div>
 
-      <div className="flex-1 overflow-hidden px-6 pb-6 pt-0 flex flex-col">
-        <div className="flex flex-col h-full border border-border/50 relative" style={{ backgroundColor: 'rgba(16, 20, 34, 0.55)' }}>
-          {/* Tech HUD Corner Accents */}
-          <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-primary/60 pointer-events-none" />
-          <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-primary/60 pointer-events-none" />
+      <div className="flex-1 overflow-hidden px-6 pb-6 pt-4 flex flex-col">
+        <HUDCard className="h-full">
 
-          <div className="flex flex-wrap items-center gap-1.5 px-6 py-3 border-b border-border/50 bg-muted/5 relative z-10">
-            <Input placeholder="Search…" value={search} onChange={(e) => setSearch(e.target.value)} className="mr-2 w-52 bg-muted/50 border-input" />
-            <FilterPill active={filter === "all"} onClick={() => setFilter("all")}>
-              All
-            </FilterPill>
-            {BUCKETS.filter((b) => counts[b]).map((b) => (
-              <FilterPill key={b} active={filter === b} onClick={() => setFilter(b)}>
-                {b} <span className="opacity-60">{counts[b]}</span>
-              </FilterPill>
-            ))}
-            <div className="mx-1 h-4 w-px bg-border" />
-            <FilterPill active={filter === "Craftable"} onClick={() => setFilter("Craftable")}>
-              Craftable <span className="opacity-60">{counts.Craftable}</span>
-            </FilterPill>
-            <FilterPill active={filter === "Drops"} onClick={() => setFilter("Drops")}>
-              Drops <span className="opacity-60">{counts.Drops}</span>
-            </FilterPill>
+          <div className="flex flex-wrap items-center gap-3 px-6 py-3 border-b border-border/50 bg-muted/5 relative z-10">
+            <div className="relative shrink-0">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search items…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-48 bg-muted/50 border-input focus-visible:ring-1 focus-visible:ring-primary/50 pl-9"
+              />
+            </div>
+            <div className="flex-1" />
           </div>
 
           <div className="flex-1 overflow-auto px-6 py-4">
         {isLoading ? (
-          <p className="py-8 text-center text-sm text-muted-foreground"><PageLoaderPreset preset="inventory" /></p>
+          <div className="h-full flex flex-col justify-center text-sm text-muted-foreground"><PageLoaderPreset preset="inventory" /></div>
         ) : rows.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">No items match.</p>
         ) : (
@@ -238,7 +248,7 @@ export default function InventoryPage() {
           </Table>
         )}
           </div>
-        </div>
+        </HUDCard>
       </div>
 
       <Dialog open={selectedWareId !== null} onOpenChange={(open) => { if (!open) setSelectedWareId(null); }}>

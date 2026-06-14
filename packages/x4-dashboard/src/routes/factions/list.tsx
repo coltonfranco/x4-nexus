@@ -1,17 +1,18 @@
 import { useQuery } from "@tanstack/react-query";
 import { useSearch } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { useSettings } from "../lib/settingsStore";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
+import { useSettings } from "../../lib/settingsStore";
 import { ArrowLeft, Info } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../components/ui/tooltip";
-import { EntityIcon } from "../components/EntityIcon";
-import { Badge } from "../components/ui/badge";
-import { getReputationScore } from "../lib/formatters";
-import type { FactionSummary } from '../lib/map/types';
-import { Reputation } from "../components/GameValues";
-import { Currency } from "../components/Currency";
-import { PageLoaderPreset } from "../components/PageLoader";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../components/ui/tooltip";
+import { EntityIcon } from "../../components/EntityIcon";
+import { Badge } from "../../components/ui/badge";
+import { getReputationScore } from "../../lib/formatters";
+import type { FactionSummary } from '../../lib/map/types';
+import { Reputation } from "../../components/GameValues";
+import { Currency } from "../../components/Currency";
+import { PageLoaderPreset } from "../../components/PageLoader";
+import { HUDCard } from "../../components/HUDCard";
+import { PageTabs, PageTab } from "../../components/ui/page-tabs";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -124,7 +125,7 @@ function StandingsView({ onSelectFaction }: { onSelectFaction: (id: string) => v
     [strength]
   );
 
-  if (isLoading) return <p className="text-sm text-muted-foreground p-6"><PageLoaderPreset preset="factions" /></p>;
+  if (isLoading) return <div className="h-full flex flex-col justify-center text-sm text-muted-foreground"><PageLoaderPreset preset="factions" /></div>;
 
   return (
     <div className="flex-1 overflow-auto p-4">
@@ -185,6 +186,8 @@ function StandingsView({ onSelectFaction }: { onSelectFaction: (id: string) => v
 // ─── FactionDetailPanel ───────────────────────────────────────────────────────
 
 function FactionDetailPanel({ factionId, onClose }: { factionId: string; onClose: () => void }) {
+  const [activeTab, setActiveTab] = useState<"overview" | "diplomacy" | "licences">("overview");
+
   const { data: faction, isLoading: factionLoading } = useQuery<FactionDetail>({
     queryKey: ["faction", factionId],
     queryFn: () => fetch(`/api/v1/factions/${factionId}`).then((r) => r.json()),
@@ -256,7 +259,7 @@ function FactionDetailPanel({ factionId, onClose }: { factionId: string; onClose
 
   return (
     <div className="flex flex-col h-full bg-card">
-      <div className="p-6 pb-2 shrink-0">
+      <div className="px-6 pt-5 pb-0 shrink-0 border-b border-border/50">
         <button
           onClick={onClose}
           className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors mb-4"
@@ -304,172 +307,165 @@ function FactionDetailPanel({ factionId, onClose }: { factionId: string; onClose
             </div>
           </div>
         </div>
+        
+        <PageTabs className="mt-6 gap-2 mb-[-1px]">
+          <PageTab active={activeTab === "overview"} onClick={() => setActiveTab("overview")}>
+            Overview
+          </PageTab>
+          <PageTab active={activeTab === "diplomacy"} onClick={() => setActiveTab("diplomacy")}>
+            Diplomacy
+          </PageTab>
+          {licences.length > 0 && (
+            <PageTab active={activeTab === "licences"} onClick={() => setActiveTab("licences")}>
+              Licences <span className="text-xs text-muted-foreground ml-1">{licences.length}</span>
+            </PageTab>
+          )}
+        </PageTabs>
       </div>
 
-      <Tabs defaultValue="overview" className="flex flex-col flex-1 min-h-0">
-        <div className="px-6 border-b border-border">
-          <TabsList className="bg-transparent h-12 p-0 space-x-6">
-            <TabsTrigger
-              value="overview"
-              className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0"
-            >
-              Overview
-            </TabsTrigger>
-            <TabsTrigger
-              value="diplomacy"
-              className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0"
-            >
-              Diplomacy
-            </TabsTrigger>
-            {licences.length > 0 && (
-              <TabsTrigger
-                value="licences"
-                className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-0"
-              >
-                Licences ({licences.length})
-              </TabsTrigger>
-            )}
-          </TabsList>
-        </div>
-
-        <TabsContent value="overview" className="flex-1 overflow-auto p-6 m-0">
-          <div className="max-w-4xl space-y-6">
-            {strengthEntry && (
-              <div className="grid grid-cols-4 gap-3">
-                {METRICS.map((m) => {
-                  const rank = ranks[m.key];
-                  const score = strengthEntry[m.key];
-                  const medal =
-                    rank === 1 ? "#FFD700" : rank === 2 ? "#C0C0C0" : rank === 3 ? "#CD7F32" : null;
-                  return (
-                    <div
-                      key={m.key}
-                      className="rounded-md border border-border bg-muted/10 p-3 flex flex-col gap-2"
-                    >
-                      <p className="text-xs text-muted-foreground">{m.label}</p>
-                      <div className="flex items-baseline gap-2">
-                        <p
-                          className="text-2xl font-bold tabular-nums leading-none"
-                          style={{ color: rank != null ? (medal ?? m.color) : undefined }}
-                        >
-                          {rank != null ? `#${rank}` : "—"}
-                        </p>
-                        {rank != null && (
-                          <span className="text-xs tabular-nums text-muted-foreground">
-                            {score.toFixed(0)}/100
-                          </span>
-                        )}
-                      </div>
-                      <div className="h-1 bg-border rounded-full overflow-hidden">
-                        <div
-                          className="h-full rounded-full"
-                          style={{ width: `${score}%`, backgroundColor: score > 0 ? m.color : undefined }}
-                        />
-                      </div>
-                      <p className="text-xs text-muted-foreground">{m.detail(strengthEntry)}</p>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {faction.description && (
-              <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                {faction.description.replace(/\\n/g, "\n")}
-              </p>
-            )}
-
-            {(clusters.length > 0 || sectors.length > 0) && (
-              <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
-                  Territory Owned
-                </p>
-                <div className="text-sm space-y-1">
-                  <p>
-                    <span className="font-semibold">{clusters.length}</span> Clusters
-                  </p>
-                  <p>
-                    <span className="font-semibold">{sectors.length}</span> Sectors
-                  </p>
-                  {sectors.length > 0 && (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {sectors.map((s, i) => (
-                        <Badge key={i} variant="secondary">
-                          {s.name || "Unknown Sector"}
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="diplomacy" className="flex-1 overflow-auto p-6 m-0">
-          {allies.length > 0 || enemies.length > 0 ? (
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-12 max-w-3xl">
-              {allies.length > 0 && (
-                <div>
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
-                    Friendly (+10 to +30)
-                  </p>
-                  <div className="space-y-2">
-                    {allies.map(({ rel, f }) => (
+      <div className="flex flex-col flex-1 min-h-0 pt-4">
+        {activeTab === "overview" && (
+          <div className="flex-1 overflow-auto px-6 pb-6 pt-2">
+            <div className="max-w-4xl space-y-6">
+              {strengthEntry && (
+                <div className="grid grid-cols-4 gap-3">
+                  {METRICS.map((m) => {
+                    const rank = ranks[m.key];
+                    const score = strengthEntry[m.key];
+                    const medal =
+                      rank === 1 ? "#FFD700" : rank === 2 ? "#C0C0C0" : rank === 3 ? "#CD7F32" : null;
+                    return (
                       <div
-                        key={rel.other_faction_id}
-                        className="flex items-center justify-between text-sm bg-muted/20 p-2 rounded"
+                        key={m.key}
+                        className="rounded-md border border-border bg-muted/10 p-3 flex flex-col gap-2"
                       >
-                        <div className="flex items-center gap-2">
-                          {f?.color_hex && (
-                            <div
-                              className="w-2 h-2 rounded-full"
-                              style={{ backgroundColor: f.color_hex }}
-                            />
+                        <p className="text-xs text-muted-foreground">{m.label}</p>
+                        <div className="flex items-baseline gap-2">
+                          <p
+                            className="text-2xl font-bold tabular-nums leading-none"
+                            style={{ color: rank != null ? (medal ?? m.color) : undefined }}
+                          >
+                            {rank != null ? `#${rank}` : "—"}
+                          </p>
+                          {rank != null && (
+                            <span className="text-xs tabular-nums text-muted-foreground">
+                              {score.toFixed(0)}/100
+                            </span>
                           )}
-                          <span className="truncate">{f?.name || rel.other_faction_id}</span>
                         </div>
-                        <Reputation value={getReputationScore(rel.initial_relation)} />
+                        <div className="h-1 bg-border rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full"
+                            style={{ width: `${score}%`, backgroundColor: score > 0 ? m.color : undefined }}
+                          />
+                        </div>
+                        <p className="text-xs text-muted-foreground">{m.detail(strengthEntry)}</p>
                       </div>
-                    ))}
-                  </div>
+                    );
+                  })}
                 </div>
               )}
-              {enemies.length > 0 && (
+
+              {faction.description && (
+                <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                  {faction.description.replace(/\\n/g, "\n")}
+                </p>
+              )}
+
+              {(clusters.length > 0 || sectors.length > 0) && (
                 <div>
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
-                    Hostile (-10 to -30)
+                    Territory Owned
                   </p>
-                  <div className="space-y-2">
-                    {enemies.map(({ rel, f }) => (
-                      <div
-                        key={rel.other_faction_id}
-                        className="flex items-center justify-between text-sm bg-muted/20 p-2 rounded"
-                      >
-                        <div className="flex items-center gap-2">
-                          {f?.color_hex && (
-                            <div
-                              className="w-2 h-2 rounded-full"
-                              style={{ backgroundColor: f.color_hex }}
-                            />
-                          )}
-                          <span className="truncate">{f?.name || rel.other_faction_id}</span>
-                        </div>
-                        <Reputation value={getReputationScore(rel.initial_relation)} />
+                  <div className="text-sm space-y-1">
+                    <p>
+                      <span className="font-semibold">{clusters.length}</span> Clusters
+                    </p>
+                    <p>
+                      <span className="font-semibold">{sectors.length}</span> Sectors
+                    </p>
+                    {sectors.length > 0 && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {sectors.map((s, i) => (
+                          <Badge key={i} variant="secondary">
+                            {s.name || "Unknown Sector"}
+                          </Badge>
+                        ))}
                       </div>
-                    ))}
+                    )}
                   </div>
                 </div>
               )}
             </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">No extreme relations found for this faction.</p>
-          )}
-        </TabsContent>
+          </div>
+        )}
 
-        {licences.length > 0 && (
-          <TabsContent value="licences" className="flex-1 overflow-auto p-0 m-0">
-            <div className="flex flex-col text-sm border-b border-border/50 max-w-4xl">
+        {activeTab === "diplomacy" && (
+          <div className="flex-1 overflow-auto px-6 pb-6 pt-2">
+            {allies.length > 0 || enemies.length > 0 ? (
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-12 max-w-3xl">
+                {allies.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+                      Friendly (+10 to +30)
+                    </p>
+                    <div className="space-y-2">
+                      {allies.map(({ rel, f }) => (
+                        <div
+                          key={rel.other_faction_id}
+                          className="flex items-center justify-between text-sm bg-muted/20 p-2 rounded"
+                        >
+                          <div className="flex items-center gap-2">
+                            {f?.color_hex && (
+                              <div
+                                className="w-2 h-2 rounded-full"
+                                style={{ backgroundColor: f.color_hex }}
+                              />
+                            )}
+                            <span className="truncate">{f?.name || rel.other_faction_id}</span>
+                          </div>
+                          <Reputation value={getReputationScore(rel.initial_relation)} />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {enemies.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+                      Hostile (-10 to -30)
+                    </p>
+                    <div className="space-y-2">
+                      {enemies.map(({ rel, f }) => (
+                        <div
+                          key={rel.other_faction_id}
+                          className="flex items-center justify-between text-sm bg-muted/20 p-2 rounded"
+                        >
+                          <div className="flex items-center gap-2">
+                            {f?.color_hex && (
+                              <div
+                                className="w-2 h-2 rounded-full"
+                                style={{ backgroundColor: f.color_hex }}
+                              />
+                            )}
+                            <span className="truncate">{f?.name || rel.other_faction_id}</span>
+                          </div>
+                          <Reputation value={getReputationScore(rel.initial_relation)} />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No extreme relations found for this faction.</p>
+            )}
+          </div>
+        )}
+
+        {licences.length > 0 && activeTab === "licences" && (
+          <div className="flex-1 overflow-auto px-6 pb-6 pt-2">
+            <div className="flex flex-col text-sm border-t border-b border-border/50 max-w-4xl">
               {licences.map((l, i) => {
                 const displayName =
                   l.name ||
@@ -482,7 +478,7 @@ function FactionDetailPanel({ factionId, onClose }: { factionId: string; onClose
                 return (
                   <div
                     key={l.licence_type}
-                    className={`flex items-center px-6 py-3 ${i % 2 === 0 ? "bg-muted/10" : "bg-transparent"} border-t border-border/50 gap-4`}
+                    className={`flex items-center px-6 py-3 ${i % 2 === 0 ? "bg-muted/5" : "bg-transparent"} border-b border-border/50 gap-4 last:border-b-0`}
                   >
                     <div className="flex-1 flex items-center gap-2">
                       <span className="font-medium text-foreground">{displayName}</span>
@@ -523,9 +519,9 @@ function FactionDetailPanel({ factionId, onClose }: { factionId: string; onClose
                 );
               })}
             </div>
-          </TabsContent>
+          </div>
         )}
-      </Tabs>
+      </div>
     </div>
   );
 }
@@ -767,11 +763,7 @@ export default function FactionsPage() {
       </div>
 
       <div className="flex-1 overflow-hidden px-6 pb-6 pt-4 flex flex-col">
-        <div className="flex flex-col h-full border border-border/50 relative overflow-hidden" style={{ backgroundColor: 'rgba(16, 20, 34, 0.55)' }}>
-          {/* Tech HUD Corner Accents */}
-          <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-primary/60 pointer-events-none z-20" />
-          <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-primary/60 pointer-events-none z-20" />
-
+        <HUDCard className="h-full">
           <div className="flex flex-1 min-h-0 relative z-10">
             {/* Sidebar */}
             <aside className="w-56 shrink-0 border-r border-border/50 overflow-y-auto bg-black/20">
@@ -849,8 +841,8 @@ export default function FactionsPage() {
             </>
           )}
         </div>
-      </div>
-        </div>
+          </div>
+        </HUDCard>
       </div>
     </div>
   );

@@ -3,6 +3,7 @@ import { Currency } from "../components/Currency";
 import { useMemo, useState } from "react";
 import { AlertTriangle, Boxes, ChevronDown, TrendingDown, TrendingUp } from "lucide-react";
 import { PageLoaderPreset } from "../components/PageLoader";
+import { PageTabs, PageTab } from "../components/ui/page-tabs";
 
 type WareMarket = {
   ware_id: string;
@@ -96,29 +97,28 @@ export default function EconomyPage() {
         <p className="text-sm text-muted-foreground mt-0.5">
           Galaxy-wide demand vs supply per ware · click a ware to see where it's concentrated
         </p>
-        <div className="flex items-center gap-1.5 mt-3">
+        <PageTabs>
           {TABS.map((t) => {
             const active = filter === t.key;
             return (
-              <button
+              <PageTab
                 key={t.key}
+                active={active}
                 onClick={() => setFilter(t.key)}
-                className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
-                  active ? "bg-primary text-primary-foreground" : "bg-muted/40 text-muted-foreground hover:text-foreground"
-                }`}
+                className="flex items-center gap-1.5"
               >
-                <t.icon className="h-3 w-3" />
+                <t.icon className="h-3.5 w-3.5" />
                 {t.label}
-                <span className={`tabular-nums rounded-full px-1.5 ${active ? "bg-primary-foreground/20" : "bg-background/60"}`}>
+                <span className={`tabular-nums rounded-full px-1.5 text-xs ${active ? "bg-primary-foreground/20" : "bg-muted-foreground/20"}`}>
                   {t.count}
                 </span>
-              </button>
+              </PageTab>
             );
           })}
-        </div>
+        </PageTabs>
       </div>
 
-      <div className="flex-1 overflow-auto p-4">
+      <div className="flex-1 overflow-auto p-4 pt-4">
         {isLoading ? (
           <PageLoaderPreset preset="economy" />
         ) : visible.length === 0 ? (

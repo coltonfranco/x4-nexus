@@ -861,6 +861,26 @@ CREATE TABLE IF NOT EXISTS drop_lists (
     category     TEXT    -- 'ship' | 'lockbox' | 'asteroid' | 'crystal' | 'story' | 'masstraffic' | 'other'
 );
 
+-- Mission group definitions from missiongroups.xml. Faction guild boards, war
+-- missions, and story plot chains. The save references these implicitly through
+-- faction/type affinity; this table provides the human-readable metadata.
+CREATE TABLE IF NOT EXISTS mission_groups (
+    group_id    TEXT PRIMARY KEY,
+    name        TEXT,               -- localization macro e.g. "{30206,1}"
+    faction     TEXT,               -- offering faction id (NULL for story-only groups)
+    enemy       TEXT,               -- target faction for war missions
+    is_story    INTEGER NOT NULL DEFAULT 0
+);
+
+-- Story mission chains available per gamestart (from gamestarts.xml).
+CREATE TABLE IF NOT EXISTS gamestart_stories (
+    gamestart_id TEXT NOT NULL,
+    story_ref    TEXT NOT NULL,
+    story_group  TEXT,
+    story_index  INTEGER,
+    PRIMARY KEY (gamestart_id, story_ref)
+);
+
 -- Resolved per-ware entries for each droplist. Baskets are expanded here so
 -- queries can ask "what can drop ware X?" with a single index scan.
 CREATE TABLE IF NOT EXISTS drop_list_wares (

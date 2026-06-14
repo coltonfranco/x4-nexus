@@ -173,9 +173,8 @@ def extract(xml_bytes: bytes) -> ExtractResult:
                     })
 
         # ── Story missions ──
-        story_el = gs_el.find("story")
-        if story_el is not None:
-            for st_el in story_el.iterfind("story"):
+        def _collect_stories(container: etree._Element) -> None:
+            for st_el in container.iterfind("story"):
                 ref = st_el.get("ref")
                 if ref:
                     out.stories.append({
@@ -184,6 +183,15 @@ def extract(xml_bytes: bytes) -> ExtractResult:
                         "story_group": st_el.get("group"),
                         "story_index": _int(st_el, "index"),
                     })
+
+        story_el = gs_el.find("story")
+        if story_el is not None:
+            _collect_stories(story_el)
+        else:
+            # Some gamestarts (e.g. custom_budgeted) wrap stories in <budget>.
+            budget_el = gs_el.find("budget")
+            if budget_el is not None:
+                _collect_stories(budget_el)
 
         # ── Encyclopedia entries ──
         enc_el = gs_el.find("encyclopedia")

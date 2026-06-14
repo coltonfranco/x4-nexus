@@ -17,9 +17,11 @@ from x4_extract.static import (
     equip_mods,
     equipment,
     factions,
+    gamestarts,
     icons,
     loadouts,
     map,
+    missiongroups,
     modules,
     npc_stations,
     races,
@@ -133,6 +135,13 @@ def run(settings: ExtractSettings) -> None:
             if waregroups_xml:
                 waregroups.write(conn, _localize_result(waregroups.extract(waregroups_xml)))
                 _log(f"  -> {len(waregroups.extract(waregroups_xml).groups)} groups ({_elapsed(t0)})")
+
+            t0 = time.monotonic()
+            _log("Extracting: mission groups")
+            missiongroups_xml = get_raw_file("libraries/missiongroups.xml")
+            if missiongroups_xml:
+                missiongroups.write(conn, _localize_result(missiongroups.extract(missiongroups_xml)))
+                _log(f"  -> {len(missiongroups.extract(missiongroups_xml).groups)} groups ({_elapsed(t0)})")
 
             t0 = time.monotonic()
             _log("Extracting: wares")
@@ -301,6 +310,20 @@ def run(settings: ExtractSettings) -> None:
                 d_result = diplomacy.extract(diplo_xml)
                 diplomacy.write(conn, _localize_result(d_result))
                 _log(f"  -> {len(d_result.actions)} actions ({_elapsed(t0)})")
+
+            t0 = time.monotonic()
+            _log("Extracting: gamestart stories")
+            gamestarts_xml = get_raw_file("libraries/gamestarts.xml")
+            if gamestarts_xml:
+                gs_result = gamestarts.extract(gamestarts_xml)
+                if gs_result.stories:
+                    conn.execute("DELETE FROM gamestart_stories")
+                    conn.executemany(
+                        "INSERT INTO gamestart_stories (gamestart_id, story_ref, story_group, story_index) "
+                        "VALUES (:gamestart_id, :story_ref, :story_group, :story_index)",
+                        gs_result.stories,
+                    )
+                _log(f"  -> {len(gs_result.stories)} stories ({_elapsed(t0)})")
     finally:
         conn.close()
 

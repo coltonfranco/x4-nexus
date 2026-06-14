@@ -30,8 +30,8 @@ ICON_BASE = "/static/icons"
 # Whether a ware has any production method / can be obtained from a drop list.
 # Drives which detail tabs the dashboard shows, so empty tabs never render.
 _FLAGS_SQL = (
-    "EXISTS(SELECT 1 FROM s.ware_production p WHERE p.ware_id = wares.ware_id) AS has_production, "
-    "EXISTS(SELECT 1 FROM s.drop_list_wares d WHERE d.ware_id = wares.ware_id) AS has_drops"
+    "EXISTS(SELECT 1 FROM s.ware_production p WHERE p.ware_id = w.ware_id) AS has_production, "
+    "EXISTS(SELECT 1 FROM s.drop_list_wares d WHERE d.ware_id = w.ware_id) AS has_drops"
 )
 
 
@@ -78,6 +78,46 @@ class WareDetail(WareSummary):
     production: list[ProductionMethod]
 
 
+# ── Live price enrichment (from dynamic station_offers, when available) ─────────
+
+def _market_price_sql(conn: sqlite3.Connection) -> tuple[str, bool]:
+    """Return (sql_fragment, has_live_data) for enriching static prices with market data.
+
+    When the active save has been ingested, station_offers carries real buy/sell prices
+    from every station.  We LEFT JOIN per-ware MIN/AVG/MAX so the catalog reflects the
+    live economy.  When no save is active (or the table doesn't exist yet) the static
+    reference prices are used as-is.
+    """
+    has_offers = bool(
+        conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='station_offers'"
+        ).fetchone()
+    )
+    if not has_offers:
+        return ("price_min, price_avg, price_max", False)
+
+    return (
+        "COALESCE(m.market_min, w.price_min)  AS price_min, "
+        "COALESCE(m.market_avg, w.price_avg)  AS price_avg, "
+        "COALESCE(m.market_max, w.price_max)  AS price_max",
+        True,
+    )
+
+
+def _market_join_sql() -> str:
+    """Subquery that computes live price ranges per ware from station trade offers."""
+    return (
+        "LEFT JOIN ("
+        "  SELECT ware_id,"
+        "         CAST(MIN(price) AS INTEGER) AS market_min,"
+        "         CAST(AVG(price) AS INTEGER) AS market_avg,"
+        "         CAST(MAX(price) AS INTEGER) AS market_max"
+        "  FROM station_offers"
+        "  GROUP BY ware_id"
+        ") m ON w.ware_id = m.ware_id"
+    )
+
+
 @router.get("/wares", response_model=list[WareSummary])
 def list_wares(
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
@@ -91,24 +131,33 @@ def list_wares(
 ) -> list[WareSummary]:
     if category is not None and category not in CATEGORIES:
         raise HTTPException(status_code=422, detail=f"Unknown category: {category}")
+
+    price_sql, has_live = _market_price_sql(conn)
+
     sql = [
-        f"SELECT ware_id, name, shortname, description, group_id, ({CATEGORY_SQL}) AS category, transport, volume,",
-        "       price_min, price_avg, price_max, tags, icon_path,",
-        "       sortorder, dismantlefactor, research_time,",
+        f"SELECT w.ware_id, w.name, w.shortname, w.description, w.group_id,"
+        f"       ({CATEGORY_SQL}) AS category, w.transport, w.volume,",
+        f"       {price_sql},",
+        "       w.tags, w.icon_path,",
+        "       w.sortorder, w.dismantlefactor, w.research_time,",
         f"       {_FLAGS_SQL}",
-        "FROM s.wares WHERE 1=1",
+        "FROM s.wares w",
     ]
+    if has_live:
+        sql.append(_market_join_sql())
+    sql.append("WHERE 1=1")
+
     params: dict[str, object] = {"limit": limit, "offset": offset}
     if group is not None:
-        sql.append("AND group_id = :group")
+        sql.append("AND w.group_id = :group")
         params["group"] = group
     if transport is not None:
-        sql.append("AND transport = :transport")
+        sql.append("AND w.transport = :transport")
         params["transport"] = transport
     if category is not None:
         sql.append(f"AND ({CATEGORY_SQL}) = :category")
         params["category"] = category
-    sql.append("ORDER BY ware_id LIMIT :limit OFFSET :offset")
+    sql.append("ORDER BY w.ware_id LIMIT :limit OFFSET :offset")
 
     rows = conn.execute(" ".join(sql), params).fetchall()
     return [
@@ -141,14 +190,20 @@ def get_ware(
     ware_id: str,
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
 ) -> WareDetail:
+    price_sql, has_live = _market_price_sql(conn)
+    join_clause = _market_join_sql() if has_live else ""
+
     row = conn.execute(
         f"""
-        SELECT ware_id, name, shortname, description, group_id, ({CATEGORY_SQL}) AS category, transport, volume,
-               price_min, price_avg, price_max, storage_class,
-               tags, restriction_licence, use_threshold, icon_path,
-               sortorder, dismantlefactor, research_time,
+        SELECT w.ware_id, w.name, w.shortname, w.description, w.group_id,
+               ({CATEGORY_SQL}) AS category, w.transport, w.volume,
+               {price_sql}, w.storage_class,
+               w.tags, w.restriction_licence, w.use_threshold, w.icon_path,
+               w.sortorder, w.dismantlefactor, w.research_time,
                {_FLAGS_SQL}
-        FROM s.wares WHERE ware_id = :id
+        FROM s.wares w
+        {join_clause}
+        WHERE w.ware_id = :id
         """,
         {"id": ware_id},
     ).fetchone()

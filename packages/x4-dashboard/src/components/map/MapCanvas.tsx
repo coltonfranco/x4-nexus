@@ -18,6 +18,8 @@ import { SectorLayer } from "./layers/SectorLayer";
 import { StationLayer } from "./layers/StationLayer";
 import { NavLayer, RoutePathLayer } from "./layers/AnalysisLayer";
 import { StationPopover } from "./StationPopover";
+import { Currency } from "../Currency";
+import { PageLoaderPreset } from "../PageLoader";
 
 export type MapToggles = {
   showGates: boolean;
@@ -26,6 +28,8 @@ export type MapToggles = {
   showGrid: boolean;
   showStations: boolean;
   showFactionLogos: boolean;
+  showSectorNames: boolean;
+  bgStyle: "nebula" | "starfield" | "flat";
 };
 
 type PanZoomHandlers = {
@@ -91,7 +95,7 @@ export function MapCanvas({
   return (
     <div
       ref={containerRef}
-      style={{ flex: 1, overflow: "hidden", position: "relative", background: "#06060e" }}
+      style={{ flex: 1, overflow: "hidden", position: "relative", background: "radial-gradient(120% 120% at 50% 0%, #0c1322 0%, #070b14 55%, #05070e 100%)" }}
       onWheel={handlers.onWheel} onMouseDown={handlers.onMouseDown} onMouseMove={handlers.onMouseMove}
       onMouseUp={handlers.onMouseUp} onMouseLeave={handlers.onMouseUp}
       className={isPanning ? "cursor-grabbing" : "cursor-grab"}
@@ -99,8 +103,32 @@ export function MapCanvas({
       onContextMenu={(e) => e.preventDefault()}
     >
       {data.isLoading && (
-        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.35)", fontSize: 13 }}>
-          Loading map…
+        <div style={{ position: "absolute", inset: 0, zIndex: 50, backgroundColor: "#06060e" }}>
+          <PageLoaderPreset preset="map" />
+        </div>
+      )}
+
+      {toggles.bgStyle === "nebula" && (
+        <div style={{
+          position: "absolute", inset: 0, pointerEvents: "none", zIndex: 0,
+          background: "radial-gradient(40% 40% at 18% 70%, rgba(125,143,171,0.10), transparent 70%), radial-gradient(38% 38% at 50% 22%, rgba(59,130,212,0.10), transparent 70%), radial-gradient(34% 40% at 82% 38%, rgba(189,58,158,0.09), transparent 70%), radial-gradient(30% 36% at 78% 80%, rgba(155,108,240,0.07), transparent 70%), radial-gradient(30% 30% at 30% 28%, rgba(39,179,192,0.06), transparent 70%)"
+        }} />
+      )}
+
+      {toggles.bgStyle !== "flat" && (
+        <div style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 0, overflow: "hidden" }}>
+          <div style={{ 
+            position: 'absolute', width: '200%', height: '200%', left: '-50%', top: '-50%',
+            transform: `translate(${transform.x * 0.03}px, ${transform.y * 0.03}px)`,
+            backgroundImage: `radial-gradient(1px 1px at 10% 10%, rgba(205,214,236,0.3) 100%, transparent), radial-gradient(1px 1px at 25% 40%, rgba(205,214,236,0.3) 100%, transparent), radial-gradient(1.5px 1.5px at 40% 80%, rgba(205,214,236,0.2) 100%, transparent), radial-gradient(1px 1px at 60% 20%, rgba(205,214,236,0.3) 100%, transparent), radial-gradient(1px 1px at 80% 60%, rgba(205,214,236,0.2) 100%, transparent), radial-gradient(1.5px 1.5px at 90% 90%, rgba(205,214,236,0.4) 100%, transparent)`,
+            backgroundSize: '250px 250px'
+          }} />
+          <div style={{ 
+            position: 'absolute', width: '200%', height: '200%', left: '-50%', top: '-50%',
+            transform: `translate(${transform.x * 0.08}px, ${transform.y * 0.08}px)`,
+            backgroundImage: `radial-gradient(1.5px 1.5px at 15% 75%, rgba(205,214,236,0.6) 100%, transparent), radial-gradient(1.5px 1.5px at 50% 50%, rgba(205,214,236,0.3) 100%, transparent), radial-gradient(1px 1px at 85% 35%, rgba(205,214,236,0.5) 100%, transparent)`,
+            backgroundSize: '400px 400px'
+          }} />
         </div>
       )}
 
@@ -108,6 +136,12 @@ export function MapCanvas({
         <g transform={`translate(${transform.x.toFixed(2)},${transform.y.toFixed(2)}) scale(${transform.scale.toFixed(4)})`}>
 
           {toggles.showGrid && <HexGridLayer cells={bgGrid} hexSize={hexSize} />}
+
+          <HexBuildGridLayer
+            visibleSectors={visibleSectors} sectorCoords={sectorCoords} subSectorSet={subSectorSet}
+            factionMap={layout.factionMap} clusterMap={layout.clusterMap} sectorTint={overlay.sectorTint} dimOthers={overlay.dimOthers}
+            hexSize={hexSize} zoneScaleMap={zoneScaleMap} transform={transform} viewport={viewport}
+          />
 
           <SectorLayer
             visibleSectors={visibleSectors} sectorCoords={sectorCoords} subSectorSet={subSectorSet}
@@ -135,11 +169,7 @@ export function MapCanvas({
             sectorTooltips={overlay.sectorTooltips}
             alternateDots={overlay.alternateDots} dimOthers={overlay.dimOthers}
             showFactionLabels={showFactionLabels}
-          />
-
-          <HexBuildGridLayer
-            visibleSectors={visibleSectors} sectorCoords={sectorCoords} subSectorSet={subSectorSet}
-            hexSize={hexSize} zoneScaleMap={zoneScaleMap} transform={transform} viewport={viewport}
+            showSectorNames={toggles.showSectorNames}
           />
 
           <HighwayLayer
@@ -186,8 +216,8 @@ export function MapCanvas({
             {hoveredMarker.routes.map((r, i) => (
               <div key={i} className="flex flex-col">
                 <span className="text-foreground">{r.wareName} → <span className="text-amber-400">{sectorName(r.sellSector)}</span></span>
-                <span className="text-muted-foreground tabular-nums">
-                  {compact(r.profitPerHour)} cr/hr{r.hops != null ? ` · ${r.hops} jump${r.hops === 1 ? "" : "s"}` : ""}
+                <span className="text-muted-foreground tabular-nums flex items-center gap-1">
+                  <Currency value={r.profitPerHour} abbreviate className="text-muted-foreground" /> /hr{r.hops != null ? ` · ${r.hops} jump${r.hops === 1 ? "" : "s"}` : ""}
                 </span>
               </div>
             ))}

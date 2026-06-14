@@ -5,14 +5,16 @@
 import { dlcLabel } from "../../lib/map/names";
 
 export function ControlPanel({
-  allDlcs, activeDlcs, showGates, showHighways, showLocalHighways, showGrid, showStations, showFactionLogos,
-  onToggleGates, onToggleHighways, onToggleLocalHighways, onToggleGrid, onToggleStations, onToggleFactionLogos, onToggleDlc,
+  allDlcs, activeDlcs, showGates, showHighways, showLocalHighways, showGrid, showStations, showFactionLogos, bgStyle,
+  onToggleGates, onToggleHighways, onToggleLocalHighways, onToggleGrid, onToggleStations, onToggleFactionLogos, onBgStyleChange, onToggleDlc,
 }: {
   allDlcs: string[]; activeDlcs: Set<string>;
   showGates: boolean; showHighways: boolean; showLocalHighways: boolean; showGrid: boolean; showStations: boolean; showFactionLogos: boolean;
+  bgStyle: "nebula" | "starfield" | "flat";
   onToggleGates: (v: boolean) => void;
   onToggleHighways: (v: boolean) => void; onToggleLocalHighways: (v: boolean) => void;
   onToggleGrid: (v: boolean) => void; onToggleStations: (v: boolean) => void; onToggleFactionLogos: (v: boolean) => void;
+  onBgStyleChange: (v: "nebula" | "starfield" | "flat") => void;
   onToggleDlc: (dlc: string, on: boolean) => void;
 }) {
   return (
@@ -32,6 +34,22 @@ export function ControlPanel({
               <input type="checkbox" checked={checked} onChange={(e) => setter(e.target.checked)} className="w-3 h-3 accent-primary" />
               {label}
             </label>
+          ))}
+        </div>
+      </div>
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Background</p>
+        <div className="flex bg-muted/50 p-1 rounded-md">
+          {(["nebula", "starfield", "flat"] as const).map((style) => (
+            <button
+              key={style}
+              onClick={() => onBgStyleChange(style)}
+              className={`flex-1 text-[10px] font-medium py-1 px-2 rounded capitalize transition-colors ${
+                bgStyle === style ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted/80"
+              }`}
+            >
+              {style}
+            </button>
           ))}
         </div>
       </div>

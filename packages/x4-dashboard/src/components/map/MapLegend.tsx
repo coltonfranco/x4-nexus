@@ -1,15 +1,35 @@
+import { useState } from "react";
+import { ChevronDown } from "lucide-react";
 import { FillMode } from "../../lib/map/overlays/types";
 import { STATUS_COLORS } from "../../lib/map/constants";
 
 export function MapLegend({ fillMode }: { fillMode: FillMode }) {
+  const [open, setOpen] = useState(true);
   if (fillMode === "faction") return null;
 
+  const legendLabel =
+    fillMode === "conflict" ? "Conflict Legend" :
+    fillMode === "relations" ? "Relations Legend" :
+    fillMode === "trade" ? "Trade Legend" :
+    fillMode === "resources" ? "Resources Legend" : "Legend";
+
   return (
-    <div className="absolute bottom-5 left-5 bg-card/90 backdrop-blur-md border border-border rounded-lg shadow-lg p-3 text-[11px] text-muted-foreground w-64 pointer-events-none z-10">
+    <div className="absolute bottom-5 left-5 bg-card/90 backdrop-blur-md border border-border rounded-lg shadow-lg text-[11px] text-muted-foreground w-64 pointer-events-auto z-10">
+      {/* Collapsable header */}
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between p-3 rounded-t-lg"
+      >
+        <span className="text-foreground font-semibold text-xs">{legendLabel}</span>
+        <ChevronDown
+          className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${open ? "rotate-0" : "-rotate-90"}`}
+          strokeWidth={2}
+        />
+      </button>
+      {open && (
+        <div className="px-3 pb-3 pt-0">
       {fillMode === "conflict" && (
         <div className="flex flex-col gap-2.5">
-          <h3 className="text-foreground font-semibold text-xs border-b border-border/50 pb-1 mb-1">Conflict Legend</h3>
-          
           <div>
             <div className="text-xs uppercase tracking-wider text-muted-foreground/80 mb-1.5">Sector Battles</div>
             <div className="grid grid-cols-[16px_1fr] gap-x-2 gap-y-1.5 items-center">
@@ -44,13 +64,13 @@ export function MapLegend({ fillMode }: { fillMode: FillMode }) {
           <div>
             <div className="text-xs uppercase tracking-wider text-muted-foreground/80 mb-1.5 mt-1">Danger Zones</div>
             <div className="grid grid-cols-[16px_1fr] gap-x-2 gap-y-1.5 items-center">
-              <div className="w-3 h-2.5 border-2 border-red-500/80 rounded-[2px]" />
+              <div className="w-3 h-2.5 border-2 border-dashed border-red-500/80 rounded-[2px]" />
               <span>High Threat (10+ hostile)</span>
               
-              <div className="w-3 h-2.5 border-2 border-orange-500/80 rounded-[2px]" />
+              <div className="w-3 h-2.5 border-2 border-dashed border-orange-500/80 rounded-[2px]" />
               <span>Medium Threat (5-9 hostile)</span>
               
-              <div className="w-3 h-2.5 border-2 border-yellow-500/80 rounded-[2px]" />
+              <div className="w-3 h-2.5 border-2 border-dashed border-yellow-500/80 rounded-[2px]" />
               <span>Low Threat (1-4 hostile)</span>
             </div>
           </div>
@@ -64,7 +84,6 @@ export function MapLegend({ fillMode }: { fillMode: FillMode }) {
 
       {fillMode === "relations" && (
         <div className="flex flex-col gap-2">
-          <h3 className="text-foreground font-semibold text-xs border-b border-border/50 pb-1 mb-1">Relations Legend</h3>
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded bg-green-500" />
@@ -92,7 +111,6 @@ export function MapLegend({ fillMode }: { fillMode: FillMode }) {
 
       {fillMode === "trade" && (
         <div className="flex flex-col gap-2">
-          <h3 className="text-foreground font-semibold text-xs border-b border-border/50 pb-1 mb-1">Trade Legend</h3>
           <p className="mb-1 leading-tight">Trade routes are colored by profit per hour.</p>
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center gap-2">
@@ -113,7 +131,6 @@ export function MapLegend({ fillMode }: { fillMode: FillMode }) {
       
       {fillMode === "resources" && (
         <div className="flex flex-col gap-2">
-          <h3 className="text-foreground font-semibold text-xs border-b border-border/50 pb-1 mb-1">Resources Legend</h3>
           <p className="mb-1 leading-tight">Select a resource to view sector yields.</p>
           <div className="flex items-center gap-2 mt-1">
             <span>Low Yield</span>
@@ -122,6 +139,8 @@ export function MapLegend({ fillMode }: { fillMode: FillMode }) {
             }} />
             <span>High Yield</span>
           </div>
+        </div>
+      )}
         </div>
       )}
     </div>

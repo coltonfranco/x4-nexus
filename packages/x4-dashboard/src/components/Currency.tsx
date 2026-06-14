@@ -1,3 +1,5 @@
+import { Coins } from "lucide-react";
+
 type CurrencyProps = {
   value?: number | null;
   maxValue?: number | null;
@@ -47,15 +49,11 @@ export function Currency({
 
   return (
     <span
-      className={`tabular-nums font-mono font-medium inline-flex items-center gap-1 whitespace-nowrap text-gold ${className}`}
+      className={`tabular-nums font-mono font-medium inline-flex items-center gap-1.5 whitespace-nowrap text-gold ${className}`}
       style={dynamicStyle}
     >
       {formatted}
-      {icon ? (
-        <span style={{ color: "var(--gold-dim)", fontSize: "0.85em" }}>⬡</span>
-      ) : (
-        " Cr"
-      )}
+      {icon && <Coins className="h-3.5 w-3.5 opacity-80" />}
     </span>
   );
 }

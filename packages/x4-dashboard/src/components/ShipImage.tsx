@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { cn } from "../lib/utils";
 import { EntityIcon } from "./EntityIcon";
 import { getEntityCategory, CATEGORY_COLORS } from "../lib/constants";
@@ -22,6 +23,8 @@ export function ShipImage({ imageUrl, iconUrl, name, role, classId, className, i
     else if (classId.includes("_l") || classId.includes("_xl")) animationClass = "animate-hover-bob-lg";
   }
 
+  const [loaded, setLoaded] = useState(false);
+
   return (
     <div className={cn("relative flex items-center justify-center overflow-hidden bg-background border border-border/50 rounded-xl", className)}>
       {/* Background Gradients: Static Linear + Static Base Radial */}
@@ -37,6 +40,9 @@ export function ShipImage({ imageUrl, iconUrl, name, role, classId, className, i
       
       {imageUrl ? (
         <div className={cn("relative w-full h-full flex items-center justify-center pointer-events-none", animationClass)}>
+          {!loaded && (
+            <div className="absolute inset-0 bg-muted/20 animate-pulse flex items-center justify-center pointer-events-none z-0" />
+          )}
           {/* Moving Radial Glow behind the ship */}
           <div 
             className="absolute -inset-10 pointer-events-none transition-colors duration-700"
@@ -46,11 +52,13 @@ export function ShipImage({ imageUrl, iconUrl, name, role, classId, className, i
           />
           <img
             src={imageUrl}
-            alt={name}
+            alt={loaded ? name : ""}
             className={cn(
-              "relative w-full h-full object-contain drop-shadow-[0_0_12px_rgba(0,0,0,0.8)] pointer-events-auto",
+              "relative w-full h-full object-contain drop-shadow-[0_0_12px_rgba(0,0,0,0.8)] pointer-events-auto transition-opacity duration-300 z-10",
+              loaded ? "opacity-100" : "opacity-0",
               imageClassName
             )}
+            onLoad={() => setLoaded(true)}
             onError={(e) => (e.currentTarget.style.display = "none")}
           />
         </div>

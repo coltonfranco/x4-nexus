@@ -191,6 +191,57 @@ CREATE TABLE IF NOT EXISTS ships (
 CREATE INDEX IF NOT EXISTS idx_dyn_ships_owner  ON ships(owner_faction);
 CREATE INDEX IF NOT EXISTS idx_dyn_ships_sector ON ships(sector_id);
 
+-- Live mission instances from <savegame>/<missions>/<mission>.
+-- VOLATILE — missions are accepted/abandoned/completed every session.
+CREATE TABLE IF NOT EXISTS missions (
+    mission_id         TEXT PRIMARY KEY,
+    name               TEXT,
+    description        TEXT,
+    faction            TEXT,
+    type               TEXT,
+    level              TEXT,
+    is_active          INTEGER NOT NULL DEFAULT 0,
+    priority           INTEGER,
+    abortable          INTEGER,
+    associated_entity  TEXT,
+    extra_json         TEXT
+);
+
+-- Per-mission objectives from <mission>/<briefing>/<objective> (or direct child).
+CREATE TABLE IF NOT EXISTS mission_objectives (
+    mission_id  TEXT NOT NULL,
+    step        INTEGER,
+    type        TEXT,
+    text        TEXT,
+    is_active   INTEGER NOT NULL DEFAULT 0,
+    target_id            TEXT,       -- first <targets>/<target id="...">
+    progress_current     INTEGER,    -- from <progress current="...">
+    progress_max         INTEGER,    -- from <progress max="...">
+    progress_name        TEXT,       -- from <progress name="...">
+    encyclopedia_type    TEXT,       -- from <encyclopedia type="...">
+    encyclopedia_item    TEXT,       -- from <encyclopedia item="...">
+    PRIMARY KEY (mission_id, step)
+);
+
+-- Available mission offers from <savegame>/<missions>/<offer>.
+-- Each offer represents a mission the player can accept at a station.
+-- `is_repeatable` distinguishes guild/war board missions (with a briefing/mission
+-- template child) from one-shot tutorials and plot invitations.
+CREATE TABLE IF NOT EXISTS mission_offers (
+    offer_id        TEXT PRIMARY KEY,
+    name            TEXT,
+    description     TEXT,
+    faction         TEXT,
+    type            TEXT,
+    level           TEXT,
+    actor           TEXT,              -- NPC actor ref
+    station_id      TEXT,              -- first <location component="...">
+    bbs_station_id  TEXT,              -- from <bbs>/<space component="...">
+    is_repeatable   INTEGER NOT NULL DEFAULT 0,
+    rewardtext      TEXT,              -- from nested briefing/mission rewardtext
+    extra_json      TEXT
+);
+
 CREATE TABLE IF NOT EXISTS player_stats (
     stat_id  TEXT PRIMARY KEY,
     value    REAL

@@ -118,7 +118,7 @@ export function HighwayLayer({
                 x1={l1[0]} y1={l1[1]} x2={l2[0]} y2={l2[1]}
                 stroke={finalStroke} strokeWidth={strokeWidth} strokeLinecap="round" strokeDasharray={isLocal ? `6 ${lineLen}` : "3 6"} opacity={opacity * 1.5}
                 style={{ animation: finalAnim }}>
-                <animate attributeName="stroke-dashoffset" from="0" to={isLocal ? -lineLen : -9} dur={isLocal ? "2s" : "0.5s"} repeatCount="indefinite" />
+                <animate attributeName="stroke-dashoffset" from="0" to={isLocal ? -lineLen : -9} dur={isLocal ? "4s" : "1.5s"} repeatCount="indefinite" />
               </line>
             )}
             {showIcons ? (

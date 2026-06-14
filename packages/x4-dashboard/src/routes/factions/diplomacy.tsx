@@ -1,23 +1,25 @@
 import { useQuery } from "@tanstack/react-query";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useMemo, useState } from "react";
-import { EntityIcon } from "../components/EntityIcon";
-import { FactionBadge } from "../components/FactionBadge";
-import { StatBar } from "../components/StatBar";
-import { Currency } from "../components/Currency";
-import { fmtSeconds } from "../lib/wareFormat";
-import { Badge } from "../components/ui/badge";
-import type { FactionSummary } from "../lib/map/types";
+import { EntityIcon } from "../../components/EntityIcon";
+import { FactionBadge } from "../../components/FactionBadge";
+import { StatBar } from "../../components/StatBar";
+import { Currency } from "../../components/Currency";
+import { fmtSeconds } from "../../lib/wareFormat";
+import { Badge } from "../../components/ui/badge";
+import type { FactionSummary } from "../../lib/map/types";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "../components/ui/select";
+} from "../../components/ui/select";
 
-import { PageLoaderPreset } from "../components/PageLoader";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
+import { PageLoaderPreset } from "../../components/PageLoader";
+import { HUDCard } from "../../components/HUDCard";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
+import { PageTabs, PageTab } from "../../components/ui/page-tabs";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -184,7 +186,7 @@ function ActionsTab() {
       </div>
 
       {isLoading ? (
-        <p className="text-sm text-muted-foreground py-4"><PageLoaderPreset preset="factions" /></p>
+        <div className="text-sm text-muted-foreground py-4 flex justify-center"><PageLoaderPreset preset="factions" /></div>
       ) : (
         <div className="flex-1 overflow-auto p-4">
           <Table className="text-xs">
@@ -245,7 +247,7 @@ function GiftsTab() {
     });
   }, [gifts, factionMap]);
 
-  if (giftsLoading) return <p className="text-sm text-muted-foreground py-4"><PageLoaderPreset preset="factions" /></p>;
+  if (giftsLoading) return <div className="text-sm text-muted-foreground py-4 flex justify-center"><PageLoaderPreset preset="factions" /></div>;
 
   return (
     <div className="flex flex-col h-full">
@@ -295,7 +297,7 @@ function RanksTab() {
     queryFn: () => fetch("/api/v1/diplomacy/agent-ranks").then((r) => r.json()),
   });
 
-  if (isLoading) return <p className="text-sm text-muted-foreground py-4"><PageLoaderPreset preset="factions" /></p>;
+  if (isLoading) return <div className="text-sm text-muted-foreground py-4 flex justify-center"><PageLoaderPreset preset="factions" /></div>;
 
   return (
     <div className="flex flex-col h-full">
@@ -351,33 +353,24 @@ export default function DiplomacyPage() {
         <p className="text-xs uppercase tracking-widest text-muted-foreground mt-1 font-semibold">
           Agent actions, faction gifts, and rank progression
         </p>
-        <div className="mt-4 flex gap-1">
+        <PageTabs>
           {TABS.map((t) => (
-            <button
+            <PageTab
               key={t.id}
+              active={t.id === activeTab}
               onClick={() => setActiveTab(t.id as any)}
-              className={`rounded-t-md border-b-2 px-3 py-2 text-sm font-medium transition-colors ${
-                t.id === activeTab
-                  ? "border-primary text-foreground"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
-              }`}
             >
               {t.label}
-            </button>
+            </PageTab>
           ))}
-        </div>
+        </PageTabs>
       </div>
 
       <div className="flex-1 overflow-hidden px-6 pb-6 pt-4 flex flex-col">
-        <div className="flex flex-col h-full border border-border/50 relative overflow-hidden" style={{ backgroundColor: 'rgba(16, 20, 34, 0.55)' }}>
-          {/* Tech HUD Corner Accents */}
-          <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-primary/60 pointer-events-none" />
-          <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-primary/60 pointer-events-none" />
-
+        <HUDCard className="h-full overflow-hidden">
           {activeTab === "actions" && <ActionsTab />}
           {activeTab === "gifts" && <GiftsTab />}
-          {activeTab === "ranks" && <RanksTab />}
-        </div>
+        </HUDCard>
       </div>
     </div>
   );

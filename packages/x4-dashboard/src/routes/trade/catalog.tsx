@@ -7,6 +7,7 @@ import { WareDetailPanel } from "../../components/trade/WareDetailPanel";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../components/ui/dialog";
 import { Input } from "../../components/ui/input";
 import { PageLoaderPreset } from "../../components/PageLoader";
+import { HUDCard } from "../../components/HUDCard";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
 import {
   Select,
@@ -136,10 +137,7 @@ export default function TradeCatalogPage() {
       </div>
 
       <div className="flex-1 overflow-hidden px-6 pb-6 pt-0 flex flex-col">
-        <div className="flex flex-col h-full border border-border/50 relative" style={{ backgroundColor: 'rgba(16, 20, 34, 0.55)' }}>
-          {/* Tech HUD Corner Accents */}
-          <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-primary/60 pointer-events-none" />
-          <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-primary/60 pointer-events-none" />
+        <HUDCard className="h-full">
 
           <div className="flex flex-wrap items-center gap-3 px-6 py-3 border-b border-border/50 bg-muted/5 relative z-10">
             <Input placeholder="Search commodities…" value={search} onChange={(e) => setSearch(e.target.value)} className="w-56 bg-muted/50 border-input" />
@@ -160,7 +158,7 @@ export default function TradeCatalogPage() {
 
           <div className="flex-1 overflow-auto px-6 py-4">
         {isLoading ? (
-          <p className="py-8 text-center text-sm text-muted-foreground"><PageLoaderPreset preset="default" /></p>
+          <div className="h-full flex flex-col justify-center text-sm text-muted-foreground"><PageLoaderPreset preset="trade" /></div>
         ) : rows.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">No commodities match.</p>
         ) : (
@@ -187,7 +185,7 @@ export default function TradeCatalogPage() {
           </Table>
         )}
           </div>
-        </div>
+        </HUDCard>
       </div>
 
       <Dialog open={selectedWareId !== null} onOpenChange={(open) => { if (!open) setSelectedWareId(null); }}>

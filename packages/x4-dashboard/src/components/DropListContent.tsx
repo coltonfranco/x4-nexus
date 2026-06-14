@@ -40,14 +40,16 @@ export function DropListContent({ groups }: { groups: DropGroup[] }) {
     <div className="space-y-4">
       {groups.map((group) => (
         <div key={group.key}>
-          <div className="flex items-center gap-2 mb-1.5 pl-1">
-            <StatBar value={group.spawn_chance ?? 100} max={100} width={48} />
-            <span className="text-xs text-muted-foreground">
-              {group.spawn_chance != null ? <strong className="text-foreground">{group.spawn_chance}% chance</strong> : <strong className="text-foreground">Always</strong>}
-              {group.source_basket && (
-                <span className="ml-2 font-mono opacity-40 text-xs">{group.source_basket}</span>
-              )}
-              <span className="ml-2 opacity-60">— pick 1 of {group.entries.length}</span>
+          <div className="flex items-end justify-between mb-1.5 pl-1">
+            <StatBar 
+              value={group.spawn_chance ?? 100} 
+              max={100} 
+              width={100} 
+              labelLeft={group.spawn_chance != null ? `${group.spawn_chance}% chance` : "Always"}
+              className="!w-auto shrink-0" 
+            />
+            <span className="text-xs text-muted-foreground opacity-60 whitespace-nowrap">
+              pick 1 of {group.entries.length}
             </span>
           </div>
           <div className="rounded-lg border border-border overflow-hidden flex flex-col bg-muted/5">

@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getRouteApi } from "@tanstack/react-router";
-import { MapIcon, RotateCcw } from "lucide-react";
+import { Layers, Maximize, Minimize, MapIcon } from "lucide-react";
 
 import { AnalysisPanel } from "../components/map/AnalysisPanel";
-import { ControlPanel } from "../components/map/ControlPanel";
+import { MapLayersPanel } from "../components/map/MapLayersPanel";
 import { MapCanvas, type MapToggles } from "../components/map/MapCanvas";
 import { MapLegend } from "../components/map/MapLegend";
 import { NavPanel } from "../components/map/NavPanel";
@@ -29,14 +29,34 @@ export default function MapPage() {
   const [selectedSectorId, setSelectedSectorId] = useState<string | null>(null);
   const [hoveredSectorId, setHoveredSectorId] = useState<string | null>(null);
   const [selectedStation, setSelectedStation] = useState<MapStation | null>(null);
-  const [toggles, setToggles] = useState<MapToggles>({
-    showGates: true,
-    showHighways: true,
-    showLocalHighways: true,
-    showGrid: true,
-    showStations: true,
-    showFactionLogos: true,
+  const [layersOpen, setLayersOpen] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const toggleFullscreen = useCallback(() => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen();
+    } else {
+      document.exitFullscreen();
+    }
+  }, []);
+
+  useEffect(() => {
+    const handler = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", handler);
+    return () => document.removeEventListener("fullscreenchange", handler);
+  }, []);
+
+  const [toggles, setToggles] = useState<MapToggles>(() => {
+    try {
+      const saved = localStorage.getItem("x4map:toggles");
+      if (saved) return { showGates: true, showHighways: true, showLocalHighways: true, showGrid: true, showStations: true, showFactionLogos: true, showSectorNames: true, bgStyle: "nebula", ...JSON.parse(saved) };
+    } catch { /* ignore */ }
+    return { showGates: true, showHighways: true, showLocalHighways: true, showGrid: true, showStations: true, showFactionLogos: true, showSectorNames: true, bgStyle: "nebula" };
   });
+
+  useEffect(() => {
+    try { localStorage.setItem("x4map:toggles", JSON.stringify(toggles)); } catch { /* ignore */ }
+  }, [toggles]);
 
   const [conflictToggles, setConflictToggles] = useState<ConflictToggles>({
     showConflicts: true,
@@ -44,7 +64,29 @@ export default function MapPage() {
     showDanger: true,
     showPlayer: true,
   });
-  const [activeDlcs, setActiveDlcs] = useState<Set<string> | null>(null);
+  const [activeDlcs, setActiveDlcs] = useState<Set<string> | null>(() => {
+    try {
+      const saved = localStorage.getItem("x4map:activeDlcs");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // null means "all enabled" — don't create an empty Set
+        if (parsed === null || !Array.isArray(parsed)) return null;
+        return new Set<string>(parsed);
+      }
+    } catch { /* ignore */ }
+    return null;
+  });
+
+  useEffect(() => {
+    try {
+      if (activeDlcs === null) {
+        // No filter = all DLCs enabled; remove the key so restore defaults to null
+        localStorage.removeItem("x4map:activeDlcs");
+      } else {
+        localStorage.setItem("x4map:activeDlcs", JSON.stringify([...activeDlcs]));
+      }
+    } catch { /* ignore */ }
+  }, [activeDlcs]);
 
   // Overlay state.
   const [fillMode, setFillMode] = useState<FillMode>(search.ware || search.routes ? "trade" : "faction");
@@ -99,7 +141,7 @@ export default function MapPage() {
     [data.sectors, selectedSectorId]
   );
 
-  const setToggle = (key: keyof MapToggles) => (v: boolean) =>
+  const setToggle = <K extends keyof MapToggles>(key: K) => (v: MapToggles[K]) =>
     setToggles((t) => ({ ...t, [key]: v }));
 
   // Left-click: select (highlighted bounds) and set the nav origin, clearing any plotted
@@ -138,7 +180,7 @@ export default function MapPage() {
   // Escape clears the navigation path and any highlighted route.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { clearNav(); setSelectedRouteSector(null); setSelectedStation(null); }
+      if (e.key === "Escape") { clearNav(); setSelectedRouteSector(null); setSelectedStation(null); setLayersOpen(false); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -150,128 +192,195 @@ export default function MapPage() {
   }, []);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden" }}>
-      {/* Header */}
-      <div className="px-5 py-3 border-b border-border shrink-0 flex items-center justify-between"
-        style={{ background: "var(--card)" }}>
-        <div className="flex items-center gap-3">
-          <MapIcon className="w-5 h-5 text-muted-foreground" />
-          <div>
-            <h1 className="text-lg font-bold leading-none">Universe Map</h1>
-            <p className="text-xs text-muted-foreground mt-0.5">
+    <div className="flex h-screen w-full overflow-hidden bg-[#070b14] text-[#e7edf6] relative font-['Space_Grotesk',sans-serif]">
+      <MapCanvas
+        data={{ ...data, stations: visibleStations, gates: visibleGates, highways: visibleHighways }}
+        layout={layout}
+        toggles={toggles}
+        overlay={overlay}
+        transform={panZoom.transform}
+        viewport={panZoom.viewport}
+        isPanning={panZoom.isPanning}
+        containerRef={panZoom.containerRef}
+        handlers={panZoom.handlers}
+        selectedSectorId={selectedSectorId}
+        hoveredSectorId={hoveredSectorId}
+        onSelectSector={handleSelectSector}
+        onHoverSector={setHoveredSectorId}
+        onContextSector={handleContextSector}
+        navFrom={navFrom}
+        navTo={navTo}
+        onClearNav={clearNav}
+        sectorName={sectorName}
+        selectedStation={selectedStation}
+        onSelectStation={handleSelectStation}
+        showFactionLabels={toggles.showFactionLogos}
+      />
+
+      {/* Top Left Title Overlay — shows Universe Map by default, swaps to selected sector name */}
+      <div className="absolute top-[18px] left-[20px] pointer-events-none z-10 bg-[#070b14]/70 backdrop-blur-[10px] rounded-[10px] px-[12px] py-[8px]">
+        {selectedSector ? (
+          <>
+            <div className="flex items-center gap-[9px]">
+              <MapIcon className="w-4 h-4 text-[#9fb0cc]" strokeWidth={1.6} />
+              <div className="text-[17px] font-semibold tracking-[0.3px] truncate max-w-[260px]">{sectorName(selectedSector.sector_id)}</div>
+            </div>
+            <div className="text-[11px] text-[#6b7890] mt-[2px] pl-[25px] font-mono">
+              {(() => {
+                const owner = selectedSector.owner_faction ? factionMap.get(selectedSector.owner_faction) : null;
+                const cluster = selectedSector.cluster_id ? clusterMap.get(selectedSector.cluster_id) : null;
+                const parts = [owner?.name, cluster?.name].filter(Boolean);
+                return parts.length > 0 ? parts.join(" · ") : "Unknown region";
+              })()}
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="flex items-center gap-[9px]">
+              <MapIcon className="w-4 h-4 text-[#9fb0cc]" strokeWidth={1.6} />
+              <div className="text-[17px] font-semibold tracking-[0.3px]">Universe Map</div>
+            </div>
+            <div className="text-[11px] text-[#6b7890] mt-[2px] pl-[25px] font-mono">
               {visibleSectors.length} sectors · {visibleGates.length} gates · {visibleHighways.length} highways
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-4">
-          <SectorSearch
-            sectors={visibleSectors}
-            sectorName={sectorName}
-            factionMap={layout.factionMap}
-            clusterMap={layout.clusterMap}
-            onSelectSector={(id) => {
-              handleSelectSector(id);
-              panZoom.zoomToSector(id);
-            }}
-          />
-          <button
-            onClick={panZoom.resetView}
-            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground px-2 py-1.5 rounded hover:bg-muted/40 transition-colors"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            Reset
-          </button>
-        </div>
+            </div>
+          </>
+        )}
       </div>
 
-      <div style={{ flex: 1, display: "flex", minHeight: 0, position: "relative" }}>
-        <MapCanvas
-          data={{ ...data, stations: visibleStations, gates: visibleGates, highways: visibleHighways }}
-          layout={layout}
-          toggles={toggles}
-          overlay={overlay}
-          transform={panZoom.transform}
-          viewport={panZoom.viewport}
-          isPanning={panZoom.isPanning}
-          containerRef={panZoom.containerRef}
-          handlers={panZoom.handlers}
-          selectedSectorId={selectedSectorId}
-          hoveredSectorId={hoveredSectorId}
-          onSelectSector={handleSelectSector}
-          onHoverSector={setHoveredSectorId}
-          onContextSector={handleContextSector}
-          navFrom={navFrom}
-          navTo={navTo}
-          onClearNav={clearNav}
+      {/* Top Right Search & Layers Overlay */}
+      <div className="absolute top-[18px] right-[20px] flex items-start gap-[10px] z-20">
+        <SectorSearch
+          sectors={visibleSectors}
           sectorName={sectorName}
-          selectedStation={selectedStation}
-          onSelectStation={handleSelectStation}
-          showFactionLabels={toggles.showFactionLogos}
+          factionMap={layout.factionMap}
+          clusterMap={layout.clusterMap}
+          onSelectSector={(id) => {
+            handleSelectSector(id);
+            panZoom.zoomToSector(id);
+          }}
         />
-        <MapLegend fillMode={fillMode} />
 
-        {/* Right panel: overlay controls (top), detail/map controls, navigation (bottom). */}
-        <aside style={{ width: 236, flexShrink: 0, borderLeft: "1px solid var(--border)", display: "flex", flexDirection: "column", overflowY: "auto" }}
-          className="bg-card">
-          <AnalysisPanel
-            fillMode={fillMode}
-            onFillModeChange={handleFillMode}
-            resource={resource}
-            onResourceChange={setResource}
-            onClearResource={() => setResource(null)}
-            resourceSource={overlay.resourceSource}
-            wareId={wareId}
-            wareName={wareName}
-            onWareChange={(w) => { setWareId(w); setSelectedRouteSector(null); }}
-            onClearWare={() => setWareId(null)}
-            economyWares={economyWaresQuery.data ?? []}
-            waresLoading={economyWaresQuery.isLoading}
-            routesLoading={overlay.isLoading}
-            markerCount={overlay.routeMarkers.length}
-            maxJumps={maxJumps}
-            onMaxJumpsChange={setMaxJumps}
-            overlayLoading={overlay.isLoading}
-            conflictToggles={conflictToggles}
-            onToggleConflict={(k, v) => setConflictToggles(prev => ({ ...prev, [k]: v }))}
-          />
-
-          {selectedSector ? (
-            <SectorDetailPanel
-              sector={selectedSector}
-              cluster={selectedSector.cluster_id ? clusterMap.get(selectedSector.cluster_id) ?? null : null}
-              resources={selectedSector.cluster_id ? (resourcesByCluster.get(selectedSector.cluster_id) ?? new Set()) : new Set()}
-              factionMap={factionMap}
-              onClose={() => setSelectedSectorId(null)}
-            />
-          ) : (
-            <ControlPanel
-              allDlcs={allDlcs}
-              activeDlcs={enabledDlcs}
-              showGates={toggles.showGates}
-              showHighways={toggles.showHighways}
-              showLocalHighways={toggles.showLocalHighways}
-              showGrid={toggles.showGrid}
-              showStations={toggles.showStations}
-              showFactionLogos={toggles.showFactionLogos}
-              onToggleGates={setToggle("showGates")}
-              onToggleHighways={setToggle("showHighways")}
-              onToggleLocalHighways={setToggle("showLocalHighways")}
-              onToggleGrid={setToggle("showGrid")}
-              onToggleStations={setToggle("showStations")}
-              onToggleFactionLogos={setToggle("showFactionLogos")}
-              onToggleDlc={(dlc, on) => {
-                setActiveDlcs((prev) => {
-                  const current = new Set(prev ?? allDlcs);
-                  if (on) current.add(dlc); else current.delete(dlc);
-                  return current.size === allDlcs.length ? null : current;
-                });
-              }}
-            />
-          )}
-
-          <NavPanel navFrom={navFrom} navTo={navTo} onClear={clearNav} sectorName={sectorName} />
-        </aside>
+        <button 
+          onClick={() => setLayersOpen(!layersOpen)}
+          className={`flex items-center gap-[7px] px-[13px] py-[9px] backdrop-blur-[12px] rounded-[11px] font-['Space_Grotesk',sans-serif] text-[13px] cursor-pointer transition-colors ${
+            layersOpen 
+              ? 'bg-[#0d121e]/95 border border-white/[0.18] text-[#eef3fa]' 
+              : 'bg-[#0a0f1a]/85 border border-white/10 text-[#aeb7c8] hover:bg-[#0d121e]/95 hover:text-[#eef3fa]'
+          }`}
+        >
+          <Layers className="w-[15px] h-[15px]" strokeWidth={1.7} />
+          Layers
+        </button>
       </div>
+
+      {/* Map Layers Panel */}
+      {layersOpen && (
+        <MapLayersPanel
+          allDlcs={allDlcs}
+          activeDlcs={enabledDlcs}
+          showGates={toggles.showGates}
+          showHighways={toggles.showHighways}
+          showLocalHighways={toggles.showLocalHighways}
+          showGrid={toggles.showGrid}
+          showStations={toggles.showStations}
+          showFactionLogos={toggles.showFactionLogos}
+          onToggleGates={setToggle("showGates")}
+          onToggleHighways={setToggle("showHighways")}
+          onToggleLocalHighways={setToggle("showLocalHighways")}
+          onToggleGrid={setToggle("showGrid")}
+          onToggleStations={setToggle("showStations")}
+          onToggleFactionLogos={setToggle("showFactionLogos")}
+          showSectorNames={toggles.showSectorNames}
+          onToggleSectorNames={setToggle("showSectorNames")}
+          bgStyle={toggles.bgStyle}
+          onBgStyleChange={setToggle("bgStyle")}
+          onToggleDlc={(dlc, on) => {
+            setActiveDlcs((prev) => {
+              const current = new Set(prev ?? allDlcs);
+              if (on) current.add(dlc); else current.delete(dlc);
+              return current.size === allDlcs.length ? null : current;
+            });
+          }}
+        />
+      )}
+
+      {/* Phase 2: Analysis Panel (Mode Buttons & Contexts) */}
+      <div className="absolute top-[90px] left-[20px] pointer-events-none z-10">
+        <AnalysisPanel
+          fillMode={fillMode}
+          onFillModeChange={handleFillMode}
+          resource={resource}
+          onResourceChange={setResource}
+          onClearResource={() => setResource(null)}
+          resourceSource={overlay.resourceSource}
+          wareId={wareId}
+          wareName={wareName}
+          onWareChange={(w) => { setWareId(w); setSelectedRouteSector(null); }}
+          onClearWare={() => setWareId(null)}
+          economyWares={economyWaresQuery.data ?? []}
+          waresLoading={economyWaresQuery.isLoading}
+          routesLoading={overlay.isLoading}
+          markerCount={overlay.routeMarkers.length}
+          maxJumps={maxJumps}
+          onMaxJumpsChange={setMaxJumps}
+          overlayLoading={overlay.isLoading}
+          conflictToggles={conflictToggles}
+          onToggleConflict={(k, v) => setConflictToggles(prev => ({ ...prev, [k]: v }))}
+        />
+      </div>
+
+      {/* Phase 3: Details Panel */}
+      {selectedSector && (
+        <div className="absolute top-[64px] right-[20px] pointer-events-auto z-10">
+          <SectorDetailPanel
+            sector={selectedSector}
+            cluster={selectedSector.cluster_id ? clusterMap.get(selectedSector.cluster_id) ?? null : null}
+            resources={selectedSector.cluster_id ? (resourcesByCluster.get(selectedSector.cluster_id) ?? new Set()) : new Set()}
+            factionMap={factionMap}
+            onClose={() => setSelectedSectorId(null)}
+          />
+        </div>
+      )}
+
+      {/* Nav Panel */}
+      <div className="absolute bottom-[20px] right-[64px] pointer-events-auto z-10">
+        <NavPanel navFrom={navFrom} navTo={navTo} onClear={clearNav} sectorName={sectorName} />
+      </div>
+
+      {/* Zoom + Fullscreen Controls */}
+      <div className="absolute bottom-[20px] right-[20px] flex flex-col gap-[5px] pointer-events-auto z-10">
+        <button
+          onClick={toggleFullscreen}
+          title={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+          className="flex items-center justify-center w-[34px] h-[34px] bg-[#0a0f1a]/85 backdrop-blur-[12px] border border-white/10 rounded-[8px] text-[#aeb7c8] hover:text-white hover:bg-[#0d121e]/95 transition-colors cursor-pointer"
+        >
+          {isFullscreen
+            ? <Minimize className="w-[15px] h-[15px]" strokeWidth={1.8} />
+            : <Maximize className="w-[15px] h-[15px]" strokeWidth={1.8} />}
+        </button>
+        <div className="h-[1px] bg-white/[0.07] mx-[4px]" />
+        <button onClick={panZoom.zoomIn} title="Zoom in" className="flex items-center justify-center w-[34px] h-[34px] bg-[#0a0f1a]/85 backdrop-blur-[12px] border border-white/10 rounded-[8px] text-[#aeb7c8] hover:text-white hover:bg-[#0d121e]/95 transition-colors cursor-pointer">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        </button>
+        <button onClick={panZoom.zoomOut} title="Zoom out" className="flex items-center justify-center w-[34px] h-[34px] bg-[#0a0f1a]/85 backdrop-blur-[12px] border border-white/10 rounded-[8px] text-[#aeb7c8] hover:text-white hover:bg-[#0d121e]/95 transition-colors cursor-pointer">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        </button>
+        <button onClick={panZoom.resetView} title="Fit all sectors" className="flex items-center justify-center w-[34px] h-[34px] bg-[#0a0f1a]/85 backdrop-blur-[12px] border border-white/10 rounded-[8px] text-[#aeb7c8] hover:text-white hover:bg-[#0d121e]/95 transition-colors cursor-pointer">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="3"></circle>
+            <line x1="12" y1="2" x2="12" y2="6"></line>
+            <line x1="12" y1="18" x2="12" y2="22"></line>
+            <line x1="2" y1="12" x2="6" y2="12"></line>
+            <line x1="18" y1="12" x2="22" y2="12"></line>
+          </svg>
+        </button>
+      </div>
+
+      {/* Temporarily reposition MapLegend until Phase 3 */}
+      <div className="absolute bottom-[20px] left-[20px] pointer-events-auto z-10">
+        <MapLegend fillMode={fillMode} />
+      </div>
+
     </div>
   );
 }

@@ -1,15 +1,19 @@
 import { createRootRoute, createRoute, createRouter, redirect } from "@tanstack/react-router";
 import { AppLayout } from "./components/layout/AppLayout";
-import DiplomacyPage from "./routes/diplomacy";
-import DropsPage from "./routes/drops";
+import { FactionsLayout } from "./routes/factions/layout";
+import FactionsListPage from "./routes/factions/list";
+import DiplomacyPage from "./routes/factions/diplomacy";
+import { InventoryLayout } from "./routes/inventory/layout";
+import InventoryCatalogPage from "./routes/inventory/catalog";
+import DropsPage from "./routes/inventory/drops";
 import EconomyPage from "./routes/economy";
 import EmpirePage from "./routes/empire";
-import EquipmentPage from "./routes/equipment";
-import FactionsPage from "./routes/factions";
+import MissionsPage from "./routes/missions";
+import EquipmentPage from "./routes/ships/equipment";
 import IndexPage from "./routes/index";
-import InventoryPage from "./routes/inventory";
 import MapPage from "./routes/map";
-import ShipsPage from "./routes/ships";
+import ShipsListPage from "./routes/ships/list";
+import { ShipsLayout } from "./routes/ships/layout";
 import BuilderPage from "./routes/ships/builder";
 import { PlayerCard } from "./components/PlayerCard";
 import TradeCatalogPage from "./routes/trade/catalog";
@@ -52,8 +56,31 @@ const waresRedirect = createRoute({
   },
 });
 
-const equipmentRoute = createRoute({ getParentRoute: () => rootRoute, path: "/equipment", component: EquipmentPage });
-const inventoryRoute = createRoute({ getParentRoute: () => rootRoute, path: "/inventory", component: InventoryPage });
+const equipmentRedirect = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/equipment",
+  beforeLoad: () => {
+    throw redirect({ to: "/ships/equipment" });
+  },
+});
+const dropsRedirect = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/drops",
+  beforeLoad: () => {
+    throw redirect({ to: "/inventory/drops" });
+  },
+});
+const diplomacyRedirect = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/diplomacy",
+  beforeLoad: () => {
+    throw redirect({ to: "/factions/diplomacy" });
+  },
+});
+
+const inventoryRoute = createRoute({ getParentRoute: () => rootRoute, path: "/inventory", component: InventoryLayout });
+const inventoryCatalogRoute = createRoute({ getParentRoute: () => inventoryRoute, path: "/", component: InventoryCatalogPage });
+const inventoryDropsRoute = createRoute({ getParentRoute: () => inventoryRoute, path: "drops", component: DropsPage });
 const mapRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/map",
@@ -66,7 +93,9 @@ const mapRoute = createRoute({
     to: typeof search.to === "string" ? search.to : undefined,
   }),
 });
-const shipsRoute = createRoute({ getParentRoute: () => rootRoute, path: "/ships", component: ShipsPage });
+const shipsRoute = createRoute({ getParentRoute: () => rootRoute, path: "/ships", component: ShipsLayout });
+const shipsListRoute = createRoute({ getParentRoute: () => shipsRoute, path: "/", component: ShipsListPage });
+const shipsEquipmentRoute = createRoute({ getParentRoute: () => shipsRoute, path: "equipment", component: EquipmentPage });
 const shipsBuilderRoute = createRoute({
   getParentRoute: () => shipsRoute,
   path: "/builder",
@@ -75,17 +104,19 @@ const shipsBuilderRoute = createRoute({
     ship_id: typeof search.ship_id === "string" ? search.ship_id : undefined,
   }),
 });
-const factionsRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/factions",
-  component: FactionsPage,
+const factionsRoute = createRoute({ getParentRoute: () => rootRoute, path: "/factions", component: FactionsLayout });
+const factionsListRoute = createRoute({
+  getParentRoute: () => factionsRoute,
+  path: "/",
+  component: FactionsListPage,
   validateSearch: (search: Record<string, unknown>): { faction?: string } => ({
     faction: typeof search.faction === "string" ? search.faction : undefined,
   }),
 });
-const dropsRoute = createRoute({ getParentRoute: () => rootRoute, path: "/drops", component: DropsPage });
-const diplomacyRoute = createRoute({ getParentRoute: () => rootRoute, path: "/diplomacy", component: DiplomacyPage });
-const playerRoute = createRoute({ getParentRoute: () => rootRoute, path: "/player", component: () => <PlayerCard /> });
+const factionsDiplomacyRoute = createRoute({ getParentRoute: () => factionsRoute, path: "diplomacy", component: DiplomacyPage });
+
+const missionsRoute = createRoute({ getParentRoute: () => rootRoute, path: "/missions", component: MissionsPage });
+const statsRoute = createRoute({ getParentRoute: () => rootRoute, path: "/stats", component: () => <PlayerCard /> });
 const sectorTestRoute = createRoute({ getParentRoute: () => rootRoute, path: "/sector_test", component: SectorTestPage });
 const styleguideRoute = createRoute({ getParentRoute: () => rootRoute, path: "/styleguide", component: StyleguidePage });
 
@@ -96,14 +127,15 @@ const routeTree = rootRoute.addChildren([
   economyRedirect,
   routesRedirect,
   waresRedirect,
-  equipmentRoute,
-  inventoryRoute,
+  equipmentRedirect,
+  inventoryRoute.addChildren([inventoryCatalogRoute, inventoryDropsRoute]),
+  dropsRedirect,
+  diplomacyRedirect,
   mapRoute,
-  shipsRoute.addChildren([shipsBuilderRoute]),
-  factionsRoute,
-  dropsRoute,
-  diplomacyRoute,
-  playerRoute,
+  shipsRoute.addChildren([shipsListRoute, shipsEquipmentRoute, shipsBuilderRoute]),
+  factionsRoute.addChildren([factionsListRoute, factionsDiplomacyRoute]),
+  missionsRoute,
+  statsRoute,
   sectorTestRoute,
   styleguideRoute,
 ]);

@@ -45,7 +45,10 @@ export default function IndexPage() {
   return (
     <div className="p-8 max-w-4xl">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-1">X4 Companion</h1>
+        <div className="flex items-baseline gap-2 mb-1">
+          <h1 className="text-4xl font-bold text-foreground">X4</h1>
+          <h1 className="text-3xl font-medium tracking-widest text-primary uppercase">Nexus</h1>
+        </div>
         <p className="text-muted-foreground">Static catalog explorer for X4: Foundations</p>
       </div>
 

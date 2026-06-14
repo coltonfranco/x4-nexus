@@ -2,16 +2,17 @@ import { useQuery } from "@tanstack/react-query";
 import { Package, Rocket, Box, Diamond, Gem, Map as MapIcon, RadioTower, HelpCircle } from "lucide-react";
 import { useState } from "react";
 
-import { Badge } from "../components/ui/badge";
+import { Badge } from "../../components/ui/badge";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from "../components/ui/dialog";
-import { Input } from "../components/ui/input";
-import { DropListContent, buildDropGroups, DropEntry } from "../components/DropListContent";
-import { PageLoaderPreset } from "../components/PageLoader";
+} from "../../components/ui/dialog";
+import { Input } from "../../components/ui/input";
+import { DropListContent, buildDropGroups, DropEntry } from "../../components/DropListContent";
+import { PageLoaderPreset } from "../../components/PageLoader";
+import { HUDCard } from "../../components/HUDCard";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -121,7 +122,7 @@ function DropDetailDialog({ listId, onClose }: { listId: string; onClose: () => 
         </DialogHeader>
 
         <div className="px-6 pb-6 pt-2">
-          {isLoading && <p className="text-sm text-muted-foreground py-4"><PageLoaderPreset preset="default" /></p>}
+          {isLoading && <div className="text-sm text-muted-foreground py-4 flex justify-center"><PageLoaderPreset preset="drops" /></div>}
           {!isLoading && <DropListContent groups={groups} />}
         </div>
       </DialogContent>
@@ -187,10 +188,7 @@ export default function DropsPage() {
       </div>
 
       <div className="flex-1 overflow-hidden px-6 pb-6 pt-0 flex flex-col">
-        <div className="flex flex-col h-full border border-border/50 relative" style={{ backgroundColor: 'rgba(16, 20, 34, 0.55)' }}>
-          {/* Tech HUD Corner Accents */}
-          <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-primary/60 pointer-events-none" />
-          <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-primary/60 pointer-events-none" />
+        <HUDCard className="h-full">
 
           <div className="flex flex-wrap items-center gap-4 px-6 py-3 border-b border-border/50 bg-muted/5 relative z-10">
         <div className="flex items-center gap-3">
@@ -228,7 +226,7 @@ export default function DropsPage() {
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition-all duration-200 ${
                   isActive
                     ? activeStyle
-                    : "border-border/60 text-muted-foreground hover:bg-muted/50 hover:border-border"
+                    : "border-border/80 bg-muted/30 text-foreground/80 hover:bg-muted/60 hover:text-foreground"
                 }`}
               >
                 <Icon className="h-3.5 w-3.5" />
@@ -246,7 +244,7 @@ export default function DropsPage() {
 
       <div className="flex-1 overflow-auto px-6 py-4">
         {isLoading ? (
-          <p className="text-muted-foreground text-sm py-8 text-center"><PageLoaderPreset preset="default" /></p>
+          <div className="text-muted-foreground text-sm py-8 flex justify-center"><PageLoaderPreset preset="drops" /></div>
         ) : filtered.length === 0 ? (
           <p className="text-muted-foreground text-sm py-8 text-center">No drop tables match your filters.</p>
         ) : (
@@ -262,11 +260,11 @@ export default function DropsPage() {
                     onClick={() => toggleCategory(cat)}
                     className="flex items-center gap-4 w-full group outline-none"
                   >
-                    <Badge variant="outline" className="px-2.5 py-0.5 rounded-sm shadow-sm group-hover:scale-105 transition-transform duration-300 flex items-center gap-1.5 text-foreground bg-background border-border/80">
+                    <Badge variant="outline" className="px-2.5 py-0.5 rounded-sm shadow-sm group-hover:scale-105 transition-transform duration-150 flex items-center gap-1.5 text-foreground bg-background border-border/80">
                       <Icon className={`h-3.5 w-3.5 ${iconColor}`} />
                       {CATEGORY_LABELS[cat] ?? cat} <span className="opacity-60 ml-1 font-normal">({byCategory[cat].length})</span>
                     </Badge>
-                    <div className="h-px flex-1 bg-border/50 group-hover:bg-border transition-colors duration-300" />
+                    <div className="h-px flex-1 bg-border/50 group-hover:bg-border transition-colors duration-150" />
                   </button>
                   
                   {!collapsedCategories.has(cat) && (
@@ -275,10 +273,10 @@ export default function DropsPage() {
                         <button
                           key={list.list_id}
                           onClick={() => setOpenListId(list.list_id)}
-                          className={`flex items-center gap-3 rounded-lg border border-border/50 bg-card/40 px-3.5 py-3 text-left transition-all duration-300 group hover:shadow-md hover:-translate-y-[1px] ${bgHover}`}
+                          className={`flex items-center gap-3 rounded-lg border border-white/5 bg-white/[0.03] backdrop-blur-sm px-3.5 py-3 text-left transition-all duration-150 group hover:shadow-md hover:-translate-y-[1px] hover:border-white/10 ${bgHover}`}
                         >
-                          <Icon className={`h-4 w-4 shrink-0 transition-transform duration-300 group-hover:scale-110 ${iconColor}`} />
-                          <span className="text-sm font-medium truncate transition-transform duration-300 group-hover:translate-x-0.5">{prettify(list.list_id)}</span>
+                          <Icon className={`h-4 w-4 shrink-0 transition-transform duration-150 group-hover:scale-110 ${iconColor}`} />
+                          <span className="text-sm font-medium truncate transition-transform duration-150 group-hover:translate-x-0.5">{prettify(list.list_id)}</span>
                         </button>
                       ))}
                     </div>
@@ -290,7 +288,7 @@ export default function DropsPage() {
         )}
       </div>
 
-        </div>
+        </HUDCard>
       </div>
 
       {openListId && <DropDetailDialog listId={openListId} onClose={() => setOpenListId(null)} />}

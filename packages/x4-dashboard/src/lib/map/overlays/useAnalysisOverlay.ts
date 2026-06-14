@@ -12,7 +12,14 @@ import type { FillMode } from "./types";
 import { useResourceData, useTopRoutes, useWareOffers, usePlayerRelations, useConflictData, useTensionData, useSectorForces, type ResourceSource, type SectorResources, type BorderTensionEntry, type ConflictEntry, type SectorForceEntry } from "./useAnalysisData";
 import type { Cluster, Gate, Highway, Sector, Zone } from "../types";
 
-export type SectorTint = { fill: string; opacity: number; animate?: string; innerDangerBorder?: boolean };
+export type SectorTint = { 
+  fill: string; 
+  stroke: string; 
+  strokeWidth?: number; 
+  strokeDasharray?: string | null; 
+  animate?: string; 
+  labelColor?: string; 
+};
 export type RouteInfo = { wareName: string; sellSector: string; profitPerHour: number; hops: number | null };
 export type RouteMarker = { id: string; coord: [number, number]; color: string; routes: RouteInfo[] };
 
@@ -42,6 +49,10 @@ export type AnalysisOverlay = {
   resourceSource: ResourceSource | null;
   isLoading: boolean;
 };
+
+function alpha(o: number): string {
+  return Math.round(Math.max(0, Math.min(1, o)) * 255).toString(16).padStart(2, "0");
+}
 
 function compact(n: number): string {
   const a = Math.abs(n);
@@ -176,7 +187,7 @@ export function useAnalysisOverlay({
           if (Math.abs(relUI) >= 0.5) {
             const fill = relUI > 0 ? STATUS_COLORS.success : STATUS_COLORS.danger;
             const opacity = 0.15 + 0.65 * mag;
-            tint.set(sec.sector_id.toLowerCase(), { fill, opacity });
+            tint.set(sec.sector_id.toLowerCase(), { fill: `${fill}${alpha(opacity)}`, stroke: `${fill}${alpha(0.85)}` });
           }
         }
       });
@@ -215,6 +226,10 @@ export function useAnalysisOverlay({
         }
       }
 
+      (conflicts.data ?? []).forEach((c) => {
+        sectorConflicts.set(c.sector_id.toLowerCase(), c);
+      });
+      
       sectors.forEach((s) => {
         const sid = s.sector_id.toLowerCase();
         let isDangerous = false;
@@ -228,80 +243,69 @@ export function useAnalysisOverlay({
         }
 
         let hostileCount = 0;
-        let friendlyCount = 0;
 
         const f = sectorForces.get(sid);
         if (f) {
           for (const fac of f.factions) {
             if (hostileFactions.has(fac.faction_id)) {
               hostileCount += fac.fighter_count;
-            } else {
-              friendlyCount += fac.fighter_count;
             }
           }
-          // If hostile ships outnumber or equal friendly/neutral ships, it's dangerous
-          if (hostileCount > 0 && hostileCount >= friendlyCount) {
-            isDangerous = true;
+          if (hostileCount > 0) {
+            isDangerous = true; // Any hostiles makes it dangerous, but we'll tier it
           }
         }
 
-        if (isDangerous && toggles.showDanger) {
-          let dangerColor = "#eab308"; // Yellow (1-4 ships)
-          if (hostileCount >= 10) {
-            dangerColor = "#ef4444"; // Red (10+ ships)
-          } else if (hostileCount >= 5) {
-            dangerColor = "#f97316"; // Orange (5-9 ships)
-          }
-          tint.set(sid, { fill: "transparent", opacity: 1, innerDangerBorder: dangerColor });
-        }
-      });
-      
-      const data = conflicts.data ?? [];
-      data.forEach((c) => {
-        const sid = c.sector_id.toLowerCase();
-        const t = c.intensity;
-        // Yellow (small skirmish) -> Orange (medium) -> Bright Red (large battle)
-        let r, g, b;
-        if (t < 0.5) {
-          const p = t * 2; // 0 to 1
-          r = 255;
-          g = Math.round(230 - p * 90); // 230 down to 140
-          b = 0;
-        } else {
-          const p = (t - 0.5) * 2; // 0 to 1
-          r = 255;
-          g = Math.round(140 - p * 110); // 140 down to 30
-          b = Math.round(0 + p * 30); // 0 up to 30
-        }
-        const toHex = (n: number) => Math.max(0, Math.min(255, n)).toString(16).padStart(2, "0");
-        const fill = `#${toHex(r)}${toHex(g)}${toHex(b)}`;
-        
+        let baseFill = "rgba(255,255,255,0.035)";
+        let baseStroke = "rgba(255,255,255,0.12)";
+        let sw = 0.6;
+        let dash: string | null = null;
+        let labelColor = "#cfd8e6";
         let animate: string | undefined;
-        if (c.type === "battle") {
-          animate = "conflict-blink-intense 0.3s cubic-bezier(0.4, 0, 0.6, 1) infinite alternate";
-        } else if (c.type === "invasion") {
-          animate = "conflict-pulse-fast 0.6s ease-in-out infinite alternate";
-        } else if (c.type === "skirmish") {
-          animate = "conflict-pulse-slow 2s ease-in-out infinite alternate";
-        }
-        
-        const existingTint = tint.get(sid);
-        const newTint = { 
-          fill, 
-          opacity: Math.min(1, 0.35 + 0.65 * t), 
-          animate,
-          innerDangerBorder: existingTint?.innerDangerBorder
-        };
 
-        if (toggles.showConflicts) {
-          tint.set(sid, newTint);
-          sectorConflicts.set(sid, c);
-        } else if (newTint.innerDangerBorder) {
-          // If conflicts are hidden but danger border is shown, keep the tint for danger border
-          tint.set(sid, { fill: "transparent", opacity: 1, innerDangerBorder: newTint.innerDangerBorder });
+        const cfCol: Record<string, string> = { battle: "#e0483f", invasion: "#e07a2f", skirmish: "#d8b42f" };
+        const c = sectorConflicts.get(sid);
+
+        // Styling hierarchy: Battle > Danger
+        if (c && toggles.showConflicts) {
+          const hex = cfCol[c.type] || "#ffffff";
+          const op = c.type === "battle" ? 0.34 : c.type === "invasion" ? 0.30 : 0.26;
+          baseFill = `${hex}${alpha(op)}`;
+          baseStroke = `${hex}${alpha(0.92)}`;
+          if (c.type === "battle") animate = "conflict-blink-intense 0.3s cubic-bezier(0.4, 0, 0.6, 1) infinite alternate";
+          else if (c.type === "invasion") animate = "conflict-pulse-fast 0.6s ease-in-out infinite alternate";
+          else if (c.type === "skirmish") animate = "conflict-pulse-slow 2s ease-in-out infinite alternate";
+        } else if (isDangerous && toggles.showDanger) {
+          if (hostileCount >= 10) baseStroke = "#e0483f";
+          else if (hostileCount >= 5) baseStroke = "#e07a2f";
+          else baseStroke = "#d8b42f";
+          dash = "5 4";
         }
+
+        if (toggles.showPlayer) {
+          const playerForce = f?.factions.find((fac) => fac.faction_id === "player");
+          if (playerForce && playerForce.fighter_count > 0) {
+            dots.set(sid, ["#22c55e"]);
+          }
+        }
+
+        const hasConflictStyle = c && toggles.showConflicts;
+        const hasDangerStyle = isDangerous && toggles.showDanger;
+        if (!hasConflictStyle && !hasDangerStyle) {
+           // dim
+           baseStroke = "transparent";
+        }
+
+        tint.set(sid, {
+          fill: baseFill,
+          stroke: baseStroke,
+          strokeWidth: sw,
+          strokeDasharray: dash,
+          labelColor,
+          animate
+        });
       });
-      
+
       const tensionData = tensions.data ?? [];
       if (toggles.showTensions) {
         tensionData.forEach((t) => {
@@ -327,7 +331,8 @@ export function useAnalysisOverlay({
         const badges = new Map<string, string>();
         const sectorResources = new Map<string, SectorResources>();
         wareYields.forEach((y, sid) => {
-          tint.set(sid, { fill: heatColor(y.intensity), opacity: 0.2 + 0.65 * y.intensity });
+          const hc = heatColor(y.intensity);
+          tint.set(sid, { fill: `${hc}${alpha(0.2 + 0.65 * y.intensity)}`, stroke: `${hc}${alpha(0.9)}` });
           badges.set(sid, y.label);
           const sr = resourceData.data?.bySector.get(sid);
           if (sr) sectorResources.set(sid, sr);
@@ -341,7 +346,7 @@ export function useAnalysisOverlay({
       const dots = new Map<string, string[]>();
       bySector.forEach((sr, sid) => {
         const color = RESOURCE_COLORS[sr.dominant.ware] ?? "var(--muted-foreground)";
-        tint.set(sid, { fill: color, opacity: 0.35 + 0.5 * sr.dominant.intensity });
+        tint.set(sid, { fill: `${color}${alpha(0.15 + 0.65 * sr.dominant.intensity)}`, stroke: `${color}${alpha(0.85)}` });
         const alt = sr.all.slice(1).map((e) => RESOURCE_COLORS[e.ware] ?? "var(--muted-foreground)");
         if (alt.length) dots.set(sid, alt);
       });
@@ -366,14 +371,15 @@ export function useAnalysisOverlay({
       bySector.forEach((a, sid) => {
         const net = a.supply - a.demand;
         const mag = Math.abs(net) / maxAbs;
-        tint.set(sid, { fill: net >= 0 ? STATUS_COLORS.success : STATUS_COLORS.danger, opacity: 0.15 + 0.75 * mag });
+        const hex = net >= 0 ? STATUS_COLORS.success : STATUS_COLORS.danger;
+        tint.set(sid, { fill: `${hex}${alpha(0.15 + 0.75 * mag)}`, stroke: `${hex}${alpha(0.85)}` });
         badges.set(sid, `${net >= 0 ? "+" : ""}${compact(net)}`);
       });
       return { ...empty, tint, badges, dim: true, loading: offers.isLoading };
     }
 
     return empty; // faction, or trade-routes view (no fill tint)
-  }, [fillMode, wareOn, resource, resourceData.data, resourceData.isLoading, offers.data, offers.isLoading, relations.data, relations.isLoading, conflicts.data, tensions.data, sectors, clusterMap]);
+  }, [fillMode, wareOn, resource, resourceData.data, resourceData.isLoading, offers.data, offers.isLoading, relations.data, relations.isLoading, conflicts.data, tensions.data, forces.data, sectors, clusterMap, conflictToggles]);
 
   // ── Trade routes: one marker per buy sector, plus a profit tint so the whole hex
   // reads as "better/worse run" and is a big click target. Filtered by max jumps. ──
@@ -410,7 +416,7 @@ export function useAnalysisOverlay({
         color: `hsl(${140 - 35 * (1 - t)}, 80%, ${45 + 15 * t}%)`,
         routes: list.slice(0, 4),
       });
-      tint.set(sid, { fill: STATUS_COLORS.success, opacity: 0.2 + 0.65 * t });
+      tint.set(sid, { fill: `${STATUS_COLORS.success}${alpha(0.2 + 0.65 * t)}`, stroke: `${STATUS_COLORS.success}${alpha(0.85)}` });
       badges.set(sid, `${compact(list[0].profitPerHour)}/h`);
     });
     return { markers, tint, badges };

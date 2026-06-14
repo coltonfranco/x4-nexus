@@ -24,7 +24,8 @@ CASE
                     'missiles','drones','countermeasures') THEN 'equipment'
   WHEN transport IN ('equipment','software') THEN 'equipment'
   WHEN transport = 'ship' THEN 'ship'
-  WHEN transport IN ('container','solid','liquid','condensate','gases') THEN 'commodity'
+  WHEN transport IN ('container','solid','liquid','condensate','gases')
+       AND tags NOT LIKE '%module%' THEN 'commodity'
   ELSE 'inventory'
 END
 """.strip()

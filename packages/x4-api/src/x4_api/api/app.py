@@ -24,6 +24,8 @@ from x4_api.api.v1 import (
     health,
     loadouts,
     map,
+    mission_groups,
+    missions,
     modules,
     npc_stations,
     player,
@@ -61,6 +63,8 @@ def app() -> FastAPI:
     fast.include_router(equip_mods.router, prefix="/api/v1", tags=["equipment-mods"])
     fast.include_router(terraform.router, prefix="/api/v1", tags=["terraform"])
     fast.include_router(ware_groups.router, prefix="/api/v1", tags=["ware-groups"])
+    fast.include_router(mission_groups.router, prefix="/api/v1", tags=["mission-groups"])
+    fast.include_router(missions.router, prefix="/api/v1", tags=["missions"])
     fast.include_router(diplomacy.router, prefix="/api/v1", tags=["diplomacy"])
     fast.include_router(drops.router, prefix="/api/v1", tags=["drops"])
     # Dynamic (save-state) endpoints — read the active save's per-save DB.

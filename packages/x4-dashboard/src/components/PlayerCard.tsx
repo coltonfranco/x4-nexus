@@ -4,6 +4,9 @@ import {
   Activity, Box, Briefcase, Compass, Crosshair, Globe,
   Handshake, Mountain, Shield, Swords, Timer, TrendingUp, User,
 } from "lucide-react";
+import { PageLoaderPreset } from "./PageLoader";
+import { Currency } from "./Currency";
+import { HUDCard } from "./HUDCard";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -118,7 +121,7 @@ function fmtValue(stat: PlayerStat): string {
 // ── Player Card ────────────────────────────────────────────────────────────────
 
 export function PlayerCard() {
-  const { data: meta } = useQuery<{
+  const { data: meta, isLoading: metaLoading } = useQuery<{
     player_name?: string; player_credits?: number;
     game_version?: string; in_game_time_sec?: number;
   } | null>({
@@ -139,55 +142,48 @@ export function PlayerCard() {
     ? `${Math.floor(meta.in_game_time_sec / 3600)}h ${Math.floor((meta.in_game_time_sec % 3600) / 60)}m`
     : null;
 
+  if (metaLoading) return <div className="text-sm text-muted-foreground p-6"><PageLoaderPreset preset="player" /></div>;
   if (!meta) return null;
 
   return (
-    <div className="flex flex-col h-full overflow-auto">
-      {/* ── Header: profile image + name + meta ── */}
-      <div className="relative px-6 pt-8 pb-6 border-b border-border">
-        <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent" />
-        <div className="relative flex items-center gap-5">
-          {/* Profile image — use a game icon as avatar */}
-          <div className="shrink-0 w-20 h-20 rounded-full border-2 border-primary/30 bg-muted/20 flex items-center justify-center overflow-hidden shadow-lg">
-            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-              <User className="w-8 h-8 text-primary/70" />
-            </div>
-          </div>
-          <div className="min-w-0">
-            <h1 className="text-2xl font-bold tracking-tight truncate">
-              {meta.player_name || "Player"}
-            </h1>
-            <div className="flex items-center gap-3 mt-1.5 text-sm text-muted-foreground">
-              {meta.player_credits != null && (
-                <span className="tabular-nums font-mono font-medium text-amber-500">
-                  {meta.player_credits.toLocaleString()} Cr
-                </span>
-              )}
-              {playTime && (
-                <>
-                  <span className="text-border">·</span>
-                  <Timer className="w-3.5 h-3.5" />
-                  <span>{playTime}</span>
-                </>
-              )}
-              {meta.game_version && (
-                <>
-                  <span className="text-border">·</span>
-                  <span>v{meta.game_version}</span>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
+    <div className="flex flex-col h-full">
+      <div className="px-6 py-5 border-b border-border shrink-0">
+        <h1 className="text-2xl font-bold tracking-tight">
+          {meta.player_name || "Player Stats"}
+        </h1>
+        <p className="text-xs uppercase tracking-widest text-muted-foreground mt-1 font-semibold flex items-center gap-1.5 flex-wrap">
+          <Activity className="h-3 w-3" /> Player Statistics
+          {meta.game_version && (
+            <>
+              <span className="opacity-50">·</span>
+              <span>v{meta.game_version}</span>
+            </>
+          )}
+          {playTime && (
+            <>
+              <span className="opacity-50">·</span>
+              <Timer className="w-3.5 h-3.5" />
+              <span>{playTime} play time</span>
+            </>
+          )}
+          {meta.player_credits != null && (
+            <>
+              <span className="opacity-50">·</span>
+              <Currency value={meta.player_credits} className="text-amber-500" />
+            </>
+          )}
+        </p>
       </div>
 
-      {/* ── Stats grid ── */}
-      <div className="flex-1 overflow-auto p-6">
+      <div className="flex-1 overflow-hidden px-6 pb-6 pt-4 flex flex-col">
+        <HUDCard className="h-full">
+          <div className="flex-1 overflow-auto p-6">
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 max-w-6xl">
           {groups.map((group) => (
-            <div
+            <HUDCard
               key={group.label}
-              className="rounded-lg border border-border bg-card/50 overflow-hidden"
+              className="rounded-lg border-border overflow-hidden"
+              accents={false}
             >
               {/* Group header */}
               <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border bg-muted/20">
@@ -213,7 +209,7 @@ export function PlayerCard() {
                   </div>
                 ))}
               </div>
-            </div>
+            </HUDCard>
           ))}
         </div>
 
@@ -223,6 +219,8 @@ export function PlayerCard() {
             <p className="text-sm">No stats yet — ingest a save to see your player card</p>
           </div>
         )}
+          </div>
+        </HUDCard>
       </div>
     </div>
   );

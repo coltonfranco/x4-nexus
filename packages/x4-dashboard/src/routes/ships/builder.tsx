@@ -8,7 +8,7 @@ import { Currency } from "../../components/Currency";
 import { EntityIcon } from "../../components/EntityIcon";
 
 import { StatBar } from "../../components/StatBar";
-import { classFull, classShort, getMkGradientClass } from "../../lib/formatters";
+import { classFull, classShort, getMkGradientClass, getClassColor, getTypeColor } from "../../lib/formatters";
 import type { FactionSummary } from "../../lib/map/types";
 import { cn } from "../../lib/utils";
 import { Card, CardContent } from "../../components/ui/card";
@@ -296,24 +296,34 @@ function ShipSelector({
           <div className="px-3 py-2 border-b border-border flex flex-col gap-1.5">
             <div className="flex items-center gap-1.5">
               <span className="text-xs text-muted-foreground uppercase tracking-wide shrink-0">Class:</span>
-              {SHIP_CLASSES.map(c => (
-                <button key={c} onClick={() => toggleClass(c)}
-                  className={cn("px-1.5 py-0.5 rounded text-xs font-medium uppercase transition-colors",
-                    classFilters.has(c) ? "bg-primary text-primary-foreground" : "bg-muted/50 text-muted-foreground hover:text-foreground")}>
-                  {classFull(`ship_${c}`)?.replace("Ship ","") ?? c}
-                </button>
-              ))}
+              {SHIP_CLASSES.map(c => {
+                const isActive = classFilters.has(c);
+                const colorCls = getClassColor(`ship_${c}`);
+                const textColor = colorCls.split(' ').find(x => x.startsWith('text-')) || "text-foreground";
+                return (
+                  <button key={c} onClick={() => toggleClass(c)}
+                    className={cn("px-1.5 py-0.5 rounded border text-xs font-medium uppercase transition-colors",
+                      isActive ? colorCls : cn("bg-muted/50 border-transparent hover:bg-muted", textColor, "opacity-70 hover:opacity-100"))}>
+                    {c}
+                  </button>
+                );
+              })}
             </div>
             {allRoles.length > 0 && (
               <div className="flex items-center gap-1.5 flex-wrap">
                 <span className="text-xs text-muted-foreground uppercase tracking-wide shrink-0">Type:</span>
-                {allRoles.map(r => (
-                  <button key={r} onClick={() => toggleRole(r)}
-                    className={cn("px-1.5 py-0.5 rounded text-xs font-medium capitalize transition-colors",
-                      roleFilters.has(r) ? "bg-primary text-primary-foreground" : "bg-muted/50 text-muted-foreground hover:text-foreground")}>
-                    {r}
-                  </button>
-                ))}
+                {allRoles.map(r => {
+                  const isActive = roleFilters.has(r);
+                  const colorCls = getTypeColor(r);
+                  const textColor = colorCls.split(' ').find(x => x.startsWith('text-')) || "text-foreground";
+                  return (
+                    <button key={r} onClick={() => toggleRole(r)}
+                      className={cn("px-1.5 py-0.5 rounded border text-xs font-medium capitalize transition-colors",
+                        isActive ? colorCls : cn("bg-muted/50 border-transparent hover:bg-muted", textColor, "opacity-70 hover:opacity-100"))}>
+                      {r}
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -983,7 +993,7 @@ export default function BuilderPage() {
   const shipFaction = shipDetail?.faction_id ? factionMap.get(shipDetail.faction_id) : undefined;
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden">
+    <div className="flex flex-col h-full overflow-hidden">
       {/* Top bar */}
       <div className="flex items-center gap-4 px-4 py-2.5 border-b border-border bg-card/30 shrink-0">
         <h1 className="text-lg font-bold">Ship Builder</h1>

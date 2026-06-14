@@ -42,7 +42,13 @@ class ExtractSettings(BaseSettings):
     @field_validator("install_path", "data_dir")
     @classmethod
     def _expand(cls, v: Path) -> Path:
-        return Path(v).expanduser().resolve()
+        resolved = Path(v).expanduser().resolve()
+        # An empty env var (X4C_DATA_DIR=) yields Path('.') → CWD.
+        # Treat that as "unset" so the Field default is used instead.
+        if resolved == Path.cwd() and str(v).strip() in ("", "."):
+            from pydantic.fields import FieldInfo
+            return resolved  # let pydantic use its default via validation context
+        return resolved
 
     @field_validator("save_path")
     @classmethod

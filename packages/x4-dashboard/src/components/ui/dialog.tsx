@@ -32,7 +32,7 @@ export function DialogContent({
         className={cn(
           "fixed left-[50%] top-[50%] z-50 translate-x-[-50%] translate-y-[-50%]",
           "w-full max-w-2xl max-h-[85vh] overflow-y-auto",
-          "rounded-lg border bg-popover text-popover-foreground shadow-lg backdrop-blur-md",
+          "rounded-lg border bg-popover p-6 text-popover-foreground shadow-lg backdrop-blur-md focus:outline-none",
           className
         )}
         {...props}
@@ -48,13 +48,13 @@ export function DialogContent({
 }
 
 export function DialogHeader({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("flex flex-col space-y-1.5 p-6 pb-0", className)} {...props} />;
+  return <div className={cn("flex flex-col space-y-1.5", className)} {...props} />;
 }
 
 export function DialogFooter({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn("flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 p-6 pt-0", className)}
+      className={cn("flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2", className)}
       {...props}
     />
   );

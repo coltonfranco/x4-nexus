@@ -80,7 +80,7 @@ export function SaveSelector() {
                 <Loader2 className="h-3 w-3 animate-spin" /> rebuilding…
               </span>
             ) : active?.player_credits != null ? (
-              <Currency value={active.player_credits} icon={false} />
+              <Currency value={active.player_credits} />
             ) : (
               <span>—</span>
             )}
