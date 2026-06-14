@@ -44,3 +44,6 @@ design_handoff_x4_theme/
 
 # Logs
 *.log
+
+# Temp files
+tmp/

@@ -81,6 +81,12 @@ Required env vars (see `.env.example`): `X4C_INSTALL_PATH` and `X4C_SAVE_PATH`.
 The dev's actual save path is non-default (`C:\Users\colto\sss\Documents\Egosoft\X4\59308344`);
 **never** assume the Egosoft default in code — always resolve via `config.resolve_save_path`.
 
+### Temporary files
+
+All scratch scripts, debug dumps, one-off utilities, and generated artifacts go in
+`./tmp/`. This directory is gitignored. Do NOT create temp files at the repo root or
+inside `packages/`. Before committing, clean up anything outside `tmp/`.
+
 ## 4. Code standards
 
 ### 4.1 Python
