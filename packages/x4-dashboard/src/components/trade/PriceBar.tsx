@@ -21,13 +21,13 @@ export function PriceBar({
     <div className="flex items-center gap-2">
       <div
         style={{ width: 80, height: 6 }}
-        className="relative shrink-0 rounded-full bg-muted"
+        className="relative shrink-0 rounded-none bg-muted"
       >
         <div
-          className="absolute inset-0 rounded-full opacity-70"
+          className="absolute inset-0 rounded-none opacity-70"
           style={{
             background:
-              "linear-gradient(to right, hsl(var(--info)), hsl(var(--warning)), hsl(var(--success)))",
+              "linear-gradient(to right, var(--info), var(--warning), var(--success))",
           }}
         />
         <div

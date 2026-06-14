@@ -11,7 +11,7 @@ export function FilterPill({ active, className, children, ...props }: FilterPill
   return (
     <button
       className={cn(
-        "rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
+        "rounded-none px-2.5 py-1 text-xs font-medium transition-colors",
         active
           ? "bg-primary text-primary-foreground"
           : "bg-muted/50 text-muted-foreground hover:text-foreground",

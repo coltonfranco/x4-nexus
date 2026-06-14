@@ -153,7 +153,7 @@ export default function MapPage() {
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden" }}>
       {/* Header */}
       <div className="px-5 py-3 border-b border-border shrink-0 flex items-center justify-between"
-        style={{ background: "hsl(var(--card))" }}>
+        style={{ background: "var(--card)" }}>
         <div className="flex items-center gap-3">
           <MapIcon className="w-5 h-5 text-muted-foreground" />
           <div>
@@ -211,7 +211,7 @@ export default function MapPage() {
         <MapLegend fillMode={fillMode} />
 
         {/* Right panel: overlay controls (top), detail/map controls, navigation (bottom). */}
-        <aside style={{ width: 236, flexShrink: 0, borderLeft: "1px solid hsl(var(--border))", display: "flex", flexDirection: "column", overflowY: "auto" }}
+        <aside style={{ width: 236, flexShrink: 0, borderLeft: "1px solid var(--border)", display: "flex", flexDirection: "column", overflowY: "auto" }}
           className="bg-card">
           <AnalysisPanel
             fillMode={fillMode}

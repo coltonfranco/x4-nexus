@@ -6,7 +6,7 @@ import { useSettings } from "../../lib/settingsStore";
 import { PageLoaderPreset } from "../../components/PageLoader";
 import { Currency } from "../../components/Currency";
 import { EntityIcon } from "../../components/EntityIcon";
-import { FactionBadge } from "../../components/FactionBadge";
+
 import { StatBar } from "../../components/StatBar";
 import { classFull, classShort, getMkGradientClass } from "../../lib/formatters";
 import type { FactionSummary } from "../../lib/map/types";
@@ -42,6 +42,8 @@ type ShipDetail = ShipSummary & {
   hull: number | null; cargo_volume: number | null; mass: number | null; drag_forward: number | null;
   people_capacity: number | null; drone_storage: number | null; missile_storage: number | null;
   deployable_storage: number | null; countermeasure_storage: number | null;
+  dock_s: number; dock_m: number; dock_l: number; dock_xl: number;
+  storage_s: number; storage_m: number; storage_l: number; storage_xl: number;
   weapons_s: number; weapons_m: number; weapons_l: number; weapons_xl: number;
   turrets_s: number; turrets_m: number; turrets_l: number; turrets_xl: number;
   shields_s: number; shields_m: number; shields_l: number; shields_xl: number;
@@ -293,10 +295,10 @@ function ShipSelector({
           {/* Filter pills */}
           <div className="px-3 py-2 border-b border-border flex flex-col gap-1.5">
             <div className="flex items-center gap-1.5">
-              <span className="text-[10px] text-muted-foreground uppercase tracking-wide shrink-0">Class:</span>
+              <span className="text-xs text-muted-foreground uppercase tracking-wide shrink-0">Class:</span>
               {SHIP_CLASSES.map(c => (
                 <button key={c} onClick={() => toggleClass(c)}
-                  className={cn("px-1.5 py-0.5 rounded text-[10px] font-medium uppercase transition-colors",
+                  className={cn("px-1.5 py-0.5 rounded text-xs font-medium uppercase transition-colors",
                     classFilters.has(c) ? "bg-primary text-primary-foreground" : "bg-muted/50 text-muted-foreground hover:text-foreground")}>
                   {classFull(`ship_${c}`)?.replace("Ship ","") ?? c}
                 </button>
@@ -304,10 +306,10 @@ function ShipSelector({
             </div>
             {allRoles.length > 0 && (
               <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-[10px] text-muted-foreground uppercase tracking-wide shrink-0">Type:</span>
+                <span className="text-xs text-muted-foreground uppercase tracking-wide shrink-0">Type:</span>
                 {allRoles.map(r => (
                   <button key={r} onClick={() => toggleRole(r)}
-                    className={cn("px-1.5 py-0.5 rounded text-[10px] font-medium capitalize transition-colors",
+                    className={cn("px-1.5 py-0.5 rounded text-xs font-medium capitalize transition-colors",
                       roleFilters.has(r) ? "bg-primary text-primary-foreground" : "bg-muted/50 text-muted-foreground hover:text-foreground")}>
                     {r}
                   </button>
@@ -365,10 +367,10 @@ function getCategoryStatus(kind: string, slots: SlotDef[], cart: Record<string, 
 
 function CategoryStatusDot({ kind, slots, cart }: { kind: string; slots: SlotDef[]; cart: Record<string, EquipmentItem | null> }) {
   const status = getCategoryStatus(kind, slots, cart);
-  if (status === "full") return <div className="w-2 h-2 shrink-0 rounded-full bg-emerald-500" title="Fully equipped" />;
-  if (status === "partial") return <div className="w-2 h-2 shrink-0 rounded-full bg-amber-500" title="Partially equipped" />;
-  if (status === "missing") return <div className="w-2 h-2 shrink-0 rounded-full bg-destructive" title="Required component missing" />;
-  return <div className="w-2 h-2 shrink-0 rounded-full bg-muted-foreground/30" title="Optional/Empty" />;
+  if (status === "full") return <div className="w-2 h-2 shrink-0 rounded-full bg-success shadow-[0_0_8px_var(--success)]" title="Fully equipped" />;
+  if (status === "partial") return <div className="w-2 h-2 shrink-0 rounded-full bg-warning shadow-[0_0_8px_var(--warning)]" title="Partially equipped" />;
+  if (status === "missing") return <div className="w-2 h-2 shrink-0 rounded-full bg-destructive shadow-[0_0_8px_var(--danger)]" title="Required component missing" />;
+  return <div className="w-2 h-2 shrink-0 rounded-full bg-muted-foreground/30 shadow-inner" title="Optional/Empty" />;
 }
 
 function CartPanel({
@@ -386,7 +388,7 @@ function CartPanel({
       <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border bg-muted/20">
         <ShoppingCart className="w-4 h-4 text-muted-foreground" />
         <span className="text-sm font-semibold flex-1">Shopping List</span>
-        <button onClick={onClear} className="text-[10px] text-muted-foreground hover:text-destructive transition-colors" title="Clear all">
+        <button onClick={onClear} className="text-xs text-muted-foreground hover:text-destructive transition-colors" title="Clear all">
           <Trash2 className="w-3.5 h-3.5" />
         </button>
       </div>
@@ -394,13 +396,13 @@ function CartPanel({
         {shipDetail && (
           <div>
             <div className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 w-full text-left">
-              <div className="w-2 h-2 shrink-0 rounded-full bg-emerald-500" />
+              <div className="w-2 h-2 shrink-0 rounded-full bg-success" />
               <span>Hull</span>
             </div>
             <div className="flex items-center gap-2 px-2 py-1.5 rounded-md border text-xs border-primary/30 bg-primary/5">
               <EntityIcon src={shipDetail.icon_url} alt={shipDetail.name} size={20} />
               <span className="flex-1 truncate font-medium">{shipDetail.name} (Base)</span>
-              {shipDetail.price_avg && <span className="text-[10px] tabular-nums text-muted-foreground" title="Base price"><Currency value={shipDetail.price_avg} /></span>}
+              {shipDetail.price_avg && <span className="text-xs tabular-nums text-muted-foreground" title="Base price"><Currency value={shipDetail.price_avg} /></span>}
             </div>
           </div>
         )}
@@ -415,7 +417,7 @@ function CartPanel({
               >
                 <CategoryStatusDot kind={kind} slots={kindSlots} cart={cart} />
                 <span>{cat?.label ?? kind}</span>
-                <span className="font-normal text-[10px]">({equipped}/{kindSlots.length})</span>
+                <span className="font-normal text-xs">({equipped}/{kindSlots.length})</span>
               </button>
               <div className="space-y-1">
                 {kindSlots.map(slot => {
@@ -428,15 +430,15 @@ function CartPanel({
                         <>
                           <EntityIcon src={item.icon_url} alt={item.name} size={20} />
                           <span className="flex-1 truncate font-medium">{item.name}</span>
-                          <span className="text-[10px] text-muted-foreground uppercase font-mono">{slot.size}</span>
-                          {item.price_avg && <span className="text-[10px] tabular-nums text-muted-foreground" title="Base price"><Currency value={item.price_avg} /></span>}
+                          <span className="text-xs text-muted-foreground uppercase font-mono">{slot.size}</span>
+                          {item.price_avg && <span className="text-xs tabular-nums text-muted-foreground" title="Base price"><Currency value={item.price_avg} /></span>}
                           <button onClick={() => onRemove(slot.key)} className="text-muted-foreground hover:text-destructive transition-colors shrink-0"><X className="w-3 h-3" /></button>
                         </>
                       ) : (
                         <>
                           <div className="w-5 h-5 rounded bg-muted/20 shrink-0" />
                           <span className="flex-1 text-muted-foreground/50 italic">Empty</span>
-                          <span className="text-[10px] text-muted-foreground/40 uppercase font-mono">{slot.size}</span>
+                          <span className="text-xs text-muted-foreground/40 uppercase font-mono">{slot.size}</span>
                         </>
                       )}
                     </div>
@@ -474,16 +476,26 @@ const LICENCE_NAMES: Record<string, string> = {
 };
 const formatLicence = (l: string | null) => l ? (LICENCE_NAMES[l] || l.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())) : "";
 
+function playerHasLicence(licenceSet: Set<string>, licenceType: string, factionId?: string | null) {
+  if (!licenceType) return false;
+  if (factionId && licenceSet.has(`${factionId}:${licenceType}`)) return true;
+  for (const key of licenceSet) {
+    if (key.endsWith(`:${licenceType}`)) return true;
+  }
+  return false;
+}
+
 // ── Equipment card ─────────────────────────────────────────────────────────────
 
 function EquipmentCard({
-  item, slots, cart, onAdd, onRemove, factionMap, shortToFullFaction, playerLicenceSet
+  item, slots, cart, onAdd, onRemove, factionMap, shortToFullFaction, playerLicenceSet, shipFactionId
 }: {
   item: EquipmentItem; slots: SlotDef[]; cart: Record<string, EquipmentItem | null>;
   onAdd: (k: string, i: EquipmentItem) => void; onRemove: (k: string) => void;
   factionMap: Map<string, any>;
   shortToFullFaction: Map<string, string>;
   playerLicenceSet: Set<string>;
+  shipFactionId: string | null;
 }) {
   const equippedSlots = slots.filter(s => cart[s.key]?.ware_id === item.ware_id);
   const isEquipped = equippedSlots.length > 0;
@@ -491,7 +503,7 @@ function EquipmentCard({
   
   const resolvedFactionId = item.faction_id ? (shortToFullFaction.get(item.faction_id) ?? item.faction_id) : null;
   const isGeneral = item.restriction_licence === 'generaluseequipment' || item.restriction_licence === 'generaluseship';
-  const isObtainable = !item.restriction_licence || isGeneral || (resolvedFactionId && playerLicenceSet.has(`${resolvedFactionId}:${item.restriction_licence}`));
+  const isObtainable = !item.restriction_licence || isGeneral || playerHasLicence(playerLicenceSet, item.restriction_licence, shipFactionId ?? resolvedFactionId);
   
   const canAdd = emptySlots.length > 0 && isObtainable;
   const { bars, texts } = getEquipmentStats(item);
@@ -501,9 +513,9 @@ function EquipmentCard({
       className={cn(
         "relative flex flex-col overflow-hidden transition-all text-left group select-none",
         isEquipped && !canAdd
-          ? "border-emerald-500/50 bg-emerald-500/5 ring-1 ring-emerald-500/20"
+          ? "border-primary bg-primary/5 ring-1 ring-primary/20"
           : isEquipped && canAdd
-            ? "border-emerald-500/50 bg-emerald-500/5 ring-1 ring-emerald-500/20 hover:bg-emerald-500/10 cursor-pointer hover:shadow-md"
+            ? "border-primary bg-primary/5 ring-1 ring-primary/20 hover:bg-primary/10 cursor-pointer hover:shadow-md"
             : canAdd
               ? "hover:border-primary/40 hover:bg-accent/30 cursor-pointer hover:shadow-md"
               : "border-border/50 bg-muted/5 opacity-40 cursor-not-allowed"
@@ -526,12 +538,12 @@ function EquipmentCard({
       }
     >
       {isEquipped && (
-        <div className="absolute top-1.5 right-1.5 flex items-stretch rounded-md bg-emerald-500 text-white shadow-sm z-10 overflow-hidden">
-          <div className="px-1.5 py-0.5 text-[10px] font-bold border-r border-emerald-600/50 flex items-center justify-center">
+        <div className="absolute top-1.5 right-1.5 flex items-stretch rounded-md bg-primary text-primary-foreground shadow-sm z-10 overflow-hidden">
+          <div className="px-1.5 py-0.5 text-xs font-bold border-r border-primary/60 flex items-center justify-center">
             {equippedSlots.length}x
           </div>
           <button 
-            className="px-1.5 py-0.5 hover:bg-emerald-600 transition-colors flex items-center justify-center"
+            className="px-1.5 py-0.5 hover:bg-primary/80 transition-colors flex items-center justify-center"
             onClick={(e) => {
               e.stopPropagation();
               onRemove(equippedSlots[equippedSlots.length - 1].key);
@@ -546,26 +558,32 @@ function EquipmentCard({
         <div className={cn("w-14 h-14 flex items-center justify-center rounded-lg p-1 border group-hover:scale-105 transition-transform", getMkGradientClass(item.mk))}>
           <EntityIcon src={item.icon_url} alt={item.name} size={48} className="drop-shadow-[0_0_8px_rgba(0,0,0,0.4)]" />
         </div>
-        <p className="text-[11px] font-semibold text-center leading-tight line-clamp-2 h-7 flex items-center">{item.name}</p>
+        <p className="text-sm font-medium text-center leading-tight line-clamp-2 h-8 flex items-center">{item.name}</p>
         
-        <div className="flex items-center gap-1 flex-wrap justify-center w-full">
-          {item.size && <ShipClassBadge class_id={item.size} className="text-[9px] px-1.5 py-0 h-4 min-h-0" />}
+        <div className="flex items-center gap-2 flex-wrap justify-center w-full">
+          {item.size && (
+            <div className="flex items-center gap-1">
+              <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50" />
+              <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">{classFull(item.size)}</span>
+            </div>
+          )}
           {item.faction_id && shortToFullFaction && (
             (() => {
               const resolvedFactionId = shortToFullFaction.get(item.faction_id) ?? item.faction_id;
               const itemFaction = factionMap.get(resolvedFactionId);
               if (!itemFaction) return null;
               return (
-                <FactionBadge 
-                  name={itemFaction.name} 
-                  color_hex={itemFaction.color_hex} 
-                  className={cn("text-[9px] px-1.5 py-0 h-4 min-h-0 font-normal border-opacity-50", !isObtainable && "opacity-50")} 
-                />
+                <div className={cn("flex items-center gap-1", !isObtainable && "opacity-50")}>
+                  <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: itemFaction.color_hex ?? 'var(--muted-foreground)' }} />
+                  <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
+                    {itemFaction.name}
+                  </span>
+                </div>
               );
             })()
           )}
           {!isObtainable && item.restriction_licence && (
-            <span className="text-[8px] bg-destructive/10 text-destructive px-1 py-0 rounded border border-destructive/20 font-bold uppercase" title={`Requires ${formatLicence(item.restriction_licence)} Licence`}>
+            <span className="text-[10px] bg-destructive/10 text-destructive px-1.5 py-0.5 rounded border border-destructive/20 font-medium uppercase" title={`Requires ${formatLicence(item.restriction_licence)} Licence`}>
               Missing Required Licence
             </span>
           )}
@@ -574,20 +592,22 @@ function EquipmentCard({
       
       <CardContent className="p-3 pt-0 flex flex-col gap-2 mt-auto">
         {bars.length > 0 && (
-          <div className="w-full flex flex-col gap-2 items-center">
+          <div className="w-full flex flex-col gap-2.5 items-center px-1">
             {bars.map((b, i) => (
               <StatBar key={i} value={b.isLog ? Math.log10(b.value + 1) : b.value}
                 max={b.isLog ? Math.log10(b.max + 1) : b.max}
-                label={`${b.format(b.value)} ${b.label}`} width={110} color={b.color} />
+                labelLeft={b.label}
+                labelRight={b.format(b.value)}
+                width="100%" height={4} color={b.color} />
             ))}
           </div>
         )}
         {texts.length > 0 && (
           <div className="flex flex-wrap gap-1 justify-center">
-            {texts.map((t, i) => <span key={i} className="text-[10px] text-muted-foreground bg-muted/40 px-1.5 py-0.5 rounded">{t}</span>)}
+            {texts.map((t, i) => <span key={i} className="text-xs text-muted-foreground bg-muted/40 px-1.5 py-0.5 rounded">{t}</span>)}
           </div>
         )}
-        <div className="text-xs tabular-nums font-semibold text-center mt-1 border-t border-border/50 pt-2 text-muted-foreground" title="Base price. Actual game prices fluctuate based on station resource supply.">
+        <div className="text-xs tabular-nums font-medium text-center mt-2 border-t border-border/50 pt-2 text-muted-foreground" title="Base price. Actual game prices fluctuate based on station resource supply.">
           {item.price_avg != null ? <Currency value={item.price_avg} /> : "—"}
         </div>
       </CardContent>
@@ -604,23 +624,23 @@ function StatRow({ label, value, max, unit, isLog }: { label: string; value: num
   
   // Use app standard StatBar colors
   const barColor = 
-    pct >= 66 ? "hsl(142 71% 45%)" :
-    pct >= 33 ? "hsl(38 92% 50%)" :
-    "hsl(0 72% 51%)";
+    pct >= 66 ? "var(--success)" :
+    pct >= 33 ? "var(--warning)" :
+    "var(--danger)";
 
   return (
-    <div className="flex items-center gap-3 py-1.5 group">
-      <span className="w-28 shrink-0 text-[11px] uppercase font-bold tracking-wider text-muted-foreground group-hover:text-foreground transition-colors leading-tight">{label}</span>
+    <div className="flex items-center gap-3 py-1 group">
+      <span className="w-24 shrink-0 text-xs uppercase font-bold tracking-wider text-muted-foreground group-hover:text-foreground transition-colors leading-tight">{label}</span>
       
-      <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+      <div className="flex-1 h-[4px] bg-muted/40 rounded-full overflow-hidden flex">
         <div className="h-full rounded-full transition-all duration-300 opacity-90 group-hover:opacity-100" style={{ width: `${pct}%`, backgroundColor: barColor }} />
       </div>
       
       <div className="w-16 shrink-0 flex justify-end items-baseline gap-1">
-        <span className="font-mono text-[11px] text-foreground font-medium">
+        <span className="font-mono text-xs text-foreground font-semibold">
           {value >= 1000 ? (value/1000).toFixed(1) + "k" : value.toFixed(value < 10 && value % 1 !== 0 ? 1 : 0)}
         </span>
-        {unit && <span className="text-[10px] text-muted-foreground">{unit}</span>}
+        {unit && <span className="text-xs text-muted-foreground">{unit}</span>}
       </div>
     </div>
   );
@@ -683,64 +703,78 @@ function StatsFooter({ ship, cart, slots }: {
   const maxRange = RANGE_MAX[cid] || 20;
 
   return (
-    <div className="bg-muted/10 border-t border-border/50 text-sm overflow-y-auto w-full max-h-[35vh]">
-      <div className="px-4 pt-3 pb-1 flex items-center justify-between border-b border-border/30">
-        <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold flex items-center gap-1.5">
+    <div className="bg-muted/10 border-t border-border/50 text-sm w-full shrink-0">
+      <div className="px-4 py-2 flex items-center justify-between border-b border-border/30 bg-muted/20">
+        <span className="text-xs text-muted-foreground uppercase tracking-widest font-semibold flex items-center gap-1.5">
           <Info className="w-3.5 h-3.5" />
           Progress bars indicate % of absolute {cid.toUpperCase()}-class limit
         </span>
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 pt-3">
-        <div className="flex flex-col gap-2">
-          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Flight</div>
-          <div className="flex flex-col gap-1.5">
-            <StatRow label="Top Speed" value={speed} max={maxSpeed} unit="m/s" />
-            <StatRow label="Travel Speed" value={travelSpeed} max={maxTravel} unit="m/s" />
-            <StatRow label="Boost Speed" value={boostSpeed} max={maxBoost} unit="m/s" />
-            <StatRow label="Acceleration" value={acceleration} max={maxAccel} unit="m/s²" />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-4 p-4 pb-4">
+        <div className="flex flex-col gap-1.5">
+          <div className="text-xs font-bold text-foreground uppercase tracking-wider mb-1 flex items-center gap-2">
+            <MoveVertical className="w-4 h-4 text-primary" /> Flight
+          </div>
+          <StatRow label="Top Speed" value={speed} max={maxSpeed} unit="m/s" />
+          <StatRow label="Travel" value={travelSpeed} max={maxTravel} unit="m/s" />
+          <StatRow label="Boost" value={boostSpeed} max={maxBoost} unit="m/s" />
+          <StatRow label="Accel" value={acceleration} max={maxAccel} unit="m/s²" />
+          <div className="flex items-center justify-between text-[11px] text-muted-foreground mt-1 pt-1 border-t border-border/30">
+            <span>Pitch: <span className="font-semibold text-foreground">{Math.round(pitch)}°/s</span></span>
+            <span>Yaw: <span className="font-semibold text-foreground">{Math.round(yaw)}°/s</span></span>
+            <span>Strafe: <span className="font-semibold text-foreground">{Math.round(strafeThrust)}</span></span>
           </div>
         </div>
 
-        <div className="flex flex-col gap-2">
-          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Defense</div>
-          <div className="flex flex-col gap-1.5">
-            <StatRow label="Hull Capacity" value={ship.hull ?? 0} max={maxHull} unit="HP" />
-            <StatRow label="Shield Capacity" value={shieldCap} max={maxShield} unit="MJ" />
-            <StatRow label="Shield Regen" value={shieldRecharge} max={maxRegen} unit="MW/s" />
+        <div className="flex flex-col gap-1.5">
+          <div className="text-xs font-bold text-foreground uppercase tracking-wider mb-1 flex items-center gap-2">
+            <Shield className="w-4 h-4 text-primary" /> Defense
+          </div>
+          <StatRow label="Hull" value={ship.hull ?? 0} max={maxHull} unit="HP" />
+          <StatRow label="Shield" value={shieldCap} max={maxShield} unit="MJ" />
+          <StatRow label="Regen" value={shieldRecharge} max={maxRegen} unit="MW/s" />
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <div className="text-xs font-bold text-foreground uppercase tracking-wider mb-1 flex items-center gap-2">
+            <ShoppingCart className="w-4 h-4 text-primary" /> Logistics
+          </div>
+          <StatRow label="Cargo" value={ship.cargo_volume ?? 0} max={maxCargo} unit="m³" />
+          <StatRow label="Crew" value={ship.people_capacity ?? 0} max={maxCrew} unit="ppl" />
+          <StatRow label="Deployables" value={ship.deployable_storage ?? 0} max={100} unit="u" />
+          <div className="flex items-center justify-between text-[11px] text-muted-foreground mt-1 pt-1 border-t border-border/30">
+            <span>Drones: <span className="font-semibold text-foreground">{ship.drone_storage ?? 0}</span></span>
+            <span>Flares: <span className="font-semibold text-foreground">{ship.countermeasure_storage ?? 0}</span></span>
+            <span>Radar: <span className="font-semibold text-foreground">{((ship.radar_range ?? 0) / 1000).toFixed(0)}km</span></span>
           </div>
         </div>
 
-        <div className="flex flex-col gap-2">
-          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Logistics</div>
-          <div className="flex flex-col gap-1.5">
-            <StatRow label="Cargo Bay" value={ship.cargo_volume ?? 0} max={maxCargo} unit="m³" />
-            <StatRow label="Crew Capacity" value={ship.people_capacity ?? 0} max={maxCrew} unit="Crew" />
-            <StatRow label="Deployables" value={ship.deployable_storage ?? 0} max={100} unit="Units" />
+        <div className="flex flex-col gap-1.5">
+          <div className="text-xs font-bold text-foreground uppercase tracking-wider mb-1 flex items-center gap-2">
+            <Crosshair className="w-4 h-4 text-primary" /> Offense
           </div>
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Offense</div>
-          <div className="flex flex-col gap-1.5">
-            <StatRow label="Weapon DPS" value={totalDps} max={maxDps} unit="/s" />
-            <StatRow label="Weapon Range" value={weaponRange} max={maxRange} unit="km" />
-            <StatRow label="Missile Cap" value={ship.missile_storage ?? 0} max={maxMissile} unit="Ms" />
+          <StatRow label="Weapon DPS" value={totalDps} max={maxDps} unit="/s" />
+          <StatRow label="Range" value={weaponRange} max={maxRange} unit="km" />
+          <StatRow label="Missiles" value={ship.missile_storage ?? 0} max={maxMissile} unit="Ms" />
+          <div className="flex items-center justify-between text-[11px] text-muted-foreground mt-1 pt-1 border-t border-border/30">
+            <span>Weapon Turn: <span className="font-semibold text-foreground">{Math.round(weaponTurn)}°/s</span></span>
           </div>
         </div>
       </div>
-
-      <div className="border-t border-border/30 bg-muted/5 p-4 flex flex-wrap justify-center gap-x-8 gap-y-3">
-        <div className="flex items-center gap-2"><span className="text-[11px] text-muted-foreground uppercase">Pitch Rate:</span><span className="text-xs font-semibold">{Math.round(pitch)} °/s</span></div>
-        <div className="flex items-center gap-2"><span className="text-[11px] text-muted-foreground uppercase">Yaw Rate:</span><span className="text-xs font-semibold">{Math.round(yaw)} °/s</span></div>
-        <div className="flex items-center gap-2"><span className="text-[11px] text-muted-foreground uppercase">Strafe Thrust:</span><span className="text-xs font-semibold">{Math.round(strafeThrust)}</span></div>
-        <div className="flex items-center gap-2"><span className="text-[11px] text-muted-foreground uppercase">Weapon Turn:</span><span className="text-xs font-semibold">{Math.round(weaponTurn)} °/s</span></div>
-        
-        <div className="w-[1px] h-4 bg-border/50 mx-2 hidden sm:block" />
-        
-        <div className="flex items-center gap-2"><span className="text-[11px] text-muted-foreground uppercase">Drone Bay:</span><span className="text-xs font-semibold">{ship.drone_storage ?? 0}</span></div>
-        <div className="flex items-center gap-2"><span className="text-[11px] text-muted-foreground uppercase">Flares:</span><span className="text-xs font-semibold">{ship.countermeasure_storage ?? 0}</span></div>
-        <div className="flex items-center gap-2"><span className="text-[11px] text-muted-foreground uppercase">Radar:</span><span className="text-xs font-semibold">{((ship.radar_range ?? 0) / 1000).toFixed(0)} km</span></div>
-      </div>
+      {(ship.dock_s + ship.dock_m + ship.dock_l + ship.dock_xl +
+        ship.storage_s + ship.storage_m + ship.storage_l + ship.storage_xl) > 0 && (
+        <div className="flex items-center justify-center gap-5 text-[11px] text-muted-foreground px-4 py-2 border-t border-border/30 bg-muted/10">
+          <span className="uppercase tracking-wider font-semibold text-xs">Ship Storage</span>
+          {(["s","m","l","xl"] as const).map((size) => {
+            const dock = ship[`dock_${size}` as keyof typeof ship] as number ?? 0;
+            const storage = ship[`storage_${size}` as keyof typeof ship] as number ?? 0;
+            const val = storage > 0 ? storage : dock;
+            return val > 0 ? (
+              <span key={size}>{size.toUpperCase()}: <span className="font-semibold text-foreground">{val}</span></span>
+            ) : null;
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -902,7 +936,7 @@ export default function BuilderPage() {
       items = items.filter(e => {
         const resolvedFactionId = e.faction_id ? (shortToFullFaction.get(e.faction_id) ?? e.faction_id) : null;
         const isGen = e.restriction_licence === 'generaluseequipment' || e.restriction_licence === 'generaluseship';
-        return !e.restriction_licence || isGen || (resolvedFactionId && playerLicenceSet.has(`${resolvedFactionId}:${e.restriction_licence}`));
+        return !e.restriction_licence || isGen || playerHasLicence(playerLicenceSet, e.restriction_licence, shipDetail?.faction_id ?? resolvedFactionId);
       });
     }
     
@@ -922,7 +956,7 @@ export default function BuilderPage() {
     });
 
     return items;
-  }, [equipment, category, shipDetail, slots, factionFilter, mkFilter, typeFilter, sortFilter, shortToFullFaction, settings.fogOfWar, knownFactions]);
+  }, [equipment, category, shipDetail, slots, factionFilter, mkFilter, typeFilter, sortFilter, shortToFullFaction, settings.fogOfWar, knownFactions, playerLicenceSet]);
 
   const totalCost = useMemo(() => {
     let t = shipDetail?.price_avg ?? 0;
@@ -970,20 +1004,20 @@ export default function BuilderPage() {
               {/* Tabs and Filters */}
               <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card shrink-0 gap-4 flex-wrap">
                 <Tabs value={activeCategory} onValueChange={(v) => { setActiveCategory(v); setFactionFilter("all"); setMkFilter("all"); setTypeFilter("all"); setSortFilter(""); }}>
-                  <TabsList className="w-full flex">
+                  <TabsList className="w-full flex bg-transparent p-0 border-b border-border/50 rounded-none h-10">
                     {CATEGORIES.map(cat => {
                       const catSlots = slots.filter(s => s.kind === cat.kind);
                       if (catSlots.length === 0) return null;
                       const Icon = cat.icon;
                       const status = getCategoryStatus(cat.kind, catSlots, cart);
                       const colorClass = 
-                        status === "full" ? "text-emerald-500" :
-                        status === "partial" ? "text-amber-500" :
+                        status === "full" ? "text-success" :
+                        status === "partial" ? "text-warning" :
                         status === "missing" ? "text-destructive" : "opacity-50";
 
                       return (
-                        <TabsTrigger key={cat.id} value={cat.id} className="flex-1 flex gap-2 items-center text-xs">
-                          <Icon className={cn("w-4 h-4", colorClass)} />
+                        <TabsTrigger key={cat.id} value={cat.id} className="flex-1 flex gap-2 items-center text-xs rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:bg-muted/50 transition-colors">
+                          <Icon className={cn("w-4 h-4 transition-colors", status !== "full" && "group-data-[state=active]:text-primary", colorClass)} />
                           <span className="hidden xl:inline">{cat.label}</span>
                         </TabsTrigger>
                       );
@@ -1012,7 +1046,7 @@ export default function BuilderPage() {
                   </button>
 
                   <Select value={sortFilter || (["weapon", "turret"].includes(category.kind) ? "type_asc" : "price_asc")} onValueChange={setSortFilter}>
-                    <SelectTrigger className="w-[180px] h-9 text-xs">
+                    <SelectTrigger className="w-[180px] h-9 text-xs border border-border hover:border-primary/50 transition-colors focus:border-primary">
                       <div className="flex items-center gap-1.5 text-muted-foreground truncate">
                         <span>Order by:</span>
                         <span className="text-foreground font-medium truncate"><SelectValue /></span>
@@ -1030,7 +1064,7 @@ export default function BuilderPage() {
 
                   {["weapon", "turret"].includes(category.kind) && (
                     <Select value={typeFilter} onValueChange={setTypeFilter}>
-                      <SelectTrigger className="w-[140px] h-9 text-xs">
+                      <SelectTrigger className="w-[140px] h-9 text-xs border border-border hover:border-primary/50 transition-colors focus:border-primary">
                         <SelectValue placeholder="All Types" />
                       </SelectTrigger>
                       <SelectContent>
@@ -1043,14 +1077,14 @@ export default function BuilderPage() {
                   )}
 
                   <Select value={mkFilter} onValueChange={setMkFilter}>
-                    <SelectTrigger className="w-[120px] h-9 text-xs">
+                    <SelectTrigger className="w-[120px] h-9 text-xs border border-border hover:border-primary/50 transition-colors focus:border-primary">
                       <SelectValue placeholder="All Mks" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Mks</SelectItem>
                       {availableMks.map(mk => (
                         <SelectItem key={mk} value={mk.toString()}>
-                          <div className="flex items-center py-0.5"><EquipmentMkBadge mk={mk} className="px-1.5 py-0 rounded text-[10px]" /></div>
+                          <div className="flex items-center py-0.5"><EquipmentMkBadge mk={mk} className="px-1.5 py-0 rounded text-xs" /></div>
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -1069,18 +1103,18 @@ export default function BuilderPage() {
               <div className="px-4 py-2 bg-muted/20 border-b border-border text-[11px] flex items-center gap-2 shrink-0">
                 {activeCategory === "engine" && (
                   slots.some(s => s.kind === "engine" && cart[s.key] != null) 
-                    ? <><Check className="w-3.5 h-3.5 text-emerald-500" /> <span className="text-muted-foreground">Engine requirements <span className="font-semibold text-emerald-500">met</span> for flight.</span></>
-                    : <><Gauge className="w-3.5 h-3.5 text-amber-500" /> <span className="text-muted-foreground">At least one engine is <span className="font-semibold text-foreground">required</span> for flight.</span></>
+                    ? <><Check className="w-3.5 h-3.5 text-success" /> <span className="text-muted-foreground">Engine requirements <span className="font-semibold text-success">met</span> for flight.</span></>
+                    : <><Gauge className="w-3.5 h-3.5 text-warning" /> <span className="text-muted-foreground">At least one engine is <span className="font-semibold text-foreground">required</span> for flight.</span></>
                 )}
                 {activeCategory === "thruster" && (
                   slots.some(s => s.kind === "thruster" && cart[s.key] != null)
-                    ? <><Check className="w-3.5 h-3.5 text-emerald-500" /> <span className="text-muted-foreground">Thruster requirements <span className="font-semibold text-emerald-500">met</span> for maneuverability.</span></>
-                    : <><MoveVertical className="w-3.5 h-3.5 text-amber-500" /> <span className="text-muted-foreground">A thruster is <span className="font-semibold text-foreground">required</span> for maneuverability.</span></>
+                    ? <><Check className="w-3.5 h-3.5 text-success" /> <span className="text-muted-foreground">Thruster requirements <span className="font-semibold text-success">met</span> for maneuverability.</span></>
+                    : <><MoveVertical className="w-3.5 h-3.5 text-warning" /> <span className="text-muted-foreground">A thruster is <span className="font-semibold text-foreground">required</span> for maneuverability.</span></>
                 )}
                 {activeCategory === "software" && (
                   slots.filter(s => s.kind === "software").every(s => cart[s.key] != null)
-                    ? <><Check className="w-3.5 h-3.5 text-emerald-500" /> <span className="text-muted-foreground">All required software systems are <span className="font-semibold text-emerald-500">installed</span>.</span></>
-                    : <><Cpu className="w-3.5 h-3.5 text-amber-500" /> <span className="text-muted-foreground">A Docking Computer, Flight Assist, Long Range Scanner, and Object Scanner are <span className="font-semibold text-foreground">required</span>.</span></>
+                    ? <><Check className="w-3.5 h-3.5 text-success" /> <span className="text-muted-foreground">All required software systems are <span className="font-semibold text-success">installed</span>.</span></>
+                    : <><Cpu className="w-3.5 h-3.5 text-warning" /> <span className="text-muted-foreground">A Docking Computer, Flight Assist, Long Range Scanner, and Object Scanner are <span className="font-semibold text-foreground">required</span>.</span></>
                 )}
                 {["shield", "weapon", "turret"].includes(activeCategory) && <><Shield className="w-3.5 h-3.5 text-muted-foreground" /> <span className="text-muted-foreground">Select components to equip.</span></>}
               </div>
@@ -1104,23 +1138,23 @@ export default function BuilderPage() {
                             <h3 className="text-sm font-semibold">{subcatNames[subcat] ?? subcat}</h3>
                             {(subcat === "dock" || subcat === "scannerlongrange" || subcat === "scannerobject" || subcat === "flightassist") && (
                               cart[`software-${subcat}-0`] ? (
-                                <span className="text-[10px] bg-emerald-500/10 text-emerald-500 px-1.5 py-0.5 rounded font-medium border border-emerald-500/20">Equipped</span>
+                                <span className="text-xs bg-success/10 text-success px-1.5 py-0.5 rounded font-medium border border-success/20">Equipped</span>
                               ) : (
-                                <span className="text-[10px] bg-destructive/10 text-destructive px-1.5 py-0.5 rounded font-medium border border-destructive/20">Required</span>
+                                <span className="text-xs bg-destructive/10 text-destructive px-1.5 py-0.5 rounded font-medium border border-destructive/20">Required</span>
                               )
                             )}
                           </div>
-                          <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}>
-                            {subcatItems.map(item => <EquipmentCard key={item.ware_id} item={item} slots={slots} cart={cart} onAdd={handleAdd} onRemove={handleRemove} factionMap={factionMap} shortToFullFaction={shortToFullFaction} playerLicenceSet={playerLicenceSet} />)}
+                          <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(max(200px, calc(12.5% - 12px)), 1fr))" }}>
+                            {subcatItems.map(item => <EquipmentCard key={item.ware_id} item={item} slots={slots} cart={cart} onAdd={handleAdd} onRemove={handleRemove} factionMap={factionMap} shortToFullFaction={shortToFullFaction} playerLicenceSet={playerLicenceSet} shipFactionId={shipDetail?.faction_id ?? null} />)}
                           </div>
                         </div>
                       );
                     })}
                   </div>
                 ) : (
-                  <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}>
+                  <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(max(200px, calc(12.5% - 12px)), 1fr))" }}>
                     {compatibleEquipment.map(item => (
-                      <EquipmentCard key={item.ware_id} item={item} slots={slots} cart={cart} onAdd={handleAdd} onRemove={handleRemove} factionMap={factionMap} shortToFullFaction={shortToFullFaction} playerLicenceSet={playerLicenceSet} />
+                      <EquipmentCard key={item.ware_id} item={item} slots={slots} cart={cart} onAdd={handleAdd} onRemove={handleRemove} factionMap={factionMap} shortToFullFaction={shortToFullFaction} playerLicenceSet={playerLicenceSet} shipFactionId={shipDetail?.faction_id ?? null} />
                     ))}
                   </div>
                 )}
@@ -1134,25 +1168,41 @@ export default function BuilderPage() {
             <div className="w-[280px] shrink-0 border-l border-border flex flex-col bg-card relative z-20 shadow-[-4px_0_15px_rgba(0,0,0,0.05)]">
               {/* Ship image — large */}
               <div className="p-3 border-b border-border bg-muted/5 shrink-0">
-                <ShipImage
-                  imageUrl={shipDetail.image_url}
-                  iconUrl={shipDetail.icon_url}
-                  name={shipDetail.name}
-                  role={shipDetail.role}
-                  classId={shipDetail.class_id}
-                  className="aspect-[4/3] p-2"
-                />
+                <div className="relative group">
+                  <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-primary/40 pointer-events-none" />
+                  <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-primary/40 pointer-events-none" />
+                  <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-primary/40 pointer-events-none" />
+                  <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-primary/40 pointer-events-none" />
+                  <ShipImage
+                    imageUrl={shipDetail.image_url}
+                    iconUrl={shipDetail.icon_url}
+                    name={shipDetail.name}
+                    role={shipDetail.role}
+                    classId={shipDetail.class_id}
+                    className="aspect-[4/3] p-2"
+                  />
+                  <div className="text-center mt-1 mb-2">
+                    <span className="text-[9px] font-mono tracking-widest text-muted-foreground uppercase opacity-70">
+                      CLICK TO ORBIT • SCROLL TO ZOOM
+                    </span>
+                  </div>
+                </div>
                 <div className="mt-2 text-center">
                   <p className="text-sm font-bold leading-tight">{shipDetail.name}</p>
-                  <div className="flex items-center justify-center gap-1 mt-1 flex-wrap">
-                    <ShipClassBadge class_id={shipDetail.class_id} className="text-[9px] px-1.5 py-0" />
-                    <ShipTypeBadge role={shipDetail.role} subtype={shipDetail.ship_type} className="text-[9px] px-1.5 py-0" />
-                  </div>
-                  {shipFaction && (
-                    <div className="mt-1 flex justify-center">
-                      <FactionBadge name={shipFaction.name} color_hex={shipFaction.color_hex} faction_id={shipFaction.faction_id} />
+                  <div className="flex items-center justify-center gap-3 mt-2 flex-wrap">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-2 h-2 rounded-full bg-muted-foreground/50" />
+                      <span className="text-xs font-bold text-foreground uppercase tracking-widest">{classFull(shipDetail.class_id)}</span>
                     </div>
-                  )}
+                    {shipFaction && (
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: shipFaction.color_hex ?? 'var(--muted-foreground)' }} />
+                        <span className="text-xs font-bold text-foreground uppercase tracking-widest">
+                          {shipFaction.name}
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
               

@@ -179,20 +179,26 @@ export default function DropsPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="px-6 py-5 border-b border-border">
-        <h1 className="text-2xl font-bold">Drop Tables</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">
+      <div className="px-6 py-5">
+        <h1 className="text-2xl font-bold tracking-tight">Drop Tables</h1>
+        <p className="text-xs uppercase tracking-widest text-muted-foreground mt-1 font-semibold">
           {lists.length} drop tables · click any entry to see its loot
         </p>
       </div>
 
-      <div className="flex flex-wrap items-center gap-4 px-6 py-4 border-b border-border bg-muted/10">
+      <div className="flex-1 overflow-hidden px-6 pb-6 pt-0 flex flex-col">
+        <div className="flex flex-col h-full border border-border/50 relative" style={{ backgroundColor: 'rgba(16, 20, 34, 0.55)' }}>
+          {/* Tech HUD Corner Accents */}
+          <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-primary/60 pointer-events-none" />
+          <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-primary/60 pointer-events-none" />
+
+          <div className="flex flex-wrap items-center gap-4 px-6 py-3 border-b border-border/50 bg-muted/5 relative z-10">
         <div className="flex items-center gap-3">
           <Input
             placeholder="Search tables…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-64 bg-background"
+            className="w-64 bg-muted/50 border-input focus-visible:ring-1 focus-visible:ring-primary/50"
           />
           {search && (
             <button className="text-xs text-muted-foreground hover:text-foreground" onClick={() => setSearch("")}>
@@ -282,6 +288,9 @@ export default function DropsPage() {
             })}
           </div>
         )}
+      </div>
+
+        </div>
       </div>
 
       {openListId && <DropDetailDialog listId={openListId} onClose={() => setOpenListId(null)} />}

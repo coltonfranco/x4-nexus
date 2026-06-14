@@ -1,5 +1,6 @@
 import { ArrowDown, ArrowUp } from "lucide-react";
 import { cn } from "../../lib/utils";
+import { TableHead } from "./table";
 
 type SortHeaderProps = {
   label: string;
@@ -13,7 +14,7 @@ type SortHeaderProps = {
  *  Used by equipment, inventory, and trade/catalog tables. */
 export function SortHeader({ label, active, dir, onClick, className }: SortHeaderProps) {
   return (
-    <th className={cn("px-3 py-2 text-left font-medium", className)}>
+    <TableHead className={className}>
       <button
         onClick={onClick}
         className={cn(
@@ -24,6 +25,6 @@ export function SortHeader({ label, active, dir, onClick, className }: SortHeade
         {label}
         {active && (dir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)}
       </button>
-    </th>
+    </TableHead>
   );
 }

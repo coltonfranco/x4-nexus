@@ -75,7 +75,7 @@ export function MultiSelect({
       </PopoverPrimitive.Trigger>
       <PopoverPrimitive.Portal>
         <PopoverPrimitive.Content
-          className="z-50 w-full min-w-[200px] rounded-md border bg-popover p-1 text-popover-foreground shadow-md outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2"
+          className="z-50 w-full min-w-[200px] rounded-md border bg-[#101422]/95 backdrop-blur-md p-1 text-popover-foreground shadow-md outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2"
           align="start"
           sideOffset={4}
         >
@@ -85,12 +85,12 @@ export function MultiSelect({
               return (
                 <div
                   key={option.value}
-                  className="relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-7 pr-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                  className="relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-7 pr-2 text-sm outline-none hover:bg-muted/50 focus:bg-muted/50"
                   onClick={() => toggleOption(option.value)}
                 >
                   <div className={cn(
-                    "absolute left-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary transition-colors",
-                    isSelected ? "bg-primary text-primary-foreground" : "opacity-50"
+                    "absolute left-2 flex h-4 w-4 items-center justify-center rounded-sm border transition-colors",
+                    isSelected ? "bg-primary border-primary text-primary-foreground" : "border-muted-foreground/30 opacity-50"
                   )}>
                     {isSelected && <Check className="h-3 w-3" />}
                   </div>

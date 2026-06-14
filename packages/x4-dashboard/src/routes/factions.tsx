@@ -78,21 +78,21 @@ const METRICS: {
   {
     key: "military_score",
     label: "Military",
-    color: "hsl(var(--destructive))",
+    color: "var(--destructive)",
     detail: (f) =>
       `${f.fight_ship_count} combat ships · ${f.military_station_count} military stations`,
   },
   {
     key: "economic_score",
     label: "Economic",
-    color: "hsl(var(--success))",
+    color: "var(--success)",
     detail: (f) =>
       `${f.economic_station_count} stations · ${f.trade_ship_count} traders · ${f.mine_ship_count} miners`,
   },
   {
     key: "diplomatic_score",
     label: "Diplomatic",
-    color: "hsl(var(--info))",
+    color: "var(--info)",
     detail: (f) => `avg relation ${f.avg_relation.toFixed(1)} / 30`,
   },
   {
@@ -264,7 +264,26 @@ function FactionDetailPanel({ factionId, onClose }: { factionId: string; onClose
           <ArrowLeft className="w-3.5 h-3.5" /> Back
         </button>
         <div className="flex items-center gap-4">
-          <EntityIcon src={faction.icon_url} alt={faction.name} size={56} />
+          {faction.icon_url ? (
+            <span
+              style={{
+                width: 56,
+                height: 56,
+                flexShrink: 0,
+                backgroundColor: faction.color_hex ?? "var(--foreground)",
+                WebkitMaskImage: `url(${faction.icon_url})`,
+                WebkitMaskSize: "contain",
+                WebkitMaskRepeat: "no-repeat",
+                WebkitMaskPosition: "center",
+                maskImage: `url(${faction.icon_url})`,
+                maskSize: "contain",
+                maskRepeat: "no-repeat",
+                maskPosition: "center",
+              }}
+            />
+          ) : (
+            <EntityIcon src={null} alt={faction.name} size={56} />
+          )}
           <div>
             <h2 className="text-xl font-bold" style={{ color: faction.color_hex ?? "inherit" }}>
               {faction.name}
@@ -550,12 +569,13 @@ function MatrixView({
                 position: "sticky",
                 left: 0,
                 top: 0,
-                background: "hsl(var(--card))",
+                background: "rgba(16, 20, 34, 0.95)",
+                backdropFilter: "blur(4px)",
                 zIndex: 3,
-                borderBottom: "1px solid hsl(var(--border))",
-                borderRight: "1px solid hsl(var(--border))",
+                borderBottom: "1px solid var(--border)",
+                borderRight: "1px solid var(--border)",
                 fontWeight: 600,
-                color: "hsl(var(--muted-foreground))",
+                color: "var(--muted-foreground)",
               }}
             >
               From \ To
@@ -571,14 +591,15 @@ function MatrixView({
                   width: 44,
                   minWidth: 44,
                   maxWidth: 44,
-                  color: f.color_hex ?? "hsl(var(--foreground))",
+                  color: f.color_hex ?? "var(--foreground)",
                   fontWeight: 600,
-                  borderBottom: "1px solid hsl(var(--border))",
+                  borderBottom: "1px solid var(--border)",
                   verticalAlign: "bottom",
                   cursor: "pointer",
                   position: "sticky",
                   top: 0,
-                  background: "hsl(var(--background))",
+                  background: "rgba(16, 20, 34, 0.95)",
+                  backdropFilter: "blur(4px)",
                   zIndex: 2,
                 }}
                 className="hover:bg-muted/50"
@@ -599,7 +620,7 @@ function MatrixView({
                   {f.icon_url && (
                     <div style={{
                       width: '18px', height: '18px', flexShrink: 0,
-                      backgroundColor: f.color_hex ?? 'hsl(var(--foreground))',
+                      backgroundColor: f.color_hex ?? 'var(--foreground)',
                       WebkitMaskImage: `url(${f.icon_url})`,
                       WebkitMaskSize: 'contain', WebkitMaskRepeat: 'no-repeat', WebkitMaskPosition: 'center',
                     }} />
@@ -617,13 +638,14 @@ function MatrixView({
                 style={{
                   padding: "4px 8px",
                   fontWeight: 600,
-                  color: from.color_hex ?? "hsl(var(--foreground))",
+                  color: from.color_hex ?? "var(--foreground)",
                   position: "sticky",
                   left: 0,
-                  background: "hsl(var(--card))",
+                  background: "rgba(16, 20, 34, 0.95)",
+                  backdropFilter: "blur(4px)",
                   zIndex: 1,
-                  borderRight: "1px solid hsl(var(--border))",
-                  borderBottom: "1px solid hsl(var(--border))",
+                  borderRight: "1px solid var(--border)",
+                  borderBottom: "1px solid var(--border)",
                   maxWidth: 160,
                   overflow: "hidden",
                   textOverflow: "ellipsis",
@@ -636,7 +658,7 @@ function MatrixView({
                   {from.icon_url && (
                     <div style={{
                       width: '18px', height: '18px', flexShrink: 0,
-                      backgroundColor: from.color_hex ?? 'hsl(var(--foreground))',
+                      backgroundColor: from.color_hex ?? 'var(--foreground)',
                       WebkitMaskImage: `url(${from.icon_url})`,
                       WebkitMaskSize: 'contain', WebkitMaskRepeat: 'no-repeat', WebkitMaskPosition: 'center',
                     }} />
@@ -652,9 +674,9 @@ function MatrixView({
                       style={{
                         padding: "6px 4px",
                         textAlign: "center",
-                        background: "hsl(var(--muted)/0.3)",
-                        borderBottom: "1px solid hsl(var(--border))",
-                        color: "hsl(var(--muted-foreground))",
+                        background: "var(--muted)",
+                        borderBottom: "1px solid var(--border)",
+                        color: "var(--muted-foreground)",
                       }}
                     >
                       —
@@ -681,7 +703,7 @@ function MatrixView({
                     style={{
                       padding: "6px 4px",
                       textAlign: "center",
-                      borderBottom: "1px solid hsl(var(--border))",
+                      borderBottom: "1px solid var(--border)",
                       width: 44,
                       minWidth: 44,
                       cursor: "help",
@@ -737,19 +759,22 @@ export default function FactionsPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="px-6 py-5 border-b border-border shrink-0">
-        <h1 className="text-2xl font-bold">Factions</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">
+      <div className="px-6 pt-5 shrink-0">
+        <h1 className="text-2xl font-bold tracking-tight">Factions</h1>
+        <p className="text-xs uppercase tracking-widest text-muted-foreground mt-1 font-semibold">
           {visibleFactions.length} factions · {relations.length} relation pairs
         </p>
       </div>
 
-      <div className="flex flex-1 min-h-0">
-        {/* Sidebar */}
-        <aside
-          className="w-56 shrink-0 border-r border-border overflow-y-auto"
-          style={{ background: "hsl(var(--card))" }}
-        >
+      <div className="flex-1 overflow-hidden px-6 pb-6 pt-4 flex flex-col">
+        <div className="flex flex-col h-full border border-border/50 relative overflow-hidden" style={{ backgroundColor: 'rgba(16, 20, 34, 0.55)' }}>
+          {/* Tech HUD Corner Accents */}
+          <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-primary/60 pointer-events-none z-20" />
+          <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-primary/60 pointer-events-none z-20" />
+
+          <div className="flex flex-1 min-h-0 relative z-10">
+            {/* Sidebar */}
+            <aside className="w-56 shrink-0 border-r border-border/50 overflow-y-auto bg-black/20">
           <p className="px-4 py-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground border-b border-border">
             Factions
           </p>
@@ -823,6 +848,8 @@ export default function FactionsPage() {
               )}
             </>
           )}
+        </div>
+      </div>
         </div>
       </div>
     </div>

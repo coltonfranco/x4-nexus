@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { FilterPill } from "../components/ui/filter-pill";
 import { Input } from "../components/ui/input";
 import { PageLoaderPreset } from "../components/PageLoader";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 
 type Ware = {
   ware_id: string;
@@ -89,32 +90,32 @@ function InventoryRow({ ware, bucket, onSelect }: { ware: Ware; bucket: Bucket; 
   };
 
   return (
-      <tr
-        className="border-b border-border transition-colors cursor-pointer hover:bg-muted/30"
+      <TableRow
+        className="cursor-pointer"
         onClick={() => onSelect(ware.ware_id)}
         onMouseEnter={prefetch}
       >
-        <td className="px-3 py-2 text-muted-foreground/40 pl-4">
+        <TableCell className="text-muted-foreground/40 pl-4">
           {/* Reserve space instead of chevron */}
           <ChevronRight className="h-3.5 w-3.5 opacity-0" />
-        </td>
-        <td className="px-3 py-2">
+        </TableCell>
+        <TableCell>
           <NameCell ware={ware} />
-        </td>
-        <td className="px-3 py-2 text-xs text-muted-foreground">{bucket}</td>
-        <td className="px-3 py-2">
+        </TableCell>
+        <TableCell className="text-muted-foreground">{bucket}</TableCell>
+        <TableCell>
           <div className="flex flex-wrap gap-1">
             {rowFlags(ware).map((f) => (
-              <Badge key={f.label} variant={f.variant} className="text-[10px]">
+              <Badge key={f.label} variant={f.variant} className="text-xs">
                 {f.label}
               </Badge>
             ))}
           </div>
-        </td>
-        <td className="px-3 py-2">
+        </TableCell>
+        <TableCell>
           <Currency value={ware.price_avg} />
-        </td>
-      </tr>
+        </TableCell>
+      </TableRow>
   );
 }
 
@@ -174,38 +175,45 @@ export default function InventoryPage() {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="border-b border-border px-6 py-4">
-        <h1 className="text-xl font-bold">Inventory &amp; Crafting</h1>
-        <p className="mt-0.5 text-sm text-muted-foreground">
+      <div className="px-6 py-5">
+        <h1 className="text-2xl font-bold tracking-tight">Inventory &amp; Crafting</h1>
+        <p className="text-xs uppercase tracking-widest text-muted-foreground mt-1 font-semibold">
           {wares.length} inventory items · paint mods, crafting materials, mission items, contraband and curiosities
         </p>
-        <div className="mt-3 flex flex-wrap items-center gap-1.5">
-          <Input placeholder="Search…" value={search} onChange={(e) => setSearch(e.target.value)} className="mr-2 w-52" />
-          <FilterPill active={filter === "all"} onClick={() => setFilter("all")}>
-            All
-          </FilterPill>
-          {BUCKETS.filter((b) => counts[b]).map((b) => (
-            <FilterPill key={b} active={filter === b} onClick={() => setFilter(b)}>
-              {b} <span className="opacity-60">{counts[b]}</span>
-            </FilterPill>
-          ))}
-          <div className="mx-1 h-4 w-px bg-border" />
-          <FilterPill active={filter === "Craftable"} onClick={() => setFilter("Craftable")}>
-            Craftable <span className="opacity-60">{counts.Craftable}</span>
-          </FilterPill>
-          <FilterPill active={filter === "Drops"} onClick={() => setFilter("Drops")}>
-            Drops <span className="opacity-60">{counts.Drops}</span>
-          </FilterPill>
-        </div>
       </div>
 
-      <div className="flex-1 overflow-auto px-6 py-2">
+      <div className="flex-1 overflow-hidden px-6 pb-6 pt-0 flex flex-col">
+        <div className="flex flex-col h-full border border-border/50 relative" style={{ backgroundColor: 'rgba(16, 20, 34, 0.55)' }}>
+          {/* Tech HUD Corner Accents */}
+          <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-primary/60 pointer-events-none" />
+          <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-primary/60 pointer-events-none" />
+
+          <div className="flex flex-wrap items-center gap-1.5 px-6 py-3 border-b border-border/50 bg-muted/5 relative z-10">
+            <Input placeholder="Search…" value={search} onChange={(e) => setSearch(e.target.value)} className="mr-2 w-52 bg-muted/50 border-input" />
+            <FilterPill active={filter === "all"} onClick={() => setFilter("all")}>
+              All
+            </FilterPill>
+            {BUCKETS.filter((b) => counts[b]).map((b) => (
+              <FilterPill key={b} active={filter === b} onClick={() => setFilter(b)}>
+                {b} <span className="opacity-60">{counts[b]}</span>
+              </FilterPill>
+            ))}
+            <div className="mx-1 h-4 w-px bg-border" />
+            <FilterPill active={filter === "Craftable"} onClick={() => setFilter("Craftable")}>
+              Craftable <span className="opacity-60">{counts.Craftable}</span>
+            </FilterPill>
+            <FilterPill active={filter === "Drops"} onClick={() => setFilter("Drops")}>
+              Drops <span className="opacity-60">{counts.Drops}</span>
+            </FilterPill>
+          </div>
+
+          <div className="flex-1 overflow-auto px-6 py-4">
         {isLoading ? (
           <p className="py-8 text-center text-sm text-muted-foreground"><PageLoaderPreset preset="inventory" /></p>
         ) : rows.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">No items match.</p>
         ) : (
-          <table className="w-full table-fixed">
+          <Table className="table-fixed text-xs">
             <colgroup>
               <col style={{ width: 32 }} />
               <col />
@@ -213,22 +221,24 @@ export default function InventoryPage() {
               <col style={{ width: 240 }} />
               <col style={{ width: 200 }} />
             </colgroup>
-            <thead className="sticky top-0 bg-background">
-              <tr className="border-b border-border">
-                <th />
-                <SortHeader label="Item" active={sort === "name"} dir={dir} onClick={() => onSort("name")} className="text-xs text-muted-foreground" />
-                <SortHeader label="Type" active={sort === "type"} dir={dir} onClick={() => onSort("type")} className="text-xs text-muted-foreground" />
-                <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">Notes</th>
-                <SortHeader label="Value" active={sort === "price"} dir={dir} onClick={() => onSort("price")} className="text-xs text-muted-foreground" />
-              </tr>
-            </thead>
-            <tbody>
+            <TableHeader>
+              <TableRow>
+                <TableHead />
+                <SortHeader label="Item" active={sort === "name"} dir={dir} onClick={() => onSort("name")} />
+                <SortHeader label="Type" active={sort === "type"} dir={dir} onClick={() => onSort("type")} />
+                <TableHead>Notes</TableHead>
+                <SortHeader label="Value" active={sort === "price"} dir={dir} onClick={() => onSort("price")} />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {rows.map(({ ware, bucket: b }) => (
                 <InventoryRow key={ware.ware_id} ware={ware} bucket={b} onSelect={setSelectedWareId} />
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         )}
+          </div>
+        </div>
       </div>
 
       <Dialog open={selectedWareId !== null} onOpenChange={(open) => { if (!open) setSelectedWareId(null); }}>

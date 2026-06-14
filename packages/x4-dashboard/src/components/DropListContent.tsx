@@ -45,7 +45,7 @@ export function DropListContent({ groups }: { groups: DropGroup[] }) {
             <span className="text-xs text-muted-foreground">
               {group.spawn_chance != null ? <strong className="text-foreground">{group.spawn_chance}% chance</strong> : <strong className="text-foreground">Always</strong>}
               {group.source_basket && (
-                <span className="ml-2 font-mono opacity-40 text-[10px]">{group.source_basket}</span>
+                <span className="ml-2 font-mono opacity-40 text-xs">{group.source_basket}</span>
               )}
               <span className="ml-2 opacity-60">— pick 1 of {group.entries.length}</span>
             </span>

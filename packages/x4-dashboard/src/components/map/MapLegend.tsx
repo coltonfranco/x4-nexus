@@ -11,7 +11,7 @@ export function MapLegend({ fillMode }: { fillMode: FillMode }) {
           <h3 className="text-foreground font-semibold text-xs border-b border-border/50 pb-1 mb-1">Conflict Legend</h3>
           
           <div>
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground/80 mb-1.5">Sector Battles</div>
+            <div className="text-xs uppercase tracking-wider text-muted-foreground/80 mb-1.5">Sector Battles</div>
             <div className="grid grid-cols-[16px_1fr] gap-x-2 gap-y-1.5 items-center">
               <div className="w-2.5 h-2.5 rounded-full bg-red-500 animate-[conflict-blink-intense_0.5s_infinite]" />
               <span>Intense Battle (10+ ships per side)</span>
@@ -25,7 +25,7 @@ export function MapLegend({ fillMode }: { fillMode: FillMode }) {
           </div>
 
           <div>
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground/80 mb-1.5 mt-1">Border Tensions</div>
+            <div className="text-xs uppercase tracking-wider text-muted-foreground/80 mb-1.5 mt-1">Border Tensions</div>
             <div className="grid grid-cols-[16px_1fr] gap-x-2 gap-y-1.5 items-center">
               <div className="w-3 h-0.5 bg-red-500 animate-[conflict-blink-intense_0.5s_infinite]" />
               <span>Massive Fleet (120+ ships)</span>
@@ -42,7 +42,7 @@ export function MapLegend({ fillMode }: { fillMode: FillMode }) {
           </div>
 
           <div>
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground/80 mb-1.5 mt-1">Danger Zones</div>
+            <div className="text-xs uppercase tracking-wider text-muted-foreground/80 mb-1.5 mt-1">Danger Zones</div>
             <div className="grid grid-cols-[16px_1fr] gap-x-2 gap-y-1.5 items-center">
               <div className="w-3 h-2.5 border-2 border-red-500/80 rounded-[2px]" />
               <span>High Threat (10+ hostile)</span>

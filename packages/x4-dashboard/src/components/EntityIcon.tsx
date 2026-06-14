@@ -18,7 +18,7 @@ export function EntityIcon({ src, alt, size = 32, className }: Props) {
           width: size,
           height: size,
           borderRadius: 4,
-          backgroundColor: "hsl(var(--muted))",
+          backgroundColor: "var(--muted)",
           flexShrink: 0,
         }}
         aria-label={alt}

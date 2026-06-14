@@ -4,6 +4,7 @@ import { type ReactNode, useMemo, useState } from "react";
 import { Building2, ChevronDown, Coins, FileText, Handshake, Rocket, ScrollText, Ship, Trophy, User } from "lucide-react";
 import { Reputation } from "../components/GameValues";
 import { Currency } from "../components/Currency";
+import { FactionBadge } from "../components/FactionBadge";
 import { getReputationScore } from "../lib/formatters";
 import { prettyId } from "../lib/wareFormat";
 import { ShipDetailPanel } from "../components/ShipDetailPanel";
@@ -34,12 +35,12 @@ type FactionStrength = {
 };
 
 const STANDING_CATS = [
-  { key: "military_score", label: "Military", color: "hsl(var(--destructive))" },
-  { key: "economic_score", label: "Economic", color: "hsl(var(--success))" },
-  { key: "diplomatic_score", label: "Diplomatic", color: "hsl(var(--info))" },
+  { key: "military_score", label: "Military", color: "var(--destructive)" },
+  { key: "economic_score", label: "Economic", color: "var(--success)" },
+  { key: "diplomatic_score", label: "Diplomatic", color: "var(--info)" },
   { key: "territory_score", label: "Territory", color: "hsl(38 92% 50%)" },
 ] as const;
-type Faction = { faction_id: string; name: string; color_hex: string | null };
+type Faction = { faction_id: string; name: string; color_hex: string | null; icon_url?: string | null };
 type Sector = { sector_id: string; name: string | null };
 
 const ROLE_ORDER = ["fight", "trade", "mine", "build", "auxiliary"] as const;
@@ -84,6 +85,11 @@ export default function EmpirePage() {
   const { data: strength = [] } = useQuery<FactionStrength[]>({
     queryKey: ["factions-strength"], queryFn: () => fetch("/api/v1/factions/strength").then((r) => r.json()), staleTime: 30_000,
   });
+
+  const factionMap = useMemo(() => {
+    const m = new Map(factions.map(f => [f.faction_id, f]));
+    return m;
+  }, [factions]);
 
   // Player's rank in each live category (computed the same way the Factions standings are).
   const standing = useMemo(
@@ -131,16 +137,25 @@ export default function EmpirePage() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="px-6 py-5 border-b border-border shrink-0">
-        <h1 className="text-2xl font-bold flex items-center gap-2">
+      <div className="px-6 pt-5 shrink-0">
+        <h1 className="text-2xl font-bold flex items-center gap-2 tracking-tight">
           <User className="h-6 w-6 text-primary" /> {player.name ?? "Pilot"}
         </h1>
-        <p className="text-sm text-muted-foreground mt-0.5">Your empire at a glance</p>
+        <p className="text-xs uppercase tracking-widest text-muted-foreground mt-1 font-semibold">
+          Your empire at a glance
+        </p>
       </div>
 
-      <div className="flex-1 overflow-auto p-4 space-y-4 max-w-5xl mx-auto w-full">
+      <div className="flex-1 overflow-hidden px-6 pb-6 pt-4 flex flex-col">
+        <div className="flex flex-col h-full border border-border/50 relative overflow-hidden" style={{ backgroundColor: 'rgba(16, 20, 34, 0.55)' }}>
+          {/* Tech HUD Corner Accents */}
+          <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-primary/60 pointer-events-none z-10" />
+          <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-primary/60 pointer-events-none z-10" />
+
+          <div className="flex-1 overflow-auto p-6">
+            <div className="max-w-5xl mx-auto w-full space-y-6">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <StatCard tone="text-amber-400" big value={<Currency value={player.credits} abbreviate className="text-amber-400" />} label="Credits" />
+          <StatCard tone="text-gold" big value={<Currency value={player.credits} abbreviate />} label="Credits" />
           <StatCard icon={Ship} tone="text-sky-400" value={fleet.length.toString()} label="Ships" />
           <StatCard icon={Building2} tone="text-violet-400" value={stations.length.toString()} label="Stations" />
           <StatCard icon={FileText} tone="text-emerald-400" value={blueprints.length.toString()} label="Blueprints" />
@@ -164,7 +179,7 @@ export default function EmpirePage() {
                     <div className="h-1 bg-border rounded-full overflow-hidden mt-2">
                       <div className="h-full rounded-full" style={{ width: `${c.score}%`, backgroundColor: c.color }} />
                     </div>
-                    <p className="text-[10px] text-muted-foreground tabular-nums mt-1">{c.score.toFixed(0)}/100</p>
+                    <p className="text-xs text-muted-foreground tabular-nums mt-1">{c.score.toFixed(0)}/100</p>
                   </div>
                 );
               })}
@@ -182,19 +197,10 @@ export default function EmpirePage() {
                 const drift = init != null ? cur - init : 0;
                 return (
                   <div key={r.faction_id} className="flex items-center justify-between gap-2 text-sm py-0.5">
-                    <Link
-                      to="/factions"
-                      search={{ faction: r.faction_id }}
-                      className="flex items-center gap-2 min-w-0 transition-opacity hover:opacity-80"
-                    >
-                      <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: r.color_hex ?? "#888" }} />
-                      <span className="truncate" style={{ color: r.color_hex ?? undefined }}>
-                        {r.faction_name ?? prettyId(r.faction_id)}
-                      </span>
-                    </Link>
+                    <FactionBadge name={r.faction_name ?? prettyId(r.faction_id)} color_hex={r.color_hex} icon_url={factionMap.get(r.faction_id)?.icon_url} faction_id={r.faction_id} />
                     <div className="flex items-center gap-1.5 shrink-0">
                       {Math.abs(drift) >= 1 && (
-                        <span className={`text-[10px] tabular-nums ${drift > 0 ? "text-emerald-400" : "text-red-400"}`}>
+                        <span className={`text-xs tabular-nums ${drift > 0 ? "text-success" : "text-danger"}`}>
                           {drift > 0 ? "▲" : "▼"}
                           {Math.abs(drift).toFixed(0)}
                         </span>
@@ -272,7 +278,7 @@ export default function EmpirePage() {
                   <div className="font-medium">{st.name || st.code || "Station"}</div>
                   <div className="text-muted-foreground">
                     {sectorName(st.sector_id)}
-                    {st.is_under_construction && <span className="text-amber-400"> · building</span>}
+                    {st.is_under_construction && <span className="text-warning"> · building</span>}
                   </div>
                 </div>
               ))}
@@ -311,6 +317,9 @@ export default function EmpirePage() {
             </div>
           )}
         </Panel>
+            </div>
+          </div>
+        </div>
       </div>
 
       <Dialog open={selectedMacroId !== null} onOpenChange={(open) => { if (!open) setSelectedMacroId(null); }}>

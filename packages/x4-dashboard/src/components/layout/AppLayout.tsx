@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Link, Outlet, useRouterState } from "@tanstack/react-router";
 import {
   Boxes,
@@ -15,7 +16,7 @@ import {
 import { cn } from "../../lib/utils";
 import { SaveSelector } from "../SaveSelector";
 import { SettingsModal } from "../SettingsModal";
-import { ThemeToggle } from "./ThemeToggle";
+// ThemeToggle hidden per design — dark-only, infrastructure preserved for future light theme
 
 const navItems = [
   { to: "/", label: "Home", icon: Home },
@@ -34,6 +35,12 @@ const navItems = [
 export function AppLayout() {
   const { location } = useRouterState();
 
+  // Force dark-only — infrastructure preserved for future light theme
+  useEffect(() => {
+    document.documentElement.classList.add("dark");
+    localStorage.setItem("theme", "dark");
+  }, []);
+
   return (
     <div
       style={{ display: "flex", height: "100vh" }}
@@ -51,13 +58,13 @@ export function AppLayout() {
               width: 28,
               height: 28,
               borderRadius: "50%",
-              background: "hsl(var(--primary))",
+              background: "var(--primary)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               fontSize: 13,
               fontWeight: 700,
-              color: "hsl(var(--primary-foreground))",
+              color: "var(--primary-foreground)",
             }}
           >
             X4
@@ -90,8 +97,7 @@ export function AppLayout() {
 
         {/* Bottom */}
         <SaveSelector />
-        <div className="p-3 border-t border-border flex items-center justify-between">
-          <ThemeToggle />
+        <div className="p-3 border-t border-border flex items-center justify-end">
           <SettingsModal />
         </div>
       </aside>

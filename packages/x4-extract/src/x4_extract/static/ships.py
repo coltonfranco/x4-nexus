@@ -299,20 +299,22 @@ def _resolve_and_count_hardpoints(
         if c:
             counts["cargo_volume"] += c
 
-    # Resolve the direct component — count everything (docks + hardpoints).
+    # Resolve the direct component — hardpoints only, NOT docks.
+    # The component is the 3D model + hardpoint connections.  Docks are
+    # always defined in child macros (dockarea / shipstorage), not here.
     comp_el = el.find("component")
     if comp_el is not None:
         comp_ref = comp_el.get("ref")
         if comp_ref:
-            _add_component_counts(comp_ref, resolve_name, counts, tree_cache, count_cache, count_docks=True)
+            _add_component_counts(comp_ref, resolve_name, counts, tree_cache, count_cache, count_docks=False)
 
-    # Resolve child macros — hardpoints only, NOT docks.  Child macros
-    # (dockarea, shipstorage, etc.) describe the SAME physical docks the
-    # main component already counted; recursing would double-sum.
+    # Resolve child macros — docks, hardpoints, and cargo.
+    # Docks (dockarea, shipstorage) are defined in child macros, NOT the
+    # main component, so they MUST be counted here.
     for child_macro in el.xpath(".//macro[@ref]"):  # type: ignore
         macro_ref = child_macro.get("ref")
         if macro_ref:
-            _add_component_counts(macro_ref, resolve_name, counts, tree_cache, count_cache, count_docks=False)
+            _add_component_counts(macro_ref, resolve_name, counts, tree_cache, count_cache, count_docks=True)
 
 
 def _add_component_counts(
@@ -325,11 +327,9 @@ def _add_component_counts(
 ) -> None:
     """Resolve *ref* (once) and merge its counts into *counts*.
 
-    When *count_docks* is True (the ship's direct component), cargo storage,
-    dock bays, and hardpoint connections are all counted.  When False
-    (recursively-resolved child macros like dockarea / shipstorage),
-    ONLY hardpoint connections are counted — child macros describe the
-    SAME docks and cargo the direct component already accounts for.
+    Cargo is always counted — storage macros are distinct and additive.
+    When *count_docks* is True, dock bays and hardpoint connections are
+    also counted.  When False, only hardpoint connections are counted.
     """
     cache_key = (ref, count_docks)
     if cache_key in count_cache:
@@ -365,38 +365,44 @@ def _add_component_counts(
         "launch_tubes": 0,
     }
     
-    if count_docks:
-        cargo_el = node.find("properties/cargo")
-        if cargo_el is not None:
-            c = _int(cargo_el, "max")
-            if c:
-                local["cargo_volume"] += c
-        storage_el = node.find("properties/storage")
-        if storage_el is not None:
-            c = _int(storage_el, "cargo")
-            if c:
-                local["cargo_volume"] += c
+    # Cargo always accumulates — storage macros are distinct from dock macros
+    # and their cargo is additive, never duplicate.
+    # Docks are gated by count_docks to allow callers to skip dock counting
+    # when it would double-count (e.g. if a macro is reached via multiple paths).
+    cargo_el = node.find("properties/cargo")
+    if cargo_el is not None:
+        c = _int(cargo_el, "max")
+        if c:
+            local["cargo_volume"] += c
+    storage_el = node.find("properties/storage")
+    if storage_el is not None:
+        c = _int(storage_el, "cargo")
+        if c:
+            local["cargo_volume"] += c
 
     if count_docks:
         dock_el = node.find("properties/dock")
         if dock_el is not None:
-            cap = _int(dock_el, "capacity")
-            if cap:
-                docksize_el = node.find("properties/docksize")
-                tags = docksize_el.get("tags", "") if docksize_el is not None else ""
+            cap = _int(dock_el, "capacity") or 1  # external pads omit capacity → implicit 1
+            docksize_el = node.find("properties/docksize")
+            if cap and docksize_el is not None:
+                tags = docksize_el.get("tags", "")
                 if "dock_xl" in tags or "extralarge" in tags:
                     size = "xl"
                 elif "dock_l" in tags or "large" in tags:
                     size = "l"
                 elif "dock_m" in tags or "medium" in tags:
                     size = "m"
+                elif "dock_xs" in tags or "extrasmall" in tags:
+                    size = None  # XS = drones/spacesuits, not ship docks
                 else:
                     size = "s"
 
-                if dock_el.get("storage") == "1":
-                    local[f"storage_{size}"] += cap
-                else:
-                    local[f"dock_{size}"] += cap
+                if size is not None:
+                    if dock_el.get("storage") == "1":
+                        local[f"storage_{size}"] += cap
+                    else:
+                        local[f"dock_{size}"] += cap
 
     _count_connections(node, local)
 

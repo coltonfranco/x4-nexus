@@ -39,12 +39,12 @@ const pretty = (m: string) =>
 
 // Category stripe = "is it short or glutted" (amber/sky). Numbers use sign convention.
 const STRIPE: Record<WareMarket["classification"], string> = {
-  shortage: "bg-amber-500",
-  surplus: "bg-sky-500",
+  shortage: "bg-warning",
+  surplus: "bg-info",
   balanced: "bg-muted-foreground/30",
 };
 const signColor = (n: number) =>
-  n > 0 ? "text-emerald-400" : n < 0 ? "text-red-400" : "text-muted-foreground";
+  n > 0 ? "text-success" : n < 0 ? "text-danger" : "text-muted-foreground";
 
 export default function EconomyPage() {
   const [filter, setFilter] = useState<Filter>("shortage");
@@ -91,7 +91,7 @@ export default function EconomyPage() {
     <div className="flex flex-col h-full">
       <div className="px-6 py-5 border-b border-border shrink-0">
         <h1 className="text-2xl font-bold flex items-center gap-2">
-          <AlertTriangle className="h-6 w-6 text-amber-500" /> Supply Radar
+          <AlertTriangle className="h-6 w-6 text-warning" /> Supply Radar
         </h1>
         <p className="text-sm text-muted-foreground mt-0.5">
           Galaxy-wide demand vs supply per ware · click a ware to see where it's concentrated
@@ -129,8 +129,8 @@ export default function EconomyPage() {
         ) : (
           <div className="max-w-4xl mx-auto space-y-1">
             <div className="flex items-center gap-4 text-xs text-muted-foreground px-3 pb-1">
-              <span className="flex items-center gap-1.5"><span className="h-2 w-3 rounded-sm bg-emerald-500" /> supply</span>
-              <span className="flex items-center gap-1.5"><span className="h-2 w-3 rounded-sm bg-red-500" /> demand</span>
+              <span className="flex items-center gap-1.5"><span className="h-2 w-3 rounded-sm bg-success" /> supply</span>
+              <span className="flex items-center gap-1.5"><span className="h-2 w-3 rounded-sm bg-destructive" /> demand</span>
               <span className="ml-auto">+ = above-avg price / net demand</span>
             </div>
 
@@ -150,8 +150,8 @@ export default function EconomyPage() {
                       </span>
                     </div>
                     <div className="space-y-1">
-                      <Bar value={m.sell_qty} max={maxQty} color="bg-emerald-500" label="S" />
-                      <Bar value={m.buy_qty} max={maxQty} color="bg-red-500" label="D" />
+                      <Bar value={m.sell_qty} max={maxQty} color="bg-success" label="S" />
+                      <Bar value={m.buy_qty} max={maxQty} color="bg-destructive" label="D" />
                     </div>
                     <div className="text-right">
                       {premium != null ? (
@@ -161,13 +161,13 @@ export default function EconomyPage() {
                       ) : (
                         <span className="text-xs text-muted-foreground">—</span>
                       )}
-                      <div className="text-[10px] text-muted-foreground tabular-nums"><Currency value={m.avg_price} icon={false} dynamicColor className="text-muted-foreground" /></div>
+                      <div className="text-xs text-muted-foreground tabular-nums"><Currency value={m.avg_price} icon={false} dynamicColor className="text-muted-foreground" /></div>
                     </div>
                     <div className="text-right">
                       <div className={`text-sm font-bold tabular-nums ${signColor(m.net_demand)}`}>
                         {m.net_demand > 0 ? "+" : ""}{fmt(m.net_demand)}
                       </div>
-                      <div className="text-[10px] text-muted-foreground">net demand</div>
+                      <div className="text-xs text-muted-foreground">net demand</div>
                     </div>
                     <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${isOpen ? "rotate-180" : ""}`} />
                   </button>
@@ -208,8 +208,8 @@ function WareDistribution({ wareId, sectorName }: { wareId: string; sectorName: 
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 px-4 py-3 border-t border-border bg-muted/10">
-      <DistColumn title="Top demand · where to sell" color="text-red-400" bar="bg-red-500/70" rows={demand} sectorName={sectorName} />
-      <DistColumn title="Top supply · where to buy" color="text-emerald-400" bar="bg-emerald-500/70" rows={supply} sectorName={sectorName} />
+      <DistColumn title="Top demand · where to sell" color="text-danger" bar="bg-destructive/70" rows={demand} sectorName={sectorName} />
+      <DistColumn title="Top supply · where to buy" color="text-success" bar="bg-success/70" rows={supply} sectorName={sectorName} />
     </div>
   );
 }
@@ -250,11 +250,11 @@ function DistColumn({
 function Bar({ value, max, color, label }: { value: number; max: number; color: string; label: string }) {
   return (
     <div className="flex items-center gap-1.5">
-      <span className="w-3 text-[10px] text-muted-foreground tabular-nums">{label}</span>
+      <span className="w-3 text-xs text-muted-foreground tabular-nums">{label}</span>
       <div className="flex-1 h-2 rounded-full bg-border/60 overflow-hidden">
         <div className={`h-full rounded-full ${color}`} style={{ width: `${(value / max) * 100}%` }} />
       </div>
-      <span className="w-14 text-right text-[10px] text-muted-foreground tabular-nums">{value.toLocaleString()}</span>
+      <span className="w-14 text-right text-xs text-muted-foreground tabular-nums">{value.toLocaleString()}</span>
     </div>
   );
 }

@@ -104,7 +104,7 @@ export function EquipmentFilterBar({
           <SelectItem value="all">All Mks</SelectItem>
           {availableMks.map(mk => (
             <SelectItem key={mk} value={mk.toString()}>
-              <div className="flex items-center py-0.5"><EquipmentMkBadge mk={mk} className="px-1.5 py-0 rounded text-[10px]" /></div>
+              <div className="flex items-center py-0.5"><EquipmentMkBadge mk={mk} className="px-1.5 py-0 rounded text-xs" /></div>
             </SelectItem>
           ))}
         </SelectContent>

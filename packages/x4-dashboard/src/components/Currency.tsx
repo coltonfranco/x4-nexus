@@ -1,5 +1,3 @@
-import { Coins } from "lucide-react";
-
 type CurrencyProps = {
   value?: number | null;
   maxValue?: number | null;
@@ -19,11 +17,13 @@ export function Currency({
 }: CurrencyProps) {
   if (value == null && maxValue == null) return <span className={`text-muted-foreground ${className}`}>—</span>;
 
-  let colorClass = "text-amber-500";
+  // Default gold via Tailwind class (so external className overrides work);
+  // dynamicColor uses inline style to intentionally override.
+  let dynamicStyle: React.CSSProperties | undefined;
   if (dynamicColor && value != null) {
-    if (value > 0) colorClass = "text-emerald-500";
-    else if (value < 0) colorClass = "text-red-500";
-    else colorClass = "text-muted-foreground";
+    if (value > 0) dynamicStyle = { color: "var(--success)" };
+    else if (value < 0) dynamicStyle = { color: "var(--danger)" };
+    else dynamicStyle = { color: "var(--text-muted)" };
   }
 
   const formatVal = (v: number) => {
@@ -47,10 +47,15 @@ export function Currency({
 
   return (
     <span
-      className={`tabular-nums font-mono font-medium inline-flex items-center gap-1 whitespace-nowrap ${colorClass} ${className}`}
+      className={`tabular-nums font-mono font-medium inline-flex items-center gap-1 whitespace-nowrap text-gold ${className}`}
+      style={dynamicStyle}
     >
       {formatted}
-      {icon ? <Coins className="w-3.5 h-3.5 shrink-0" /> : " Cr"}
+      {icon ? (
+        <span style={{ color: "var(--gold-dim)", fontSize: "0.85em" }}>⬡</span>
+      ) : (
+        " Cr"
+      )}
     </span>
   );
 }

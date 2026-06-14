@@ -340,9 +340,9 @@ export function useAnalysisOverlay({
       const tint = new Map<string, SectorTint>();
       const dots = new Map<string, string[]>();
       bySector.forEach((sr, sid) => {
-        const color = RESOURCE_COLORS[sr.dominant.ware] ?? "hsl(var(--muted-foreground))";
+        const color = RESOURCE_COLORS[sr.dominant.ware] ?? "var(--muted-foreground)";
         tint.set(sid, { fill: color, opacity: 0.35 + 0.5 * sr.dominant.intensity });
-        const alt = sr.all.slice(1).map((e) => RESOURCE_COLORS[e.ware] ?? "hsl(var(--muted-foreground))");
+        const alt = sr.all.slice(1).map((e) => RESOURCE_COLORS[e.ware] ?? "var(--muted-foreground)");
         if (alt.length) dots.set(sid, alt);
       });
       return { ...empty, tint, dots, sectorResources: bySector, dim: true, source, loading };

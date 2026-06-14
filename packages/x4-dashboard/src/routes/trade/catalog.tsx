@@ -7,6 +7,7 @@ import { WareDetailPanel } from "../../components/trade/WareDetailPanel";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../components/ui/dialog";
 import { Input } from "../../components/ui/input";
 import { PageLoaderPreset } from "../../components/PageLoader";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
 import {
   Select,
   SelectContent,
@@ -44,20 +45,20 @@ function CommodityRow({ ware, groupName, onSelect }: { ware: Ware; groupName: st
   };
 
   return (
-      <tr
-        className="border-b border-border transition-colors cursor-pointer hover:bg-muted/30"
+      <TableRow
+        className="cursor-pointer"
         onClick={() => onSelect(ware.ware_id)}
         onMouseEnter={prefetch}
       >
-        <td className="px-3 py-2 text-muted-foreground/40 pl-4">
+        <TableCell className="text-muted-foreground/40 pl-4">
           <ChevronRight className="h-3.5 w-3.5 opacity-0" />
-        </td>
-        <td className="px-3 py-2 text-sm font-medium">{ware.name}</td>
-        <td className="px-3 py-2 text-xs text-muted-foreground">{groupName}</td>
-        <td className="px-3 py-2">
+        </TableCell>
+        <TableCell className="font-medium">{ware.name}</TableCell>
+        <TableCell className="text-muted-foreground">{groupName}</TableCell>
+        <TableCell>
           <PriceBar min={ware.price_min} avg={ware.price_avg} max={ware.price_max} />
-        </td>
-      </tr>
+        </TableCell>
+      </TableRow>
   );
 }
 
@@ -127,57 +128,66 @@ export default function TradeCatalogPage() {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="border-b border-border px-6 py-4">
-        <h1 className="text-xl font-bold">Trade Goods</h1>
-        <p className="mt-0.5 text-sm text-muted-foreground">
+      <div className="px-6 py-5">
+        <h1 className="text-2xl font-bold tracking-tight">Trade Goods</h1>
+        <p className="text-xs uppercase tracking-widest text-muted-foreground mt-1 font-semibold">
           {wares.length} tradable commodities · reference price range, production chains, drop sources
         </p>
-        <div className="mt-3 flex flex-wrap items-center gap-3">
-          <Input placeholder="Search commodities…" value={search} onChange={(e) => setSearch(e.target.value)} className="w-56" />
-          <Select value={group} onValueChange={setGroup}>
-            <SelectTrigger className="w-44">
-              <SelectValue placeholder="All groups" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All groups</SelectItem>
-              {groupsPresent.map((g) => (
-                <SelectItem key={g} value={g}>
-                  {groupName(g === "__none__" ? null : g)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
       </div>
 
-      <div className="flex-1 overflow-auto px-6 py-2">
+      <div className="flex-1 overflow-hidden px-6 pb-6 pt-0 flex flex-col">
+        <div className="flex flex-col h-full border border-border/50 relative" style={{ backgroundColor: 'rgba(16, 20, 34, 0.55)' }}>
+          {/* Tech HUD Corner Accents */}
+          <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-primary/60 pointer-events-none" />
+          <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-primary/60 pointer-events-none" />
+
+          <div className="flex flex-wrap items-center gap-3 px-6 py-3 border-b border-border/50 bg-muted/5 relative z-10">
+            <Input placeholder="Search commodities…" value={search} onChange={(e) => setSearch(e.target.value)} className="w-56 bg-muted/50 border-input" />
+            <Select value={group} onValueChange={setGroup}>
+              <SelectTrigger className="w-44">
+                <SelectValue placeholder="All groups" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All groups</SelectItem>
+                {groupsPresent.map((g) => (
+                  <SelectItem key={g} value={g}>
+                    {groupName(g === "__none__" ? null : g)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex-1 overflow-auto px-6 py-4">
         {isLoading ? (
           <p className="py-8 text-center text-sm text-muted-foreground"><PageLoaderPreset preset="default" /></p>
         ) : rows.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">No commodities match.</p>
         ) : (
-          <table className="w-full table-fixed">
+          <Table className="table-fixed text-xs">
             <colgroup>
               <col style={{ width: 32 }} />
               <col />
               <col style={{ width: 160 }} />
               <col style={{ width: 240 }} />
             </colgroup>
-            <thead className="sticky top-0 bg-background">
-              <tr className="border-b border-border">
-                <th />
-                <SortHeader label="Ware" active={sort === "name"} dir={dir} onClick={() => onSort("name")} className="text-xs text-muted-foreground" />
-                <SortHeader label="Group" active={sort === "group"} dir={dir} onClick={() => onSort("group")} className="text-xs text-muted-foreground" />
-                <SortHeader label="Price range" active={sort === "price"} dir={dir} onClick={() => onSort("price")} className="text-xs text-muted-foreground" />
-              </tr>
-            </thead>
-            <tbody>
+            <TableHeader>
+              <TableRow>
+                <TableHead />
+                <SortHeader label="Ware" active={sort === "name"} dir={dir} onClick={() => onSort("name")} />
+                <SortHeader label="Group" active={sort === "group"} dir={dir} onClick={() => onSort("group")} />
+                <SortHeader label="Price range" active={sort === "price"} dir={dir} onClick={() => onSort("price")} />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {rows.map((w) => (
                 <CommodityRow key={w.ware_id} ware={w} groupName={groupName(w.group_id)} onSelect={setSelectedWareId} />
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         )}
+          </div>
+        </div>
       </div>
 
       <Dialog open={selectedWareId !== null} onOpenChange={(open) => { if (!open) setSelectedWareId(null); }}>

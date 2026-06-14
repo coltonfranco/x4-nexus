@@ -255,7 +255,7 @@ export function MapCanvas({
             <div className="flex flex-col gap-3">
               {forces?.sides ? forces.sides.map((side, i) => (
                 <div key={i} className="flex flex-col gap-1.5 border-b border-border/30 pb-2.5 last:border-0 last:pb-0 relative">
-                  {i > 0 && <div className="absolute -top-[17px] left-1/2 -translate-x-1/2 bg-popover/95 px-2 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">VS</div>}
+                  {i > 0 && <div className="absolute -top-[17px] left-1/2 -translate-x-1/2 bg-popover/95 px-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">VS</div>}
                   {side.factions.map(f => {
                     const faction = factionMap.get(f.faction_id);
                     return (
@@ -390,7 +390,7 @@ export function MapCanvas({
                       })}
                       {side.factions.length > 1 && (
                         <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground mt-0.5 pl-3.5">
-                          <span className="text-[10px]">Alliance Total</span>
+                          <span className="text-xs">Alliance Total</span>
                           <span className="tabular-nums font-medium">{side.fighter_count}</span>
                         </div>
                       )}
@@ -433,7 +433,7 @@ export function MapCanvas({
                       })}
                       {side.factions.length > 1 && (
                         <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground mt-0.5 pl-3.5">
-                          <span className="text-[10px]">Alliance Total</span>
+                          <span className="text-xs">Alliance Total</span>
                           <span className="tabular-nums font-medium">{side.fighter_count}</span>
                         </div>
                       )}
@@ -476,7 +476,7 @@ export function MapCanvas({
             </p>
             <div className="flex flex-col gap-1.5">
               {sr.all.map((res) => {
-                const color = RESOURCE_COLORS[res.ware] ?? "hsl(var(--muted-foreground))";
+                const color = RESOURCE_COLORS[res.ware] ?? "var(--muted-foreground)";
                 return (
                   <div key={res.ware} className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-2">
@@ -529,7 +529,7 @@ export function MapCanvas({
         return (
           <div style={{ position: "absolute", top: 12, left: 12, zIndex: 10, pointerEvents: "none" }}
             className="flex flex-col gap-1 drop-shadow-md backdrop-blur-sm bg-background/30 px-3 py-2 rounded-lg border border-border/30">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Current Sector</span>
+            <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Current Sector</span>
             <div className="flex items-center gap-2">
               {faction?.icon_url && toggles.showFactionLogos && (
                 <div style={{

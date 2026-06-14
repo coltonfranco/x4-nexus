@@ -118,7 +118,7 @@ export function WareDetailPanel({ wareId }: { wareId: string }) {
                   <div className="flex flex-wrap gap-2">
                     {data.illegal_factions.map(fid => {
                       const f = factionMap.get(fid);
-                      return f ? <FactionBadge key={fid} name={f.name} color_hex={f.color_hex} faction_id={f.faction_id} /> : <span key={fid} className="text-sm">{fid}</span>;
+                      return f ? <FactionBadge key={fid} name={f.name} color_hex={f.color_hex} icon_url={f.icon_url} faction_id={f.faction_id} /> : <span key={fid} className="text-sm">{fid}</span>;
                     })}
                   </div>
                 </div>
@@ -129,7 +129,7 @@ export function WareDetailPanel({ wareId }: { wareId: string }) {
                   <div className="flex flex-wrap gap-2">
                     {data.owners.map(fid => {
                       const f = factionMap.get(fid);
-                      return f ? <FactionBadge key={fid} name={f.name} color_hex={f.color_hex} faction_id={f.faction_id} /> : <span key={fid} className="text-sm">{fid}</span>;
+                      return f ? <FactionBadge key={fid} name={f.name} color_hex={f.color_hex} icon_url={f.icon_url} faction_id={f.faction_id} /> : <span key={fid} className="text-sm">{fid}</span>;
                     })}
                   </div>
                 </div>
@@ -142,7 +142,7 @@ export function WareDetailPanel({ wareId }: { wareId: string }) {
                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Internal Tags</p>
                <div className="flex flex-wrap gap-1">
                  {data.tags.split(" ").map(t => (
-                   <Badge key={t} variant="secondary" className="text-[10px] font-mono">{t}</Badge>
+                   <Badge key={t} variant="secondary" className="text-xs font-mono">{t}</Badge>
                  ))}
                </div>
              </div>

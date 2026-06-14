@@ -25,6 +25,7 @@ class ShipSummary(PublicModel):
     faction_id: str | None
     role: str | None
     hull: int | None
+    shield_capacity_max: float | None
     cargo_volume: int | None
     dps_max: float | None
     speed_min: float | None
@@ -177,7 +178,7 @@ def list_ships(
 ) -> list[ShipSummary]:
     """List all ships in the game catalog."""
     sql = [
-        "SELECT s.ship_id, s.name, s.dlc, s.class_id, s.ship_type, s.role, s.faction_id, s.hull, s.cargo_volume, s.dps_max, s.speed_min, s.speed_max, s.icon_path, w.price_avg, w.restriction_licence,",
+        "SELECT s.ship_id, s.name, s.dlc, s.class_id, s.ship_type, s.role, s.faction_id, s.hull, s.shield_capacity_max, s.cargo_volume, s.dps_max, s.speed_min, s.speed_max, s.icon_path, w.price_avg, w.restriction_licence,",
         "EXISTS(SELECT 1 FROM ships dyn WHERE dyn.macro = s.ship_id AND dyn.is_player_owned = 1) AS is_owned,",
         "(w.ware_id IS NOT NULL AND s.faction_id NOT IN ('xenon', 'khaak') AND (w.restriction_licence IS NULL OR w.restriction_licence IN ('generaluseship', 'generaluseequipment') OR EXISTS (SELECT 1 FROM player_licences pl WHERE pl.licence_type = w.restriction_licence AND pl.faction_id = s.faction_id))) AS is_obtainable",
         "FROM s.ships s",
@@ -212,6 +213,7 @@ def list_ships(
             role=r["role"],
             faction_id=r["faction_id"],
             hull=r["hull"],
+            shield_capacity_max=r["shield_capacity_max"],
             cargo_volume=r["cargo_volume"],
             dps_max=r["dps_max"],
             speed_min=r["speed_min"],

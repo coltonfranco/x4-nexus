@@ -20,7 +20,7 @@ function OfferList({ title, offers }: { title: string; offers: Offer[] }) {
   if (offers.length === 0) return null;
   return (
     <div className="flex flex-col gap-0.5">
-      <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{title}</span>
+      <span className="text-xs uppercase tracking-wide text-muted-foreground">{title}</span>
       {offers.slice(0, 4).map((o) => (
         <div key={o.ware_id} className="flex justify-between gap-3 tabular-nums">
           <span className="text-foreground truncate">{prettyId(o.ware_id)}</span>

@@ -3,49 +3,45 @@ import { getClassColor, classFull, getTypeColor, getMkColor } from "../lib/forma
 import { cn } from "../lib/utils";
 
 export function ShipClassBadge({ class_id, className = "" }: { class_id: string, className?: string }) {
+  const baseColor = getClassColor(class_id);
+  const textColor = baseColor.split(' ').find(c => c.startsWith('text-'));
   return (
-    <Badge variant="outline" className={cn(getClassColor(class_id), className)}>
-      {classFull(class_id)}
-    </Badge>
+    <div className={cn("flex items-center gap-2", className)}>
+      <div className={cn("w-1 h-3.5 bg-current", textColor)} />
+      <span className="text-xs font-bold text-foreground tracking-widest leading-none">
+        {classFull(class_id)}
+      </span>
+    </div>
   );
 }
 
 export function ShipTypeBadge({ role, subtype, className = "" }: { role: string | null | undefined, subtype?: string | null | undefined, className?: string }) {
   if (!role) return null;
-  
   const baseColor = getTypeColor(role);
+  const textColor = baseColor.split(' ').find(c => c.startsWith('text-'));
   
-  if (!subtype) {
-    return (
-      <Badge variant="outline" className={cn(baseColor, className)}>
-        {role.charAt(0).toUpperCase() + role.slice(1)}
-      </Badge>
-    );
-  }
-
-  const colorOutline = baseColor.split(' ').filter(c => !c.startsWith('bg-')).join(' ');
-
-  // The outer div acts as the boundary of the badge
-  // We use inline-flex and rounded-full (to match Badge) to shape it
   return (
-    <div className={cn(`inline-flex items-center rounded-full border text-xs font-semibold overflow-hidden transition-colors`, colorOutline, className)}>
-      <div className={cn(`px-2.5 py-0.5 h-full flex items-center border-r border-current/20`, baseColor)}>
+    <div className={cn("flex items-center gap-2", className)}>
+      <div className={cn("w-1.5 h-1.5 bg-current", textColor)} />
+      <span className="text-xs font-bold text-foreground tracking-widest leading-none">
         {role.charAt(0).toUpperCase() + role.slice(1)}
-      </div>
-      <div className="px-2.5 py-0.5 bg-transparent capitalize h-full flex items-center">
-        {subtype}
-      </div>
+        {subtype && <span className="opacity-50 ml-1.5 capitalize font-medium">{subtype}</span>}
+      </span>
     </div>
   );
 }
 
 export function ShipSubtypeBadge({ subtype, role, className = "" }: { subtype: string | null | undefined, role: string | null | undefined, className?: string }) {
   if (!subtype) return null;
-  const colorClass = getTypeColor(role).split(' ').filter(c => !c.startsWith('bg-')).join(' ');
+  const baseColor = getTypeColor(role);
+  const textColor = baseColor.split(' ').find(c => c.startsWith('text-'));
   return (
-    <Badge variant="outline" className={cn(colorClass, "bg-transparent", className)}>
-      {subtype.charAt(0).toUpperCase() + subtype.slice(1)}
-    </Badge>
+    <div className={cn("flex items-center gap-2", className)}>
+      <div className={cn("w-1.5 h-1.5 bg-current opacity-50", textColor)} />
+      <span className="text-xs font-bold text-foreground tracking-widest opacity-70 leading-none capitalize">
+        {subtype}
+      </span>
+    </div>
   );
 }
 

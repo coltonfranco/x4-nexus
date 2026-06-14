@@ -26,17 +26,18 @@ export function Switch({
       aria-checked={checked}
       onClick={() => onCheckedChange(!checked)}
       className={cn(
-        "relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-        checked ? "bg-primary" : "bg-muted-foreground/30",
+        "relative inline-flex h-[18px] w-[34px] shrink-0 cursor-pointer items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+        checked ? "bg-accent/50" : "bg-white/[0.08]",
         className
       )}
       {...props}
     >
       <span
         className={cn(
-          "pointer-events-none flex h-5 w-5 items-center justify-center rounded-full bg-background shadow-lg ring-0 transition-transform",
-          checked ? "translate-x-5" : "translate-x-0"
+          "pointer-events-none flex h-[14px] w-[14px] items-center justify-center rounded-full shadow-lg ring-0 transition-transform",
+          checked ? "translate-x-[16px]" : "translate-x-[2px]"
         )}
+        style={{ backgroundColor: checked ? "var(--accent-light)" : "var(--text-faint)" }}
       >
         {checked ? iconOn : iconOff}
       </span>

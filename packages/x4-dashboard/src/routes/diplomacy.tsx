@@ -15,8 +15,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
+
 import { PageLoaderPreset } from "../components/PageLoader";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -76,24 +77,24 @@ function ActionRow({ action }: { action: DiploAction }) {
 
   return (
     <>
-      <tr
-        className="border-b border-border hover:bg-muted/30 cursor-pointer transition-colors"
+      <TableRow
+        className="cursor-pointer"
         onClick={() => setExpanded((e) => !e)}
       >
-        <td className="px-3 py-2.5 w-6 text-muted-foreground">
+        <TableCell className="w-6 text-muted-foreground">
           {action.bribe_wares.length > 0 || action.description
             ? (expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />)
             : null}
-        </td>
-        <td className="px-3 py-2.5">
+        </TableCell>
+        <TableCell>
           <p className="font-medium text-sm">{action.name ?? action.action_id}</p>
-        </td>
-        <td className="px-3 py-2.5">
+        </TableCell>
+        <TableCell>
           <Badge variant={CATEGORY_VARIANT[action.category ?? ""] ?? "muted"} className="text-xs capitalize">
             {action.category}
           </Badge>
-        </td>
-        <td className="px-3 py-2.5 text-xs">
+        </TableCell>
+        <TableCell className="text-xs">
           <div className="flex flex-col gap-0.5">
             {action.cost_influence != null && action.cost_influence > 0 && (
               <span className="text-primary font-medium">{action.cost_influence} inf</span>
@@ -105,28 +106,28 @@ function ActionRow({ action }: { action: DiploAction }) {
               <span className="text-muted-foreground">Free</span>
             )}
           </div>
-        </td>
-        <td className="px-3 py-2.5">
+        </TableCell>
+        <TableCell>
           {action.success_chance != null ? (
             <div className="flex items-center gap-2">
-              <StatBar value={action.success_chance} max={100} width={56} />
+              <StatBar value={action.success_chance} max={100} />
               <span className="text-xs tabular-nums text-muted-foreground">{action.success_chance}%</span>
             </div>
           ) : (
             <span className="text-xs text-muted-foreground">—</span>
           )}
-        </td>
-        <td className="px-3 py-2.5 text-xs text-muted-foreground tabular-nums">{fmtSeconds(action.duration_sec)}</td>
-        <td className="px-3 py-2.5 text-xs text-muted-foreground tabular-nums">{fmtSeconds(action.cooldown_sec)}</td>
-        <td className="px-3 py-2.5">
+        </TableCell>
+        <TableCell className="text-xs text-muted-foreground tabular-nums">{fmtSeconds(action.duration_sec)}</TableCell>
+        <TableCell className="text-xs text-muted-foreground tabular-nums">{fmtSeconds(action.cooldown_sec)}</TableCell>
+        <TableCell>
           {action.risk && action.risk !== "none" && (
             <Badge variant={RISK_VARIANT[action.risk] ?? "muted"} className="text-xs capitalize">{action.risk}</Badge>
           )}
-        </td>
-      </tr>
+        </TableCell>
+      </TableRow>
       {expanded && (
-        <tr className="border-b border-border bg-muted/10">
-          <td colSpan={8} className="px-8 py-3">
+        <TableRow className="bg-muted/10 hover:bg-muted/10">
+          <TableCell colSpan={8} className="px-8 py-3">
             {action.description && (
               <p className="text-sm text-muted-foreground mb-2">{action.description}</p>
             )}
@@ -148,8 +149,8 @@ function ActionRow({ action }: { action: DiploAction }) {
                 </div>
               )}
             </div>
-          </td>
-        </tr>
+          </TableCell>
+        </TableRow>
       )}
     </>
   );
@@ -168,8 +169,8 @@ function ActionsTab() {
   );
 
   return (
-    <div>
-      <div className="flex items-center gap-3 mb-4">
+    <div className="flex flex-col h-full">
+      <div className="flex items-center gap-3 px-6 py-3 border-b border-border/50 bg-muted/5">
         <Select value={selectedCategory} onValueChange={setSelectedCategory}>
           <SelectTrigger className="w-44"><SelectValue placeholder="All categories" /></SelectTrigger>
           <SelectContent>
@@ -185,24 +186,24 @@ function ActionsTab() {
       {isLoading ? (
         <p className="text-sm text-muted-foreground py-4"><PageLoaderPreset preset="factions" /></p>
       ) : (
-        <div className="rounded-md border border-border overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/40">
-              <tr className="text-xs text-muted-foreground font-medium">
-                <th className="px-3 py-2 w-6" />
-                <th className="px-3 py-2 text-left">Action</th>
-                <th className="px-3 py-2 text-left">Category</th>
-                <th className="px-3 py-2 text-left">Cost</th>
-                <th className="px-3 py-2 text-left">Success</th>
-                <th className="px-3 py-2 text-left">Duration</th>
-                <th className="px-3 py-2 text-left">Cooldown</th>
-                <th className="px-3 py-2 text-left">Risk</th>
-              </tr>
-            </thead>
-            <tbody>
+        <div className="flex-1 overflow-auto p-4">
+          <Table className="text-xs">
+            <TableHeader className="bg-muted/40">
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="w-6" />
+                <TableHead>Action</TableHead>
+                <TableHead>Category</TableHead>
+                <TableHead>Cost</TableHead>
+                <TableHead className="w-32">Success</TableHead>
+                <TableHead>Duration</TableHead>
+                <TableHead>Cooldown</TableHead>
+                <TableHead>Risk</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {filtered.map((a) => <ActionRow key={a.action_id} action={a} />)}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
     </div>
@@ -247,18 +248,21 @@ function GiftsTab() {
   if (giftsLoading) return <p className="text-sm text-muted-foreground py-4"><PageLoaderPreset preset="factions" /></p>;
 
   return (
-    <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">
-        Preferred gift items per faction. Giving these wares via the bribe system yields a positive relation bonus.
-      </p>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {byFaction.map(([factionId, wareIds]) => {
-          const faction = factionMap.get(factionId);
-          return (
-            <div key={factionId} className="rounded-md border border-border p-3">
-              <div className="mb-2">
-                {faction ? (
-                  <FactionBadge name={faction.name} color_hex={faction.color_hex} size="md" faction_id={faction.faction_id} />
+    <div className="flex flex-col h-full">
+      <div className="px-6 py-4 border-b border-border/50 bg-muted/5">
+        <p className="text-sm text-muted-foreground">
+          Preferred gift items per faction. Giving these wares via the bribe system yields a positive relation bonus.
+        </p>
+      </div>
+      <div className="flex-1 p-4 overflow-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {byFaction.map(([factionId, wareIds]) => {
+            const faction = factionMap.get(factionId);
+            return (
+              <div key={factionId} className="rounded-md border border-border p-3">
+                <div className="mb-2">
+                  {faction ? (
+                  <FactionBadge name={faction.name} color_hex={faction.color_hex} icon_url={faction.icon_url} size="md" faction_id={faction.faction_id} />
                 ) : (
                   <span className="text-sm font-medium">{factionId}</span>
                 )}
@@ -278,6 +282,7 @@ function GiftsTab() {
           );
         })}
       </div>
+      </div>
     </div>
   );
 }
@@ -293,34 +298,36 @@ function RanksTab() {
   if (isLoading) return <p className="text-sm text-muted-foreground py-4"><PageLoaderPreset preset="factions" /></p>;
 
   return (
-    <div>
-      <p className="text-sm text-muted-foreground mb-4">
-        Agent rank is determined by accumulated experience. Higher ranks improve diplomatic event outcomes via the event bonus multiplier.
-      </p>
-      <div className="rounded-md border border-border overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-muted/40">
-            <tr className="text-xs text-muted-foreground font-medium text-left">
-              <th className="px-4 py-2">Rank</th>
-              <th className="px-4 py-2">Min XP</th>
-              <th className="px-4 py-2">Event Bonus</th>
-            </tr>
-          </thead>
-          <tbody>
+    <div className="flex flex-col h-full">
+      <div className="px-6 py-4 border-b border-border/50 bg-muted/5">
+        <p className="text-sm text-muted-foreground">
+          Agent rank is determined by accumulated experience. Higher ranks improve diplomatic event outcomes via the event bonus multiplier.
+        </p>
+      </div>
+      <div className="flex-1 p-4 overflow-auto">
+        <Table className="text-xs">
+          <TableHeader className="bg-muted/40">
+            <TableRow className="hover:bg-transparent">
+              <TableHead>Rank</TableHead>
+              <TableHead>Min XP</TableHead>
+              <TableHead className="w-32">Event Bonus</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {ranks.map((rank, i) => (
-              <tr key={rank.min_value} className="border-t border-border hover:bg-muted/20">
-                <td className="px-4 py-2.5 font-medium">{rank.name ?? `Rank ${i + 1}`}</td>
-                <td className="px-4 py-2.5 tabular-nums text-muted-foreground">{rank.min_value}</td>
-                <td className="px-4 py-2.5">
+              <TableRow key={rank.min_value}>
+                <TableCell className="font-medium">{rank.name ?? `Rank ${i + 1}`}</TableCell>
+                <TableCell className="tabular-nums text-muted-foreground">{rank.min_value}</TableCell>
+                <TableCell>
                   <div className="flex items-center gap-2">
-                    <StatBar value={(rank.event_bonus ?? 1) * 40} max={100} width={64} />
+                    <StatBar value={(rank.event_bonus ?? 1) * 40} max={100} />
                     <span className="text-xs tabular-nums text-muted-foreground">×{rank.event_bonus?.toFixed(1)}</span>
                   </div>
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
     </div>
   );
@@ -329,26 +336,48 @@ function RanksTab() {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function DiplomacyPage() {
+  const [activeTab, setActiveTab] = useState<"actions" | "gifts" | "ranks">("actions");
+
+  const TABS = [
+    { id: "actions", label: "Actions" },
+    { id: "gifts", label: "Faction Gifts" },
+    { id: "ranks", label: "Agent Ranks" }
+  ];
+
   return (
     <div className="flex flex-col h-full">
-      <div className="px-6 py-5 border-b border-border">
-        <h1 className="text-2xl font-bold">Diplomacy</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">
+      <div className="px-6 pt-5">
+        <h1 className="text-2xl font-bold tracking-tight">Diplomacy</h1>
+        <p className="text-xs uppercase tracking-widest text-muted-foreground mt-1 font-semibold">
           Agent actions, faction gifts, and rank progression
         </p>
+        <div className="mt-4 flex gap-1">
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setActiveTab(t.id as any)}
+              className={`rounded-t-md border-b-2 px-3 py-2 text-sm font-medium transition-colors ${
+                t.id === activeTab
+                  ? "border-primary text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="flex-1 overflow-auto px-6 py-5">
-        <Tabs defaultValue="actions">
-          <TabsList className="mb-5">
-            <TabsTrigger value="actions">Actions</TabsTrigger>
-            <TabsTrigger value="gifts">Faction Gifts</TabsTrigger>
-            <TabsTrigger value="ranks">Agent Ranks</TabsTrigger>
-          </TabsList>
-          <TabsContent value="actions"><ActionsTab /></TabsContent>
-          <TabsContent value="gifts"><GiftsTab /></TabsContent>
-          <TabsContent value="ranks"><RanksTab /></TabsContent>
-        </Tabs>
+      <div className="flex-1 overflow-hidden px-6 pb-6 pt-4 flex flex-col">
+        <div className="flex flex-col h-full border border-border/50 relative overflow-hidden" style={{ backgroundColor: 'rgba(16, 20, 34, 0.55)' }}>
+          {/* Tech HUD Corner Accents */}
+          <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-primary/60 pointer-events-none" />
+          <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-primary/60 pointer-events-none" />
+
+          {activeTab === "actions" && <ActionsTab />}
+          {activeTab === "gifts" && <GiftsTab />}
+          {activeTab === "ranks" && <RanksTab />}
+        </div>
       </div>
     </div>
   );

@@ -32,7 +32,7 @@ export function DialogContent({
         className={cn(
           "fixed left-[50%] top-[50%] z-50 translate-x-[-50%] translate-y-[-50%]",
           "w-full max-w-2xl max-h-[85vh] overflow-y-auto",
-          "rounded-lg border bg-card text-card-foreground shadow-lg",
+          "rounded-lg border bg-popover text-popover-foreground shadow-lg backdrop-blur-md",
           className
         )}
         {...props}

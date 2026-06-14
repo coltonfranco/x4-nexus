@@ -37,15 +37,15 @@ function ShipDetailStatRow({ label, min, max, maxVal, unit, isLog, format }: {
 
   return (
     <div className="flex items-center gap-3 py-1 group">
-      <span className="w-[110px] shrink-0 text-[10px] sm:text-[11px] uppercase font-bold tracking-wider text-muted-foreground group-hover:text-foreground transition-colors leading-tight">{label}</span>
+      <span className="w-[110px] shrink-0 text-xs sm:text-[11px] uppercase font-bold tracking-wider text-muted-foreground group-hover:text-foreground transition-colors leading-tight">{label}</span>
       <div className="flex-1 min-w-[40px]">
         {max != null && max > 0 && (
           <StatBar value={scaledValue} max={scaledMax} width={100} height={6} className="w-full" />
         )}
       </div>
       <div className="w-[120px] shrink-0 flex justify-end items-baseline gap-1 text-right">
-        <span className="font-mono text-[10px] sm:text-[11px] text-foreground font-medium whitespace-nowrap">{displayVal}</span>
-        {unit && max != null && <span className="text-[9px] sm:text-[10px] text-muted-foreground shrink-0">{unit}</span>}
+        <span className="font-mono text-xs sm:text-[11px] text-foreground font-medium whitespace-nowrap">{displayVal}</span>
+        {unit && max != null && <span className="text-[9px] sm:text-xs text-muted-foreground shrink-0">{unit}</span>}
       </div>
     </div>
   );
@@ -89,7 +89,7 @@ export function ShipDetailPanel({ shipId, factions }: { shipId: string; factions
             <div className="flex items-center gap-2 mt-3 flex-wrap">
               <ShipClassBadge class_id={data.class_id} className="text-sm px-2.5 py-0.5" />
               <ShipTypeBadge role={data.role} subtype={data.ship_type} className="text-sm" />
-              {faction && <FactionBadge name={faction.name} color_hex={faction.color_hex} faction_id={faction.faction_id} size="md" className="text-sm" />}
+              {faction && <FactionBadge name={faction.name} color_hex={faction.color_hex} icon_url={faction.icon_url} faction_id={faction.faction_id} size="md" className="text-sm" />}
             </div>
           </div>
         </div>
@@ -106,7 +106,7 @@ export function ShipDetailPanel({ shipId, factions }: { shipId: string; factions
         <TabsContent value="stats" className="space-y-6 pt-5">
           <div className="bg-muted/10 border border-border/50 rounded-lg overflow-hidden">
             <div className="px-4 pt-3 pb-1 flex items-center justify-between border-b border-border/30">
-              <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold flex items-center gap-1.5"><Info className="w-3.5 h-3.5" />Bars represent maximum potential relative to the best {classShort(data.class_id)}-class ship</span>
+              <span className="text-xs text-muted-foreground uppercase tracking-widest font-semibold flex items-center gap-1.5"><Info className="w-3.5 h-3.5" />Bars represent maximum potential relative to the best {classShort(data.class_id)}-class ship</span>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-6 p-5 pt-4">
               <div className="flex flex-col gap-2">
@@ -137,14 +137,14 @@ export function ShipDetailPanel({ shipId, factions }: { shipId: string; factions
 
             <div className="border-t border-border/30 bg-muted/5 px-6 py-5 flex flex-col md:flex-row gap-10 justify-center">
               <div className="flex flex-col gap-2 items-center md:items-start text-xs border-b md:border-b-0 md:border-r border-border/50 pb-4 md:pb-0 pr-0 md:pr-10">
-                <span className="text-[10px] text-muted-foreground font-bold tracking-widest uppercase mb-1">Physics</span>
+                <span className="text-xs text-muted-foreground font-bold tracking-widest uppercase mb-1">Physics</span>
                 <div className="flex justify-between w-48"><span className="text-muted-foreground uppercase">Mass</span><span className="font-semibold text-foreground">{(data.mass ?? 0).toLocaleString()} kg</span></div>
                 <div className="flex justify-between w-48"><span className="text-muted-foreground uppercase">Pitch Inertia</span><span className="font-semibold text-foreground">{(data.inertia_pitch ?? 0).toLocaleString()}</span></div>
                 <div className="flex justify-between w-48"><span className="text-muted-foreground uppercase">Fwd Drag</span><span className="font-semibold text-foreground">{(data.drag_forward ?? 0).toLocaleString()}</span></div>
                 <div className="flex justify-between w-48"><span className="text-muted-foreground uppercase">Rev Drag</span><span className="font-semibold text-foreground">{(data.drag_reverse ?? 0).toLocaleString()}</span></div>
               </div>
               <div className="flex flex-col gap-2 items-center md:items-start text-xs">
-                <span className="text-[10px] text-muted-foreground font-bold tracking-widest uppercase mb-1">Auxiliary</span>
+                <span className="text-xs text-muted-foreground font-bold tracking-widest uppercase mb-1">Auxiliary</span>
                 <div className="flex justify-between w-48"><span className="text-muted-foreground uppercase">Fwd Accel</span><span className="font-semibold text-foreground">{data.accel_forward ?? 0} m/s²</span></div>
                 <div className="flex justify-between w-48"><span className="text-muted-foreground uppercase">Radar Range</span><span className="font-semibold text-foreground">{((data.radar_range ?? 0) / 1000).toFixed(0)} km</span></div>
                 <div className="flex justify-between w-48"><span className="text-muted-foreground uppercase">Drone Bay</span><span className="font-semibold text-foreground">{data.drone_storage ?? 0}</span></div>
@@ -184,6 +184,15 @@ export function ShipDetailPanel({ shipId, factions }: { shipId: string; factions
                       </tr>
                     );
                   })}
+                  <tr className="border-t border-border/50 hover:bg-muted/10 transition-colors">
+                    <td className="py-2 pl-4 text-muted-foreground text-xs">Ship Storage</td>
+                    {slotSizes.map((s) => {
+                      const dock = (data as Record<string, unknown>)[`dock_${s}`] as number ?? 0;
+                      const storage = (data as Record<string, unknown>)[`storage_${s}`] as number ?? 0;
+                      const val = storage > 0 ? storage : dock;
+                      return (<td key={s} className="py-2 text-center text-sm">{val > 0 ? <span className="font-medium">{val}</span> : <span className="text-muted-foreground/40 text-xs">—</span>}</td>);
+                    })}
+                  </tr>
                 </tbody>
               </table>
             </div>

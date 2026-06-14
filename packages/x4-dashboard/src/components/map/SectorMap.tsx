@@ -316,7 +316,7 @@ export function SectorMap({ sectorId }: { sectorId: string }) {
       {/* Screen-space Overlays */}
       <div style={{ position: "absolute", top: 16, left: 16, zIndex: 10, pointerEvents: "none" }}
            className="flex flex-col gap-1 drop-shadow-md">
-        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Local Sector View</span>
+        <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Local Sector View</span>
         <span className="text-2xl font-bold text-foreground/90" style={{ textShadow: "0 2px 10px rgba(0,0,0,0.8)" }}>
           {sectorDisplayName(sector)}
         </span>

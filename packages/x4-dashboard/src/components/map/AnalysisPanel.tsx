@@ -102,7 +102,7 @@ export function AnalysisPanel({
           <p className="text-[11px] text-muted-foreground">
             Sectors colored by player relation to owner.
           </p>
-          <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-1">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
             <span>enemy (-30)</span>
             <span className="h-2 flex-1 rounded-full" style={{
               background: `linear-gradient(to right, ${STATUS_COLORS.danger}, ${STATUS_COLORS.neutral}, ${STATUS_COLORS.success})`,
@@ -120,7 +120,7 @@ export function AnalysisPanel({
               {resource ? "Heat-mapping yields. Badges show the level." : "Dominant resource fill · dots = others present."}
             </p>
             {resourceSource && (
-              <span className={`text-[10px] px-1.5 py-0.5 rounded shrink-0 ml-1 ${
+              <span className={`text-xs px-1.5 py-0.5 rounded shrink-0 ml-1 ${
                 resourceSource === "live" ? "bg-emerald-900/40 text-emerald-300" : "bg-muted/40 text-muted-foreground"
               }`}>
                 {resourceSource === "live" ? "live" : "static"}
@@ -172,7 +172,7 @@ export function AnalysisPanel({
                   : "No mappable routes — activate a save first."}
               </p>
               <div className="flex items-center gap-1 flex-wrap">
-                <span className="text-[10px] text-muted-foreground mr-0.5">max jumps</span>
+                <span className="text-xs text-muted-foreground mr-0.5">max jumps</span>
                 {([["∞", null], ["1", 1], ["2", 2], ["3", 3], ["4", 4], ["5", 5]] as [string, number | null][]).map(([label, val]) => (
                   <button key={label} onClick={() => onMaxJumpsChange(val)}
                     className={`text-[11px] px-1.5 py-0.5 rounded tabular-nums transition-colors ${
@@ -209,7 +209,7 @@ export function AnalysisPanel({
 
 function HeatLegend() {
   return (
-    <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+    <div className="flex items-center gap-2 text-xs text-muted-foreground">
       <span>low</span>
       <span className="h-2 flex-1 rounded-full" style={{
         background: `linear-gradient(to right, ${STATUS_COLORS.danger}, ${STATUS_COLORS.warning}, ${STATUS_COLORS.success})`,

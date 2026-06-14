@@ -11,6 +11,7 @@ import { cn } from "../lib/utils";
 import { useSort } from "../lib/useSort";
 import { Currency } from "../components/Currency";
 import { FactionBadge } from "../components/FactionBadge";
+
 import { ShipTypeBadge, EquipmentMkBadge, ShipClassBadge } from "../components/ShipBadges";
 import { StatBar } from "../components/StatBar";
 import { EntityIcon } from "../components/EntityIcon";
@@ -25,6 +26,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 
 type EngineStats = {
   mk: number | null;
@@ -268,7 +270,7 @@ function EquipmentDetailPanel({ item, factions }: { item: Equipment; factions: F
             <ShipTypeBadge role={item.kind} className="px-2.5 py-0.5 text-xs" />
             <EquipmentMkBadge mk={item.mk} className="px-2.5 py-0.5 text-xs tracking-wider" />
             {item.size && <ShipClassBadge class_id={item.size} className="px-2.5 py-0.5 text-xs tracking-wider" />}
-            {faction && <FactionBadge name={faction.name} color_hex={faction.color_hex} faction_id={faction.faction_id} />}
+            {faction && <FactionBadge name={faction.name} color_hex={faction.color_hex} icon_url={faction.icon_url} faction_id={faction.faction_id} />}
           </div>
         </div>
       </div>
@@ -328,12 +330,14 @@ function EquipmentTable({
   }, [factions]);
 
   return (
-    <table className="w-full text-sm">
-      <thead>
-        <tr className="border-b border-border text-xs text-muted-foreground">
-          <th className="w-10 px-3 py-2" />
+    <Table className="text-xs">
+      <TableHeader>
+        <TableRow className="text-xs text-muted-foreground hover:bg-transparent">
+          <TableHead className="w-10 px-3 py-2" />
           <SortHeader label="Name" active={key === "name"} dir={dir} onClick={() => toggle("name", "asc")} />
-          <th className="w-24 px-3 py-2 text-left font-medium text-xs text-muted-foreground">Size</th>
+          <TableHead className="w-32 px-3 py-2 text-left font-medium text-xs text-muted-foreground">Size</TableHead>
+          <TableHead className="w-12 px-3 py-2 text-left font-medium text-xs text-muted-foreground">Mk</TableHead>
+          <TableHead className="w-40 px-3 py-2 text-left font-medium text-xs text-muted-foreground">Faction</TableHead>
           {metrics.map((m) => (
             <SortHeader
               key={m.key}
@@ -341,69 +345,67 @@ function EquipmentTable({
               active={key === m.key}
               dir={dir}
               onClick={() => toggle(m.key)}
-              className="w-28"
+              className="w-32"
             />
           ))}
-          <th className="w-12 px-3 py-2 text-left font-medium">Mk</th>
-          <th className="w-32 px-3 py-2 text-left font-medium">Faction</th>
-          <SortHeader label="Price" active={key === "price"} dir={dir} onClick={() => toggle("price")} className="w-24" />
-        </tr>
-      </thead>
-      <tbody>
+          <SortHeader label="Price" active={key === "price"} dir={dir} onClick={() => toggle("price")} className="w-24 text-right" />
+        </TableRow>
+      </TableHeader>
+      <TableBody>
         {sorted.map((e) => {
           const faction = e.faction_id
             ? (shortFactionMap.get(e.faction_id.toLowerCase()) ?? factionMap.get(e.faction_id))
             : undefined;
           return (
-            <tr
+            <TableRow
               key={e.ware_id}
-              className="cursor-pointer border-b border-border transition-colors hover:bg-muted/30"
+              className="cursor-pointer"
               onClick={() => onSelect(e)}
             >
-              <td className="px-3 py-1.5">
+              <TableCell className="px-3 py-1.5">
                 <div className={cn("w-10 h-10 flex items-center justify-center rounded-lg border", getMkGradientClass(e.mk))}>
                   <EntityIcon src={e.icon_url} alt={e.name} size={32} />
                 </div>
-              </td>
-              <td className="px-3 py-2 font-medium text-xs">{e.name}</td>
-              <td className="px-3 py-2">
+              </TableCell>
+              <TableCell className="px-3 py-2 font-medium text-xs">{e.name}</TableCell>
+              <TableCell className="px-3 py-2">
                 {e.size ? (
-                  <ShipClassBadge class_id={e.size} className="text-[10px] px-1.5 py-0" />
+                  <ShipClassBadge class_id={e.size} className="text-xs px-1.5 py-0" />
                 ) : (
                   <span className="text-xs text-muted-foreground">—</span>
                 )}
-              </td>
-              {metrics.map((m) => (
-                <td key={m.key} className="px-3 py-2">
-                  {m.get(e) != null ? (
-                    <StatBar value={m.get(e)!} max={maxima[m.key]} label={m.fmt(m.get(e)!)} width={80} />
-                  ) : (
-                    <span className="text-xs text-muted-foreground">—</span>
-                  )}
-                </td>
-              ))}
-              <td className="px-3 py-2">
+              </TableCell>
+              <TableCell className="px-3 py-2">
                 {e.mk != null ? (
-                  <EquipmentMkBadge mk={e.mk} className="text-[10px] px-1.5 py-0" />
+                  <EquipmentMkBadge mk={e.mk} className="text-xs px-1.5 py-0" />
                 ) : (
                   <span className="text-xs text-muted-foreground">—</span>
                 )}
-              </td>
-              <td className="px-3 py-2">
+              </TableCell>
+              <TableCell className="px-3 py-2">
                 {faction ? (
-                  <FactionBadge name={faction.name} color_hex={faction.color_hex} faction_id={faction.faction_id} />
+                  <FactionBadge name={faction.name} color_hex={faction.color_hex} icon_url={faction.icon_url} faction_id={faction.faction_id} />
                 ) : (
                   <span className="text-xs uppercase text-muted-foreground">{e.faction_id ?? "—"}</span>
                 )}
-              </td>
-              <td className="px-3 py-2 text-right text-xs tabular-nums text-muted-foreground">
+              </TableCell>
+              {metrics.map((m) => (
+                <TableCell key={m.key} className="px-3 py-2">
+                  {m.get(e) != null ? (
+                    <StatBar value={m.get(e)!} max={maxima[m.key]} label={m.fmt(m.get(e)!)} />
+                  ) : (
+                    <span className="text-xs text-muted-foreground">—</span>
+                  )}
+                </TableCell>
+              ))}
+              <TableCell className="px-3 py-2 text-right text-xs tabular-nums text-muted-foreground">
                 {e.price_avg != null ? <Currency value={e.price_avg} /> : "—"}
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           );
         })}
-      </tbody>
-    </table>
+      </TableBody>
+    </Table>
   );
 }
 
@@ -534,9 +536,9 @@ export default function EquipmentPage() {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="border-b border-border px-6 pt-5">
-        <h1 className="text-2xl font-bold">Equipment</h1>
-        <p className="mt-0.5 text-sm text-muted-foreground">
+      <div className="px-6 pt-5">
+        <h1 className="text-2xl font-bold tracking-tight">Equipment</h1>
+        <p className="text-xs uppercase tracking-widest text-muted-foreground mt-1 font-semibold">
           Compare ship parts — pick a category and size, ranked by the stat that matters.
         </p>
         {/* Category tabs */}
@@ -563,8 +565,14 @@ export default function EquipmentPage() {
         </div>
       </div>
 
-      {/* Toolbar: Sizes + Filters + Search */}
-      <div className="flex flex-wrap items-center gap-3 border-b border-border bg-muted/20 px-6 py-3">
+      <div className="flex-1 overflow-hidden px-6 pb-6 pt-4 flex flex-col">
+        <div className="flex flex-col h-full border border-border/50 relative" style={{ backgroundColor: 'rgba(16, 20, 34, 0.55)' }}>
+          {/* Tech HUD Corner Accents */}
+          <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-primary/60 pointer-events-none" />
+          <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-primary/60 pointer-events-none" />
+
+          {/* Toolbar: Sizes + Filters + Search */}
+          <div className="flex flex-wrap items-center gap-3 border-b border-border/50 bg-muted/5 px-6 py-3 relative z-10">
         {sizes.length > 0 && (
           <div className="flex items-center gap-1.5 shrink-0">
             <FilterPill active={size === null} onClick={() => setSize(null)}>
@@ -625,6 +633,8 @@ export default function EquipmentPage() {
             onSelect={setSelectedEquipment}
           />
         )}
+          </div>
+        </div>
       </div>
 
       <Dialog open={selectedEquipment !== null} onOpenChange={(open) => { if (!open) setSelectedEquipment(null); }}>

@@ -87,7 +87,7 @@ export default function RoutesPage() {
       <div className="px-6 py-5 border-b border-border shrink-0 flex items-end justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
-            <TrendingUp className="h-6 w-6 text-emerald-500" /> Trade Routes
+            <TrendingUp className="h-6 w-6 text-success" /> Trade Routes
           </h1>
           <p className="text-sm text-muted-foreground mt-0.5">
             Most profitable runs right now · ranked by profit / hour
@@ -152,12 +152,12 @@ export default function RoutesPage() {
             {shown.map((r, i) => (
               <div
                 key={`${r.ware_id}-${i}`}
-                className="group relative grid grid-cols-[2rem_1fr_auto] items-center gap-4 rounded-lg border border-border bg-card px-4 py-3 hover:border-emerald-500/40 hover:bg-emerald-500/[0.03] transition-colors"
+                className="group relative grid grid-cols-[2rem_1fr_auto] items-center gap-4 rounded-lg border border-border bg-card px-4 py-3 hover:border-success/40 hover:bg-success/[0.03] transition-colors"
               >
                 {/* rank */}
                 <div
                   className={`text-center text-sm font-bold tabular-nums ${
-                    i === 0 ? "text-amber-400" : i < 3 ? "text-foreground" : "text-muted-foreground"
+                    i === 0 ? "text-gold" : i < 3 ? "text-foreground" : "text-muted-foreground"
                   }`}
                 >
                   {i + 1}
@@ -167,8 +167,8 @@ export default function RoutesPage() {
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 text-sm font-semibold">
                     <span className="truncate">{r.ware_name ?? r.ware_id}</span>
-                    <span className="flex items-center gap-1 text-xs text-emerald-500 tabular-nums">
-                      +<Currency value={r.margin} icon={true} abbreviate className="text-emerald-500" />/u
+                    <span className="flex items-center gap-1 text-xs text-success tabular-nums">
+                      +<Currency value={r.margin} icon={true} abbreviate className="text-success" />/u
                     </span>
                     <span className="flex items-center gap-1 text-xs text-muted-foreground tabular-nums">
                       <Package className="h-3 w-3" />
@@ -178,7 +178,7 @@ export default function RoutesPage() {
                   <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5 min-w-0">
                     <span className="truncate text-blue-400/90" title={r.buy_station_name ?? r.buy_station_id}>
                       {r.buy_station_name ? (
-                        <>{r.buy_station_name} <span className="opacity-60 text-[10px]">({sectorName(r.buy_sector)})</span></>
+                        <>{r.buy_station_name} <span className="opacity-60 text-xs">({sectorName(r.buy_sector)})</span></>
                       ) : (
                         sectorName(r.buy_sector)
                       )}
@@ -186,10 +186,10 @@ export default function RoutesPage() {
                         <span className="ml-1 opacity-70 tabular-nums">buy @<Currency value={r.buy_price} abbreviate icon={false} /></span>
                       )}
                     </span>
-                    <ArrowRight className="h-3 w-3 shrink-0 text-emerald-500" />
-                    <span className="truncate text-amber-400/90" title={r.sell_station_name ?? r.sell_station_id}>
+                    <ArrowRight className="h-3 w-3 shrink-0 text-success" />
+                    <span className="truncate text-gold/90" title={r.sell_station_name ?? r.sell_station_id}>
                       {r.sell_station_name ? (
-                        <>{r.sell_station_name} <span className="opacity-60 text-[10px]">({sectorName(r.sell_sector)})</span></>
+                        <>{r.sell_station_name} <span className="opacity-60 text-xs">({sectorName(r.sell_sector)})</span></>
                       ) : (
                         sectorName(r.sell_sector)
                       )}
@@ -213,8 +213,8 @@ export default function RoutesPage() {
 
                 {/* profit/hr hero + bar */}
                 <div className="w-40 shrink-0 text-right">
-                  <div className="text-base font-bold tabular-nums text-emerald-400">
-                    <Currency value={r.est_profit_per_hour} abbreviate icon={false} className="text-emerald-400" />
+                  <div className="text-base font-bold tabular-nums text-success">
+                    <Currency value={r.est_profit_per_hour} abbreviate icon={false} className="text-success" />
                     <span className="text-xs font-normal text-muted-foreground"> /hr</span>
                   </div>
                   <div className="text-xs text-muted-foreground tabular-nums">
@@ -222,7 +222,7 @@ export default function RoutesPage() {
                   </div>
                   <div className="mt-1 h-1 w-full rounded-full bg-border overflow-hidden">
                     <div
-                      className="h-full rounded-full bg-gradient-to-r from-emerald-600 to-emerald-400"
+                      className="h-full rounded-none bg-gradient-to-r from-success to-success/70"
                       style={{ width: `${(r.est_profit_per_hour / max) * 100}%` }}
                     />
                   </div>

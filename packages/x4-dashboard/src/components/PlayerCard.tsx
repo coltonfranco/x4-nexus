@@ -195,7 +195,7 @@ export function PlayerCard() {
                 <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                   {group.label}
                 </span>
-                <span className="ml-auto text-[10px] text-muted-foreground/60 tabular-nums">
+                <span className="ml-auto text-xs text-muted-foreground/60 tabular-nums">
                   {group.stats.length}
                 </span>
               </div>
