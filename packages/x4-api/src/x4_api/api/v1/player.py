@@ -101,15 +101,14 @@ def player_reputation(conn: Annotated[sqlite3.Connection, Depends(get_db)]) -> l
     """The player's current standing with every faction (best first), with gamestart drift."""
     rows = conn.execute(
         """
-        SELECT sd.other_faction_id AS faction_id, f.name AS faction_name, f.color_hex,
-               COALESCE(c.relation, sd.initial_relation) AS relation, 
-               sd.initial_relation
-        FROM seed.faction_relations sd
+        SELECT f.faction_id, f.name AS faction_name, f.color_hex,
+               COALESCE(c.relation, 0.0) AS relation,
+               NULL AS initial_relation
+        FROM s.factions f
         LEFT JOIN faction_relations_current c 
-               ON c.faction_id = sd.faction_id AND c.other_faction_id = sd.other_faction_id
-        LEFT JOIN s.factions f ON f.faction_id = sd.other_faction_id
-        WHERE sd.faction_id = 'player' AND f.is_legacy = 0
-        ORDER BY COALESCE(c.relation, sd.initial_relation) DESC
+               ON c.faction_id = 'player' AND c.other_faction_id = f.faction_id
+        WHERE f.is_legacy = 0
+        ORDER BY COALESCE(c.relation, 0.0) DESC
         """
     ).fetchall()
     return [PlayerRelation(**dict(r)) for r in rows]
