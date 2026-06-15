@@ -171,6 +171,8 @@ CREATE TABLE IF NOT EXISTS ships (
     shield_delay_min       REAL,
     shield_delay_max       REAL,
     radar_range      REAL,
+    accel_max        REAL,
+    range_max        REAL,
     icon_path        TEXT,
     
     -- Physics

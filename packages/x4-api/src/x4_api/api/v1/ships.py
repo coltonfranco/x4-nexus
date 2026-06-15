@@ -30,8 +30,43 @@ class ShipSummary(PublicModel):
     dps_max: float | None
     speed_min: float | None
     speed_max: float | None
+    travel_max: float | None
+    boost_max: float | None
+    accel_max: float | None
+    shield_recharge_max: float | None
+    radar_range: float | None
+    range_max: float | None
     icon_url: str | None
     image_url: str | None
+    people_capacity: int | None = None
+    missile_storage: int | None = None
+    drone_storage: int | None = None
+    countermeasure_storage: int | None = None
+    deployable_storage: int | None = None
+    dock_s: int = 0
+    dock_m: int = 0
+    dock_l: int = 0
+    dock_xl: int = 0
+    storage_s: int = 0
+    storage_m: int = 0
+    storage_l: int = 0
+    storage_xl: int = 0
+    weapons_s: int = 0
+    weapons_m: int = 0
+    weapons_l: int = 0
+    weapons_xl: int = 0
+    turrets_s: int = 0
+    turrets_m: int = 0
+    turrets_l: int = 0
+    turrets_xl: int = 0
+    shields_s: int = 0
+    shields_m: int = 0
+    shields_l: int = 0
+    shields_xl: int = 0
+    engines_s: int = 0
+    engines_m: int = 0
+    engines_l: int = 0
+    engines_xl: int = 0
     price_avg: int | None
     is_owned: bool = False
     restriction_licence: str | None = None
@@ -50,10 +85,8 @@ class ShipDetail(ShipSummary):
     variation: str | None
     secrecy_level: int | None
     travel_min: float | None
-    travel_max: float | None
     travel_stability: float | None
     boost_min: float | None
-    boost_max: float | None
     pitch_min: float | None
     pitch_max: float | None
     yaw_min: float | None
@@ -83,12 +116,9 @@ class ShipDetail(ShipSummary):
     rotation_speed_max: float | None
     rotation_accel_max: float | None
     shield_capacity_min: float | None
-    shield_capacity_max: float | None
     shield_recharge_min: float | None
-    shield_recharge_max: float | None
     shield_delay_min: float | None
     shield_delay_max: float | None
-    radar_range: float | None
     mass: float | None
     drag_forward: float | None
     drag_reverse: float | None
@@ -100,36 +130,7 @@ class ShipDetail(ShipSummary):
     inertia_pitch: float | None
     inertia_yaw: float | None
     inertia_roll: float | None
-    people_capacity: int | None
-    missile_storage: int | None
-    drone_storage: int | None
-    countermeasure_storage: int | None
-    deployable_storage: int | None
-    dock_s: int
-    dock_m: int
-    dock_l: int
-    dock_xl: int
-    storage_s: int
-    storage_m: int
-    storage_l: int
-    storage_xl: int
     launch_tubes: int
-    weapons_s: int
-    weapons_m: int
-    weapons_l: int
-    weapons_xl: int
-    turrets_s: int
-    turrets_m: int
-    turrets_l: int
-    turrets_xl: int
-    shields_s: int
-    shields_m: int
-    shields_l: int
-    shields_xl: int
-    engines_s: int
-    engines_m: int
-    engines_l: int
-    engines_xl: int
     software: list[ShipSoftware]
     drop_list_id: str | None
 
@@ -148,7 +149,7 @@ _DETAIL_COLS = (
     "can_be_captured, radar_range_direct, boost_recharge_delay, "
     "rotation_speed_max, rotation_accel_max, "
     "shield_capacity_min, shield_capacity_max, shield_recharge_min, shield_recharge_max, "
-    "shield_delay_min, shield_delay_max, radar_range, "
+    "shield_delay_min, shield_delay_max, radar_range, s.accel_max, s.range_max, "
     "mass, drag_forward, drag_reverse, drag_horizontal, drag_vertical, "
     "drag_pitch, drag_yaw, drag_roll, "
     "inertia_pitch, inertia_yaw, inertia_roll, "
@@ -178,7 +179,7 @@ def list_ships(
 ) -> list[ShipSummary]:
     """List all ships in the game catalog."""
     sql = [
-        "SELECT s.ship_id, s.name, s.dlc, s.class_id, s.ship_type, s.role, s.faction_id, s.hull, s.shield_capacity_max, s.cargo_volume, s.dps_max, s.speed_min, s.speed_max, s.icon_path, w.price_avg, w.restriction_licence,",
+        "SELECT s.ship_id, s.name, s.dlc, s.class_id, s.ship_type, s.role, s.faction_id, s.hull, s.shield_capacity_max, s.cargo_volume, s.dps_max, s.speed_min, s.speed_max, s.travel_max, s.boost_max, s.accel_max, s.shield_recharge_max, s.radar_range, s.range_max, s.people_capacity, s.missile_storage, s.drone_storage, s.countermeasure_storage, s.deployable_storage, s.dock_s, s.dock_m, s.dock_l, s.dock_xl, s.storage_s, s.storage_m, s.storage_l, s.storage_xl, s.weapons_s, s.weapons_m, s.weapons_l, s.weapons_xl, s.turrets_s, s.turrets_m, s.turrets_l, s.turrets_xl, s.shields_s, s.shields_m, s.shields_l, s.shields_xl, s.engines_s, s.engines_m, s.engines_l, s.engines_xl, s.icon_path, w.price_avg, w.restriction_licence,",
         "EXISTS(SELECT 1 FROM ships dyn WHERE dyn.macro = s.ship_id AND dyn.is_player_owned = 1) AS is_owned,",
         "(w.ware_id IS NOT NULL AND s.faction_id NOT IN ('xenon', 'khaak') AND (w.restriction_licence IS NULL OR w.restriction_licence IN ('generaluseship', 'generaluseequipment') OR EXISTS (SELECT 1 FROM player_licences pl WHERE pl.licence_type = w.restriction_licence AND pl.faction_id = s.faction_id))) AS is_obtainable",
         "FROM s.ships s",
@@ -218,6 +219,41 @@ def list_ships(
             dps_max=r["dps_max"],
             speed_min=r["speed_min"],
             speed_max=r["speed_max"],
+            travel_max=r["travel_max"],
+            boost_max=r["boost_max"],
+            accel_max=r["accel_max"],
+            shield_recharge_max=r["shield_recharge_max"],
+            radar_range=r["radar_range"],
+            range_max=r["range_max"],
+            people_capacity=r["people_capacity"],
+            missile_storage=r["missile_storage"],
+            drone_storage=r["drone_storage"],
+            countermeasure_storage=r["countermeasure_storage"],
+            deployable_storage=r["deployable_storage"],
+            dock_s=r["dock_s"] or 0,
+            dock_m=r["dock_m"] or 0,
+            dock_l=r["dock_l"] or 0,
+            dock_xl=r["dock_xl"] or 0,
+            storage_s=r["storage_s"] or 0,
+            storage_m=r["storage_m"] or 0,
+            storage_l=r["storage_l"] or 0,
+            storage_xl=r["storage_xl"] or 0,
+            weapons_s=r["weapons_s"] or 0,
+            weapons_m=r["weapons_m"] or 0,
+            weapons_l=r["weapons_l"] or 0,
+            weapons_xl=r["weapons_xl"] or 0,
+            turrets_s=r["turrets_s"] or 0,
+            turrets_m=r["turrets_m"] or 0,
+            turrets_l=r["turrets_l"] or 0,
+            turrets_xl=r["turrets_xl"] or 0,
+            shields_s=r["shields_s"] or 0,
+            shields_m=r["shields_m"] or 0,
+            shields_l=r["shields_l"] or 0,
+            shields_xl=r["shields_xl"] or 0,
+            engines_s=r["engines_s"] or 0,
+            engines_m=r["engines_m"] or 0,
+            engines_l=r["engines_l"] or 0,
+            engines_xl=r["engines_xl"] or 0,
             icon_url=get_icon_url(r["icon_path"]),
             image_url=get_icon_url(f"ship_{r['ship_id']}"),
             price_avg=r["price_avg"],
@@ -227,6 +263,42 @@ def list_ships(
         )
         for r in rows
     ]
+
+
+class ClassMax(PublicModel):
+    hull: int
+    speed_max: float
+    travel_max: float
+    boost_max: float
+    accel_max: float
+    shield_capacity_max: float
+    shield_recharge_max: float
+    cargo_volume: int
+    dps_max: float
+    range_max: float
+
+
+@router.get("/ships/class-max", response_model=ClassMax)
+def class_max(
+    conn: Annotated[sqlite3.Connection, Depends(get_db)],
+    class_id: str = Query(..., description="Canonical class_id, e.g. ship_xl"),
+) -> ClassMax:
+    """Return the maximum theoretical value for each stat among ships of the given class."""
+    row = conn.execute(
+        "SELECT MAX(hull), MAX(speed_max), MAX(travel_max), MAX(boost_max),"
+        " MAX(accel_max), MAX(shield_capacity_max), MAX(shield_recharge_max),"
+        " MAX(cargo_volume), MAX(dps_max), MAX(range_max)"
+        " FROM s.ships WHERE class_id = :cid",
+        {"cid": class_id},
+    ).fetchone()
+    if row is None or row[0] is None:
+        raise HTTPException(status_code=404, detail=f"No ships found for class_id: {class_id}")
+    return ClassMax(
+        hull=row[0], speed_max=row[1] or 0, travel_max=row[2] or 0,
+        boost_max=row[3] or 0, accel_max=row[4] or 0,
+        shield_capacity_max=row[5] or 0, shield_recharge_max=row[6] or 0,
+        cargo_volume=row[7] or 0, dps_max=row[8] or 0, range_max=row[9] or 0,
+    )
 
 
 @router.get("/ships/{ship_id}", response_model=ShipDetail)

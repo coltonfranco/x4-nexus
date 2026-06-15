@@ -624,7 +624,7 @@ export default function EquipmentPage() {
 
       <div className="flex-1 overflow-auto px-6 py-4">
         {isLoading ? (
-          <div className="h-full flex flex-col justify-center"><PageLoaderPreset preset="equipment" /></div>
+          <PageLoaderPreset preset="equipment" />
         ) : shown.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">No parts match.</p>
         ) : (

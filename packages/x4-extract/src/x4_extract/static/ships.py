@@ -632,6 +632,24 @@ def update_derived_stats(conn: sqlite3.Connection) -> None:
         " GROUP BY s.ship_id"
     )
 
+    # ── Per-size best weapon range (bullet_speed × lifetime / 1000) ─────
+    def _range_agg() -> dict[str, float]:
+        rows = conn.execute(
+            "SELECT w.size, MAX(b.speed * b.lifetime / 1000.0)"
+            " FROM equip_weapons w"
+            " JOIN equip_bullets b ON w.default_bullet_id = b.bullet_id"
+            " WHERE w.class_id IN ('weapon', 'turret') AND w.size IN ('s','m','l','xl')"
+            " GROUP BY w.size"
+        ).fetchall()
+        return {r[0]: (r[1] or 0.0) for r in rows}
+
+    r_best = _range_agg()
+    _range_parts = []
+    # Sort by range descending so the first matching size is the best one
+    for s, r in sorted(r_best.items(), key=lambda kv: -kv[1]):
+        _range_parts.append(f"WHEN (weapons_{s} > 0 OR turrets_{s} > 0) THEN {r}")
+    range_expr = f"CASE {' '.join(_range_parts)} ELSE 0 END" if _range_parts else "0"
+
     # One UPDATE with all values computed inline from the pre-fetched dicts.
     conn.execute(f"""
         UPDATE ships SET
@@ -642,6 +660,7 @@ def update_derived_stats(conn: sqlite3.Connection) -> None:
           travel_max = ({_sum4(e_travel_max)}) / drag_forward,
           boost_min  = ({_sum4(e_boost_min)})  / drag_forward,
           boost_max  = ({_sum4(e_boost_max)})  / drag_forward,
+          accel_max  = ({_sum4(e_thrust_max)}) / mass,
 
           pitch_min = {_thr_expr(t_pitch_min)} / inertia_pitch,
           pitch_max = {_thr_expr(t_pitch_max)} / inertia_pitch,
@@ -657,7 +676,8 @@ def update_derived_stats(conn: sqlite3.Connection) -> None:
           shield_delay_min = CASE WHEN {has_shields} THEN {s_del_min_val} END,
           shield_delay_max = CASE WHEN {has_shields} THEN {s_del_max_val} END,
 
-          radar_range = (SELECT radar FROM _ship_radar r WHERE r.ship_id = ships.ship_id)
+          radar_range = (SELECT radar FROM _ship_radar r WHERE r.ship_id = ships.ship_id),
+          range_max   = MIN(30, {range_expr})
         WHERE mass > 0 AND drag_forward > 0
     """)
     conn.execute("DROP TABLE IF EXISTS _ship_radar")

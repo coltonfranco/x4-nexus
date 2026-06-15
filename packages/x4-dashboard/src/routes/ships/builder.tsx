@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { ShipClassBadge, ShipTypeBadge, EquipmentMkBadge } from "../../components/ShipBadges";
 import { FactionCombobox } from "../../components/FactionCombobox";
 import { ShipImage } from "../../components/ShipImage";
+import { Switch } from "../../components/ui/switch";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -36,10 +37,11 @@ type WeaponStats = {
 type ShipSummary = { ship_id: string; name: string; class_id: string; faction_id: string | null; role: string | null; icon_url: string | null; image_url: string | null; price_avg: number | null; };
 type ShipDetail = ShipSummary & {
   ship_type: string | null;
-  speed_max: number | null; travel_max: number | null; boost_max: number | null;
+  speed_max: number | null; travel_max: number | null; boost_max: number | null; accel_max: number | null;
   pitch_max: number | null; yaw_max: number | null; roll_max: number | null;
   shield_capacity_max: number | null; shield_recharge_max: number | null; radar_range: number | null;
   hull: number | null; cargo_volume: number | null; mass: number | null; drag_forward: number | null;
+  dps_max: number | null; range_max: number | null;
   people_capacity: number | null; drone_storage: number | null; missile_storage: number | null;
   deployable_storage: number | null; countermeasure_storage: number | null;
   dock_s: number; dock_m: number; dock_l: number; dock_xl: number;
@@ -134,7 +136,7 @@ const SHIELD_MAX: Record<string, number> = { xs: 500, s: 1600, m: 10000, l: 7000
 const RECHARGE_MAX: Record<string, number> = { xs: 100, s: 250, m: 100, l: 450, xl: 900 };
 
 const DPS_MAX: Record<string, number> = { xs: 200, s: 400, m: 1200, l: 3000, xl: 3000 };
-const RANGE_MAX: Record<string, number> = { xs: 5, s: 10, m: 15, l: 20, xl: 20 };
+export const RANGE_MAX: Record<string, number> = { xs: 5, s: 10, m: 15, l: 20, xl: 20 };
 const ROTATION_MAX: Record<string, number> = { xs: 250, s: 200, m: 250, l: 100, xl: 50 };
 
 export const SHIP_HULL_MAX: Record<string, number> = { xs: 2000, s: 6700, m: 39000, l: 211000, xl: 1190000 };
@@ -285,7 +287,7 @@ function ShipSelector({
       </button>
 
       {open && (
-        <div className="absolute top-full left-0 mt-1 z-50 w-[420px] border border-border rounded-md bg-popover shadow-xl overflow-hidden">
+        <div className="absolute top-full left-0 mt-1 z-50 w-[420px] border border-border rounded-md bg-[#101422]/95 backdrop-blur-md shadow-xl overflow-hidden">
           {/* Search input */}
           <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-muted/20">
             <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
@@ -627,12 +629,14 @@ function EquipmentCard({
 
 // ── Stats footer ───────────────────────────────────────────────────────────────
 
-function StatRow({ label, value, max, unit, isLog }: { label: string; value: number; max: number; unit?: string; isLog?: boolean }) {
-  const scaledValue = isLog ? Math.log10(value + 1) : value;
-  const scaledMax = isLog ? Math.log10(max + 1) : max;
-  const pct = Math.max(0, Math.min(100, (scaledValue / scaledMax) * 100));
+function StatRow({ label, value, max, shipMax, unit, locked }: {
+  label: string; value: number; max: number; shipMax?: number; unit?: string; locked?: boolean;
+}) {
+  const pct = max > 0 ? Math.max(0, Math.min(100, (value / max) * 100)) : 0;
+  // For locked (fixed) stats, use value as both fill and marker position
+  const effectiveMax = locked ? value : shipMax;
+  const markerPct = (max > 0 && effectiveMax != null) ? Math.max(0, Math.min(100, (effectiveMax / max) * 100)) : 0;
   
-  // Use app standard StatBar colors
   const barColor = 
     pct >= 66 ? "var(--success)" :
     pct >= 33 ? "var(--warning)" :
@@ -642,8 +646,24 @@ function StatRow({ label, value, max, unit, isLog }: { label: string; value: num
     <div className="flex items-center gap-3 py-1 group">
       <span className="w-24 shrink-0 text-xs uppercase font-bold tracking-wider text-muted-foreground group-hover:text-foreground transition-colors leading-tight">{label}</span>
       
-      <div className="flex-1 h-[4px] bg-muted/40 rounded-full overflow-hidden flex">
-        <div className="h-full rounded-full transition-all duration-300 opacity-90 group-hover:opacity-100" style={{ width: `${pct}%`, backgroundColor: barColor }} />
+      {/* Track: bright light-grey rail = open, fillable space */}
+      <div className="flex-1 h-[4px] rounded-full relative" style={{ backgroundColor: "rgba(255,255,255,0.28)" }}>
+        {/* Blocked zone: paints dark OVER the bright track right of wall = closed/off-limits */}
+        {markerPct > 0 && markerPct < 100 && (
+          <div className="absolute top-0 right-0 h-full rounded-r-full"
+               style={{ width: `${100 - markerPct}%`, backgroundColor: "rgba(0,0,0,0.72)" }} />
+        )}
+        {/* Filled bar — solid stat color */}
+        <div className="absolute top-0 left-0 h-full rounded-full transition-all duration-300 opacity-90 group-hover:opacity-100"
+             style={{ width: `${pct}%`, backgroundColor: barColor }} />
+        {/* Ship-max wall marker */}
+        {markerPct > 0 && (
+          <div
+            className="absolute top-0 h-full w-[2px] bg-foreground/50 group-hover:bg-foreground/70 transition-colors z-10"
+            style={{ left: `${markerPct}%` }}
+            title={locked ? `${label} is fixed at ${value.toFixed(0)}${unit ? " " + unit : ""}` : `Ship max: ${shipMax?.toFixed(0)}${unit ? " " + unit : ""}`}
+          />
+        )}
       </div>
       
       <div className="w-16 shrink-0 flex justify-end items-baseline gap-1">
@@ -655,6 +675,12 @@ function StatRow({ label, value, max, unit, isLog }: { label: string; value: num
     </div>
   );
 }
+
+type ClassMax = {
+  hull: number; speed_max: number; travel_max: number; boost_max: number; accel_max: number;
+  shield_capacity_max: number; shield_recharge_max: number; cargo_volume: number;
+  dps_max: number; range_max: number;
+};
 
 function StatsFooter({ ship, cart, slots }: {
   ship: ShipDetail; cart: Record<string, EquipmentItem | null>; slots: SlotDef[];
@@ -699,18 +725,25 @@ function StatsFooter({ ship, cart, slots }: {
     : 0;
   
   const cid = ship.class_id || "s";
-  const maxHull = SHIP_HULL_MAX[cid] || 20_000;
-  const maxShield = SHIP_SHIELD_MAX[cid] || 15_000;
-  const maxRegen = SHIP_REGEN_MAX[cid] || 1_000;
-  const maxCargo = SHIP_CARGO_MAX[cid] || 5_000;
-  const maxCrew = SHIP_CREW_MAX[cid] || 40;
-  const maxSpeed = SHIP_SPEED_MAX[cid] || 800;
-  const maxTravel = SHIP_TRAVEL_MAX[cid] || 10_000;
-  const maxBoost = SHIP_BOOST_MAX[cid] || 4_000;
-  const maxAccel = SHIP_ACCEL_MAX[cid] || 150;
-  const maxMissile = SHIP_MISSILE_MAX[cid] || 100;
-  const maxDps = SHIP_DPS_MAX[cid] || 5_000;
-  const maxRange = RANGE_MAX[cid] || 20;
+
+  const { data: cm } = useQuery<ClassMax>({
+    queryKey: ["classMax", ship.class_id],
+    queryFn: () => fetch(`/api/v1/ships/class-max?class_id=${ship.class_id}`).then((r) => r.json()),
+    staleTime: 5 * 60_000,
+  });
+
+  const maxSpeed  = cm?.speed_max  ?? SHIP_SPEED_MAX[cid]  ?? 800;
+  const maxTravel = cm?.travel_max ?? SHIP_TRAVEL_MAX[cid] ?? 10_000;
+  const maxBoost  = cm?.boost_max  ?? SHIP_BOOST_MAX[cid]  ?? 4_000;
+  const maxAccel  = cm?.accel_max  ?? SHIP_ACCEL_MAX[cid]  ?? 150;
+  const maxHull   = cm?.hull      ?? SHIP_HULL_MAX[cid]   ?? 20_000;
+  const maxShield = cm?.shield_capacity_max ?? SHIP_SHIELD_MAX[cid] ?? 15_000;
+  const maxRegen  = cm?.shield_recharge_max ?? SHIP_REGEN_MAX[cid]  ?? 1_000;
+  const maxCargo  = cm?.cargo_volume      ?? SHIP_CARGO_MAX[cid]   ?? 5_000;
+  const maxDps    = cm?.dps_max   ?? SHIP_DPS_MAX[cid]    ?? 5_000;
+  const maxRange  = cm?.range_max ?? RANGE_MAX[cid]       ?? 20;
+  const maxCrew   = SHIP_CREW_MAX[cid] ?? 40;
+  const maxMissile = SHIP_MISSILE_MAX[cid] ?? 100;
 
   return (
     <div className="bg-muted/10 border-t border-border/50 text-sm w-full shrink-0">
@@ -725,10 +758,10 @@ function StatsFooter({ ship, cart, slots }: {
           <div className="text-xs font-bold text-foreground uppercase tracking-wider mb-1 flex items-center gap-2">
             <MoveVertical className="w-4 h-4 text-primary" /> Flight
           </div>
-          <StatRow label="Top Speed" value={speed} max={maxSpeed} unit="m/s" />
-          <StatRow label="Travel" value={travelSpeed} max={maxTravel} unit="m/s" />
-          <StatRow label="Boost" value={boostSpeed} max={maxBoost} unit="m/s" />
-          <StatRow label="Accel" value={acceleration} max={maxAccel} unit="m/s²" />
+          <StatRow label="Top Speed" value={speed} max={maxSpeed} shipMax={ship.speed_max ?? undefined} unit="m/s" />
+          <StatRow label="Travel" value={travelSpeed} max={maxTravel} shipMax={ship.travel_max ?? undefined} unit="m/s" />
+          <StatRow label="Boost" value={boostSpeed} max={maxBoost} shipMax={ship.boost_max ?? undefined} unit="m/s" />
+          <StatRow label="Accel" value={acceleration} max={maxAccel} shipMax={ship.accel_max ?? undefined} unit="m/s²" />
           <div className="flex items-center justify-between text-[11px] text-muted-foreground mt-1 pt-1 border-t border-border/30">
             <span>Pitch: <span className="font-semibold text-foreground">{Math.round(pitch)}°/s</span></span>
             <span>Yaw: <span className="font-semibold text-foreground">{Math.round(yaw)}°/s</span></span>
@@ -740,18 +773,18 @@ function StatsFooter({ ship, cart, slots }: {
           <div className="text-xs font-bold text-foreground uppercase tracking-wider mb-1 flex items-center gap-2">
             <Shield className="w-4 h-4 text-primary" /> Defense
           </div>
-          <StatRow label="Hull" value={ship.hull ?? 0} max={maxHull} unit="HP" />
-          <StatRow label="Shield" value={shieldCap} max={maxShield} unit="MJ" />
-          <StatRow label="Regen" value={shieldRecharge} max={maxRegen} unit="MW/s" />
+          <StatRow label="Hull" value={ship.hull ?? 0} max={maxHull} unit="HP" locked />
+          <StatRow label="Shield" value={shieldCap} max={maxShield} shipMax={ship.shield_capacity_max ?? undefined} unit="MJ" />
+          <StatRow label="Regen" value={shieldRecharge} max={maxRegen} shipMax={ship.shield_recharge_max ?? undefined} unit="MW/s" />
         </div>
 
         <div className="flex flex-col gap-1.5">
           <div className="text-xs font-bold text-foreground uppercase tracking-wider mb-1 flex items-center gap-2">
             <ShoppingCart className="w-4 h-4 text-primary" /> Logistics
           </div>
-          <StatRow label="Cargo" value={ship.cargo_volume ?? 0} max={maxCargo} unit="m³" />
-          <StatRow label="Crew" value={ship.people_capacity ?? 0} max={maxCrew} unit="ppl" />
-          <StatRow label="Deployables" value={ship.deployable_storage ?? 0} max={100} unit="u" />
+          <StatRow label="Cargo" value={ship.cargo_volume ?? 0} max={maxCargo} unit="m³" locked />
+          <StatRow label="Crew" value={ship.people_capacity ?? 0} max={maxCrew} unit="ppl" locked />
+          <StatRow label="Deployables" value={ship.deployable_storage ?? 0} max={100} unit="u" locked />
           <div className="flex items-center justify-between text-[11px] text-muted-foreground mt-1 pt-1 border-t border-border/30">
             <span>Drones: <span className="font-semibold text-foreground">{ship.drone_storage ?? 0}</span></span>
             <span>Flares: <span className="font-semibold text-foreground">{ship.countermeasure_storage ?? 0}</span></span>
@@ -763,9 +796,9 @@ function StatsFooter({ ship, cart, slots }: {
           <div className="text-xs font-bold text-foreground uppercase tracking-wider mb-1 flex items-center gap-2">
             <Crosshair className="w-4 h-4 text-primary" /> Offense
           </div>
-          <StatRow label="Weapon DPS" value={totalDps} max={maxDps} unit="/s" />
-          <StatRow label="Range" value={weaponRange} max={maxRange} unit="km" />
-          <StatRow label="Missiles" value={ship.missile_storage ?? 0} max={maxMissile} unit="Ms" />
+          <StatRow label="Weapon DPS" value={totalDps} max={maxDps} shipMax={ship.dps_max ?? undefined} unit="/s" />
+          <StatRow label="Range" value={weaponRange} max={maxRange} shipMax={ship.range_max ?? undefined} unit="km" />
+          <StatRow label="Missiles" value={ship.missile_storage ?? 0} max={maxMissile} unit="Ms" locked />
           <div className="flex items-center justify-between text-[11px] text-muted-foreground mt-1 pt-1 border-t border-border/30">
             <span>Weapon Turn: <span className="font-semibold text-foreground">{Math.round(weaponTurn)}°/s</span></span>
           </div>
@@ -1045,15 +1078,12 @@ export default function BuilderPage() {
                     </button>
                   )}
                   
-                  <button
-                    onClick={() => setObtainableOnly(!obtainableOnly)}
-                    className={cn(
-                      "text-xs font-medium px-3 h-9 rounded transition-colors flex items-center shrink-0 border",
-                      obtainableOnly ? "bg-primary text-primary-foreground border-primary" : "bg-transparent text-foreground border-input hover:bg-accent hover:text-accent-foreground"
-                    )}
-                  >
-                    Obtainable Only
-                  </button>
+                  <div className="flex items-center gap-2 px-2 shrink-0">
+                    <Switch id="obtainable-only" checked={obtainableOnly} onCheckedChange={setObtainableOnly} />
+                    <label htmlFor="obtainable-only" className="text-xs font-medium text-muted-foreground cursor-pointer select-none">
+                      Obtainable Only
+                    </label>
+                  </div>
 
                   <Select value={sortFilter || (["weapon", "turret"].includes(category.kind) ? "type_asc" : "price_asc")} onValueChange={setSortFilter}>
                     <SelectTrigger className="w-[180px] h-9 text-xs border border-border hover:border-primary/50 transition-colors focus:border-primary">
@@ -1191,11 +1221,6 @@ export default function BuilderPage() {
                     classId={shipDetail.class_id}
                     className="aspect-[4/3] p-2"
                   />
-                  <div className="text-center mt-1 mb-2">
-                    <span className="text-[9px] font-mono tracking-widest text-muted-foreground uppercase opacity-70">
-                      CLICK TO ORBIT • SCROLL TO ZOOM
-                    </span>
-                  </div>
                 </div>
                 <div className="mt-2 text-center">
                   <p className="text-sm font-bold leading-tight">{shipDetail.name}</p>

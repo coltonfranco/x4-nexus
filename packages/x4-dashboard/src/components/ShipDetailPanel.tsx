@@ -16,8 +16,8 @@ import type { FactionSummary } from '../lib/map/types';
 import {
   SHIP_HULL_MAX, SHIP_SHIELD_MAX, SHIP_REGEN_MAX,
   SHIP_SPEED_MAX, SHIP_TRAVEL_MAX, SHIP_BOOST_MAX,
-  SHIP_CARGO_MAX, SHIP_CREW_MAX,
-  SHIP_MISSILE_MAX, SHIP_DPS_MAX
+  SHIP_CARGO_MAX, SHIP_CREW_MAX, SHIP_ACCEL_MAX,
+  SHIP_MISSILE_MAX, SHIP_DPS_MAX, RANGE_MAX
 } from "../routes/ships/builder";
 
 type ShipDetail = any; // large type — inferred from API
@@ -62,6 +62,12 @@ function ShipDropTable({ listId }: { listId: string }) {
   return <div className="space-y-3"><DropListContent groups={groups} /></div>;
 }
 
+type ClassMax = {
+  hull: number; speed_max: number; travel_max: number; boost_max: number; accel_max: number;
+  shield_capacity_max: number; shield_recharge_max: number; cargo_volume: number;
+  dps_max: number; range_max: number;
+};
+
 export function ShipDetailPanel({ shipId, factions }: { shipId: string; factions: FactionSummary[] }) {
   const { data, isLoading } = useQuery<ShipDetail>({
     queryKey: ["ship", shipId],
@@ -69,12 +75,31 @@ export function ShipDetailPanel({ shipId, factions }: { shipId: string; factions
     staleTime: 5 * 60_000,
   });
 
+  const cid = data ? classShort(data.class_id).toLowerCase() : "m";
+  const { data: classMax } = useQuery<ClassMax>({
+    queryKey: ["classMax", data?.class_id],
+    queryFn: () => fetch(`/api/v1/ships/class-max?class_id=${data!.class_id}`).then((r) => r.json()),
+    staleTime: 5 * 60_000,
+    enabled: !!data,
+  });
+
   if (isLoading) return <div className="p-6 text-muted-foreground text-sm"><PageLoaderPreset preset="ships" className="py-12" /></div>;
   if (!data) return null;
 
   const slotSizes = ["s", "m", "l", "xl"] as const;
   const faction = data.faction_id ? factions.find((f: FactionSummary) => f.faction_id === data.faction_id) : undefined;
-  const cid = classShort(data.class_id).toLowerCase();
+
+  const cm = classMax;
+  const maxHull = cm?.hull ?? SHIP_HULL_MAX[cid] ?? 800_000;
+  const maxSpeed = cm?.speed_max ?? SHIP_SPEED_MAX[cid] ?? 600;
+  const maxTravel = cm?.travel_max ?? SHIP_TRAVEL_MAX[cid] ?? 10000;
+  const maxBoost = cm?.boost_max ?? SHIP_BOOST_MAX[cid] ?? 3000;
+  const maxAccel = cm?.accel_max ?? SHIP_ACCEL_MAX[cid] ?? 150;
+  const maxShield = cm?.shield_capacity_max ?? SHIP_SHIELD_MAX[cid] ?? 100000;
+  const maxRegen = cm?.shield_recharge_max ?? SHIP_REGEN_MAX[cid] ?? 1000;
+  const maxCargo = cm?.cargo_volume ?? SHIP_CARGO_MAX[cid] ?? 60_000;
+  const maxDps = cm?.dps_max ?? SHIP_DPS_MAX[cid] ?? 5000;
+  const maxRange = cm?.range_max ?? RANGE_MAX[cid] ?? 20;
 
   return (
     <div className="p-6 space-y-5">
@@ -111,25 +136,27 @@ export function ShipDetailPanel({ shipId, factions }: { shipId: string; factions
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-6 p-5 pt-4">
               <div className="flex flex-col gap-2">
                 <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 border-b border-border/50 pb-1.5">Flight</div>
-                <ShipDetailStatRow label="Top Speed" min={null} max={data.speed_max} maxVal={SHIP_SPEED_MAX[cid] || 600} unit="m/s" />
-                <ShipDetailStatRow label="Travel Speed" min={null} max={data.travel_max} maxVal={SHIP_TRAVEL_MAX[cid] || 10000} unit="m/s" />
-                <ShipDetailStatRow label="Boost Speed" min={null} max={data.boost_max} maxVal={SHIP_BOOST_MAX[cid] || 3000} unit="m/s" />
+                <ShipDetailStatRow label="Top Speed" min={null} max={data.speed_max} maxVal={maxSpeed} unit="m/s" />
+                <ShipDetailStatRow label="Travel Speed" min={null} max={data.travel_max} maxVal={maxTravel} unit="m/s" />
+                <ShipDetailStatRow label="Boost Speed" min={null} max={data.boost_max} maxVal={maxBoost} unit="m/s" />
+                <ShipDetailStatRow label="Accel" min={null} max={data.accel_max} maxVal={maxAccel} unit="m/s²" />
               </div>
               <div className="flex flex-col gap-2">
                 <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 border-b border-border/50 pb-1.5">Defense</div>
-                <ShipDetailStatRow label="Hull Capacity" min={null} max={data.hull} maxVal={SHIP_HULL_MAX[cid] || 800_000} unit="HP" />
-                <ShipDetailStatRow label="Shield Cap" min={null} max={data.shield_capacity_max} maxVal={SHIP_SHIELD_MAX[cid] || 100000} unit="MJ" />
-                <ShipDetailStatRow label="Shield Regen" min={null} max={data.shield_recharge_max} maxVal={SHIP_REGEN_MAX[cid] || 1000} unit="MW/s" />
+                <ShipDetailStatRow label="Hull Capacity" min={null} max={data.hull} maxVal={maxHull} unit="HP" />
+                <ShipDetailStatRow label="Shield Cap" min={null} max={data.shield_capacity_max} maxVal={maxShield} unit="MJ" />
+                <ShipDetailStatRow label="Shield Regen" min={null} max={data.shield_recharge_max} maxVal={maxRegen} unit="MW/s" />
               </div>
               <div className="flex flex-col gap-2">
                 <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 border-b border-border/50 pb-1.5">Logistics</div>
-                <ShipDetailStatRow label="Cargo Bay" min={null} max={data.cargo_volume} maxVal={SHIP_CARGO_MAX[cid] || 60_000} unit="m³" />
+                <ShipDetailStatRow label="Cargo Bay" min={null} max={data.cargo_volume} maxVal={maxCargo} unit="m³" />
                 <ShipDetailStatRow label="Crew Capacity" min={null} max={data.people_capacity} maxVal={SHIP_CREW_MAX[cid] || 40} unit="Crew" />
                 <ShipDetailStatRow label="Deployables" min={null} max={data.deployable_storage} maxVal={100} unit="Units" />
               </div>
               <div className="flex flex-col gap-2">
                 <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1 border-b border-border/50 pb-1.5">Offense</div>
-                <ShipDetailStatRow label="Weapon DPS" min={null} max={data.dps_max} maxVal={SHIP_DPS_MAX[cid] || 5000} unit="/s" />
+                <ShipDetailStatRow label="Weapon DPS" min={null} max={data.dps_max} maxVal={maxDps} unit="/s" />
+                <ShipDetailStatRow label="Weapon Range" min={null} max={data.range_max} maxVal={maxRange} unit="km" />
                 <ShipDetailStatRow label="Missile Cap" min={null} max={data.missile_storage} maxVal={SHIP_MISSILE_MAX[cid] || 100} unit="Ms" />
                 {data.modifier_weapon_heat && data.modifier_weapon_heat !== 1 && <ShipDetailStatRow label="Heat Mod" min={null} max={data.modifier_weapon_heat} maxVal={2} format={(v: number) => `${v}x`} />}
               </div>
@@ -145,7 +172,7 @@ export function ShipDetailPanel({ shipId, factions }: { shipId: string; factions
               </div>
               <div className="flex flex-col gap-2 items-center md:items-start text-xs">
                 <span className="text-xs text-muted-foreground font-bold tracking-widest uppercase mb-1">Auxiliary</span>
-                <div className="flex justify-between w-48"><span className="text-muted-foreground uppercase">Fwd Accel</span><span className="font-semibold text-foreground">{data.accel_forward ?? 0} m/s²</span></div>
+                <div className="flex justify-between w-48"><span className="text-muted-foreground uppercase">Fwd Accel</span><span className="font-semibold text-foreground">{(data.accel_max ?? 0).toFixed(0)} m/s²</span></div>
                 <div className="flex justify-between w-48"><span className="text-muted-foreground uppercase">Radar Range</span><span className="font-semibold text-foreground">{((data.radar_range ?? 0) / 1000).toFixed(0)} km</span></div>
                 <div className="flex justify-between w-48"><span className="text-muted-foreground uppercase">Drone Bay</span><span className="font-semibold text-foreground">{data.drone_storage ?? 0}</span></div>
                 <div className="flex justify-between w-48"><span className="text-muted-foreground uppercase">Flares</span><span className="font-semibold text-foreground">{data.countermeasure_storage ?? 0}</span></div>
