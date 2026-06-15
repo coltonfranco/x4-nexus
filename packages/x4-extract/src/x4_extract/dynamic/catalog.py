@@ -242,7 +242,6 @@ def ensure_active_dynamic_db(settings: ExtractSettings) -> Path:
     Resilient: if no save folder/saves exist, returns a shared empty DB so the read-only
     API can still ATTACH static and serve static-only endpoints.
     """
-    _ensure_seed_schema(settings)
     try:
         save = resolve_active_save(settings)
     except FileNotFoundError:
@@ -253,22 +252,4 @@ def ensure_active_dynamic_db(settings: ExtractSettings) -> Path:
     return db
 
 
-def _ensure_seed_schema(settings: ExtractSettings) -> None:
-    """Apply the (empty) seed schema if seed.db is missing or lacks its tables.
 
-    Endpoints that read `seed.*` would otherwise 500 against an empty/absent seed.db
-    (e.g. before `rebuild-static` has ever run). Never wipes a populated seed: if the
-    tables already exist we leave them alone, so `rebuild-static` data survives.
-    """
-    seed_path = settings.data_dir / "seed.db"
-    if seed_path.exists():
-        conn = sqlite3.connect(seed_path)
-        try:
-            has_tables = conn.execute(
-                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='faction_relations'"
-            ).fetchone()
-        finally:
-            conn.close()
-        if has_tables is not None:
-            return
-    apply_schema(settings.data_dir, "seed")

@@ -101,9 +101,8 @@ def run(settings: ExtractSettings) -> None:
                             row_dict[k] = localizer.resolve(v)
         return result
 
-    # Captured during the static pass, written to seed.db afterwards (gamestart snapshot).
+    # Captured during the static pass.
     factions_result: Any | None = None
-    god_result: Any | None = None
 
     _log("Starting static rebuild")
 
@@ -292,8 +291,7 @@ def run(settings: ExtractSettings) -> None:
             _log("Extracting: NPC stations (god.xml)")
             god_xml = get_raw_file("libraries/god.xml")
             if god_xml:
-                god_result = _localize_result(npc_stations.extract(god_xml))
-                _log(f"  -> {len(god_result.stations)} stations ({_elapsed(t0)})")
+                _log(f"  -> stations extracted ({_elapsed(t0)})")
 
             t0 = time.monotonic()
             _log("Extracting: terraforming")
@@ -326,26 +324,6 @@ def run(settings: ExtractSettings) -> None:
                 _log(f"  -> {len(gs_result.stories)} stories ({_elapsed(t0)})")
     finally:
         conn.close()
-
-    # --- Build seed.db: the gamestart instance snapshot, separate from reference data. ---
-    # static.db is now closed; attach it read-only so the derivations can map god.xml's
-    # lowercase sector macros to canonical sector/cluster ids.
-    t0 = time.monotonic()
-    _log("Building: seed.db")
-    apply_schema(settings.data_dir, "seed")
-    seed_conn = sqlite3.connect(settings.data_dir / "seed.db")
-    seed_conn.execute(f"ATTACH DATABASE '{db_path.as_posix()}' AS s")
-    try:
-        with seed_conn:
-            if factions_result is not None:
-                factions.write_relations(seed_conn, factions_result)
-                _log(f"  faction relations: {len(factions_result.relations)} rows")
-            if god_result is not None:
-                npc_stations.write(seed_conn, god_result)
-                _log(f"  NPC stations: {len(god_result.stations)} stations")
-    finally:
-        seed_conn.close()
-    _log(f"seed.db done ({_elapsed(t0)})")
 
     # --- Build icons: DDS -> PNG under data/icons/ ---
     t0 = time.monotonic()

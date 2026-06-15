@@ -7,7 +7,7 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from x4_api.api.deps import get_db, has_live_save
+from x4_api.api.deps import get_db
 from x4_api.api.icons import get_icon_url
 from x4_api.api.schemas import PublicModel
 
@@ -64,26 +64,13 @@ class FactionLicence(PublicModel):
 def list_all_faction_relations(
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
 ) -> list[AllFactionRelation]:
-    """Every faction-to-faction relation: gamestart value + current (from the active save).
-
-    `current_relation` is NULL until a save is ingested; the same -1..1 scale as
-    `initial_relation`, so the UI can show drift or COALESCE to the effective value.
-    """
-    if has_live_save(conn):
-        # Live save: drive from current relations, cross-join with factions for completeness.
-        rows = conn.execute(
-            "SELECT c.faction_id, c.other_faction_id, NULL AS initial_relation, "
-            "       c.relation AS current_relation "
-            "FROM faction_relations_current c "
-            "ORDER BY c.faction_id, c.other_faction_id"
-        ).fetchall()
-    else:
-        rows = conn.execute(
-            "SELECT s.faction_id, s.other_faction_id, s.initial_relation, "
-            "       NULL AS current_relation "
-            "FROM seed.faction_relations s "
-            "ORDER BY s.faction_id, s.other_faction_id"
-        ).fetchall()
+    """Every faction-to-faction relation from the active save. Returns [] until a save is ingested."""
+    rows = conn.execute(
+        "SELECT c.faction_id, c.other_faction_id, c.relation AS initial_relation, "
+        "       c.relation AS current_relation "
+        "FROM faction_relations_current c "
+        "ORDER BY c.faction_id, c.other_faction_id"
+    ).fetchall()
     return [AllFactionRelation(**dict(r)) for r in rows]
 
 
@@ -92,7 +79,9 @@ def list_factions(conn: Annotated[sqlite3.Connection, Depends(get_db)]) -> list[
     """List all factions in the game catalog."""
     rows = conn.execute(
         "SELECT faction_id, name, color_hex, short_name, prefix_name, space_name, home_space_name, "
-        "police_faction, icon_active, icon_inactive, icon_banner FROM s.factions ORDER BY faction_id"
+        "police_faction, icon_active, icon_inactive, icon_banner FROM s.factions "
+        "WHERE faction_id NOT IN ('ownerless', 'visitor') "
+        "ORDER BY faction_id"
     ).fetchall()
 
     out = []
@@ -263,7 +252,7 @@ def list_known_factions(
     """Return {faction_id: is_known} for every static faction."""
     all_factions = {
         r["faction_id"]
-        for r in conn.execute("SELECT faction_id FROM s.factions").fetchall()
+        for r in conn.execute("SELECT faction_id FROM s.factions WHERE faction_id NOT IN ('ownerless', 'visitor')").fetchall()
     }
     known: set[str] = {"player"}
 
@@ -331,24 +320,16 @@ def list_faction_relations(
     faction_id: str,
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
 ) -> list[FactionRelation]:
-    """Diplomatic relations for a faction: gamestart value + current (from active save)."""
+    """Diplomatic relations for a faction from the active save. Returns [] until a save is ingested."""
     row = conn.execute("SELECT 1 FROM s.factions WHERE faction_id = :id", {"id": faction_id}).fetchone()
     if row is None:
         raise HTTPException(status_code=404, detail=f"Unknown faction_id: {faction_id}")
-    if has_live_save(conn):
-        rows = conn.execute(
-            "SELECT c.other_faction_id, NULL AS initial_relation, c.relation AS current_relation "
-            "FROM faction_relations_current c "
-            "WHERE c.faction_id = :id ORDER BY c.other_faction_id",
-            {"id": faction_id},
-        ).fetchall()
-    else:
-        rows = conn.execute(
-            "SELECT s.other_faction_id, s.initial_relation, NULL AS current_relation "
-            "FROM seed.faction_relations s "
-            "WHERE s.faction_id = :id ORDER BY s.other_faction_id",
-            {"id": faction_id},
-        ).fetchall()
+    rows = conn.execute(
+        "SELECT c.other_faction_id, c.relation AS initial_relation, c.relation AS current_relation "
+        "FROM faction_relations_current c "
+        "WHERE c.faction_id = :id ORDER BY c.other_faction_id",
+        {"id": faction_id},
+    ).fetchall()
     return [FactionRelation(**dict(r)) for r in rows]
 
 @router.get("/licences", response_model=list[FactionLicence])

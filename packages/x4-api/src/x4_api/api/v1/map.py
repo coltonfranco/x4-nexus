@@ -5,14 +5,13 @@ Exposes clusters, sectors, and gates.
 
 from __future__ import annotations
 
-import json
 import sqlite3
 from collections import defaultdict
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from x4_api.api.deps import get_db, has_live_save
+from x4_api.api.deps import get_db
 from x4_api.api.schemas import PublicModel
 
 router = APIRouter()
@@ -112,54 +111,36 @@ def list_clusters(
     limit: int = Query(500, ge=1, le=2000),
     offset: int = Query(0, ge=0),
 ) -> list[ClusterSummary]:
-    live = has_live_save(conn)
-
-    # Build live cluster ownership map (most-stations-wins per cluster).
+    # Build cluster ownership map from live stations (most-stations-wins per cluster).
     live_owner: dict[str, str] = {}
-    if live:
-        rows = conn.execute(
-            "SELECT sec.cluster_id, st.owner_faction, COUNT(*) AS cnt "
-            "FROM stations st "
-            "JOIN s.sectors sec ON LOWER(sec.sector_id) = LOWER(st.sector_id) "
-            "WHERE st.owner_faction IS NOT NULL "
-            "GROUP BY sec.cluster_id, st.owner_faction "
-            "ORDER BY cnt DESC"
-        ).fetchall()
-        seen: set[str] = set()
-        for r in rows:
-            cid = r["cluster_id"]
-            if cid not in seen:
-                seen.add(cid)
-                live_owner[cid] = r["owner_faction"]
+    owner_rows = conn.execute(
+        "SELECT sec.cluster_id, st.owner_faction, COUNT(*) AS cnt "
+        "FROM stations st "
+        "JOIN s.sectors sec ON LOWER(sec.sector_id) = LOWER(st.sector_id) "
+        "WHERE st.owner_faction IS NOT NULL "
+        "GROUP BY sec.cluster_id, st.owner_faction "
+        "ORDER BY cnt DESC"
+    ).fetchall()
+    seen: set[str] = set()
+    for r in owner_rows:
+        cid = r["cluster_id"]
+        if cid not in seen:
+            seen.add(cid)
+            live_owner[cid] = r["owner_faction"]
 
-    sql = [
-        "SELECT c.cluster_id, c.name AS macro_id, c.dlc, c.name_id AS name, c.description_id AS description, ",
-    ]
-    if live:
-        sql.append("NULL AS owner_faction, ")
-    else:
-        sql.append("co.owner_faction, ")
-    sql.append(
+    rows = conn.execute(
+        "SELECT c.cluster_id, c.name AS macro_id, c.dlc, c.name_id AS name, c.description_id AS description, "
         "c.environment, c.sun_class, c.population_id, c.max_population, "
         "c.x, c.y, c.z, c.qx, c.qy, c.qz, c.qw "
-    )
-    if live:
-        sql.append("FROM s.clusters c WHERE 1=1")
-    else:
-        sql.append("FROM s.clusters c LEFT JOIN seed.cluster_ownership co ON co.cluster_id = c.cluster_id WHERE 1=1")
-
-    params: dict[str, object] = {"limit": limit, "offset": offset}
-    if owner_faction is not None:
-        sql.append("AND co.owner_faction = :owner_faction")
-        params["owner_faction"] = owner_faction
-    sql.append("ORDER BY c.cluster_id LIMIT :limit OFFSET :offset")
-
-    rows = conn.execute(" ".join(sql), params).fetchall()
+        "FROM s.clusters c ORDER BY c.cluster_id LIMIT :limit OFFSET :offset",
+        {"limit": limit, "offset": offset},
+    ).fetchall()
     out = []
     for r in rows:
         d = dict(r)
-        if live:
-            d["owner_faction"] = live_owner.get(d["cluster_id"])
+        d["owner_faction"] = live_owner.get(d["cluster_id"])
+        if owner_faction is not None and d.get("owner_faction") != owner_faction:
+            continue
         out.append(ClusterSummary(**d))
     return out
 
@@ -172,59 +153,47 @@ def list_sectors(
     limit: int = Query(500, ge=1, le=2000),
     offset: int = Query(0, ge=0),
 ) -> list[SectorSummary]:
-    live = has_live_save(conn)
     has_sector_state = bool(conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='sector_state'").fetchone())
 
-    # Build live sector ownership map (most-stations-wins per sector).
+    # Build sector ownership map from live stations (most-stations-wins per sector).
     live_owner: dict[str, str] = {}
-    if live:
-        rows = conn.execute(
-            "SELECT LOWER(st.sector_id) AS sector_id, st.owner_faction, COUNT(*) AS cnt "
-            "FROM stations st "
-            "WHERE st.owner_faction IS NOT NULL AND st.sector_id IS NOT NULL "
-            "GROUP BY LOWER(st.sector_id), st.owner_faction "
-            "ORDER BY cnt DESC"
-        ).fetchall()
-        seen: set[str] = set()
-        for r in rows:
-            sid = r["sector_id"]
-            if sid not in seen:
-                seen.add(sid)
-                live_owner[sid] = r["owner_faction"]
+    owner_rows = conn.execute(
+        "SELECT LOWER(st.sector_id) AS sector_id, st.owner_faction, COUNT(*) AS cnt "
+        "FROM stations st "
+        "WHERE st.owner_faction IS NOT NULL AND st.sector_id IS NOT NULL "
+        "GROUP BY LOWER(st.sector_id), st.owner_faction "
+        "ORDER BY cnt DESC"
+    ).fetchall()
+    seen: set[str] = set()
+    for r in owner_rows:
+        sid = r["sector_id"]
+        if sid not in seen:
+            seen.add(sid)
+            live_owner[sid] = r["owner_faction"]
 
     select_known = "COALESCE(ss.known_to_player, 0) AS known_to_player" if has_sector_state else "0 AS known_to_player"
     join_live = "LEFT JOIN sector_state ss ON ss.sector_id = LOWER(sec.sector_id) " if has_sector_state else ""
 
-    if live:
-        sql = [
-            "SELECT sec.sector_id, sec.cluster_id, sec.name AS macro_id, NULL AS owner_faction, sec.dlc, "
-            "sec.name_id AS name, sec.description_id AS description, sec.sunlight, sec.economy, sec.security, "
-            f"sec.tags, sec.access_licence, sec.x, sec.y, sec.z, sec.qx, sec.qy, sec.qz, sec.qw, {select_known} "
-            f"FROM s.sectors sec {join_live}WHERE 1=1"
-        ]
-    else:
-        sql = [
-            "SELECT sec.sector_id, sec.cluster_id, sec.name AS macro_id, so.owner_faction, sec.dlc, "
-            "sec.name_id AS name, sec.description_id AS description, sec.sunlight, sec.economy, sec.security, "
-            f"sec.tags, sec.access_licence, sec.x, sec.y, sec.z, sec.qx, sec.qy, sec.qz, sec.qw, {select_known} "
-            f"FROM s.sectors sec LEFT JOIN seed.sector_ownership so ON so.sector_id = sec.sector_id {join_live}WHERE 1=1"
-        ]
+    sql = (
+        f"SELECT sec.sector_id, sec.cluster_id, sec.name AS macro_id, sec.dlc, "
+        f"sec.name_id AS name, sec.description_id AS description, sec.sunlight, sec.economy, sec.security, "
+        f"sec.tags, sec.access_licence, sec.x, sec.y, sec.z, sec.qx, sec.qy, sec.qz, sec.qw, {select_known} "
+        f"FROM s.sectors sec {join_live}WHERE 1=1"
+    )
 
     params: dict[str, object] = {"limit": limit, "offset": offset}
     if cluster_id is not None:
-        sql.append("AND sec.cluster_id = :cluster_id")
+        sql += " AND sec.cluster_id = :cluster_id"
         params["cluster_id"] = cluster_id
-    if owner_faction is not None and not live:
-        sql.append("AND so.owner_faction = :owner_faction")
-        params["owner_faction"] = owner_faction
-    sql.append("ORDER BY sec.sector_id LIMIT :limit OFFSET :offset")
+    sql += " ORDER BY sec.sector_id LIMIT :limit OFFSET :offset"
 
-    rows = conn.execute(" ".join(sql), params).fetchall()
+    rows = conn.execute(sql, params).fetchall()
     out = []
     for r in rows:
         d = dict(r)
-        if live:
-            d["owner_faction"] = live_owner.get(d["sector_id"].lower())
+        d["owner_faction"] = live_owner.get(d["sector_id"].lower())
+        if owner_faction is not None and d.get("owner_faction") != owner_faction:
+            continue
         out.append(SectorSummary(**d))
     return out
 
@@ -234,40 +203,28 @@ def get_sector(
     sector_id: str,
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
 ) -> SectorSummary:
-    live = has_live_save(conn)
     has_sector_state = bool(conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='sector_state'").fetchone())
     select_known = "COALESCE(ss.known_to_player, 0) AS known_to_player" if has_sector_state else "0 AS known_to_player"
     join_live = "LEFT JOIN sector_state ss ON ss.sector_id = LOWER(sec.sector_id) " if has_sector_state else ""
 
-    if live:
-        row = conn.execute(
-            f"SELECT sec.sector_id, sec.cluster_id, sec.name AS macro_id, NULL AS owner_faction, sec.dlc, "
-            f"sec.name_id AS name, sec.description_id AS description, sec.sunlight, sec.economy, sec.security, "
-            f"sec.tags, sec.access_licence, sec.x, sec.y, sec.z, sec.qx, sec.qy, sec.qz, sec.qw, {select_known} "
-            f"FROM s.sectors sec {join_live}"
-            f"WHERE sec.sector_id = :id",
-            {"id": sector_id},
-        ).fetchone()
-    else:
-        row = conn.execute(
-            f"SELECT sec.sector_id, sec.cluster_id, sec.name AS macro_id, so.owner_faction, sec.dlc, "
-            f"sec.name_id AS name, sec.description_id AS description, sec.sunlight, sec.economy, sec.security, "
-            f"sec.tags, sec.access_licence, sec.x, sec.y, sec.z, sec.qx, sec.qy, sec.qz, sec.qw, {select_known} "
-            f"FROM s.sectors sec LEFT JOIN seed.sector_ownership so ON so.sector_id = sec.sector_id {join_live}"
-            f"WHERE sec.sector_id = :id",
-            {"id": sector_id},
-        ).fetchone()
+    row = conn.execute(
+        f"SELECT sec.sector_id, sec.cluster_id, sec.name AS macro_id, sec.dlc, "
+        f"sec.name_id AS name, sec.description_id AS description, sec.sunlight, sec.economy, sec.security, "
+        f"sec.tags, sec.access_licence, sec.x, sec.y, sec.z, sec.qx, sec.qy, sec.qz, sec.qw, {select_known} "
+        f"FROM s.sectors sec {join_live}"
+        f"WHERE sec.sector_id = :id",
+        {"id": sector_id},
+    ).fetchone()
     if row is None:
         raise HTTPException(status_code=404, detail=f"Unknown sector_id: {sector_id}")
     d = dict(row)
-    if live:
-        owner_row = conn.execute(
-            "SELECT owner_faction, COUNT(*) AS cnt FROM stations "
-            "WHERE LOWER(sector_id) = LOWER(:sid) AND owner_faction IS NOT NULL "
-            "GROUP BY owner_faction ORDER BY cnt DESC LIMIT 1",
-            {"sid": sector_id},
-        ).fetchone()
-        d["owner_faction"] = owner_row["owner_faction"] if owner_row else None
+    owner_row = conn.execute(
+        "SELECT owner_faction, COUNT(*) AS cnt FROM stations "
+        "WHERE LOWER(sector_id) = LOWER(:sid) AND owner_faction IS NOT NULL "
+        "GROUP BY owner_faction ORDER BY cnt DESC LIMIT 1",
+        {"sid": sector_id},
+    ).fetchone()
+    d["owner_faction"] = owner_row["owner_faction"] if owner_row else None
     return SectorSummary(**d)
 
 
@@ -338,9 +295,6 @@ class MapStation(PublicModel):
     source: str = "seed"  # 'live' (active save) | 'seed' (gamestart placement)
 
 
-# Function tags the in-sector map keeps visible when zoomed out (order = priority).
-_MAJOR_STATION_TAGS = ("shipyard", "wharf", "equipmentdock", "tradestation")
-
 # Live station macros encode their function (e.g. station_arg_tradestation_base_01_macro,
 # station_pla_headquarters_base_01_macro). Substring → category, checked in this order.
 _MACRO_CATEGORY_MARKERS = (
@@ -368,23 +322,6 @@ def _category_from_macro(macro: str | None) -> str | None:
     return None
 
 
-def _station_category(tags_raw: str | None) -> str | None:
-    """Pick a display category from a gamestart npc_station tags JSON array."""
-    if not tags_raw:
-        return None
-    try:
-        tags = json.loads(tags_raw)
-    except (ValueError, TypeError):
-        return None
-    if not isinstance(tags, list) or not tags:
-        return None
-    lowered = [str(t).lower() for t in tags]
-    for major in _MAJOR_STATION_TAGS:
-        if major in lowered:
-            return major
-    return lowered[0]
-
-
 @router.get("/map/stations", response_model=list[MapStation])
 def list_map_stations(
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
@@ -399,61 +336,31 @@ def list_map_stations(
     parsed. With no save ingested, returns gamestart npc placements (which already
     carry coordinates). `category` is derived from gamestart function tags.
     """
-    has_table = conn.execute(
-        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='stations'"
-    ).fetchone()
-    has_live = bool(has_table) and (
-        conn.execute("SELECT 1 FROM stations LIMIT 1").fetchone() is not None
-    )
-
     params: dict[str, object] = {"limit": limit, "offset": offset}
-    if has_live:
-        sql = [
-            "SELECT st.station_id, st.name, st.code, st.macro, st.owner_faction, "
-            "st.sector_id, st.zone_id, "
-            # Station offset is zone-relative; add the zone's sector-relative centre for an
-            # accurate sector-relative position. tempzone stations (no zone coord) fall back
-            # to offset-from-sector-origin.
-            "(COALESCE(z.x, 0) + COALESCE(st.x, 0)) AS x, "
-            "(COALESCE(z.y, 0) + COALESCE(st.y, 0)) AS y, "
-            "(COALESCE(z.z, 0) + COALESCE(st.z, 0)) AS z, "
-            "st.is_player_owned, st.is_under_construction, "
-            "NULL AS tags, "
-            "CASE WHEN p.hq_station_id IS NOT NULL AND p.hq_station_id = st.station_id THEN 1 ELSE 0 END AS is_hq, "
-            "'live' AS source "
-            "FROM stations st "
-            # Save zone ids are lowercase; static zone ids are PascalCase — match case-insensitively.
-            "LEFT JOIN s.zones z ON LOWER(z.zone_id) = LOWER(st.zone_id) "
-            "LEFT JOIN player p ON p.id = 1 "
-            "WHERE 1=1"
-        ]
-        if sector_id is not None:
-            sql.append("AND LOWER(st.sector_id) = LOWER(:sector_id)")
-            params["sector_id"] = sector_id
-        sql.append("ORDER BY st.station_id LIMIT :limit OFFSET :offset")
-    else:
-        sql = [
-            "SELECT ns.station_id, NULL AS name, NULL AS code, NULL AS macro, "
-            "ns.owner_faction, ns.location_sector AS sector_id, ns.location_zone AS zone_id, "
-            "COALESCE(z.x, ns.x) AS x, COALESCE(z.y, ns.y) AS y, COALESCE(z.z, ns.z) AS z, "
-            "0 AS is_player_owned, 0 AS is_under_construction, ns.tags AS tags, "
-            "0 AS is_hq, 'seed' AS source "
-            "FROM seed.npc_stations ns "
-            "LEFT JOIN s.zones z ON LOWER(z.zone_id) = LOWER(ns.location_zone) "
-            "WHERE 1=1"
-        ]
-        if sector_id is not None:
-            sql.append("AND LOWER(ns.location_sector) = LOWER(:sector_id)")
-            params["sector_id"] = sector_id
-        sql.append("ORDER BY ns.station_id LIMIT :limit OFFSET :offset")
+    sql = [
+        "SELECT st.station_id, st.name, st.code, st.macro, st.owner_faction, "
+        "st.sector_id, st.zone_id, "
+        "(COALESCE(z.x, 0) + COALESCE(st.x, 0)) AS x, "
+        "(COALESCE(z.y, 0) + COALESCE(st.y, 0)) AS y, "
+        "(COALESCE(z.z, 0) + COALESCE(st.z, 0)) AS z, "
+        "st.is_player_owned, st.is_under_construction, "
+        "CASE WHEN p.hq_station_id IS NOT NULL AND p.hq_station_id = st.station_id THEN 1 ELSE 0 END AS is_hq, "
+        "'live' AS source "
+        "FROM stations st "
+        "LEFT JOIN s.zones z ON LOWER(z.zone_id) = LOWER(st.zone_id) "
+        "LEFT JOIN player p ON p.id = 1 "
+        "WHERE 1=1"
+    ]
+    if sector_id is not None:
+        sql.append("AND LOWER(st.sector_id) = LOWER(:sector_id)")
+        params["sector_id"] = sector_id
+    sql.append("ORDER BY st.station_id LIMIT :limit OFFSET :offset")
 
     rows = conn.execute(" ".join(sql), params).fetchall()
     out: list[MapStation] = []
     for r in rows:
         d = dict(r)
-        tags = d.pop("tags", None)
-        # Live macro is the most reliable signal; fall back to gamestart tags (seed branch).
-        category = _category_from_macro(d.get("macro")) or _station_category(tags)
+        category = _category_from_macro(d.get("macro"))
         out.append(MapStation(category=category, **d))
     return out
 

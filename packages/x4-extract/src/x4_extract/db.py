@@ -1,8 +1,7 @@
 """SQLite schema + connection helpers for the extraction pipeline.
 
 `dynamic.db` (per-save) is the primary database the API reads; `static.db` is ATTACHed
-as `s`. The split lets a patch-time rebuild of static state happen without touching the
-save extract. The poller writes while the API reads, so connections use WAL.
+as `s`. The poller writes while the API reads, so connections use WAL.
 """
 
 from __future__ import annotations
@@ -13,7 +12,7 @@ from typing import Literal
 
 _SQL_DIR = Path(__file__).parent / "sql"
 
-SchemaName = Literal["raw", "static", "seed", "dynamic"]
+SchemaName = Literal["raw", "static", "dynamic"]
 
 
 def apply_schema(data_dir: Path, name: SchemaName, *, db_path: Path | None = None) -> None:
@@ -53,7 +52,6 @@ def apply_schema(data_dir: Path, name: SchemaName, *, db_path: Path | None = Non
 def migrate_all(data_dir: Path) -> None:
     """Apply every schema into `data_dir`. Used by tests for a fresh data directory."""
     apply_schema(data_dir, "static")
-    apply_schema(data_dir, "seed")
     apply_schema(data_dir, "raw")
     apply_schema(data_dir, "dynamic")
 
@@ -73,7 +71,6 @@ def open_db(
     data_dir.mkdir(parents=True, exist_ok=True)
     dynamic_path = dynamic_db if dynamic_db is not None else data_dir / "dynamic.db"
     static_path = data_dir / "static.db"
-    seed_path = data_dir / "seed.db"
     dynamic_path.parent.mkdir(parents=True, exist_ok=True)
 
     if read_only:
@@ -87,7 +84,5 @@ def open_db(
 
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
-    # Reference (s) + gamestart seed (seed). Dynamic save state is the main schema.
     conn.execute(f"ATTACH DATABASE '{static_path.as_posix()}' AS s")
-    conn.execute(f"ATTACH DATABASE '{seed_path.as_posix()}' AS seed")
     return conn

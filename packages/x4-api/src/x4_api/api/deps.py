@@ -16,17 +16,6 @@ def get_settings() -> Settings:
     return settings
 
 
-def has_live_save(conn: sqlite3.Connection) -> bool:
-    """True when a save has been ingested and the dynamic DB has live data."""
-    row = conn.execute(
-        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='faction_relations_current'"
-    ).fetchone()
-    if not row:
-        return False
-    row = conn.execute("SELECT 1 FROM faction_relations_current LIMIT 1").fetchone()
-    return row is not None
-
-
 def get_db(s: Settings = Depends(get_settings)) -> Iterator[sqlite3.Connection]:
     """Per-request read-only connection against the active save's dynamic DB.
 
