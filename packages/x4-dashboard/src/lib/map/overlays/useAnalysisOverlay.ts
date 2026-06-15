@@ -168,7 +168,7 @@ export function useAnalysisOverlay({
 
     if (fillMode === "relations") {
       const repMap = new Map<string, number>();
-      (relations.data ?? []).forEach((r) => repMap.set(r.faction_id, r.relation));
+      (relations.data ?? []).forEach((r) => repMap.set(r.faction_id.toLowerCase(), r.relation));
       const tint = new Map<string, SectorTint>();
       const badges = new Map<string, string>();
       sectors.forEach((sec) => {
@@ -178,7 +178,7 @@ export function useAnalysisOverlay({
           if (clus) owner = clus.owner_faction;
         }
         if (owner) {
-          const rel = repMap.get(owner) ?? 0;
+          const rel = repMap.get(owner.toLowerCase()) ?? 0;
           const relUI = relationToUI(rel);
           const mag = Math.min(30, Math.abs(relUI)) / 30.0;
           
@@ -221,7 +221,7 @@ export function useAnalysisOverlay({
         for (const rel of relations.data) {
           const uiRel = relationToUI(rel.relation);
           if (uiRel <= -20) {
-            hostileFactions.add(rel.faction_id);
+            hostileFactions.add(rel.faction_id.toLowerCase());
           }
         }
       }
@@ -238,7 +238,7 @@ export function useAnalysisOverlay({
         if (!owner && s.cluster_id) {
           owner = clusterMap.get(s.cluster_id)?.owner_faction ?? null;
         }
-        if (owner && hostileFactions.has(owner)) {
+        if (owner && hostileFactions.has(owner.toLowerCase())) {
           isDangerous = true;
         }
 
@@ -247,7 +247,7 @@ export function useAnalysisOverlay({
         const f = sectorForces.get(sid);
         if (f) {
           for (const fac of f.factions) {
-            if (hostileFactions.has(fac.faction_id)) {
+            if (hostileFactions.has(fac.faction_id.toLowerCase())) {
               hostileCount += fac.fighter_count;
             }
           }
