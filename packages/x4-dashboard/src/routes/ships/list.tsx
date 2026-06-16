@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { useSettings } from "../../lib/settingsStore";
@@ -8,7 +8,7 @@ import { EntityIcon } from "../../components/EntityIcon";
 import { FactionBadge } from "../../components/FactionBadge";
 import { StatBar } from "../../components/StatBar";
 import { Currency } from "../../components/Currency";
-import { classShort, getClassColor, getTypeColor } from "../../lib/formatters";
+import { classShort, getClassColor, getTypeColor, formatLicence } from "../../lib/formatters";
 import { cn } from "../../lib/utils";
 import type { FactionSummary } from '../../lib/map/types';
 import { ShipClassBadge, ShipTypeBadge, ShipSubtypeBadge } from "../../components/ShipBadges";
@@ -97,6 +97,7 @@ type ShipSummary = {
   is_owned: boolean;
   restriction_licence: string | null;
   is_obtainable: boolean;
+  can_be_captured: boolean;
 };
 
 const CLASSES = ["XS", "S", "M", "L", "XL"] as const;
@@ -129,6 +130,7 @@ const ALL_COLUMNS: ColumnMeta[] = [
   { key: "type",    label: "Type",    sortKey: "role",       category: "Info",     defaultVisible: true,  leftAlign: true },
   { key: "class",   label: "Class",   sortKey: "class_id",   category: "Info",     defaultVisible: true,  leftAlign: true },
   { key: "faction", label: "Faction", sortKey: "faction_id", category: "Info",     defaultVisible: true,  leftAlign: true },
+  { key: "licence", label: "Licence", sortKey: "restriction_licence", category: "Info", defaultVisible: false, leftAlign: true },
   // Flight
   { key: "speed",  label: "Speed",  sortKey: "speed_max",  category: "Flight",  defaultVisible: true  },
   { key: "travel", label: "Travel", sortKey: "travel_max", category: "Flight",  defaultVisible: true  },
@@ -245,7 +247,7 @@ export default function ShipsPage() {
   // When a single class is selected, switch to per-class linear scaling
   const isLinear = selectedClass !== null;
 
-  type SortKey = "name" | "class_id" | "faction_id" | "speed_max" | "travel_max" | "boost_max" | "accel_max" | "hull" | "shield_capacity_max" | "shield_recharge_max" | "cargo_volume" | "dps_max" | "range_max" | "radar_range" | "price_avg" | "role" | "ship_type" | "people_capacity" | "missile_storage" | "drone_storage" | "countermeasure_storage" | "deployable_storage" | "dock_s" | "dock_m" | "dock_l" | "dock_xl" | "storage_s" | "storage_m" | "storage_l" | "storage_xl" | "weapons_s" | "weapons_m" | "weapons_l" | "weapons_xl" | "turrets_s" | "turrets_m" | "turrets_l" | "turrets_xl" | "shields_s" | "shields_m" | "shields_l" | "shields_xl" | "engines_s" | "engines_m" | "engines_l" | "engines_xl";
+  type SortKey = "name" | "class_id" | "faction_id" | "restriction_licence" | "speed_max" | "travel_max" | "boost_max" | "accel_max" | "hull" | "shield_capacity_max" | "shield_recharge_max" | "cargo_volume" | "dps_max" | "range_max" | "radar_range" | "price_avg" | "role" | "ship_type" | "people_capacity" | "missile_storage" | "drone_storage" | "countermeasure_storage" | "deployable_storage" | "dock_s" | "dock_m" | "dock_l" | "dock_xl" | "storage_s" | "storage_m" | "storage_l" | "storage_xl" | "weapons_s" | "weapons_m" | "weapons_l" | "weapons_xl" | "turrets_s" | "turrets_m" | "turrets_l" | "turrets_xl" | "shields_s" | "shields_m" | "shields_l" | "shields_xl" | "engines_s" | "engines_m" | "engines_l" | "engines_xl";
   const [sortCol, setSortCol] = useState<SortKey>("name");
   const [sortDesc, setSortDesc] = useState(false);
 
@@ -268,7 +270,28 @@ export default function ShipsPage() {
     staleTime: 60_000,
   });
 
+  const { data: playerLicences = [] } = useQuery<{ licence_type: string; faction_id: string }[]>({
+    queryKey: ["player-licences"],
+    queryFn: () => fetch("/api/v1/player/licences").then((r) => r.json()),
+    staleTime: 60_000,
+  });
+
   const factionMap = new Map(factions.map((f) => [f.faction_id, f]));
+  const licenceSet = new Set(playerLicences.map(l => `${l.faction_id}:${l.licence_type}`));
+  const licenceTypeSet = new Set(playerLicences.map(l => l.licence_type));
+
+  // Story/DLC licences appear on ≤2 factions and are effectively global
+  const globalLicences = useMemo(() => {
+    const count = new Map<string, Set<string>>();
+    for (const s of ships) {
+      const lic = s.restriction_licence;
+      if (lic && lic !== "generaluseship" && lic !== "generaluseequipment" && s.faction_id) {
+        if (!count.has(lic)) count.set(lic, new Set());
+        count.get(lic)!.add(s.faction_id);
+      }
+    }
+    return new Set([...count].filter(([, fids]) => fids.size <= 2).map(([lic]) => lic));
+  }, [ships]);
 
   const filtered = ships.filter((s) => {
     // Fog of war: hide ships from unknown factions
@@ -314,6 +337,16 @@ export default function ShipsPage() {
     if (aVal === null && bVal === null) return 0;
     
     if (typeof aVal === "string" && typeof bVal === "string") {
+      // For licence, sort by display-friendly name, with no-licence grouped together
+      if (sortCol === "restriction_licence") {
+        const fmt = (v: string) => {
+          if (v === "generaluseship" || v === "generaluseequipment") return "";
+          return formatLicence(v);
+        };
+        const aFmt = fmt(aVal);
+        const bFmt = fmt(bVal);
+        return sortDesc ? bFmt.localeCompare(aFmt) : aFmt.localeCompare(bFmt);
+      }
       return sortDesc ? bVal.localeCompare(aVal) : aVal.localeCompare(bVal);
     }
     if (typeof aVal === "number" && typeof bVal === "number") {
@@ -620,6 +653,31 @@ export default function ShipsPage() {
                     ) : <span className="text-muted-foreground text-xs">—</span>}
                   </TableCell>
                 );
+              case "licence": {
+                const lic = ship.restriction_licence;
+                const hasRestriction = lic && lic !== "generaluseship" && lic !== "generaluseequipment";
+                const hasLicence = lic
+                  ? (globalLicences.has(lic)
+                      ? licenceTypeSet.has(lic)
+                      : (ship.faction_id ? licenceSet.has(`${ship.faction_id}:${lic}`) : false))
+                  : false;
+                return (
+                  <TableCell key={col.key}>
+                    {hasRestriction ? (
+                      <span
+                        className={cn("text-xs cursor-default", hasLicence ? "text-success" : "text-destructive")}
+                        title={hasLicence
+                          ? `You have the ${formatLicence(lic)} licence.`
+                          : `Requires ${formatLicence(lic)} licence — you do not have it.`}
+                      >
+                        {formatLicence(lic)}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground text-xs">—</span>
+                    )}
+                  </TableCell>
+                );
+              }
               case "price":
                 return (
                   <TableCell key={col.key} className="text-right">
@@ -807,7 +865,17 @@ export default function ShipsPage() {
                           <TableCell>
                             <EntityIcon src={ship.icon_url} alt={ship.name} size={28} />
                           </TableCell>
-                          <TableCell className="font-medium">{ship.name}</TableCell>
+                          <TableCell className="font-medium">
+                            {ship.name}
+                            {!ship.can_be_captured && (
+                              <span
+                                className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-red-500/15 text-red-400 border border-red-500/30"
+                                title="This ship can never be captured or owned by the player."
+                              >
+                                NPC Only
+                              </span>
+                            )}
+                          </TableCell>
                           {activeColumns.map(col => renderColumnCell(col, ship, faction))}
                           <TableCell>
                             <Button

@@ -219,7 +219,7 @@ export default function InventoryPage() {
 
           <div className="flex-1 overflow-auto px-6 py-4">
         {isLoading ? (
-          <div className="h-full flex flex-col justify-center text-sm text-muted-foreground"><PageLoaderPreset preset="inventory" /></div>
+          <PageLoaderPreset preset="inventory" />
         ) : rows.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">No items match.</p>
         ) : (

@@ -6,7 +6,7 @@ import { ProductionChain } from "../../components/trade/ProductionChain";
 import { Input } from "../../components/ui/input";
 import { FilterPill } from "../../components/ui/filter-pill";
 import { fmtNum } from "../../lib/wareFormat";
-import { getMkGradientClass, classFull, getClassColor } from "../../lib/formatters";
+import { getMkGradientClass, classFull, getClassColor, formatLicence } from "../../lib/formatters";
 import { cn } from "../../lib/utils";
 import { useSort } from "../../lib/useSort";
 import { Currency } from "../../components/Currency";
@@ -66,6 +66,8 @@ type Equipment = {
   kind: string;
   size: string | null;
   mk: number | null;
+  compat_tags: string | null;
+  compat_ship_name: string | null;
   faction_id: string | null;
   restriction_licence: string | null;
   price_min: number | null;
@@ -292,11 +294,19 @@ function EquipmentTable({
   items,
   factions,
   onSelect,
+  globalMaxima,
+  perSizeMaxima,
+  isLinear,
+  globalLicences,
 }: {
   category: Category;
   items: Equipment[];
   factions: FactionSummary[];
   onSelect: (item: Equipment) => void;
+  globalMaxima: Record<string, number>;
+  perSizeMaxima: Record<string, Record<string, number>>;
+  isLinear: boolean;
+  globalLicences: Set<string>;
 }) {
   const metrics = category.metrics;
 
@@ -316,14 +326,17 @@ function EquipmentTable({
     dir: primaryKey === "name" ? "asc" : "desc",
   });
 
-  const maxima = useMemo(() => {
-    const m: Record<string, number> = {};
-    for (const col of metrics) m[col.key] = Math.max(1, ...items.map((e) => col.get(e) ?? 0));
-    return m;
-  }, [metrics, items]);
-
   // Build faction lookup: short codes ("arg") → full faction
   const factionMap = new Map(factions.map((f) => [f.faction_id, f]));
+
+  const { data: playerLicences = [] } = useQuery<{ licence_type: string; faction_id: string }[]>({
+    queryKey: ["player-licences"],
+    queryFn: () => fetch("/api/v1/player/licences").then((r) => r.json()),
+    staleTime: 60_000,
+  });
+  const licenceSet = new Set(playerLicences.map(l => `${l.faction_id}:${l.licence_type}`));
+  const licenceTypeSet = new Set(playerLicences.map(l => l.licence_type));
+
   const shortFactionMap = useMemo(() => {
     const m = new Map(factionMap);
     for (const f of factions) {
@@ -341,6 +354,7 @@ function EquipmentTable({
           <TableHead className="w-32 px-3 py-2 text-left font-medium text-xs text-muted-foreground">Size</TableHead>
           <TableHead className="w-12 px-3 py-2 text-left font-medium text-xs text-muted-foreground">Mk</TableHead>
           <TableHead className="w-40 px-3 py-2 text-left font-medium text-xs text-muted-foreground">Faction</TableHead>
+          <TableHead className="w-36 px-3 py-2 text-left font-medium text-xs text-muted-foreground">Licence</TableHead>
           {metrics.map((m) => (
             <SortHeader
               key={m.key}
@@ -370,7 +384,17 @@ function EquipmentTable({
                   <EntityIcon src={e.icon_url} alt={e.name} size={32} />
                 </div>
               </TableCell>
-              <TableCell className="px-3 py-2 font-medium text-xs">{e.name}</TableCell>
+              <TableCell className="px-3 py-2 font-medium text-xs">
+                {e.name}
+                {e.compat_tags && (
+                  <span
+                    className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-500/15 text-amber-400 border border-amber-500/30"
+                    title={`Exclusive to ${e.compat_ship_name ?? "a specific ship hull"}`}
+                  >
+                    Exclusive
+                  </span>
+                )}
+              </TableCell>
               <TableCell className="px-3 py-2">
                 {e.size ? (
                   <ShipClassBadge class_id={e.size} className="text-xs px-1.5 py-0" />
@@ -392,15 +416,46 @@ function EquipmentTable({
                   <span className="text-xs uppercase text-muted-foreground">{e.faction_id ?? "—"}</span>
                 )}
               </TableCell>
-              {metrics.map((m) => (
-                <TableCell key={m.key} className="px-3 py-2">
-                  {m.get(e) != null ? (
-                    <StatBar value={Math.log10(m.get(e)! + 1)} max={Math.log10(maxima[m.key] + 1)} label={m.fmt(m.get(e)!)} />
-                  ) : (
+              <TableCell className="px-3 py-2 text-xs">
+                {e.restriction_licence && e.restriction_licence !== "generaluseship" && e.restriction_licence !== "generaluseequipment" ? (
+                  (() => {
+                    const lic = e.restriction_licence!;
+                    const hasLicence = globalLicences.has(lic)
+                      ? licenceTypeSet.has(lic)
+                      : (e.faction_id ? licenceSet.has(`${e.faction_id}:${lic}`) : false);
+                    return (
+                      <span
+                        className={cn("cursor-default", hasLicence ? "text-success" : "text-destructive")}
+                        title={hasLicence
+                          ? `You have the ${formatLicence(e.restriction_licence)} licence.`
+                          : `Requires ${formatLicence(e.restriction_licence)} licence — you do not have it.`}
+                      >
+                        {formatLicence(e.restriction_licence)}
+                      </span>
+                    );
+                  })()
+                ) : (
+                  <span className="text-muted-foreground">—</span>
+                )}
+              </TableCell>
+              {metrics.map((m) => {
+                const raw = m.get(e);
+                if (raw == null) return (
+                  <TableCell key={m.key} className="px-3 py-2">
                     <span className="text-xs text-muted-foreground">—</span>
-                  )}
-                </TableCell>
-              ))}
+                  </TableCell>
+                );
+                const sizeMax = isLinear && e.size ? (perSizeMaxima[e.size]?.[m.key] ?? globalMaxima[m.key]) : globalMaxima[m.key];
+                return (
+                  <TableCell key={m.key} className="px-3 py-2">
+                    <StatBar
+                      value={isLinear ? raw : Math.log10(raw + 1)}
+                      max={isLinear ? sizeMax : Math.log10(globalMaxima[m.key] + 1)}
+                      label={m.fmt(raw)}
+                    />
+                  </TableCell>
+                );
+              })}
               <TableCell className="px-3 py-2 text-right text-xs tabular-nums text-muted-foreground">
                 {e.price_avg != null ? <Currency value={e.price_avg} /> : "—"}
               </TableCell>
@@ -463,6 +518,20 @@ export default function EquipmentPage() {
     queryFn: () => fetch("/api/v1/factions").then((r) => r.json()),
   });
 
+  // Story/DLC licences appear on ≤2 factions and are effectively global
+  // Computed from ALL items (not filtered) so the faction-count is stable
+  const globalLicences = useMemo(() => {
+    const count = new Map<string, Set<string>>();
+    for (const e of items) {
+      const lic = e.restriction_licence;
+      if (lic && lic !== "generaluseship" && lic !== "generaluseequipment" && e.faction_id) {
+        if (!count.has(lic)) count.set(lic, new Set());
+        count.get(lic)!.add(e.faction_id);
+      }
+    }
+    return new Set([...count].filter(([, fids]) => fids.size <= 2).map(([lic]) => lic));
+  }, [items]);
+
   const counts = useMemo(() => {
     const c: Record<string, number> = {};
     for (const cat of CATEGORIES) c[cat.id] = items.filter((e) => cat.match(e.kind)).length;
@@ -472,6 +541,30 @@ export default function EquipmentPage() {
   const category = CATEGORIES.find((c) => c.id === catId) ?? CATEGORIES[0];
 
   const inCategory = useMemo(() => items.filter((e) => category.match(e.kind)), [items, category]);
+
+  // ── Stable maxima (ignoring secondary filters) ──────────────────────────────
+  const isLinear = size !== null;
+
+  const globalMaxima = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const col of category.metrics) {
+      m[col.key] = Math.max(1, ...inCategory.map((e) => col.get(e) ?? 0));
+    }
+    return m;
+  }, [category.metrics, inCategory]);
+
+  const perSizeMaxima = useMemo(() => {
+    const m: Record<string, Record<string, number>> = {};
+    for (const item of inCategory) {
+      if (!item.size) continue;
+      if (!m[item.size]) m[item.size] = {};
+      for (const col of category.metrics) {
+        const v = col.get(item) ?? 0;
+        if (v > (m[item.size][col.key] ?? 0)) m[item.size][col.key] = v;
+      }
+    }
+    return m;
+  }, [category.metrics, inCategory]);
 
   const sizes = useMemo(
     () =>
@@ -633,6 +726,10 @@ export default function EquipmentPage() {
             items={shown}
             factions={factions}
             onSelect={setSelectedEquipment}
+            globalMaxima={globalMaxima}
+            perSizeMaxima={perSizeMaxima}
+            isLinear={isLinear}
+            globalLicences={globalLicences}
           />
         )}
           </div>

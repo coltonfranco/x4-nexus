@@ -16,7 +16,7 @@ import { HexBuildGridLayer } from "./layers/HexBuildGridLayer";
 import { GateLayer, HighwayLayer } from "./layers/LinkLayer";
 import { SectorLayer } from "./layers/SectorLayer";
 import { StationLayer } from "./layers/StationLayer";
-import { NavLayer, RoutePathLayer } from "./layers/AnalysisLayer";
+import { NavLayer } from "./layers/AnalysisLayer";
 import { StationPopover } from "./StationPopover";
 import { Currency } from "../Currency";
 import { PageLoaderPreset } from "../PageLoader";
@@ -198,7 +198,6 @@ export function MapCanvas({
             />
           )}
 
-          <RoutePathLayer segments={overlay.highlightSegments} transform={transform} />
           <NavLayer segments={overlay.navSegments} origin={overlay.navOrigin} dest={overlay.navDest} transform={transform} />
         </g>
       </svg>
@@ -517,6 +516,15 @@ export function MapCanvas({
                   </div>
                 );
               })}
+              {overlay.sectorSunlight?.get(hoveredSectorId.toLowerCase()) && (
+                <div className="flex items-center justify-between gap-4 border-t border-border/30 pt-1.5 mt-0.5">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: RESOURCE_COLORS.sunlight }} />
+                    <span className="capitalize">Sunlight</span>
+                  </div>
+                  <span className="tabular-nums font-medium text-muted-foreground">{overlay.sectorSunlight.get(hoveredSectorId.toLowerCase())}</span>
+                </div>
+              )}
             </div>
           </div>
         );

@@ -40,12 +40,14 @@ export function SaveSelector() {
   });
 
   const activate = useMutation({
+    mutationKey: ["activate-save"],
     mutationFn: (key: string) =>
       fetch(`/api/v1/saves/${key}/activate`, { method: "POST" }).then((r) => r.json()),
     onSuccess: () => qc.invalidateQueries(),
   });
 
-  const active = saves.find((s) => s.is_active) ?? saves[0];
+  const active = saves.find((s) => s.is_active);
+  const hasSave = active != null && active.db_current;
 
   return (
     <div className="px-3 py-3 border-t border-border space-y-1.5">
@@ -54,6 +56,29 @@ export function SaveSelector() {
       </div>
       {saves.length === 0 ? (
         <p className="text-xs text-muted-foreground">No saves found</p>
+      ) : !hasSave ? (
+        <div className="text-xs text-muted-foreground space-y-1">
+          <select
+            value=""
+            disabled={activate.isPending}
+            onChange={(e) => { if (e.target.value) activate.mutate(e.target.value); }}
+            className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs disabled:opacity-60"
+          >
+            <option value="">No save loaded</option>
+            {saves.map((s, i) => {
+              const name = formatSaveName(s);
+              const time = s.in_game_time_sec ? ` (${formatPlayTime(s.in_game_time_sec)})` : "";
+              const newest = i === 0 ? " ★" : "";
+              const rebuilding = s.db_current ? "" : " ↻";
+              return (
+                <option key={s.key} value={s.key}>
+                  {name}{time}{newest}{rebuilding}
+                </option>
+              );
+            })}
+          </select>
+          <p className="text-amber-400/80">Load a save to unlock live data</p>
+        </div>
       ) : (
         <>
           <select

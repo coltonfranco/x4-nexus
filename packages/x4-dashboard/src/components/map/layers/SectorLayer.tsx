@@ -148,7 +148,7 @@ export function SectorLayer({
             {showFactionLabels && effectiveFaction && (() => {
               const iconSize = Math.max(5, Math.min(14, fontSize * 0.9));
               const textY = cy + 11;
-              const nameStr = effectiveFaction.short_name ?? effectiveFaction.name;
+              const nameStr = effectiveFaction.name;
               // Total row width: icon + gap + text (approx)
               const approxTextWidth = nameStr.length * fontSize * 0.42;
               const gap = iconSize * 0.35;

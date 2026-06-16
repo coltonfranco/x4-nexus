@@ -42,7 +42,7 @@ export function classFull(class_id: string) {
 export function getClassColor(class_id: string): string {
   const cls = classShort(class_id);
   switch (cls) {
-    case "XS": return "bg-gray-500/10 text-gray-500 border-gray-500/20";
+    case "XS": return "bg-zinc-400/10 text-zinc-300 border-zinc-400/20";
     case "S": return "bg-emerald-500/10 text-emerald-500 border-emerald-500/20";
     case "M": return "bg-blue-500/10 text-blue-500 border-blue-500/20";
     case "L": return "bg-orange-500/10 text-orange-500 border-orange-500/20";
@@ -71,6 +71,25 @@ export function getMkGradientClass(mk: number | null | undefined): string {
     case 5: return "bg-gradient-to-br from-orange-500/20 to-transparent border-orange-500/30";
     default: return "bg-muted/20 border-border/50";
   }
+}
+
+export function formatLicence(raw: string | null): string {
+  if (!raw) return "";
+  // Handle "faction_licence_type" pattern, e.g. "arg_licence_military"
+  const m = raw.match(/^([a-z]+)_licence_(.+)$/);
+  if (m) {
+    const faction = m[1].charAt(0).toUpperCase() + m[1].slice(1);
+    const type = m[2].replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+    return `${faction} ${type}`;
+  }
+  // Handle simple compound words, e.g. "militaryship", "capitalship"
+  return raw
+    .replace(/_/g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/([a-z])(ship|licence|equipment)/gi, "$1 $2")
+    .split(/\s+/)
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
 }
 
 export const getWeaponType = (name: string) => {

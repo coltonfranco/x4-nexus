@@ -1,17 +1,35 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { ChevronDown } from "lucide-react";
 import { FillMode } from "../../lib/map/overlays/types";
-import { STATUS_COLORS } from "../../lib/map/constants";
+import { STATUS_COLORS, RESOURCE_COLORS, RESOURCE_ORDER, MAP_THEME } from "../../lib/map/constants";
+import type { Faction } from "../../lib/map/types";
 
-export function MapLegend({ fillMode }: { fillMode: FillMode }) {
+export function MapLegend({ 
+  fillMode,
+  factionMap,
+  resource,
+}: { 
+  fillMode: FillMode;
+  factionMap?: Map<string, Faction>;
+  resource?: string | null;
+}) {
   const [open, setOpen] = useState(true);
-  if (fillMode === "faction") return null;
 
   const legendLabel =
     fillMode === "conflict" ? "Conflict Legend" :
     fillMode === "relations" ? "Relations Legend" :
     fillMode === "trade" ? "Trade Legend" :
-    fillMode === "resources" ? "Resources Legend" : "Legend";
+    fillMode === "resources" ? "Resources Legend" : 
+    fillMode === "faction" ? "Faction Legend" : "Legend";
+
+  const factionsList = useMemo(() => {
+    if (!factionMap) return [];
+    const factions = Array.from(factionMap.values());
+    // Filter out factions without a name or color, and sort alphabetically
+    return factions
+      .filter(f => f.name && f.color_hex)
+      .sort((a, b) => a.name!.localeCompare(b.name!));
+  }, [factionMap]);
 
   return (
     <div className="absolute bottom-5 left-5 bg-card/90 backdrop-blur-md border border-border rounded-lg shadow-lg text-[11px] text-muted-foreground w-64 pointer-events-auto z-10">
@@ -28,6 +46,23 @@ export function MapLegend({ fillMode }: { fillMode: FillMode }) {
       </button>
       {open && (
         <div className="px-3 pb-3 pt-0">
+      {fillMode === "faction" && factionsList.length > 0 && (
+        <div className="flex flex-col gap-2 max-h-[300px] overflow-y-auto pr-1">
+          <div className="flex flex-col gap-1.5">
+            {factionsList.map(f => (
+              <div key={f.faction_id} className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded shrink-0" style={{ backgroundColor: f.color_hex! }} />
+                <span className="truncate">{f.name}</span>
+              </div>
+            ))}
+            <div className="flex items-center gap-2 mt-1">
+              <div className="w-3 h-3 rounded shrink-0 border border-white/10" style={{ backgroundColor: MAP_THEME.sectorFallback }} />
+              <span className="truncate italic opacity-80">Unclaimed Space</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {fillMode === "conflict" && (
         <div className="flex flex-col gap-2.5">
           <div>
@@ -111,34 +146,48 @@ export function MapLegend({ fillMode }: { fillMode: FillMode }) {
 
       {fillMode === "trade" && (
         <div className="flex flex-col gap-2">
-          <p className="mb-1 leading-tight">Trade routes are colored by profit per hour.</p>
-          <div className="flex flex-col gap-1.5">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-0.5 bg-yellow-400 drop-shadow-[0_0_2px_rgba(250,204,21,0.8)]" />
-              <span>Highly Profitable</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-0.5 bg-cyan-400 opacity-60" />
-              <span>Moderately Profitable</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-0.5 bg-blue-500 opacity-30" />
-              <span>Low Profit</span>
-            </div>
+          <p className="mb-1 leading-tight">Sector trade route profit per hour.</p>
+          <div className="flex items-center gap-2 mt-1">
+            <span>Low Profit</span>
+            <div className="h-2 flex-1 rounded-full" style={{
+              background: `linear-gradient(to right, ${STATUS_COLORS.danger}, ${STATUS_COLORS.warning}, ${STATUS_COLORS.success})`,
+            }} />
+            <span>High Profit</span>
           </div>
         </div>
       )}
       
       {fillMode === "resources" && (
         <div className="flex flex-col gap-2">
-          <p className="mb-1 leading-tight">Select a resource to view sector yields.</p>
-          <div className="flex items-center gap-2 mt-1">
-            <span>Low Yield</span>
-            <div className="h-2 flex-1 rounded-full" style={{
-              background: `linear-gradient(to right, ${STATUS_COLORS.danger}, ${STATUS_COLORS.warning}, ${STATUS_COLORS.success})`,
-            }} />
-            <span>High Yield</span>
-          </div>
+          {resource ? (
+            <>
+              <p className="mb-1 leading-tight">
+                {resource === "sunlight"
+                  ? "Sunlight intensity by sector."
+                  : <>Sector yields for <span className="capitalize text-foreground font-medium">{resource.replace(/_/g, " ")}</span>.</>
+                }
+              </p>
+              <div className="flex items-center gap-2 mt-1">
+                <span>{resource === "sunlight" ? "Low" : "Low Yield"}</span>
+                <div className="h-2 flex-1 rounded-full" style={{
+                  background: `linear-gradient(to right, ${STATUS_COLORS.danger}, ${STATUS_COLORS.warning}, ${STATUS_COLORS.success})`,
+                }} />
+                <span>{resource === "sunlight" ? "High" : "High Yield"}</span>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="mb-1 leading-tight">Dominant resource by area.</p>
+              <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 mt-1">
+                {RESOURCE_ORDER.map(res => (
+                  <div key={res} className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded shrink-0" style={{ backgroundColor: RESOURCE_COLORS[res] ?? "#888" }} />
+                    <span className="capitalize">{res.replace(/_/g, " ")}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       )}
         </div>

@@ -93,6 +93,8 @@ class EquipmentItem(PublicModel):
     kind: str
     size: str | None
     mk: int | None
+    compat_tags: str | None           # space-separated restrictive tags (NULL = fits all ships of this size)
+    compat_ship_name: str | None      # resolved ship name from compat_tags (NULL if not exclusive)
     faction_id: str | None
     price_min: int | None
     price_avg: int | None
@@ -109,6 +111,28 @@ _BASE_COLS = (
     "ware_id, name, group_id, transport, price_min, price_avg, price_max, tags, icon_path, restriction_licence, "
     "EXISTS(SELECT 1 FROM s.ware_production p WHERE p.ware_id = wares.ware_id) AS has_production"
 )
+
+
+def _resolve_compat_ship(conn: sqlite3.Connection, compat_tags: str) -> str | None:
+    """Resolve a compat_tags string to a human-readable ship name.
+
+    Tags like ``ship_gen_m_yacht_01`` or ``pir_battleship_01`` are fragmentary
+    ship-macro identifiers.  We split each tag on ``_`` and match every segment
+    as a LIKE wildcard, e.g. ``pir_battleship_01`` → ``%pir%battleship%01%``
+    which matches ``ship_pir_xl_battleship_01_a_macro``.
+    """
+    for tag in compat_tags.split():
+        segments = [s for s in tag.split("_") if s]
+        if not segments:
+            continue
+        pattern = "%" + "%".join(segments) + "%"
+        row = conn.execute(
+            "SELECT name FROM s.ships WHERE ship_id LIKE ? LIMIT 1",
+            (pattern,),
+        ).fetchone()
+        if row:
+            return row["name"]
+    return None
 
 
 def _load_stat_tables(
@@ -157,6 +181,7 @@ def _weapon_stats(row: sqlite3.Row, bullets: dict[str, sqlite3.Row]) -> WeaponSt
 
 
 def _build_item(
+    conn: sqlite3.Connection,
     row: sqlite3.Row,
     engines: dict[str, sqlite3.Row],
     shields: dict[str, sqlite3.Row],
@@ -167,8 +192,10 @@ def _build_item(
     faction, size, mk = equipment_meta(row["ware_id"])
     macro = f"{row['ware_id']}_macro"
 
+    compat_tags = None
     engine_stats = shield_stats = weapon_stats = None
     if kind in ("engine", "thruster") and (e := engines.get(macro)) is not None:
+        compat_tags = e["compat_tags"]
         engine_stats = EngineStats(
             mk=e["mk"],
             thrust_forward=e["thrust_forward"],
@@ -180,6 +207,7 @@ def _build_item(
             boost_duration=e["boost_duration"],
         )
     elif kind == "shield" and (s := shields.get(macro)) is not None:
+        compat_tags = s["compat_tags"]
         shield_stats = ShieldStats(
             mk=s["mk"],
             capacity=s["capacity"],
@@ -187,6 +215,7 @@ def _build_item(
             recharge_delay=s["recharge_delay"],
         )
     elif kind in ("weapon", "turret", "missile") and (w := weapons.get(macro)) is not None:
+        compat_tags = w["compat_tags"]
         weapon_stats = _weapon_stats(w, bullets)
     elif kind == "missile" and (b := bullets.get(macro)) is not None:
         # Missile wares often don't have a launcher macro — the ware *is*
@@ -228,6 +257,8 @@ def _build_item(
         kind=kind,
         size=size,
         mk=mk,
+        compat_tags=compat_tags,
+        compat_ship_name=_resolve_compat_ship(conn, compat_tags) if compat_tags else None,
         faction_id=faction,
         price_min=row["price_min"],
         price_avg=row["price_avg"],
@@ -261,7 +292,7 @@ def list_equipment(
     out: list[EquipmentItem] = []
     needle = search.lower() if search else None
     for r in rows:
-        item = _build_item(r, engines, shields, weapons, bullets)
+        item = _build_item(conn, r, engines, shields, weapons, bullets)
         if kind is not None and item.kind != kind:
             continue
         if size is not None and item.size != size:
@@ -287,4 +318,4 @@ def get_equipment(
     if row is None or row["category"] != "equipment":
         raise HTTPException(status_code=404, detail=f"Unknown equipment ware_id: {ware_id}")
     engines, shields, weapons, bullets = _load_stat_tables(conn)
-    return _build_item(row, engines, shields, weapons, bullets)
+    return _build_item(conn, row, engines, shields, weapons, bullets)

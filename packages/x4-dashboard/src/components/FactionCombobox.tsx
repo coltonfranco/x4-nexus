@@ -36,7 +36,26 @@ export function FactionCombobox({ factions, value, onChange, className, disabled
           <div className="flex-1 truncate text-left">
             {selectedFaction ? (
               <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: selectedFaction.color_hex ?? '#888' }} />
+                {selectedFaction.icon_url ? (
+                  <span
+                    className="shrink-0"
+                    style={{
+                      width: 14,
+                      height: 14,
+                      backgroundColor: selectedFaction.color_hex ?? "#888",
+                      WebkitMaskImage: `url(${selectedFaction.icon_url})`,
+                      WebkitMaskSize: "contain",
+                      WebkitMaskRepeat: "no-repeat",
+                      WebkitMaskPosition: "center",
+                      maskImage: `url(${selectedFaction.icon_url})`,
+                      maskSize: "contain",
+                      maskRepeat: "no-repeat",
+                      maskPosition: "center",
+                    }}
+                  />
+                ) : (
+                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: selectedFaction.color_hex ?? '#888' }} />
+                )}
                 <span>{selectedFaction.name}</span>
               </div>
             ) : (
@@ -48,7 +67,7 @@ export function FactionCombobox({ factions, value, onChange, className, disabled
       </PopoverPrimitive.Trigger>
       <PopoverPrimitive.Portal>
         <PopoverPrimitive.Content
-          className="z-50 w-[240px] rounded-md border bg-popover text-popover-foreground shadow-md outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2"
+          className="z-50 w-[240px] rounded-md border bg-[#101422]/95 backdrop-blur-md text-popover-foreground shadow-md outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2"
           align="start"
           sideOffset={4}
         >
@@ -87,7 +106,26 @@ export function FactionCombobox({ factions, value, onChange, className, disabled
                   {value === f.faction_id && <Check className="h-4 w-4" />}
                 </span>
                 <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: f.color_hex ?? '#888' }} />
+                  {f.icon_url ? (
+                    <span
+                      className="shrink-0"
+                      style={{
+                        width: 14,
+                        height: 14,
+                        backgroundColor: f.color_hex ?? "#888",
+                        WebkitMaskImage: `url(${f.icon_url})`,
+                        WebkitMaskSize: "contain",
+                        WebkitMaskRepeat: "no-repeat",
+                        WebkitMaskPosition: "center",
+                        maskImage: `url(${f.icon_url})`,
+                        maskSize: "contain",
+                        maskRepeat: "no-repeat",
+                        maskPosition: "center",
+                      }}
+                    />
+                  ) : (
+                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: f.color_hex ?? '#888' }} />
+                  )}
                   <span>{f.name}</span>
                 </div>
               </div>

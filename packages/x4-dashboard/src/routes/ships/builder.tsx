@@ -54,6 +54,8 @@ type ShipDetail = ShipSummary & {
 
 type EquipmentItem = {
   ware_id: string; name: string; kind: string; size: string | null; mk: number | null;
+  compat_tags: string | null;
+  compat_ship_name: string | null;
   faction_id: string | null; price_min: number | null; price_avg: number | null; price_max: number | null;
   icon_url: string | null;
   restriction_licence: string | null;
@@ -187,38 +189,39 @@ const CATEGORY_SORTS: Record<string, SortOption[]> = {
 
 type StatDisplay = { label: string; value: number; max: number; isLog: boolean; format: (n: number) => string; color?: string };
 
-function getEquipmentStats(item: EquipmentItem): { bars: StatDisplay[], texts: string[] } {
+function getEquipmentStats(item: EquipmentItem, maxima?: Record<string, number>): { bars: StatDisplay[], texts: string[] } {
   const size = item.size?.toLowerCase() || 's';
   const bars: StatDisplay[] = [];
   const texts: string[] = [];
 
   if (item.kind === "engine" && item.engine_stats) {
     const e = item.engine_stats;
-    if (e.thrust_forward) bars.push({ label: "Thrust", value: e.thrust_forward, max: THRUST_MAX[size] || 6000, isLog: false, format: n => fmtStat(n) + " N" });
-    if (e.travel_thrust) bars.push({ label: "Travel", value: e.travel_thrust, max: TRAVEL_MAX[size] || 25, isLog: false, format: n => `${n.toFixed(1)}×`, color: "#3b82f6" });
-    if (e.boost_thrust) bars.push({ label: "Boost", value: e.boost_thrust, max: BOOST_MAX[size] || 10, isLog: false, format: n => `${n.toFixed(1)}×`, color: "#f97316" });
+    if (e.thrust_forward) bars.push({ label: "Thrust", value: e.thrust_forward, max: maxima?.thrust ?? THRUST_MAX[size] ?? 6000, isLog: false, format: n => fmtStat(n) + " N" });
+    if (e.travel_thrust) bars.push({ label: "Travel", value: e.travel_thrust, max: maxima?.travel ?? TRAVEL_MAX[size] ?? 25, isLog: false, format: n => `${n.toFixed(1)}×`, color: "#3b82f6" });
+    if (e.boost_thrust) bars.push({ label: "Boost", value: e.boost_thrust, max: maxima?.boost ?? BOOST_MAX[size] ?? 10, isLog: false, format: n => `${n.toFixed(1)}×`, color: "#f97316" });
   }
   else if (item.kind === "thruster" && item.engine_stats) {
     const e = item.engine_stats;
-    if (e.thrust_strafe) bars.push({ label: "Strafe", value: e.thrust_strafe, max: STRAFE_MAX[size] || 1000, isLog: false, format: n => fmtStat(n) + " N", color: "#14b8a6" });
-    if (e.thrust_forward) bars.push({ label: "Forward", value: e.thrust_forward, max: THRUST_MAX[size] || 1000, isLog: false, format: n => fmtStat(n) + " N" });
+    if (e.thrust_strafe) bars.push({ label: "Strafe", value: e.thrust_strafe, max: maxima?.strafe ?? STRAFE_MAX[size] ?? 1000, isLog: false, format: n => fmtStat(n) + " N", color: "#14b8a6" });
+    if (e.thrust_forward) bars.push({ label: "Forward", value: e.thrust_forward, max: maxima?.thrust ?? THRUST_MAX[size] ?? 1000, isLog: false, format: n => fmtStat(n) + " N" });
   }
   else if (item.kind === "shield" && item.shield_stats) {
     const s = item.shield_stats;
-    if (s.capacity) bars.push({ label: "Capacity", value: s.capacity, max: SHIELD_MAX[size] || 20000, isLog: false, format: n => fmtStat(n) + " MJ" });
-    if (s.recharge_rate) bars.push({ label: "Recharge", value: s.recharge_rate, max: RECHARGE_MAX[size] || 1000, isLog: false, format: n => `${fmtStat(n)}/s`, color: "#06b6d4" });
+    if (s.capacity) bars.push({ label: "Capacity", value: s.capacity, max: maxima?.capacity ?? SHIELD_MAX[size] ?? 20000, isLog: false, format: n => fmtStat(n) + " MJ" });
+    if (s.recharge_rate) bars.push({ label: "Recharge", value: s.recharge_rate, max: maxima?.recharge ?? RECHARGE_MAX[size] ?? 1000, isLog: false, format: n => `${fmtStat(n)}/s`, color: "#06b6d4" });
     if (s.recharge_delay) texts.push(`${s.recharge_delay.toFixed(1)}s delay`);
   }
   else if ((item.kind === "weapon" || item.kind === "turret") && item.weapon_stats) {
     const w = item.weapon_stats;
     const d = dps(w);
-    if (d) bars.push({ label: "DPS", value: d, max: DPS_MAX[size] || 2000, isLog: false, format: fmtStat });
+    if (d) bars.push({ label: "DPS", value: d, max: maxima?.dps ?? DPS_MAX[size] ?? 2000, isLog: false, format: fmtStat });
     
     const rawRange = w.bullet_speed && w.bullet_lifetime ? (w.bullet_speed * w.bullet_lifetime) / 1000 : 0;
     if (rawRange > 0) {
-      bars.push({ label: "Range", value: Math.min(rawRange, RANGE_MAX[size] || 20), max: RANGE_MAX[size] || 20, isLog: false, format: n => `${n.toFixed(1)}km`, color: "#a855f7" });
+      const rangeMax = maxima?.range ?? RANGE_MAX[size] ?? 20;
+      bars.push({ label: "Range", value: Math.min(rawRange, rangeMax), max: rangeMax, isLog: false, format: n => `${n.toFixed(1)}km`, color: "#a855f7" });
     }
-    if (w.rotation_speed) bars.push({ label: "Rotation", value: w.rotation_speed, max: ROTATION_MAX[size] || 200, isLog: false, format: n => `${n.toFixed(0)}°/s`, color: "#10b981" });
+    if (w.rotation_speed) bars.push({ label: "Rotation", value: w.rotation_speed, max: maxima?.rotation ?? ROTATION_MAX[size] ?? 200, isLog: false, format: n => `${n.toFixed(0)}°/s`, color: "#10b981" });
   }
   else if (item.kind === "missile" && item.weapon_stats) {
     const w = item.weapon_stats;
@@ -500,7 +503,7 @@ function playerHasLicence(licenceSet: Set<string>, licenceType: string, factionI
 // ── Equipment card ─────────────────────────────────────────────────────────────
 
 function EquipmentCard({
-  item, slots, cart, onAdd, onRemove, factionMap, shortToFullFaction, playerLicenceSet, shipFactionId
+  item, slots, cart, onAdd, onRemove, factionMap, shortToFullFaction, playerLicenceSet, shipFactionId, maxima
 }: {
   item: EquipmentItem; slots: SlotDef[]; cart: Record<string, EquipmentItem | null>;
   onAdd: (k: string, i: EquipmentItem) => void; onRemove: (k: string) => void;
@@ -508,6 +511,7 @@ function EquipmentCard({
   shortToFullFaction: Map<string, string>;
   playerLicenceSet: Set<string>;
   shipFactionId: string | null;
+  maxima?: Record<string, number>;
 }) {
   const equippedSlots = slots.filter(s => cart[s.key]?.ware_id === item.ware_id);
   const isEquipped = equippedSlots.length > 0;
@@ -518,7 +522,7 @@ function EquipmentCard({
   const isObtainable = !item.restriction_licence || isGeneral || playerHasLicence(playerLicenceSet, item.restriction_licence, shipFactionId ?? resolvedFactionId);
   
   const canAdd = emptySlots.length > 0 && isObtainable;
-  const { bars, texts } = getEquipmentStats(item);
+  const { bars, texts } = getEquipmentStats(item, maxima);
 
   return (
     <Card
@@ -570,7 +574,17 @@ function EquipmentCard({
         <div className={cn("w-14 h-14 flex items-center justify-center rounded-lg p-1 border group-hover:scale-105 transition-transform", getMkGradientClass(item.mk))}>
           <EntityIcon src={item.icon_url} alt={item.name} size={48} className="drop-shadow-[0_0_8px_rgba(0,0,0,0.4)]" />
         </div>
-        <p className="text-sm font-medium text-center leading-tight line-clamp-2 h-8 flex items-center">{item.name}</p>
+        <p className="text-sm font-medium text-center leading-tight line-clamp-2 h-8 flex items-center">
+          {item.name}
+          {item.compat_tags && (
+            <span
+              className="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-amber-500/15 text-amber-400 border border-amber-500/30 shrink-0"
+              title={`Exclusive to ${item.compat_ship_name ?? "a specific ship hull"}`}
+            >
+              Exclusive
+            </span>
+          )}
+        </p>
         
         <div className="flex items-center gap-2 flex-wrap justify-center w-full">
           {item.size && (
@@ -914,6 +928,42 @@ export default function BuilderPage() {
     return map;
   }, [factions]);
 
+  // ── Per-size maxima from all equipment (stable, ignores filters) ────────────
+  const equipmentMaxima = useMemo(() => {
+    const m: Record<string, Record<string, Record<string, number>>> = {};
+    for (const item of equipment) {
+      if (!item.size) continue;
+      const sz = item.size.toLowerCase();
+      if (!m[item.kind]) m[item.kind] = {};
+      if (!m[item.kind][sz]) m[item.kind][sz] = {};
+      const cur = m[item.kind][sz];
+      if (item.engine_stats) {
+        const e = item.engine_stats;
+        if (e.thrust_forward) cur.thrust = Math.max(cur.thrust ?? 0, e.thrust_forward);
+        if (e.travel_thrust) cur.travel = Math.max(cur.travel ?? 0, e.travel_thrust);
+        if (e.boost_thrust) cur.boost = Math.max(cur.boost ?? 0, e.boost_thrust);
+        if (e.thrust_strafe) cur.strafe = Math.max(cur.strafe ?? 0, e.thrust_strafe);
+      }
+      if (item.shield_stats) {
+        const s = item.shield_stats;
+        if (s.capacity) cur.capacity = Math.max(cur.capacity ?? 0, s.capacity);
+        if (s.recharge_rate) cur.recharge = Math.max(cur.recharge ?? 0, s.recharge_rate);
+      }
+      if (item.weapon_stats) {
+        const w = item.weapon_stats;
+        const d = dps(w);
+        if (d) cur.dps = Math.max(cur.dps ?? 0, d);
+        const rawRange = w.bullet_speed && w.bullet_lifetime ? (w.bullet_speed * w.bullet_lifetime) / 1000 : 0;
+        if (rawRange > 0) {
+          const cappedRange = Math.min(rawRange, RANGE_MAX[sz] || 20);
+          cur.range = Math.max(cur.range ?? 0, cappedRange);
+        }
+        if (w.rotation_speed) cur.rotation = Math.max(cur.rotation ?? 0, w.rotation_speed);
+      }
+    }
+    return m;
+  }, [equipment]);
+
   useEffect(() => {
     if (shipDetail) {
       const fresh: Record<string, EquipmentItem | null> = {};
@@ -961,6 +1011,17 @@ export default function BuilderPage() {
     } else {
       items = equipment.filter(e => e.kind === category.kind && e.size != null && sizes.has(e.size));
     }
+    // Exclusive equipment: only show if the current ship matches the compat tag
+    if (shipDetail) {
+      items = items.filter(e => {
+        if (!e.compat_tags) return true; // universal — fits all ships of this size
+        return e.compat_tags.split(" ").some(tag => {
+          const segs = tag.split("_").filter(Boolean);
+          return segs.length > 0 && segs.every(s => shipDetail.ship_id.includes(s));
+        });
+      });
+    }
+
     // Fog of war: hide equipment from unknown factions
     if (settings.fogOfWar) {
       items = items.filter(e => e.faction_id == null || knownFactions[e.faction_id] !== false);
@@ -1185,7 +1246,7 @@ export default function BuilderPage() {
                             )}
                           </div>
                           <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(max(200px, calc(12.5% - 12px)), 1fr))" }}>
-                            {subcatItems.map(item => <EquipmentCard key={item.ware_id} item={item} slots={slots} cart={cart} onAdd={handleAdd} onRemove={handleRemove} factionMap={factionMap} shortToFullFaction={shortToFullFaction} playerLicenceSet={playerLicenceSet} shipFactionId={shipDetail?.faction_id ?? null} />)}
+                            {subcatItems.map(item => <EquipmentCard key={item.ware_id} item={item} slots={slots} cart={cart} onAdd={handleAdd} onRemove={handleRemove} factionMap={factionMap} shortToFullFaction={shortToFullFaction} playerLicenceSet={playerLicenceSet} shipFactionId={shipDetail?.faction_id ?? null} maxima={equipmentMaxima[item.kind]?.[item.size?.toLowerCase() ?? '']} />)}
                           </div>
                         </div>
                       );
@@ -1194,7 +1255,7 @@ export default function BuilderPage() {
                 ) : (
                   <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(max(200px, calc(12.5% - 12px)), 1fr))" }}>
                     {compatibleEquipment.map(item => (
-                      <EquipmentCard key={item.ware_id} item={item} slots={slots} cart={cart} onAdd={handleAdd} onRemove={handleRemove} factionMap={factionMap} shortToFullFaction={shortToFullFaction} playerLicenceSet={playerLicenceSet} shipFactionId={shipDetail?.faction_id ?? null} />
+                      <EquipmentCard key={item.ware_id} item={item} slots={slots} cart={cart} onAdd={handleAdd} onRemove={handleRemove} factionMap={factionMap} shortToFullFaction={shortToFullFaction} playerLicenceSet={playerLicenceSet} shipFactionId={shipDetail?.faction_id ?? null} maxima={equipmentMaxima[item.kind]?.[item.size?.toLowerCase() ?? '']} />
                     ))}
                   </div>
                 )}

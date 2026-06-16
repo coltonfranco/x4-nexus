@@ -2,7 +2,8 @@ import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Shield, Target, MapPin, Building2, ScrollText, Swords, RefreshCw, Clock, User } from "lucide-react";
 import { HUDCard } from "../components/HUDCard";
-import { FilterPill } from "../components/ui/filter-pill";
+import { Switch } from "../components/ui/switch";
+import { MultiSelect } from "../components/ui/multi-select";
 import { FactionCombobox } from "../components/FactionCombobox";
 import { FactionBadge } from "../components/FactionBadge";
 import { StatBar } from "../components/StatBar";
@@ -301,9 +302,7 @@ export default function MissionsPage() {
 
   if (missionsLoading || offersLoading) {
     return (
-      <div className="h-full flex flex-col justify-center text-sm text-muted-foreground">
-        <PageLoaderPreset preset="missions" />
-      </div>
+      <PageLoaderPreset preset="missions" />
     );
   }
 
@@ -319,6 +318,7 @@ export default function MissionsPage() {
   };
 
   const filterOffer = (o: MissionOffer) => {
+    if (storyOnly) return false;
     if (difficultyFilter.size > 0 && !difficultyFilter.has(o.level as Difficulty)) return false;
     if (typeFilter.size > 0 && o.type && !typeFilter.has(o.type)) return false;
     if (factionFilter !== "all" && o.faction !== factionFilter) return false;
@@ -378,56 +378,42 @@ export default function MissionsPage() {
           </p>
         </div>
 
-        {/* Filter bar — difficulty */}
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-[10px] uppercase tracking-wider text-muted-foreground mr-1">Difficulty</span>
-          {DIFFICULTY_KEYS.map((d) => {
-            const active = difficultyFilter.has(d);
-            const color = LEVEL_COLORS[d];
-            return (
-              <button
-                key={d}
-                onClick={() => toggleFilter(setDifficultyFilter, d)}
-                className="rounded-none px-2.5 py-1 text-xs font-medium transition-colors"
-                style={{
-                  background: active ? `${color}20` : "var(--muted)",
-                  color: active ? color : "var(--text-muted)",
-                  border: active ? `1px solid ${color}40` : "1px solid transparent",
-                }}
-              >
-                {DIFFICULTY_LABEL[d]}
-              </button>
-            );
-          })}
-        </div>
+        {/* Filters */}
+        <div className="flex flex-wrap items-center gap-2">
+          <MultiSelect
+            options={DIFFICULTY_KEYS.map((d) => ({
+              label: DIFFICULTY_LABEL[d],
+              value: d,
+              node: (
+                <span style={{ color: LEVEL_COLORS[d], fontWeight: 500 }}>
+                  {DIFFICULTY_LABEL[d]}
+                </span>
+              ),
+            }))}
+            selected={difficultyFilter}
+            onChange={setDifficultyFilter}
+            placeholder="Difficulty"
+            className="w-[160px]"
+          />
 
-        {/* Filter bar — type */}
-        {availableTypes.length > 0 && (
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-[10px] uppercase tracking-wider text-muted-foreground mr-1">Type</span>
-            {availableTypes.map((t) => {
-              const active = typeFilter.has(t);
-              const color = typeColor(t);
-              return (
-                <button
-                  key={t}
-                  onClick={() => toggleFilter(setTypeFilter, t)}
-                  className="rounded-none px-2.5 py-1 text-xs font-medium transition-colors"
-                  style={{
-                    background: active ? `${color}20` : "var(--muted)",
-                    color: active ? color : "var(--text-muted)",
-                    border: active ? `1px solid ${color}40` : "1px solid transparent",
-                  }}
-                >
-                  {typeLabel(t)}
-                </button>
-              );
-            })}
-          </div>
-        )}
+          {availableTypes.length > 0 && (
+            <MultiSelect
+              options={availableTypes.map((t) => ({
+                label: typeLabel(t),
+                value: t,
+                node: (
+                  <span style={{ color: typeColor(t), fontWeight: 500 }}>
+                    {typeLabel(t)}
+                  </span>
+                ),
+              }))}
+              selected={typeFilter}
+              onChange={setTypeFilter}
+              placeholder="Mission Type"
+              className="w-[180px]"
+            />
+          )}
 
-        {/* Filter bar — faction + story + clear */}
-        <div className="flex flex-wrap items-center gap-1.5">
           {factionSummaries.length > 1 && (
             <FactionCombobox
               factions={factionSummaries}
@@ -436,9 +422,14 @@ export default function MissionsPage() {
               className="w-[180px]"
             />
           )}
-          <FilterPill active={storyOnly} onClick={() => setStoryOnly(!storyOnly)}>
-            Story Only
-          </FilterPill>
+
+          <div className="flex items-center gap-2 px-2">
+            <Switch id="story-only" checked={storyOnly} onCheckedChange={setStoryOnly} />
+            <label htmlFor="story-only" className="text-xs font-medium text-muted-foreground cursor-pointer select-none">
+              Story Only
+            </label>
+          </div>
+
           {hasFilters && (
             <button
               onClick={() => { setDifficultyFilter(new Set()); setTypeFilter(new Set()); setFactionFilter("all"); setStoryOnly(false); }}
@@ -451,7 +442,7 @@ export default function MissionsPage() {
       </div>
 
       <div className="flex-1 overflow-auto p-6">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-7xl">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-[100rem]">
           {/* Active missions */}
           <div className="space-y-4">
             <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
@@ -657,14 +648,18 @@ export default function MissionsPage() {
 
           {/* Mission offers board */}
           <div className="space-y-4">
-            {repeatableOffers.length > 0 && (
-              <>
-                <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                  <Swords className="w-4 h-4" />
-                  Guild & War Missions ({repeatableOffers.length})
-                </h2>
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+              <Swords className="w-4 h-4" />
+              Guild & War Missions ({repeatableOffers.length})
+            </h2>
 
-                {repeatableOffers.map((o) => {
+            {repeatableOffers.length === 0 && (
+              <p className="text-sm text-muted-foreground py-8">
+                No guild or war missions available.
+              </p>
+            )}
+
+            {repeatableOffers.map((o) => {
                   const factionObj = o.faction ? factionMap.get(o.faction) : undefined;
                   const otypeColor = o.type ? typeColor(o.type) : undefined;
                   return (
@@ -741,17 +736,22 @@ export default function MissionsPage() {
                   </HUDCard>
                   );
                 })}
-              </>
+          </div>
+
+          {/* Available Offers board */}
+          <div className="space-y-4">
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+              <MapPin className="w-4 h-4" />
+              Available Offers ({oneShotOffers.length})
+            </h2>
+
+            {oneShotOffers.length === 0 && (
+              <p className="text-sm text-muted-foreground py-8">
+                No available offers.
+              </p>
             )}
 
-            {oneShotOffers.length > 0 && (
-              <>
-                <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2 mt-6">
-                  <MapPin className="w-4 h-4" />
-                  Available Offers ({oneShotOffers.length})
-                </h2>
-
-                {oneShotOffers.slice(0, 10).map((o) => {
+            {oneShotOffers.slice(0, 10).map((o) => {
                   const factionObj = o.faction ? factionMap.get(o.faction) : undefined;
                   const otypeColor = o.type ? typeColor(o.type) : undefined;
                   return (
@@ -834,8 +834,6 @@ export default function MissionsPage() {
                   </HUDCard>
                   );
                 })}
-              </>
-            )}
           </div>
         </div>
       </div>

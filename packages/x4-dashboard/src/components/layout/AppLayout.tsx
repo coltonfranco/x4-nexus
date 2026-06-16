@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, Outlet, useRouterState } from "@tanstack/react-router";
+import { useIsMutating } from "@tanstack/react-query";
 import {
   Boxes,
   Crown,
@@ -15,24 +16,27 @@ import {
   Target,
 } from "lucide-react";
 import { cn } from "../../lib/utils";
+import { useHasSave } from "../../lib/useHasSave";
 import { SaveSelector } from "../SaveSelector";
 import { SettingsModal } from "../SettingsModal";
 // ThemeToggle hidden per design — dark-only, infrastructure preserved for future light theme
 
 const navItems = [
-  { to: "/", label: "Home", icon: Home },
-  { to: "/empire", label: "Empire", icon: Crown },
-  { to: "/trade", label: "Trade", icon: TrendingUp },
-  { to: "/inventory", label: "Inventory", icon: Boxes },
-  { to: "/map", label: "Map", icon: Map },
-  { to: "/ships", label: "Ships", icon: Rocket },
-  { to: "/missions", label: "Missions", icon: Target },
-  { to: "/factions", label: "Factions", icon: Shield },
-  { to: "/stats", label: "Stats", icon: Activity },
+  { to: "/", label: "Home", icon: Home, requiresSave: false },
+  { to: "/empire", label: "Empire", icon: Crown, requiresSave: true },
+  { to: "/trade", label: "Trade", icon: TrendingUp, requiresSave: false },
+  { to: "/inventory", label: "Inventory", icon: Boxes, requiresSave: false },
+  { to: "/map", label: "Map", icon: Map, requiresSave: false },
+  { to: "/ships", label: "Ships", icon: Rocket, requiresSave: false },
+  { to: "/missions", label: "Missions", icon: Target, requiresSave: true },
+  { to: "/factions", label: "Factions", icon: Shield, requiresSave: false },
+  { to: "/stats", label: "Stats", icon: Activity, requiresSave: true },
 ] as const;
 
 export function AppLayout() {
+  const { hasSave } = useHasSave();
   const { location } = useRouterState();
+  const isActivating = useIsMutating({ mutationKey: ["activate-save"] }) > 0;
 
   // Force dark-only — infrastructure preserved for future light theme
   useEffect(() => {
@@ -79,7 +83,7 @@ export function AppLayout() {
 
           {/* Nav */}
           <nav className="flex flex-col gap-1 p-2 flex-1 overflow-y-auto">
-            {navItems.map(({ to, label, icon: Icon }) => {
+            {navItems.filter(item => !item.requiresSave || hasSave).map(({ to, label, icon: Icon }) => {
               const active =
                 to === "/" ? location.pathname === "/" : location.pathname.startsWith(to);
               return (
@@ -112,6 +116,17 @@ export function AppLayout() {
       <main className="flex-1 min-w-0 overflow-auto">
         <Outlet />
       </main>
+
+      {/* Save activation overlay */}
+      {isActivating && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-4 p-8 rounded-xl bg-card border border-border shadow-2xl">
+            <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            <p className="text-sm font-medium text-foreground">Ingesting save…</p>
+            <p className="text-xs text-muted-foreground">Extracting ships, stations, relations, and trade data</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

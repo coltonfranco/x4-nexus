@@ -174,19 +174,22 @@ def _parse_macros(
 
         elif cls == "sector":
             cluster_id = _derive_cluster_id(macro_id)
+            # Fall back to cluster-level props when the sector dataset lacks <area>
+            # (e.g. Boron DLC puts sunlight/economy/security on the cluster dataset).
+            cluster_props = defaults.get(cluster_id.lower(), {})
             out.sectors.append({
                 "sector_id":    macro_id,
                 "cluster_id":   cluster_id,
                 "name":         macro_id,
                 "owner_faction": None,
                 "dlc":           dlc,
-                "name_id":        props.get("name_id"),
-                "description_id": props.get("description_id"),
-                "sunlight":       props.get("sunlight"),
-                "economy":        props.get("economy"),
-                "security":       props.get("security"),
-                "tags":           props.get("tags"),
-                "access_licence": props.get("access_licence"),
+                "name_id":        props.get("name_id") or cluster_props.get("name_id"),
+                "description_id": props.get("description_id") or cluster_props.get("description_id"),
+                "sunlight":       props.get("sunlight") if props.get("sunlight") is not None else cluster_props.get("sunlight"),
+                "economy":        props.get("economy") if props.get("economy") is not None else cluster_props.get("economy"),
+                "security":       props.get("security") if props.get("security") is not None else cluster_props.get("security"),
+                "tags":           props.get("tags") or cluster_props.get("tags"),
+                "access_licence": props.get("access_licence") or cluster_props.get("access_licence"),
                 "x": pos.get("x"),
                 "y": pos.get("y"),
                 "z": pos.get("z"),

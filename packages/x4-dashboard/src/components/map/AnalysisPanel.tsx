@@ -81,13 +81,18 @@ export function AnalysisPanel({
             className="w-full flex items-center justify-between p-[11px_12px] rounded-[12px]"
           >
             <span className="text-[10px] tracking-[1.4px] text-[#6b7890]">HEAT-MAP YIELD</span>
-            <span className="flex items-center gap-1">
+            <span className="flex items-center gap-2 shrink-0">
               {resourceSource && (
                 <span className={`text-[9px] px-1 rounded ${
                   resourceSource === "live" ? "text-emerald-400" : "text-muted-foreground"
                 }`}>
                   {resourceSource === "live" ? "LIVE" : "STATIC"}
                 </span>
+              )}
+              {resource && (
+                <button onClick={(e) => { e.stopPropagation(); onClearResource(); }} className="text-[10px] tracking-[1px] uppercase text-[#6b7890] hover:text-white transition-colors">
+                  Clear
+                </button>
               )}
               <ChevronDown
                 className={`w-3 h-3 text-[#6b7890] transition-transform ${panelOpen ? "rotate-0" : "-rotate-90"}`}
@@ -97,11 +102,11 @@ export function AnalysisPanel({
           </button>
           {panelOpen && (
           <div className="px-[12px] pb-[11px]">
-          <div className="flex flex-wrap gap-[6px]">
+          <div className="grid grid-cols-5 gap-[6px]">
             {RESOURCE_ORDER.map((r) => {
               const active = resource === r;
               return (
-                <button key={r} onClick={() => onResourceChange(r)}
+                <button key={r} onClick={() => active ? onClearResource() : onResourceChange(r)}
                   className={`flex items-center gap-[6px] px-[10px] py-[5px] rounded-full font-['Space_Grotesk',sans-serif] text-[11.5px] cursor-pointer transition-colors ${
                     active
                       ? "font-semibold border border-primary/50 bg-primary/15 text-white"

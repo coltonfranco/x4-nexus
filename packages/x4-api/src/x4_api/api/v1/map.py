@@ -764,10 +764,10 @@ def list_conflicts(
             GROUP BY sh.sector_id, sh.owner_faction
         ),
         sector_owners AS (
-            SELECT s.sector_id, so.owner_faction
-            FROM s.sectors s
-            LEFT JOIN seed.sector_ownership so ON so.sector_id = s.sector_id
-            WHERE so.owner_faction IS NOT NULL
+            SELECT LOWER(st.sector_id) AS sector_id, st.owner_faction
+            FROM stations st
+            WHERE st.owner_faction IS NOT NULL AND st.sector_id IS NOT NULL
+            GROUP BY LOWER(st.sector_id)
         ),
         sector_factions AS (
             SELECT sector_id, owner_faction, cnt FROM sector_fighters
@@ -790,12 +790,10 @@ def list_conflicts(
         )
         SELECT sf.sector_id, sf.owner_faction, sf.cnt,
                COALESCE(f.name, sf.owner_faction) AS faction_name,
-               COALESCE(fso.name, so.owner_faction) AS sector_owner_name,
-               so.owner_faction AS sector_owner_id
+               NULL AS sector_owner_name,
+               NULL AS sector_owner_id
         FROM merged_factions sf
         LEFT JOIN s.factions f ON f.faction_id = sf.owner_faction
-        LEFT JOIN seed.sector_ownership so ON LOWER(so.sector_id) = sf.sector_id
-        LEFT JOIN s.factions fso ON fso.faction_id = so.owner_faction
         WHERE sf.sector_id IN (SELECT sector_id FROM hostile_sectors)
         ORDER BY sf.sector_id, sf.cnt DESC
     """).fetchall()
@@ -950,10 +948,10 @@ def list_tensions(
             GROUP BY sh.sector_id, sh.owner_faction
         ),
         sector_owners AS (
-            SELECT s.sector_id, so.owner_faction
-            FROM s.sectors s
-            LEFT JOIN seed.sector_ownership so ON so.sector_id = s.sector_id
-            WHERE so.owner_faction IS NOT NULL
+            SELECT LOWER(st.sector_id) AS sector_id, st.owner_faction
+            FROM stations st
+            WHERE st.owner_faction IS NOT NULL AND st.sector_id IS NOT NULL
+            GROUP BY LOWER(st.sector_id)
         ),
         sector_factions AS (
             SELECT sector_id, owner_faction, cnt FROM sector_fighters
@@ -967,10 +965,9 @@ def list_tensions(
         )
         SELECT mf.sector_id, mf.owner_faction, mf.cnt,
                COALESCE(f.name, mf.owner_faction) AS faction_name,
-               so.owner_faction AS sector_owner_id
+               NULL AS sector_owner_id
         FROM merged_factions mf
         LEFT JOIN s.factions f ON f.faction_id = mf.owner_faction
-        LEFT JOIN seed.sector_ownership so ON LOWER(so.sector_id) = mf.sector_id
     """).fetchall()
 
     from collections import defaultdict

@@ -11,6 +11,28 @@ from lxml import etree
 
 from x4_extract.static.constants import EQUIPMENT_CLASSES, dlc_from_path
 
+# Tags that appear on every component connection and don't restrict compatibility
+# Tags that appear on every component connection and don't restrict compatibility.
+# We filter these OUT — what remains are the restrictive tags.
+_GENERIC_TAGS = {
+    "component", "world", "ship", "dock", "storage",
+    "small", "medium", "large", "extralarge", "extrasmall",
+    "engine", "weapon", "turret", "shield", "thruster",
+    "missile", "countermeasure", "deployable", "drone",
+    "launchtube",
+    # Subclass / faction / role tags — not ship-exclusive
+    "standard", "advanced", "small_racer",
+    "spacesuit", "xenon", "khaak", "mandatory",
+    # Shield component collision tags
+    "hittable", "unhittable",
+    # Weapon role / subclass tags
+    "combat", "mining", "highpower", "default", "repair",
+    "bomblauncher", "bomb",
+    # Faction destroyer-class identifiers (fit multiple ships, not one)
+    "arg_destroyer_01", "par_destroyer_01", "spl_destroyer_01",
+    "tel_destroyer_01", "ter_destroyer_01",
+}
+
 
 @dataclass(slots=True)
 class ExtractResult:
@@ -68,8 +90,9 @@ def _parse_equipment_macro(macro_name: str, file_path: str, macro_el: etree._Ele
     faction_id = ident_el.get("makerrace") if ident_el is not None else None
     mk = _int(ident_el, "mk") if ident_el is not None else None
 
-    # Determine size from component connections
+    # Determine size and restrictive tags from component connections
     size = None
+    compat_tags = None
     comp_el = macro_el.find("component")
     if comp_el is not None:
         comp_ref = comp_el.get("ref")
@@ -86,7 +109,13 @@ def _parse_equipment_macro(macro_name: str, file_path: str, macro_el: etree._Ele
                         elif "large" in tags: size = "l"
                         elif "medium" in tags: size = "m"
                         elif "small" in tags: size = "s"
-                        if size: break
+
+                        # Capture restrictive tags (non-generic) for compatibility matching
+                        restrictive = [t for t in tags if t not in _GENERIC_TAGS]
+                        if restrictive:
+                            compat_tags = " ".join(sorted(set(restrictive)))
+                        if size:
+                            break
             except (KeyError, etree.XMLSyntaxError):
                 pass
 
@@ -106,6 +135,7 @@ def _parse_equipment_macro(macro_name: str, file_path: str, macro_el: etree._Ele
             "dlc": dlc_from_path(file_path),
             "class_id": class_id,
             "size": size,
+            "compat_tags": compat_tags,
             "faction_id": faction_id,
             "mk": mk,
             "thrust_forward": _float(thrust_el, "forward"),
@@ -134,6 +164,7 @@ def _parse_equipment_macro(macro_name: str, file_path: str, macro_el: etree._Ele
             "is_legacy": "legacy" in file_path.lower(),
             "dlc": dlc_from_path(file_path),
             "size": size,
+            "compat_tags": compat_tags,
             "faction_id": faction_id,
             "mk": mk,
             "capacity": _float(recharge_el, "max"),
@@ -162,6 +193,7 @@ def _parse_equipment_macro(macro_name: str, file_path: str, macro_el: etree._Ele
             "dlc": dlc_from_path(file_path),
             "class_id": class_id,
             "size": size,
+            "compat_tags": compat_tags,
             "faction_id": faction_id,
             "mk": mk,
             "default_bullet_id": default_bullet_id,
@@ -261,12 +293,12 @@ def write(conn: sqlite3.Connection, result: ExtractResult) -> None:
     # Engines
     conn.executemany(
         "INSERT INTO equip_engines ("
-        "  engine_id, name, file_path, is_legacy, dlc, class_id, size, faction_id, mk,"
+        "  engine_id, name, file_path, is_legacy, dlc, class_id, size, compat_tags, faction_id, mk,"
         "  thrust_forward, thrust_reverse, thrust_strafe, thrust_pitch, thrust_yaw, thrust_roll,"
         "  travel_thrust, travel_attack, travel_charge, travel_release,"
         "  boost_thrust, boost_duration, boost_attack, boost_release"
         ") VALUES ("
-        "  :engine_id, :name, :file_path, :is_legacy, :dlc, :class_id, :size, :faction_id, :mk,"
+        "  :engine_id, :name, :file_path, :is_legacy, :dlc, :class_id, :size, :compat_tags, :faction_id, :mk,"
         "  :thrust_forward, :thrust_reverse, :thrust_strafe, :thrust_pitch, :thrust_yaw, :thrust_roll,"
         "  :travel_thrust, :travel_attack, :travel_charge, :travel_release,"
         "  :boost_thrust, :boost_duration, :boost_attack, :boost_release"
@@ -276,8 +308,8 @@ def write(conn: sqlite3.Connection, result: ExtractResult) -> None:
 
     # Shields
     conn.executemany(
-        "INSERT INTO equip_shields (shield_id, name, file_path, is_legacy, dlc, size, faction_id, mk, capacity, recharge_rate, recharge_delay, disruption_stability) "
-        "VALUES (:shield_id, :name, :file_path, :is_legacy, :dlc, :size, :faction_id, :mk, :capacity, :recharge_rate, :recharge_delay, :disruption_stability)",
+        "INSERT INTO equip_shields (shield_id, name, file_path, is_legacy, dlc, size, compat_tags, faction_id, mk, capacity, recharge_rate, recharge_delay, disruption_stability) "
+        "VALUES (:shield_id, :name, :file_path, :is_legacy, :dlc, :size, :compat_tags, :faction_id, :mk, :capacity, :recharge_rate, :recharge_delay, :disruption_stability)",
         result.shields,
     )
 
@@ -308,12 +340,12 @@ def write(conn: sqlite3.Connection, result: ExtractResult) -> None:
     # Weapons
     conn.executemany(
         "INSERT INTO equip_weapons ("
-        "  weapon_id, name, file_path, is_legacy, dlc, class_id, size, faction_id, mk,"
+        "  weapon_id, name, file_path, is_legacy, dlc, class_id, size, compat_tags, faction_id, mk,"
         "  default_bullet_id, heat_overheat, heat_coolrate, heat_cooldelay, heat_reenable,"
         "  rotation_speed, rotation_accel, reload_rate, reload_time, hull_max,"
         "  ammo_capacity, missile_storage"
         ") VALUES ("
-        "  :weapon_id, :name, :file_path, :is_legacy, :dlc, :class_id, :size, :faction_id, :mk,"
+        "  :weapon_id, :name, :file_path, :is_legacy, :dlc, :class_id, :size, :compat_tags, :faction_id, :mk,"
         "  :default_bullet_id, :heat_overheat, :heat_coolrate, :heat_cooldelay, :heat_reenable,"
         "  :rotation_speed, :rotation_accel, :reload_rate, :reload_time, :hull_max,"
         "  :ammo_capacity, :missile_storage"

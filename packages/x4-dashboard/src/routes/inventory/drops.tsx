@@ -122,7 +122,7 @@ function DropDetailDialog({ listId, onClose }: { listId: string; onClose: () => 
         </DialogHeader>
 
         <div className="px-6 pb-6 pt-2">
-          {isLoading && <div className="text-sm text-muted-foreground py-4 flex justify-center"><PageLoaderPreset preset="drops" /></div>}
+          {isLoading && <PageLoaderPreset preset="drops" />}
           {!isLoading && <DropListContent groups={groups} />}
         </div>
       </DialogContent>
@@ -244,7 +244,7 @@ export default function DropsPage() {
 
       <div className="flex-1 overflow-auto px-6 py-4">
         {isLoading ? (
-          <div className="text-muted-foreground text-sm py-8 flex justify-center"><PageLoaderPreset preset="drops" /></div>
+          <PageLoaderPreset preset="drops" />
         ) : filtered.length === 0 ? (
           <p className="text-muted-foreground text-sm py-8 text-center">No drop tables match your filters.</p>
         ) : (

@@ -175,18 +175,15 @@ export function PlayerCard() {
         </p>
       </div>
 
-      <div className="flex-1 overflow-hidden px-6 pb-6 pt-4 flex flex-col">
-        <HUDCard className="h-full">
-          <div className="flex-1 overflow-auto p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 max-w-6xl">
+      <div className="flex-1 overflow-auto px-6 pb-6 pt-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 max-w-7xl">
           {groups.map((group) => (
             <HUDCard
               key={group.label}
-              className="rounded-lg border-border overflow-hidden"
-              accents={false}
+              className="rounded-lg border-border overflow-hidden h-full flex flex-col"
             >
               {/* Group header */}
-              <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border bg-muted/20">
+              <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border bg-muted/20 shrink-0">
                 <group.icon className="w-4 h-4 text-muted-foreground" />
                 <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                   {group.label}
@@ -196,7 +193,7 @@ export function PlayerCard() {
                 </span>
               </div>
               {/* Group rows */}
-              <div className="divide-y divide-border/50">
+              <div className="divide-y divide-border/50 flex-1">
                 {group.stats.map((stat) => (
                   <div
                     key={stat.stat_id}
@@ -219,8 +216,6 @@ export function PlayerCard() {
             <p className="text-sm">No stats yet — ingest a save to see your player card</p>
           </div>
         )}
-          </div>
-        </HUDCard>
       </div>
     </div>
   );

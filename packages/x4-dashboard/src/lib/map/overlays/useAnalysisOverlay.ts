@@ -37,10 +37,10 @@ export type AnalysisOverlay = {
   borderTensions: Map<string, BorderTensionEntry>;
   sectorForces: Map<string, SectorForceEntry>;
   sectorResources: Map<string, SectorResources>;
+  sectorSunlight: Map<string, string>;         // lowercase sector → sunlight percentage (e.g. "134%")
   alternateDots: Map<string, string[]>;       // lowercase sector → alt resource colors
   dimOthers: boolean;
   routeMarkers: RouteMarker[];
-  highlightSegments: PathSegment[];
   navSegments: PathSegment[];
   pathHops: number | null;
   pathDistanceKm: number | null;
@@ -82,7 +82,6 @@ export function useAnalysisOverlay({
   resource: string | null;
   wareId: string | null;
   maxJumps: number | null;
-  selectedRouteSector: string | null;
   navFrom: string | null;
   navTo: string | null;
   navFromPos?: [number, number] | null;
@@ -108,7 +107,7 @@ export function useAnalysisOverlay({
   const tensions = useTensionData(fillMode === "conflict");
   const forces = useSectorForces(fillMode === "conflict");
   const offers = useWareOffers(wareOn ? wareId : null);
-  const routes = useTopRoutes(tradeRoutesOn || !!selectedRouteSector);
+  const routes = useTopRoutes(tradeRoutesOn);
 
   // Case-insensitive sector coordinate lookup, shared by routes + navigation.
   const coordsCI = useMemo(() => {
@@ -163,6 +162,7 @@ export function useAnalysisOverlay({
       borderTensions: new Map(),
       sectorForces: new Map(),
       sectorResources: new Map(),
+      sectorSunlight: new Map(),
       alternateDots: new Map(),
     };
 
@@ -324,6 +324,35 @@ export function useAnalysisOverlay({
       const source = resourceData.data?.source ?? null;
       const loading = resourceData.isLoading;
       if (resource) {
+        // Sunlight is a sector property (percentage), not a mined resource — build
+        // the heatmap from sector.sunlight instead of the resource API data.
+        if (resource === "sunlight") {
+          const vals: { sid: string; value: number }[] = [];
+          sectors.forEach((s) => {
+            if (s.sunlight != null) vals.push({ sid: s.sector_id.toLowerCase(), value: s.sunlight });
+          });
+          if (vals.length === 0) return { ...empty, source, loading, dim: true };
+          // Clamp at 2.0 (200%) so extreme outliers like Avarice (1390%)
+          // don't compress the rest of the map into invisibility.
+          const CEIL = 2.0;
+          const min = Math.min(...vals.map((v) => v.value));
+          const max = Math.min(CEIL, Math.max(...vals.map((v) => v.value)));
+          const span = max - min || 1;
+          const tint = new Map<string, SectorTint>();
+          const badges = new Map<string, string>();
+          const sectorSunlight = new Map<string, string>();
+          const sectorResources = resourceData.data?.bySector ?? new Map();
+          vals.forEach(({ sid, value }) => {
+            const clamped = Math.min(value, CEIL);
+            const intensity = 0.3 + 0.7 * ((clamped - min) / span);
+            const hc = heatColor(intensity);
+            tint.set(sid, { fill: `${hc}${alpha(0.2 + 0.65 * intensity)}`, stroke: `${hc}${alpha(0.9)}` });
+            const pct = `${Math.round(value * 100)}%`;
+            badges.set(sid, pct);
+            sectorSunlight.set(sid, pct);
+          });
+          return { ...empty, tint, badges, sectorSunlight, sectorResources, dim: true, source, loading };
+        }
         // Single-resource heatmap: low → high, sectors without it grayed by dimOthers.
         const wareYields = resourceData.data?.byWare.get(resource);
         if (!wareYields) return { ...empty, source, loading, dim: true };
@@ -410,28 +439,21 @@ export function useAnalysisOverlay({
       if (!coord) return;
       list.sort((a, b) => b.profitPerHour - a.profitPerHour);
       const t = list[0].profitPerHour / maxP;
+      const hc = heatColor(t);
       markers.push({
         id: sid,
         coord,
-        color: `hsl(${140 - 35 * (1 - t)}, 80%, ${45 + 15 * t}%)`,
+        color: hc,
         routes: list.slice(0, 4),
       });
-      tint.set(sid, { fill: `${STATUS_COLORS.success}${alpha(0.2 + 0.65 * t)}`, stroke: `${STATUS_COLORS.success}${alpha(0.85)}` });
+      tint.set(sid, { fill: `${hc}${alpha(0.2 + 0.65 * t)}`, stroke: `${hc}${alpha(0.85)}` });
       badges.set(sid, `${compact(list[0].profitPerHour)}/h`);
     });
     return { markers, tint, badges };
   }, [tradeRoutesOn, routes.data, maxJumps, coordsCI]);
   const routeMarkers = routeData.markers;
 
-  // ── Highlighted route path (clicked marker → buy → sell jump path) ──
-  const highlightSegments = useMemo<PathSegment[]>(() => {
-    if (!selectedRouteSector) return [];
-    const marker = routeMarkers.find((m) => m.id === selectedRouteSector.toLowerCase());
-    const sell = marker?.routes[0]?.sellSector;
-    if (!marker || !sell) return [];
-    const p = findPath(adjacency, selectedRouteSector, sell);
-    return pathToSegments(p);
-  }, [selectedRouteSector, routeMarkers, adjacency, pathToSegments]);
+
 
   // ── Navigation (fewest-jump path) ──
   const nav = useMemo(() => {
@@ -473,16 +495,16 @@ export function useAnalysisOverlay({
     borderTensions: fill.borderTensions,
     sectorForces: fill.sectorForces,
     sectorResources: fill.sectorResources,
+    sectorSunlight: fill.sectorSunlight,
     alternateDots: fill.dots,
     dimOthers: fill.dim || tradeRoutesOn,
     routeMarkers,
-    highlightSegments,
     navSegments: nav.navSegments,
     pathHops: nav.pathHops,
     pathDistanceKm: nav.pathDistanceKm,
     navOrigin: nav.navOrigin,
     navDest: nav.navDest,
     resourceSource: fill.source,
-    isLoading: fill.loading || ((tradeRoutesOn || !!selectedRouteSector) && routes.isLoading),
-  }), [fill, routeData, routeMarkers, highlightSegments, nav, tradeRoutesOn, selectedRouteSector, routes.isLoading]);
+    isLoading: fill.loading || (tradeRoutesOn && routes.isLoading),
+  }), [fill, routeData, routeMarkers, nav, tradeRoutesOn, routes.isLoading]);
 }

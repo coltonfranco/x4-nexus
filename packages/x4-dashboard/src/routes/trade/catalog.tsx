@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronRight } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useHasSave } from "../../lib/useHasSave";
 import { SortHeader } from "../../components/ui/sort-header";
 import { PriceBar } from "../../components/trade/PriceBar";
 import { WareDetailPanel } from "../../components/trade/WareDetailPanel";
@@ -64,6 +65,7 @@ function CommodityRow({ ware, groupName, onSelect }: { ware: Ware; groupName: st
 }
 
 export default function TradeCatalogPage() {
+  const { hasSave } = useHasSave();
   const [search, setSearch] = useState("");
   const [group, setGroup] = useState("all");
   const [sort, setSort] = useState<SortKey>("group");
@@ -134,6 +136,11 @@ export default function TradeCatalogPage() {
         <p className="text-xs uppercase tracking-widest text-muted-foreground mt-1 font-semibold">
           {wares.length} tradable commodities · reference price range, production chains, drop sources
         </p>
+        {!hasSave && (
+          <p className="text-xs text-amber-300/60 mt-2">
+            Load a save to unlock live supply radar and trade route data.
+          </p>
+        )}
       </div>
 
       <div className="flex-1 overflow-hidden px-6 pb-6 pt-0 flex flex-col">
@@ -158,7 +165,7 @@ export default function TradeCatalogPage() {
 
           <div className="flex-1 overflow-auto px-6 py-4">
         {isLoading ? (
-          <div className="h-full flex flex-col justify-center text-sm text-muted-foreground"><PageLoaderPreset preset="trade" /></div>
+          <PageLoaderPreset preset="trade" />
         ) : rows.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">No commodities match.</p>
         ) : (

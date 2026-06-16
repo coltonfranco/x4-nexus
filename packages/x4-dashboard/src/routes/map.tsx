@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getRouteApi } from "@tanstack/react-router";
-import { Layers, Maximize, Minimize, MapIcon } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Layers, Maximize, Minimize, MapIcon, Upload } from "lucide-react";
 
 import { AnalysisPanel } from "../components/map/AnalysisPanel";
 import { MapLayersPanel } from "../components/map/MapLayersPanel";
@@ -17,7 +18,9 @@ import type { FillMode } from "../lib/map/overlays/types";
 import type { MapStation } from "../lib/map/types";
 import { useEconomyWares } from "../lib/map/overlays/useAnalysisData";
 import { useAnalysisOverlay, type ConflictToggles } from "../lib/map/overlays/useAnalysisOverlay";
+import type { ConflictEntry, SectorForceEntry } from "../lib/map/overlays/useAnalysisData";
 import { useSettings } from "../lib/settingsStore";
+import { useHasSave } from "../lib/useHasSave";
 
 const mapApi = getRouteApi("/map");
 
@@ -25,6 +28,23 @@ export default function MapPage() {
   const search = mapApi.useSearch();
   const data = useMapData();
   const { settings } = useSettings();
+
+  // Per-sector detail data — ungated so the detail panel always has it.
+  const { data: player } = useQuery<{ current_sector: string | null } | null>({
+    queryKey: ["player"],
+    queryFn: () => fetch("/api/v1/player").then((r) => (r.ok ? r.json() : null)),
+    staleTime: 30_000,
+  });
+  const { data: forcesData } = useQuery<SectorForceEntry[]>({
+    queryKey: ["map-forces"],
+    queryFn: () => fetch("/api/v1/map/forces").then((r) => r.json()),
+    staleTime: 30_000,
+  });
+  const { data: conflictsData } = useQuery<ConflictEntry[]>({
+    queryKey: ["map-conflicts"],
+    queryFn: () => fetch("/api/v1/map/conflicts").then((r) => r.json()),
+    staleTime: 30_000,
+  });
 
   const [selectedSectorId, setSelectedSectorId] = useState<string | null>(null);
   const [hoveredSectorId, setHoveredSectorId] = useState<string | null>(null);
@@ -93,7 +113,6 @@ export default function MapPage() {
   const [resource, setResource] = useState<string | null>(null);
   const [wareId, setWareId] = useState<string | null>(search.ware ?? null);
   const [maxJumps, setMaxJumps] = useState<number | null>(null);
-  const [selectedRouteSector, setSelectedRouteSector] = useState<string | null>(null);
   const [navFrom, setNavFrom] = useState<string | null>(search.from ?? null);
   const [navTo, setNavTo] = useState<string | null>(search.to ?? null);
   const [navFromPos, setNavFromPos] = useState<[number, number] | null>(null);
@@ -115,6 +134,76 @@ export default function MapPage() {
     return data.stations.filter(s => s.sector_id && layout.visibleSectorIds.has(s.sector_id));
   }, [data.stations, settings.fogOfWar, layout.visibleSectorIds]);
 
+  // ── Per-sector lookup maps for the detail panel ──
+
+  // Zone count per sector (lowercase key).
+  const zoneCountBySector = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const z of data.zones) {
+      if (z.sector_id) {
+        const k = z.sector_id.toLowerCase();
+        m.set(k, (m.get(k) ?? 0) + 1);
+      }
+    }
+    return m;
+  }, [data.zones]);
+
+  // Station category counts per sector (lowercase key).
+  const stationCatsBySector = useMemo(() => {
+    const m = new Map<string, Map<string, number>>();
+    for (const st of data.stations) {
+      if (st.sector_id && st.category) {
+        const k = st.sector_id.toLowerCase();
+        const cats = m.get(k) ?? new Map<string, number>();
+        cats.set(st.category, (cats.get(st.category) ?? 0) + 1);
+        m.set(k, cats);
+      }
+    }
+    return m;
+  }, [data.stations]);
+
+  // Connected sectors per sector (lowercase key).
+  const connectionsBySector = useMemo(() => {
+    const m = new Map<string, { sectorId: string; name: string; kind: string }[]>();
+    const nameLookup = new Map(data.sectors.map((s) => [s.sector_id.toLowerCase(), sectorDisplayName(s)]));
+    for (const conn of data.connections) {
+      const a = conn.from_sector_id.toLowerCase();
+      const b = conn.to_sector_id.toLowerCase();
+      const kind = conn.kind ?? "gate";
+      const entryA = { sectorId: conn.to_sector_id, name: nameLookup.get(b) ?? conn.to_sector_id, kind };
+      const entryB = { sectorId: conn.from_sector_id, name: nameLookup.get(a) ?? conn.from_sector_id, kind };
+      const listA = m.get(a) ?? [];
+      listA.push(entryA);
+      m.set(a, listA);
+      const listB = m.get(b) ?? [];
+      listB.push(entryB);
+      m.set(b, listB);
+    }
+    return m;
+  }, [data.connections, data.sectors]);
+
+  // Forces per sector (lowercase key).
+  const forcesBySector = useMemo(() => {
+    const m = new Map<string, SectorForceEntry>();
+    if (forcesData) {
+      for (const f of forcesData) {
+        m.set(f.sector_id.toLowerCase(), f);
+      }
+    }
+    return m;
+  }, [forcesData]);
+
+  // Conflicts per sector (lowercase key).
+  const conflictsBySector = useMemo(() => {
+    const m = new Map<string, ConflictEntry>();
+    if (conflictsData) {
+      for (const c of conflictsData) {
+        m.set(c.sector_id.toLowerCase(), c);
+      }
+    }
+    return m;
+  }, [conflictsData]);
+
   const panZoom = usePanZoom(sectorCoords, visibleSectors, hexSize);
 
   const economyWaresQuery = useEconomyWares(fillMode === "trade");
@@ -124,7 +213,7 @@ export default function MapPage() {
   );
 
   const overlay = useAnalysisOverlay({
-    fillMode, resource, wareId, maxJumps, selectedRouteSector, navFrom, navTo, navFromPos, navToPos,
+    fillMode, resource, wareId, maxJumps, navFrom, navTo, navFromPos, navToPos,
     sectorCoords, gates: visibleGates, highways: visibleHighways,
     zoneMap: layout.zoneMap, zoneScreenPos: layout.zoneScreenPos,
     sectors: visibleSectors, clusterMap: layout.clusterMap, zoneScaleMap: layout.zoneScaleMap,
@@ -157,7 +246,6 @@ export default function MapPage() {
       setNavFrom(id); 
       setNavFromPos(mapPos ?? null);
     }
-    setSelectedRouteSector(id && fillMode === "trade" && !wareId ? id : null);
   }, [fillMode, wareId, navFrom]);
 
   // Selecting a station opens its popover and drops any sector selection.
@@ -177,10 +265,9 @@ export default function MapPage() {
     setNavFromPos(null); setNavToPos(null); 
   }, []);
 
-  // Escape clears the navigation path and any highlighted route.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { clearNav(); setSelectedRouteSector(null); setSelectedStation(null); setLayersOpen(false); }
+      if (e.key === "Escape") { clearNav(); setSelectedStation(null); setLayersOpen(false); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -188,8 +275,9 @@ export default function MapPage() {
 
   const handleFillMode = useCallback((m: FillMode) => {
     setFillMode(m);
-    setSelectedRouteSector(null);
   }, []);
+
+  const { hasSave } = useHasSave();
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-[#070b14] text-[#e7edf6] relative font-['Space_Grotesk',sans-serif]">
@@ -216,6 +304,16 @@ export default function MapPage() {
         onSelectStation={handleSelectStation}
         showFactionLabels={toggles.showFactionLogos}
       />
+
+      {/* No-save banner */}
+      {!hasSave && (
+        <div className="absolute top-[18px] left-1/2 -translate-x-1/2 pointer-events-auto z-30 flex items-center gap-3 px-[16px] py-[10px] bg-amber-500/10 backdrop-blur-[16px] border border-amber-500/30 rounded-[12px] shadow-[0_8px_30px_rgba(0,0,0,0.4)]">
+          <Upload className="w-[15px] h-[15px] text-amber-400 shrink-0" strokeWidth={1.5} />
+          <span className="text-[12px] text-amber-200 font-medium whitespace-nowrap font-['Space_Grotesk',sans-serif]">
+            Load a save to unlock overlays, faction colors, and live data
+          </span>
+        </div>
+      )}
 
       {/* Top Left Title Overlay — shows Universe Map by default, swaps to selected sector name */}
       <div className="absolute top-[18px] left-[20px] pointer-events-none z-10 bg-[#070b14]/70 backdrop-blur-[10px] rounded-[10px] px-[12px] py-[8px]">
@@ -315,7 +413,7 @@ export default function MapPage() {
           resourceSource={overlay.resourceSource}
           wareId={wareId}
           wareName={wareName}
-          onWareChange={(w) => { setWareId(w); setSelectedRouteSector(null); }}
+          onWareChange={(w) => { setWareId(w); }}
           onClearWare={() => setWareId(null)}
           economyWares={economyWaresQuery.data ?? []}
           waresLoading={economyWaresQuery.isLoading}
@@ -330,17 +428,47 @@ export default function MapPage() {
       </div>
 
       {/* Phase 3: Details Panel */}
-      {selectedSector && (
-        <div className="absolute top-[64px] right-[20px] pointer-events-auto z-10">
-          <SectorDetailPanel
-            sector={selectedSector}
-            cluster={selectedSector.cluster_id ? clusterMap.get(selectedSector.cluster_id) ?? null : null}
-            resources={selectedSector.cluster_id ? (resourcesByCluster.get(selectedSector.cluster_id) ?? new Set()) : new Set()}
-            factionMap={factionMap}
-            onClose={() => setSelectedSectorId(null)}
-          />
-        </div>
-      )}
+      {selectedSector && (() => {
+        const sid = selectedSector.sector_id.toLowerCase();
+        const forceEntry = forcesBySector.get(sid) ?? null;
+        const conflictEntry = conflictsBySector.get(sid) ?? null;
+        const stationCats = stationCatsBySector.get(sid);
+        const catList = stationCats
+          ? [...stationCats.entries()].map(([category, count]) => ({ category, count }))
+          : [];
+
+        return (
+          <div className="absolute top-[64px] right-[20px] pointer-events-auto z-10">
+            <SectorDetailPanel
+              sector={selectedSector}
+              cluster={selectedSector.cluster_id ? clusterMap.get(selectedSector.cluster_id) ?? null : null}
+              resources={selectedSector.cluster_id ? (resourcesByCluster.get(selectedSector.cluster_id) ?? new Set()) : new Set()}
+              factionMap={factionMap}
+              onClose={() => setSelectedSectorId(null)}
+              connections={connectionsBySector.get(sid) ?? []}
+              zoneCount={zoneCountBySector.get(sid) ?? 0}
+              stationCategories={catList}
+              forces={forceEntry?.factions.map((f) => ({
+                factionId: f.faction_id,
+                factionName: f.faction_name,
+                fighterCount: f.fighter_count,
+              })) ?? null}
+              conflict={conflictEntry ? {
+                type: conflictEntry.type,
+                intensity: conflictEntry.intensity,
+                invaderName: conflictEntry.invader_name ?? undefined,
+                sectorOwnerName: conflictEntry.sector_owner_name ?? undefined,
+              } : null}
+              playerCurrentSector={player?.current_sector ?? null}
+              liveResources={null}
+              onNavigate={(targetId) => {
+                handleSelectSector(targetId);
+                panZoom.zoomToSector(targetId);
+              }}
+            />
+          </div>
+        );
+      })()}
 
       {/* Nav Panel */}
       <div className="absolute bottom-[20px] right-[64px] pointer-events-auto z-10">
@@ -378,7 +506,11 @@ export default function MapPage() {
 
       {/* Temporarily reposition MapLegend until Phase 3 */}
       <div className="absolute bottom-[20px] left-[20px] pointer-events-auto z-10">
-        <MapLegend fillMode={fillMode} />
+        <MapLegend 
+          fillMode={fillMode} 
+          factionMap={layout.factionMap} 
+          resource={resource}
+        />
       </div>
 
     </div>

@@ -50,3 +50,6 @@ tmp/
 
 # Extracted game assets (copyrighted)
 icons/
+
+# Reasonix tool artifacts
+.reasonix/

@@ -13,6 +13,8 @@ import { Currency } from "../../components/Currency";
 import { PageLoaderPreset } from "../../components/PageLoader";
 import { HUDCard } from "../../components/HUDCard";
 import { PageTabs, PageTab } from "../../components/ui/page-tabs";
+import { useHasSave } from "../../lib/useHasSave";
+import { NoSavePlaceholder } from "../../components/NoSavePlaceholder";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -106,11 +108,12 @@ const METRICS: {
 
 // ─── StandingsView ────────────────────────────────────────────────────────────
 
-function StandingsView({ onSelectFaction }: { onSelectFaction: (id: string) => void }) {
+function StandingsView({ onSelectFaction, hasSave }: { onSelectFaction: (id: string) => void; hasSave: boolean }) {
   const { data: strength = [], isLoading } = useQuery<FactionStrength[]>({
     queryKey: ["factions-strength"],
     queryFn: () => fetch("/api/v1/factions/strength").then((r) => r.json()),
     staleTime: 30_000,
+    enabled: hasSave,
   });
 
   const byMetric = useMemo(
@@ -125,7 +128,8 @@ function StandingsView({ onSelectFaction }: { onSelectFaction: (id: string) => v
     [strength]
   );
 
-  if (isLoading) return <div className="h-full flex flex-col justify-center text-sm text-muted-foreground"><PageLoaderPreset preset="factions" /></div>;
+  if (!hasSave) return <NoSavePlaceholder title="No save loaded" />;
+  if (isLoading) return <PageLoaderPreset preset="factions" />;
 
   return (
     <div className="flex-1 overflow-auto p-4">
@@ -185,7 +189,7 @@ function StandingsView({ onSelectFaction }: { onSelectFaction: (id: string) => v
 
 // ─── FactionDetailPanel ───────────────────────────────────────────────────────
 
-function FactionDetailPanel({ factionId, onClose }: { factionId: string; onClose: () => void }) {
+function FactionDetailPanel({ factionId, onClose, hasSave }: { factionId: string; onClose: () => void; hasSave: boolean }) {
   const [activeTab, setActiveTab] = useState<"overview" | "diplomacy" | "licences">("overview");
 
   const { data: faction, isLoading: factionLoading } = useQuery<FactionDetail>({
@@ -327,7 +331,8 @@ function FactionDetailPanel({ factionId, onClose }: { factionId: string; onClose
         {activeTab === "overview" && (
           <div className="flex-1 overflow-auto px-6 pb-6 pt-2">
             <div className="max-w-4xl space-y-6">
-              {strengthEntry && (
+              {!hasSave && <NoSavePlaceholder title="No save loaded" />}
+              {hasSave && strengthEntry && (
                 <div className="grid grid-cols-4 gap-3">
                   {METRICS.map((m) => {
                     const rank = ranks[m.key];
@@ -372,7 +377,7 @@ function FactionDetailPanel({ factionId, onClose }: { factionId: string; onClose
                 </p>
               )}
 
-              {(clusters.length > 0 || sectors.length > 0) && (
+              {hasSave && (clusters.length > 0 || sectors.length > 0) && (
                 <div>
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
                     Territory Owned
@@ -402,7 +407,9 @@ function FactionDetailPanel({ factionId, onClose }: { factionId: string; onClose
 
         {activeTab === "diplomacy" && (
           <div className="flex-1 overflow-auto px-6 pb-6 pt-2">
-            {allies.length > 0 || enemies.length > 0 ? (
+            {!hasSave ? (
+              <NoSavePlaceholder title="No save loaded" />
+            ) : allies.length > 0 || enemies.length > 0 ? (
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-12 max-w-3xl">
                 {allies.length > 0 && (
                   <div>
@@ -532,11 +539,16 @@ function MatrixView({
   factions,
   relations,
   onSelectFaction,
+  hasSave,
 }: {
   factions: FactionSummary[];
   relations: AllFactionRelation[];
   onSelectFaction: (id: string) => void;
+  hasSave: boolean;
 }) {
+  if (!hasSave || relations.length === 0) {
+    return <NoSavePlaceholder title="No save loaded" />;
+  }
   const relMap = useMemo(() => {
     const m = new Map<string, number>();
     for (const r of relations) {
@@ -720,6 +732,7 @@ function MatrixView({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function FactionsPage() {
+  const { hasSave } = useHasSave();
   const search = useSearch({ strict: false }) as { faction?: string };
   const [selectedFactionId, setSelectedFactionId] = useState<string | null>(search.faction ?? null);
   const [view, setView] = useState<"standings" | "matrix">("standings");
@@ -802,13 +815,12 @@ export default function FactionsPage() {
         {/* Main content */}
         <div className="flex-1 min-w-0 flex flex-col">
           {loading ? (
-            <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
-              <PageLoaderPreset preset="factions" />
-            </div>
+            <PageLoaderPreset preset="factions" />
           ) : selectedFactionId ? (
             <FactionDetailPanel
               factionId={selectedFactionId}
               onClose={() => setSelectedFactionId(null)}
+              hasSave={hasSave}
             />
           ) : (
             <>
@@ -830,12 +842,13 @@ export default function FactionsPage() {
               </div>
 
               {view === "standings" ? (
-                <StandingsView onSelectFaction={setSelectedFactionId} />
+                <StandingsView onSelectFaction={setSelectedFactionId} hasSave={hasSave} />
               ) : (
                 <MatrixView
                   factions={visibleFactions}
                   relations={relations}
                   onSelectFaction={setSelectedFactionId}
+                  hasSave={hasSave}
                 />
               )}
             </>

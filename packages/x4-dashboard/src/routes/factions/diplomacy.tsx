@@ -1,12 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useMemo, useState } from "react";
+import { cn } from "../../lib/utils";
 import { EntityIcon } from "../../components/EntityIcon";
 import { FactionBadge } from "../../components/FactionBadge";
 import { StatBar } from "../../components/StatBar";
 import { Currency } from "../../components/Currency";
 import { fmtSeconds } from "../../lib/wareFormat";
 import { Badge } from "../../components/ui/badge";
+import { SortHeader } from "../../components/ui/sort-header";
 import type { FactionSummary } from "../../lib/map/types";
 import {
   Select,
@@ -59,22 +61,27 @@ type WareSummary = { ware_id: string; name: string; icon_url: string | null };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const CATEGORY_VARIANT: Record<string, "default" | "secondary" | "muted" | "outline" | "destructive"> = {
-  negotiation: "default",
-  espionage: "secondary",
-  interference: "destructive",
-};
+function getRiskColors(risk: string | null) {
+  switch (risk) {
+    case "veryhigh": return "bg-purple-500/20 text-purple-400 border-purple-500/30";
+    case "high": return "bg-destructive/20 text-destructive border-destructive/30";
+    case "medium": return "bg-orange-500/20 text-orange-500 border-orange-500/30";
+    case "low": return "bg-green-500/20 text-green-500 border-green-500/30";
+    case "none":
+    default:
+      return "bg-muted text-muted-foreground border-transparent";
+  }
+}
 
-const RISK_VARIANT: Record<string, "default" | "secondary" | "muted" | "outline" | "destructive"> = {
-  none: "muted",
-  low: "outline",
-  medium: "secondary",
-  high: "destructive",
-};
+function formatRisk(risk: string | null) {
+  if (risk === "veryhigh") return "Very high";
+  if (!risk || risk === "none") return "None";
+  return risk;
+}
 
 // ─── Actions tab ──────────────────────────────────────────────────────────────
 
-function ActionRow({ action }: { action: DiploAction }) {
+function ActionRow({ action }: { action: DiploAction & { requiredRank?: AgentRank | null } }) {
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -92,44 +99,66 @@ function ActionRow({ action }: { action: DiploAction }) {
           <p className="font-medium text-sm">{action.name ?? action.action_id}</p>
         </TableCell>
         <TableCell>
-          <Badge variant={CATEGORY_VARIANT[action.category ?? ""] ?? "muted"} className="text-xs capitalize">
+          <div className="flex items-center gap-2 capitalize">
+            {action.category === "negotiation" && <img src="/static/icons/diplomacy/diplomacy_negotiation.png" className="w-5 h-5" alt="" />}
+            {action.category === "espionage" && <img src="/static/icons/diplomacy/diplomacy_espionage.png" className="w-5 h-5" alt="" />}
+            {action.category === "interference" && <img src="/static/icons/diplomacy/diplomacy_interference.png" className="w-5 h-5" alt="" />}
             {action.category}
-          </Badge>
-        </TableCell>
-        <TableCell className="text-xs">
-          <div className="flex flex-col gap-0.5">
-            {action.cost_influence != null && action.cost_influence > 0 && (
-              <span className="text-primary font-medium">{action.cost_influence} inf</span>
-            )}
-            {action.cost_money != null && action.cost_money > 0 && (
-              <Currency value={action.cost_money} className="text-xs" />
-            )}
-            {(!action.cost_influence || action.cost_influence === 0) && (!action.cost_money || action.cost_money === 0) && (
-              <span className="text-muted-foreground">Free</span>
-            )}
           </div>
         </TableCell>
         <TableCell>
-          {action.success_chance != null ? (
+          {action.requiredRank ? (
             <div className="flex items-center gap-2">
-              <StatBar value={action.success_chance} max={100} />
-              <span className="text-xs tabular-nums text-muted-foreground">{action.success_chance}%</span>
+              {action.requiredRank.icon && <img src={`/static/icons/diplomacy/${action.requiredRank.icon}.png`} className="w-5 h-5 rounded-sm" alt="" />}
+              <span className="text-xs font-medium">{action.requiredRank.name ?? `Rank`}</span>
             </div>
+          ) : (
+            <span className="text-muted-foreground text-xs">—</span>
+          )}
+        </TableCell>
+        <TableCell>
+          {action.risk && action.risk !== "none" && (
+            <span className={cn("inline-flex items-center border px-2 py-0.5 text-xs font-semibold capitalize whitespace-nowrap", getRiskColors(action.risk))}>
+              {formatRisk(action.risk)}
+            </span>
+          )}
+        </TableCell>
+        <TableCell>
+          {action.success_chance != null ? (
+            <StatBar 
+              value={action.success_chance} 
+              max={100} 
+              width={100} 
+              height={6} 
+              labelRight={`${action.success_chance}%`} 
+            />
           ) : (
             <span className="text-xs text-muted-foreground">—</span>
           )}
         </TableCell>
-        <TableCell className="text-xs text-muted-foreground tabular-nums">{fmtSeconds(action.duration_sec)}</TableCell>
-        <TableCell className="text-xs text-muted-foreground tabular-nums">{fmtSeconds(action.cooldown_sec)}</TableCell>
         <TableCell>
-          {action.risk && action.risk !== "none" && (
-            <Badge variant={RISK_VARIANT[action.risk] ?? "muted"} className="text-xs capitalize">{action.risk}</Badge>
+          {action.cost_influence != null && action.cost_influence > 0 ? (
+            <div className="flex items-center gap-1.5 text-primary font-medium">
+              <span className="text-sm">{action.cost_influence}</span>
+              <img src="/static/icons/diplomacy/diplomacy_influence.png" className="w-5 h-5" alt="Influence" title="Influence Cost" />
+            </div>
+          ) : (
+            <span className="text-muted-foreground text-xs">—</span>
           )}
         </TableCell>
+        <TableCell>
+          {action.cost_money != null && action.cost_money > 0 ? (
+            <Currency value={action.cost_money} className="text-sm" />
+          ) : (
+            <span className="text-muted-foreground text-xs">—</span>
+          )}
+        </TableCell>
+        <TableCell className="text-xs text-muted-foreground tabular-nums">{fmtSeconds(action.duration_sec)}</TableCell>
+        <TableCell className="text-xs text-muted-foreground tabular-nums">{fmtSeconds(action.cooldown_sec)}</TableCell>
       </TableRow>
       {expanded && (
         <TableRow className="bg-muted/10 hover:bg-muted/10">
-          <TableCell colSpan={8} className="px-8 py-3">
+          <TableCell colSpan={9} className="px-8 py-3">
             {action.description && (
               <p className="text-sm text-muted-foreground mb-2">{action.description}</p>
             )}
@@ -160,50 +189,162 @@ function ActionRow({ action }: { action: DiploAction }) {
 
 function ActionsTab() {
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const [selectedRisk, setSelectedRisk] = useState("all");
+  const [selectedRank, setSelectedRank] = useState("all");
+  const [sortKey, setSortKey] = useState<keyof DiploAction>("name");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
-  const { data: actions = [], isLoading } = useQuery<DiploAction[]>({
+  const { data: actions = [], isLoading: actionsLoading } = useQuery<DiploAction[]>({
     queryKey: ["diplo-actions"],
     queryFn: () => fetch("/api/v1/diplomacy/actions?include_hidden=true").then((r) => r.json()),
   });
 
-  const filtered = actions.filter((a) =>
-    selectedCategory === "all" || a.category === selectedCategory
+  const { data: ranks = [], isLoading: ranksLoading } = useQuery<AgentRank[]>({
+    queryKey: ["diplo-ranks"],
+    queryFn: () => fetch("/api/v1/diplomacy/agent-ranks").then((r) => r.json()),
+  });
+
+  const isLoading = actionsLoading || ranksLoading;
+
+  const actionsWithRanks = useMemo(() => {
+    return actions.map(action => {
+      let requiredRank = null;
+      if (action.agent_experience != null && ranks.length > 0) {
+        requiredRank = ranks[0];
+        for (const r of ranks) {
+          if (r.min_value <= action.agent_experience) {
+            requiredRank = r;
+          }
+        }
+      }
+      return { ...action, requiredRank };
+    });
+  }, [actions, ranks]);
+
+  const filtered = actionsWithRanks.filter((a) =>
+    (selectedCategory === "all" || a.category === selectedCategory) &&
+    (selectedRisk === "all" || (a.risk ?? "none") === selectedRisk) &&
+    (selectedRank === "all" || (a.requiredRank ? a.requiredRank.min_value.toString() : "none") === selectedRank)
   );
+
+  const sorted = [...filtered].sort((a, b) => {
+    let valA = a[sortKey];
+    let valB = b[sortKey];
+    
+    // Risk sorting logic (custom mapping)
+    if (sortKey === "risk") {
+      const riskOrder: Record<string, number> = { "none": 0, "low": 1, "medium": 2, "high": 3, "veryhigh": 4 };
+      valA = riskOrder[a.risk ?? "none"] as any;
+      valB = riskOrder[b.risk ?? "none"] as any;
+    }
+
+    if (valA === valB) return 0;
+    if (valA == null) return 1;
+    if (valB == null) return -1;
+    const cmp = valA < valB ? -1 : 1;
+    return sortDir === "asc" ? cmp : -cmp;
+  });
+
+  function handleSort(key: keyof DiploAction) {
+    if (sortKey === key) {
+      setSortDir(sortDir === "asc" ? "desc" : "asc");
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  }
 
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center gap-3 px-6 py-3 border-b border-border/50 bg-muted/5">
         <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-          <SelectTrigger className="w-44"><SelectValue placeholder="All categories" /></SelectTrigger>
+          <SelectTrigger className="w-48"><SelectValue placeholder="All categories" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All categories</SelectItem>
-            <SelectItem value="negotiation">Negotiation</SelectItem>
-            <SelectItem value="espionage">Espionage</SelectItem>
-            <SelectItem value="interference">Interference</SelectItem>
+            <SelectItem value="all">
+              <div className="flex items-center gap-2">All categories</div>
+            </SelectItem>
+            <SelectItem value="negotiation">
+              <div className="flex items-center gap-2">
+                <img src="/static/icons/diplomacy/diplomacy_negotiation.png" className="w-4 h-4" alt="" />
+                Negotiation
+              </div>
+            </SelectItem>
+            <SelectItem value="espionage">
+              <div className="flex items-center gap-2">
+                <img src="/static/icons/diplomacy/diplomacy_espionage.png" className="w-4 h-4" alt="" />
+                Espionage
+              </div>
+            </SelectItem>
+            <SelectItem value="interference">
+              <div className="flex items-center gap-2">
+                <img src="/static/icons/diplomacy/diplomacy_interference.png" className="w-4 h-4" alt="" />
+                Interference
+              </div>
+            </SelectItem>
           </SelectContent>
         </Select>
-        <span className="text-xs text-muted-foreground">{filtered.length} actions</span>
+        <Select value={selectedRisk} onValueChange={setSelectedRisk}>
+          <SelectTrigger className="w-36"><SelectValue placeholder="All risks" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">
+              <div className="py-0.5">All risks</div>
+            </SelectItem>
+            <SelectItem value="none">
+              <span className={cn("inline-flex items-center border px-2 py-0.5 text-xs font-semibold capitalize whitespace-nowrap", getRiskColors("none"))}>None</span>
+            </SelectItem>
+            <SelectItem value="low">
+              <span className={cn("inline-flex items-center border px-2 py-0.5 text-xs font-semibold capitalize whitespace-nowrap", getRiskColors("low"))}>Low</span>
+            </SelectItem>
+            <SelectItem value="medium">
+              <span className={cn("inline-flex items-center border px-2 py-0.5 text-xs font-semibold capitalize whitespace-nowrap", getRiskColors("medium"))}>Medium</span>
+            </SelectItem>
+            <SelectItem value="high">
+              <span className={cn("inline-flex items-center border px-2 py-0.5 text-xs font-semibold capitalize whitespace-nowrap", getRiskColors("high"))}>High</span>
+            </SelectItem>
+            <SelectItem value="veryhigh">
+              <span className={cn("inline-flex items-center border px-2 py-0.5 text-xs font-semibold capitalize whitespace-nowrap", getRiskColors("veryhigh"))}>Very high</span>
+            </SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={selectedRank} onValueChange={setSelectedRank}>
+          <SelectTrigger className="w-44"><SelectValue placeholder="All ranks" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all"><div className="py-0.5">All ranks</div></SelectItem>
+            <SelectItem value="none"><div className="py-0.5 text-muted-foreground">No rank required</div></SelectItem>
+            {ranks.map((r, i) => (
+              <SelectItem key={r.min_value} value={r.min_value.toString()}>
+                <div className="flex items-center gap-2">
+                  {r.icon && <img src={`/static/icons/diplomacy/${r.icon}.png`} className="w-4 h-4 rounded-sm" alt="" />}
+                  {r.name ?? `Rank ${i + 1}`}
+                </div>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <span className="text-xs text-muted-foreground">{sorted.length} actions</span>
       </div>
 
       {isLoading ? (
-        <div className="text-sm text-muted-foreground py-4 flex justify-center"><PageLoaderPreset preset="factions" /></div>
+        <PageLoaderPreset preset="factions" />
       ) : (
         <div className="flex-1 overflow-auto p-4">
           <Table className="text-xs">
             <TableHeader className="bg-muted/40">
               <TableRow className="hover:bg-transparent">
                 <TableHead className="w-6" />
-                <TableHead>Action</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Cost</TableHead>
-                <TableHead className="w-32">Success</TableHead>
-                <TableHead>Duration</TableHead>
-                <TableHead>Cooldown</TableHead>
-                <TableHead>Risk</TableHead>
+                <SortHeader label="Action" className="min-w-[200px]" active={sortKey === "name"} dir={sortDir} onClick={() => handleSort("name")} />
+                <SortHeader label="Category" className="w-36" active={sortKey === "category"} dir={sortDir} onClick={() => handleSort("category")} />
+                <SortHeader label="Rank" className="w-40" active={sortKey === "agent_experience"} dir={sortDir} onClick={() => handleSort("agent_experience")} />
+                <SortHeader label="Risk" className="w-36" active={sortKey === "risk"} dir={sortDir} onClick={() => handleSort("risk")} />
+                <SortHeader label="Success" className="w-36" active={sortKey === "success_chance"} dir={sortDir} onClick={() => handleSort("success_chance")} />
+                <SortHeader label="Influence" className="w-32" active={sortKey === "cost_influence"} dir={sortDir} onClick={() => handleSort("cost_influence")} />
+                <SortHeader label="Credits" className="w-36" active={sortKey === "cost_money"} dir={sortDir} onClick={() => handleSort("cost_money")} />
+                <SortHeader label="Duration" className="w-32" active={sortKey === "duration_sec"} dir={sortDir} onClick={() => handleSort("duration_sec")} />
+                <SortHeader label="Cooldown" className="w-32" active={sortKey === "cooldown_sec"} dir={sortDir} onClick={() => handleSort("cooldown_sec")} />
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((a) => <ActionRow key={a.action_id} action={a} />)}
+              {sorted.map((a) => <ActionRow key={a.action_id} action={a} />)}
             </TableBody>
           </Table>
         </div>
@@ -247,7 +388,7 @@ function GiftsTab() {
     });
   }, [gifts, factionMap]);
 
-  if (giftsLoading) return <div className="text-sm text-muted-foreground py-4 flex justify-center"><PageLoaderPreset preset="factions" /></div>;
+  if (giftsLoading) return <PageLoaderPreset preset="factions" />;
 
   return (
     <div className="flex flex-col h-full">
@@ -297,7 +438,7 @@ function RanksTab() {
     queryFn: () => fetch("/api/v1/diplomacy/agent-ranks").then((r) => r.json()),
   });
 
-  if (isLoading) return <div className="text-sm text-muted-foreground py-4 flex justify-center"><PageLoaderPreset preset="factions" /></div>;
+  if (isLoading) return <PageLoaderPreset preset="factions" />;
 
   return (
     <div className="flex flex-col h-full">
@@ -318,13 +459,25 @@ function RanksTab() {
           <TableBody>
             {ranks.map((rank, i) => (
               <TableRow key={rank.min_value}>
-                <TableCell className="font-medium">{rank.name ?? `Rank ${i + 1}`}</TableCell>
+                <TableCell className="font-medium">
+                  {rank.icon ? (
+                    <div className="flex items-center gap-2">
+                      <img src={`/static/icons/diplomacy/${rank.icon}.png`} className="w-8 h-8 rounded" alt="" />
+                      <span>{rank.name ?? `Rank ${i + 1}`}</span>
+                    </div>
+                  ) : (
+                    rank.name ?? `Rank ${i + 1}`
+                  )}
+                </TableCell>
                 <TableCell className="tabular-nums text-muted-foreground">{rank.min_value}</TableCell>
                 <TableCell>
-                  <div className="flex items-center gap-2">
-                    <StatBar value={(rank.event_bonus ?? 1) * 40} max={100} />
-                    <span className="text-xs tabular-nums text-muted-foreground">×{rank.event_bonus?.toFixed(1)}</span>
-                  </div>
+                  <StatBar 
+                    value={(rank.event_bonus ?? 1) * 40} 
+                    max={100} 
+                    width={100} 
+                    height={6} 
+                    labelRight={`×${rank.event_bonus?.toFixed(1)}`} 
+                  />
                 </TableCell>
               </TableRow>
             ))}
@@ -370,6 +523,7 @@ export default function DiplomacyPage() {
         <HUDCard className="h-full overflow-hidden">
           {activeTab === "actions" && <ActionsTab />}
           {activeTab === "gifts" && <GiftsTab />}
+          {activeTab === "ranks" && <RanksTab />}
         </HUDCard>
       </div>
     </div>

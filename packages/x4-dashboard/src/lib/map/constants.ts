@@ -21,9 +21,10 @@ export const RESOURCE_COLORS: Record<string, string> = {
   methane: "#fdba74",
   helium: "#fcd34d",
   hydrogen: "#f472b6",
+  sunlight: "#fbbf24",
 };
 
-export const RESOURCE_ORDER = ["ore", "silicon", "ice", "nividium", "hydrogen", "helium", "methane", "rawscrap"];
+export const RESOURCE_ORDER = ["ore", "silicon", "ice", "nividium", "hydrogen", "helium", "methane", "rawscrap", "sunlight"];
 
 export const MAP_THEME = {
   bg: "#06060e",
@@ -58,6 +59,24 @@ export const STATUS_COLORS = {
   silver: "#C0C0C0",
   bronze: "#CD7F32",
 } as const;
+
+// Station categories (from _MACRO_CATEGORY_MARKERS in map.py), human-readable labels
+// and a display order so the panel always lists them consistently.
+export const CATEGORY_LABELS: Record<string, string> = {
+  shipyard: "Shipyard",
+  wharf: "Wharf",
+  equipmentdock: "Equipment Dock",
+  tradestation: "Trade Station",
+  headquarters: "HQ",
+  defence: "Defence",
+  piratebase: "Pirate Base",
+  factory: "Factory",
+};
+
+export const CATEGORY_ORDER = [
+  "factory", "defence", "tradestation", "wharf", "shipyard",
+  "equipmentdock", "piratebase", "headquarters",
+];
 
 export const MAP_W = 3000;
 export const MAP_H = 2200;

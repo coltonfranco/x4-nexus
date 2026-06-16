@@ -39,15 +39,20 @@ def build_region_sector_map(map_xmls: dict[str, bytes]) -> dict[str, set[str]]:
             inner_macro = conn_el.find("macro")
             if inner_macro is None:
                 continue
-            region_macro_name = inner_macro.get("name", "")
             region_prop = inner_macro.find(".//properties/region")
             region_def = region_prop.get("ref") if region_prop is not None else None
             if not region_def:
                 continue
-            m = _RE_REGION_MACRO.match(region_macro_name)
-            if m:
-                sector_id = f"Cluster_{int(m.group(1)):02d}_Sector{int(m.group(2)):03d}_macro"
-                mapping.setdefault(region_def, set()).add(sector_id)
+            # Walk up to the enclosing sector macro to get the canonical sector ID.
+            sector_el = conn_el
+            for _ in range(4):  # connection → connections → macro(sector) — 2-3 levels up
+                sector_el = sector_el.getparent()
+                if sector_el is None:
+                    break
+                if sector_el.tag == "macro" and sector_el.get("name", "").endswith("_macro"):
+                    sector_id = sector_el.get("name")
+                    mapping.setdefault(region_def, set()).add(sector_id)
+                    break
     return mapping
 
 

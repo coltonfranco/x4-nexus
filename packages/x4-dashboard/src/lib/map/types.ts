@@ -27,6 +27,8 @@ export type Sector = {
   economy: number | null;
   security: number | null;
   tags: string | null;
+  description: string | null;
+  access_licence: string | null;
   x: number | null;
   y: number | null;
   z: number | null;

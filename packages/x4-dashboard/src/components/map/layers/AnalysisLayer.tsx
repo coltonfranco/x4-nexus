@@ -16,33 +16,6 @@ function getSegmentColor(kind: string): string {
   }
 }
 
-export function RoutePathLayer({ segments, transform }: { segments: PathSegment[]; transform: Transform }) {
-  if (segments.length === 0) return null;
-  const w = 3 / transform.scale;
-  const points = [segments[0].p1, ...segments.map((s) => s.p2)];
-  
-  return (
-    <g style={{ pointerEvents: "none" }}>
-      {segments.map((s, i) => {
-        const poly = `${s.p1[0]},${s.p1[1]} ${s.p2[0]},${s.p2[1]}`;
-        const color = getSegmentColor(s.kind);
-        return (
-          <g key={i}>
-            <polyline points={poly} fill="none" stroke={color} strokeWidth={w * 2.4} opacity={0.3}
-              strokeLinejoin="round" strokeLinecap="round" />
-            <polyline points={poly} fill="none" stroke={color} strokeWidth={w} opacity={0.95}
-              strokeLinejoin="round" strokeLinecap="round" strokeDasharray={`${w * 3} ${w * 2}`}>
-              <animate attributeName="stroke-dashoffset" from={w * 5} to="0" dur="0.6s" repeatCount="indefinite" />
-            </polyline>
-          </g>
-        );
-      })}
-      {[points[0], points[points.length - 1]].map((p, i) => (
-        <circle key={i} cx={p[0]} cy={p[1]} r={w * 1.6} fill={i === 0 ? "#34d399" : "#fbbf24"} stroke="#0b1220" strokeWidth={w * 0.3} />
-      ))}
-    </g>
-  );
-}
 
 export function NavLayer({ segments, origin, dest, transform }: {
   segments: PathSegment[];

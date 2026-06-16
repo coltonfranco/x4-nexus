@@ -125,7 +125,7 @@ export function PageLoader({ icon, message, subtitle, color, className }: PageLo
   const [ring1, ring2, iconRing, glow, textColor] = ringColor.split(" ");
 
   return (
-    <div className={cn("flex flex-col items-center justify-center w-full h-full flex-1 text-center gap-6 p-4", className)}>
+    <div className={cn("flex flex-col items-center justify-center w-full h-full min-h-[50vh] flex-1 text-center gap-6 p-4", className)}>
       {/* Animated rings */}
       <div className="relative flex items-center justify-center">
         <div

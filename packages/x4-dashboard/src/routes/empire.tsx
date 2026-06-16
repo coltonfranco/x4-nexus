@@ -126,7 +126,7 @@ export default function EmpirePage() {
     return [...m.entries()].sort((a, b) => b[1].length - a[1].length);
   }, [licences]);
 
-  if (isLoading) return <div className="h-full flex flex-col justify-center text-sm text-muted-foreground"><PageLoaderPreset preset="empire" /></div>;
+  if (isLoading) return <PageLoaderPreset preset="empire" />;
   if (!player) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground gap-2">

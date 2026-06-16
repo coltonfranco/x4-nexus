@@ -71,6 +71,7 @@ class ShipSummary(PublicModel):
     is_owned: bool = False
     restriction_licence: str | None = None
     is_obtainable: bool = False
+    can_be_captured: bool = True   # False = never capturable (Xenon capitals, Kha'ak, etc.)
 
 
 class ShipSoftware(PublicModel):
@@ -164,7 +165,7 @@ _DETAIL_COLS = (
     "engines_s, engines_m, engines_l, engines_xl, "
     "w.price_avg, w.restriction_licence, "
     "EXISTS(SELECT 1 FROM ships dyn WHERE dyn.macro = s.ship_id AND dyn.is_player_owned = 1) AS is_owned, "
-    "(w.ware_id IS NOT NULL AND s.faction_id NOT IN ('xenon', 'khaak') AND (w.restriction_licence IS NULL OR w.restriction_licence IN ('generaluseship', 'generaluseequipment') OR EXISTS (SELECT 1 FROM player_licences pl WHERE pl.licence_type = w.restriction_licence AND pl.faction_id = s.faction_id))) AS is_obtainable"
+    "(s.can_be_captured IS NULL AND s.class_id != 'xs') AS is_obtainable"
 )
 
 
@@ -179,9 +180,9 @@ def list_ships(
 ) -> list[ShipSummary]:
     """List all ships in the game catalog."""
     sql = [
-        "SELECT s.ship_id, s.name, s.dlc, s.class_id, s.ship_type, s.role, s.faction_id, s.hull, s.shield_capacity_max, s.cargo_volume, s.dps_max, s.speed_min, s.speed_max, s.travel_max, s.boost_max, s.accel_max, s.shield_recharge_max, s.radar_range, s.range_max, s.people_capacity, s.missile_storage, s.drone_storage, s.countermeasure_storage, s.deployable_storage, s.dock_s, s.dock_m, s.dock_l, s.dock_xl, s.storage_s, s.storage_m, s.storage_l, s.storage_xl, s.weapons_s, s.weapons_m, s.weapons_l, s.weapons_xl, s.turrets_s, s.turrets_m, s.turrets_l, s.turrets_xl, s.shields_s, s.shields_m, s.shields_l, s.shields_xl, s.engines_s, s.engines_m, s.engines_l, s.engines_xl, s.icon_path, w.price_avg, w.restriction_licence,",
+        "SELECT s.ship_id, s.name, s.dlc, s.class_id, s.ship_type, s.role, s.faction_id, s.hull, s.shield_capacity_max, s.cargo_volume, s.dps_max, s.speed_min, s.speed_max, s.travel_max, s.boost_max, s.accel_max, s.shield_recharge_max, s.radar_range, s.range_max, s.people_capacity, s.missile_storage, s.drone_storage, s.countermeasure_storage, s.deployable_storage, s.dock_s, s.dock_m, s.dock_l, s.dock_xl, s.storage_s, s.storage_m, s.storage_l, s.storage_xl, s.weapons_s, s.weapons_m, s.weapons_l, s.weapons_xl, s.turrets_s, s.turrets_m, s.turrets_l, s.turrets_xl, s.shields_s, s.shields_m, s.shields_l, s.shields_xl, s.engines_s, s.engines_m, s.engines_l, s.engines_xl, s.icon_path, w.price_avg, w.restriction_licence, s.can_be_captured,",
         "EXISTS(SELECT 1 FROM ships dyn WHERE dyn.macro = s.ship_id AND dyn.is_player_owned = 1) AS is_owned,",
-        "(w.ware_id IS NOT NULL AND s.faction_id NOT IN ('xenon', 'khaak') AND (w.restriction_licence IS NULL OR w.restriction_licence IN ('generaluseship', 'generaluseequipment') OR EXISTS (SELECT 1 FROM player_licences pl WHERE pl.licence_type = w.restriction_licence AND pl.faction_id = s.faction_id))) AS is_obtainable",
+        "(s.can_be_captured IS NULL AND s.class_id != 'xs') AS is_obtainable",
         "FROM s.ships s",
         "LEFT JOIN s.wares w ON w.ware_id = REPLACE(s.ship_id, '_macro', '')",
         "WHERE 1=1",
@@ -195,11 +196,7 @@ def list_ships(
         params["faction_id"] = faction_id
     if is_obtainable:
         sql.append(
-            "AND w.ware_id IS NOT NULL AND s.faction_id NOT IN ('xenon', 'khaak') "
-            "AND (w.restriction_licence IS NULL OR w.restriction_licence IN ('generaluseship', 'generaluseequipment') OR EXISTS ("
-            "SELECT 1 FROM player_licences pl "
-            "WHERE pl.licence_type = w.restriction_licence AND pl.faction_id = s.faction_id"
-            "))"
+            "AND s.can_be_captured IS NULL AND s.class_id != 'xs'"
         )
     sql.append("ORDER BY s.ship_id LIMIT :limit OFFSET :offset")
 
@@ -260,6 +257,7 @@ def list_ships(
             is_owned=bool(r["is_owned"]),
             restriction_licence=r["restriction_licence"],
             is_obtainable=bool(r["is_obtainable"]),
+            can_be_captured=r["can_be_captured"] is None or bool(r["can_be_captured"]),
         )
         for r in rows
     ]

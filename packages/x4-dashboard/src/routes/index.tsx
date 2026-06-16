@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { Factory, Shield, Sword } from "lucide-react";
+import { Factory, Shield, Sword, Upload } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { STATUS_COLORS } from "../lib/map/constants";
+import { useHasSave } from "../lib/useHasSave";
 
 type Health = {
   ok: boolean;
@@ -33,6 +34,7 @@ const features = [
 ] as const;
 
 export default function IndexPage() {
+  const { hasSave } = useHasSave();
   const { data, isLoading, error } = useQuery<Health>({
     queryKey: ["health"],
     queryFn: async () => {
@@ -44,6 +46,19 @@ export default function IndexPage() {
 
   return (
     <div className="p-8 max-w-4xl">
+      {!hasSave && (
+        <div className="mb-6 flex items-start gap-4 p-5 rounded-lg border border-amber-500/30 bg-amber-500/5">
+          <Upload className="w-5 h-5 text-amber-400 mt-0.5 shrink-0" strokeWidth={1.5} />
+          <div>
+            <p className="text-sm font-semibold text-amber-200">No save loaded</p>
+            <p className="text-xs text-amber-300/70 mt-1 leading-relaxed">
+              Load a save file from the sidebar to unlock live game data — faction relations,
+              trade routes, conflict zones, empire stats, and more.
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="mb-8">
         <div className="flex items-baseline gap-2 mb-1">
           <h1 className="text-4xl font-bold text-foreground">X4</h1>

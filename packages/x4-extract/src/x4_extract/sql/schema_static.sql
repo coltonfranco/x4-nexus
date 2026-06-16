@@ -376,6 +376,7 @@ CREATE TABLE IF NOT EXISTS equip_engines (
     dlc              TEXT,
     class_id         TEXT,      -- engine, thruster
     size             TEXT,      -- s, m, l, xl, spacesuit
+    compat_tags      TEXT,      -- space-separated restrictive tags for ship compatibility (NULL = universal)
     faction_id       TEXT,
     mk               INTEGER,
     thrust_forward   REAL,
@@ -401,6 +402,7 @@ CREATE TABLE IF NOT EXISTS equip_shields (
     is_legacy             BOOLEAN DEFAULT 0,
     dlc                   TEXT,
     size                  TEXT,
+    compat_tags           TEXT,      -- space-separated restrictive tags for ship compatibility (NULL = universal)
     faction_id            TEXT,
     mk                    INTEGER,
     capacity              REAL,
@@ -447,6 +449,7 @@ CREATE TABLE IF NOT EXISTS equip_weapons (
     dlc              TEXT,
     class_id         TEXT,
     size             TEXT,
+    compat_tags      TEXT,      -- space-separated restrictive tags for ship compatibility (NULL = universal)
     faction_id       TEXT,
     mk               INTEGER,
     default_bullet_id TEXT,
