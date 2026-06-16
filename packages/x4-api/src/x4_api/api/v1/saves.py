@@ -96,7 +96,7 @@ def activate_save(key: str, settings: Annotated[Settings, Depends(get_settings)]
     if save is None:
         raise HTTPException(status_code=404, detail=f"Unknown save key: {key}")
     catalog.set_active_key(settings, key)
-    pipeline.run(settings, save)
+    pipeline.run(settings, save, force=True)
     for info in catalog.list_saves(settings):
         if info.key == key:
             return _to_summary(info, key)

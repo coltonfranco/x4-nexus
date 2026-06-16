@@ -9,6 +9,9 @@ import DropsPage from "./routes/inventory/drops";
 import EconomyPage from "./routes/economy";
 import EmpirePage from "./routes/empire";
 import MissionsPage from "./routes/missions";
+import LogbookPage from "./routes/logbook";
+import CrewPage from "./routes/crew";
+import MessagesPage from "./routes/messages";
 import EquipmentPage from "./routes/ships/equipment";
 import IndexPage from "./routes/index";
 import MapPage from "./routes/map";
@@ -116,6 +119,9 @@ const factionsListRoute = createRoute({
 const factionsDiplomacyRoute = createRoute({ getParentRoute: () => factionsRoute, path: "diplomacy", component: DiplomacyPage });
 
 const missionsRoute = createRoute({ getParentRoute: () => rootRoute, path: "/missions", component: MissionsPage });
+const messagesRoute = createRoute({ getParentRoute: () => rootRoute, path: "/messages", component: MessagesPage });
+const logbookRoute = createRoute({ getParentRoute: () => rootRoute, path: "/logbook", component: LogbookPage });
+const crewRoute = createRoute({ getParentRoute: () => rootRoute, path: "/crew", component: CrewPage });
 const statsRoute = createRoute({ getParentRoute: () => rootRoute, path: "/stats", component: () => <PlayerCard /> });
 const sectorTestRoute = createRoute({ getParentRoute: () => rootRoute, path: "/sector_test", component: SectorTestPage });
 const styleguideRoute = createRoute({ getParentRoute: () => rootRoute, path: "/styleguide", component: StyleguidePage });
@@ -135,6 +141,9 @@ const routeTree = rootRoute.addChildren([
   shipsRoute.addChildren([shipsListRoute, shipsEquipmentRoute, shipsBuilderRoute]),
   factionsRoute.addChildren([factionsListRoute, factionsDiplomacyRoute]),
   missionsRoute,
+  messagesRoute,
+  logbookRoute,
+  crewRoute,
   statsRoute,
   sectorTestRoute,
   styleguideRoute,

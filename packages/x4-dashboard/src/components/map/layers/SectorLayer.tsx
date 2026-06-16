@@ -198,15 +198,16 @@ export function SectorLayer({
               );
             })()}
 
+            {sectorTooltips?.get(sidLower) && (
+              <title>{sectorTooltips.get(sidLower)}</title>
+            )}
+
             {badge && (
               <text x={cx} y={cy + (showFactionLabels ? 24 : 13)} textAnchor="middle" 
                     fill="#e6eefb" fontSize={fontSize * 0.85} fontWeight="600" 
                     stroke="rgba(5,8,14,0.85)" strokeWidth={2.4} strokeLinejoin="round" paintOrder="stroke" 
                     style={{ pointerEvents: "none", fontFamily: "'IBM Plex Mono', monospace" }}>
                 {badge}
-                {sectorTooltips?.get(sidLower) && (
-                  <title>{sectorTooltips.get(sidLower)}</title>
-                )}
               </text>
             )}
 

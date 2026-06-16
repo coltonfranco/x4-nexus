@@ -247,6 +247,90 @@ CREATE TABLE IF NOT EXISTS player_stats (
     value    REAL
 );
 
+-- Player logbook entries from <savegame>/<log>/<entry>. Attributes vary by event type;
+-- common fields get explicit columns, everything else lands in extra_json.
+CREATE TABLE IF NOT EXISTS logbook (
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    time      REAL NOT NULL,
+    title     TEXT NOT NULL,
+    text      TEXT NOT NULL,
+    category  TEXT,
+    faction   TEXT,
+    extra_json TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_logbook_time ON logbook(time DESC);
+CREATE INDEX IF NOT EXISTS idx_logbook_category ON logbook(category);
+
+-- Player message inbox from <savegame>/<messages>/<entry>. Wide capture: every attribute
+-- on the entry element is preserved; unrecognised fields land in extra_json.
+CREATE TABLE IF NOT EXISTS player_messages (
+    id            INTEGER PRIMARY KEY,
+    time          REAL NOT NULL,
+    title         TEXT NOT NULL,
+    text          TEXT,
+    source        TEXT,
+    highpriority  INTEGER,
+    interact      TEXT,
+    component     TEXT,
+    read          INTEGER,
+    extra_json    TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_player_msgs_time ON player_messages(time DESC);
+
+-- NPCs (crew, marines, station personnel) from <component class="npc">.
+-- `entity_type`/`entity_post` capture the assigned role (officer/aipilot/engineer/defence).
+-- `seed` is the deterministic NPC seed for skill generation.
+-- `location_ship_id`/`location_station_id` point to the enclosing ship/station (ancestor walk).
+CREATE TABLE IF NOT EXISTS npc (
+    id                  TEXT PRIMARY KEY,
+    name                TEXT,
+    code                TEXT,
+    macro               TEXT,
+    owner_faction       TEXT,
+    entity_type         TEXT,
+    entity_post         TEXT,
+    seed                TEXT,
+    location_ship_id    TEXT,
+    location_station_id TEXT,
+    employment          TEXT NOT NULL DEFAULT 'other',  -- 'owned' | 'hireable' | 'other'
+    extra_json          TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_npc_owner ON npc(owner_faction);
+CREATE INDEX IF NOT EXISTS idx_npc_employment ON npc(employment);
+CREATE INDEX IF NOT EXISTS idx_npc_location_ship ON npc(location_ship_id);
+CREATE INDEX IF NOT EXISTS idx_npc_location_station ON npc(location_station_id);
+
+-- Ship equipment slots (player-owned only). One row per installed engine/weapon/turret/
+-- shield/missile. `slot_type` is the component class; `slot_connection` is the hardpoint
+-- name; `macro` is the installed equipment ware. Linked to ships via ship_id.
+CREATE TABLE IF NOT EXISTS ship_loadouts (
+    ship_id          TEXT NOT NULL,
+    slot_type        TEXT NOT NULL,   -- engine, weapon, turret, shieldgenerator, missilelauncher
+    slot_connection  TEXT NOT NULL,   -- e.g. con_engine_01, weaponcon_01
+    macro            TEXT NOT NULL,
+    ammunition       INTEGER,
+    extra_json       TEXT,
+    PRIMARY KEY (ship_id, slot_type, slot_connection)
+);
+CREATE INDEX IF NOT EXISTS idx_loadouts_ship ON ship_loadouts(ship_id);
+
+-- Player/AI deployables: satellites, resource probes, nav beacons, mines, lockboxes.
+-- `known_to_player` indicates fog-of-war visibility. Location walks ancestors to zone.
+CREATE TABLE IF NOT EXISTS deployables (
+    id                TEXT PRIMARY KEY,
+    class             TEXT NOT NULL,   -- satellite, resourceprobe, navbeacon, mine, lockbox
+    code              TEXT,
+    macro             TEXT,
+    owner_faction     TEXT,
+    sector_id         TEXT,
+    zone_id           TEXT,
+    known_to_player   INTEGER NOT NULL DEFAULT 0,
+    extra_json        TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_deployables_owner ON deployables(owner_faction);
+CREATE INDEX IF NOT EXISTS idx_deployables_class ON deployables(class);
+CREATE INDEX IF NOT EXISTS idx_deployables_sector ON deployables(sector_id);
+
 CREATE TABLE IF NOT EXISTS ship_cargo (
     ship_id TEXT NOT NULL,
     ware_id TEXT NOT NULL,

@@ -21,7 +21,13 @@ from x4_extract.config import ExtractSettings, save_key
 from x4_extract.db import apply_schema, open_db
 from x4_extract.dynamic.collector import TIERS, Collector, Tier, combined_fingerprint
 from x4_extract.dynamic.distance import build_sector_distance
+from x4_extract.dynamic.extractors.deployables import DeployablesCollector
 from x4_extract.dynamic.extractors.factions import FactionsCollector
+from x4_extract.dynamic.extractors.deployables import DeployablesCollector
+from x4_extract.dynamic.extractors.loadouts import ShipLoadoutCollector
+from x4_extract.dynamic.extractors.logbook import LogbookCollector
+from x4_extract.dynamic.extractors.messages import MessagesCollector
+from x4_extract.dynamic.extractors.npcs import NPCsCollector
 from x4_extract.dynamic.extractors.meta import MetaCollector, StatsCollector
 from x4_extract.dynamic.extractors.missions import MissionsCollector
 from x4_extract.dynamic.extractors.player import PlayerCollector
@@ -38,7 +44,7 @@ _FINGERPRINT_BLOCK = 1 << 16  # 64 KiB head+tail sample is enough to detect a re
 # that differs forces a full re-ingest even when the save file itself is unchanged —
 # otherwise a newly-added table (e.g. sector_resources) would never be populated for
 # saves already ingested under the old pipeline.
-_PIPELINE_VERSION = "7"
+_PIPELINE_VERSION = "9"
 
 
 def dynamic_db_path(settings: ExtractSettings, save_path: Path) -> Path:
@@ -46,10 +52,11 @@ def dynamic_db_path(settings: ExtractSettings, save_path: Path) -> Path:
     return settings.dynamic_dir / f"{save_key(save_path)}.db"
 
 
-def run(settings: ExtractSettings, save_path: Path) -> Path:
+def run(settings: ExtractSettings, save_path: Path, *, force: bool = False) -> Path:
     """Ingest `save_path` into its per-save dynamic DB. Returns the DB path.
 
-    No-op (returns early) when the save's source fingerprint matches the last run.
+    No-op (returns early) when the save's source fingerprint matches the last run,
+    unless `force=True` (used by explicit user activation to guarantee freshness).
     """
     db_path = dynamic_db_path(settings, save_path)
     # Idempotent: also brings pre-existing DBs up to date with newly-added tables.
@@ -60,7 +67,7 @@ def run(settings: ExtractSettings, save_path: Path) -> Path:
     try:
         state = _read_ingest_state(conn)
         version_ok = state.get("pipeline_version") == _PIPELINE_VERSION
-        if version_ok and state.get("source") == source_fp:
+        if not force and version_ok and state.get("source") == source_fp:
             return db_path  # nothing changed since the last successful ingest
 
         from x4_extract.i18n import Localizer
@@ -73,6 +80,11 @@ def run(settings: ExtractSettings, save_path: Path) -> Path:
             MissionsCollector(),
             StationsCollector(localizer=localizer),
             FactionsCollector(),
+            LogbookCollector(),
+            MessagesCollector(),
+            NPCsCollector(),
+            ShipLoadoutCollector(),
+            DeployablesCollector(),
             PlayerCollector(),
             SectorsCollector(),
             ShipsCollector(),

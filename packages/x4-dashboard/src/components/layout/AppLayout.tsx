@@ -2,16 +2,18 @@ import { useEffect, useState } from "react";
 import { Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { useIsMutating } from "@tanstack/react-query";
 import {
+  BookOpen,
   Boxes,
   Crown,
   Handshake,
   Home,
   Map,
+  MessageSquare,
   PackageOpen,
   Rocket,
   Shield,
   TrendingUp,
-  User,
+  Users,
   Activity,
   Target,
 } from "lucide-react";
@@ -29,6 +31,9 @@ const navItems = [
   { to: "/map", label: "Map", icon: Map, requiresSave: false },
   { to: "/ships", label: "Ships", icon: Rocket, requiresSave: false },
   { to: "/missions", label: "Missions", icon: Target, requiresSave: true },
+  { to: "/messages", label: "Messages", icon: MessageSquare, requiresSave: true },
+  { to: "/logbook", label: "Logbook", icon: BookOpen, requiresSave: true },
+  { to: "/crew", label: "Crew", icon: Users, requiresSave: true },
   { to: "/factions", label: "Factions", icon: Shield, requiresSave: false },
   { to: "/stats", label: "Stats", icon: Activity, requiresSave: true },
 ] as const;

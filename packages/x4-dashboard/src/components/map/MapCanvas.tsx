@@ -530,6 +530,60 @@ export function MapCanvas({
         );
       })()}
 
+      {/* Sector hover tooltip (screen-space, ware prices). */}
+      {hoveredSectorId && overlay.sectorWarePrices?.has(hoveredSectorId.toLowerCase()) && (() => {
+        const wp = overlay.sectorWarePrices.get(hoveredSectorId.toLowerCase())!;
+        const pos = layout.sectorCoords.get(hoveredSectorId);
+        if (!pos) return null;
+        const net = wp.supply - wp.demand;
+        return (
+          <div style={{
+            position: "absolute",
+            left: pos[0] * transform.scale + transform.x + 12,
+            top: pos[1] * transform.scale + transform.y + 12,
+            pointerEvents: "none", zIndex: 22, minWidth: 200, maxWidth: 260,
+          }} className="rounded-md border border-border bg-popover/95 px-3 py-2.5 shadow-lg backdrop-blur text-sm">
+            <p className="font-semibold border-b border-border/50 pb-1.5 mb-2">
+              {sectorName(hoveredSectorId)} <span className="text-muted-foreground font-normal ml-1">Trade</span>
+            </p>
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: "var(--success)" }} />
+                  <span>Supply</span>
+                </div>
+                <span className="tabular-nums font-medium">{wp.supply.toLocaleString()}</span>
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: "var(--danger)" }} />
+                  <span>Demand</span>
+                </div>
+                <span className="tabular-nums font-medium">{wp.demand.toLocaleString()}</span>
+              </div>
+              <div className="border-t border-border/30 pt-1.5 mt-0.5 flex items-center justify-between gap-4">
+                <span className="text-muted-foreground">Net</span>
+                <span className={`tabular-nums font-bold ${net > 0 ? "text-success" : net < 0 ? "text-danger" : "text-muted-foreground"}`}>
+                  {net >= 0 ? "+" : ""}{net.toLocaleString()}
+                </span>
+              </div>
+              {wp.bestBuyPrice != null && (
+                <div className="border-t border-border/30 pt-1.5 mt-0.5 flex items-center justify-between gap-4">
+                  <span className="text-muted-foreground">Best buy</span>
+                  <Currency value={wp.bestBuyPrice} icon={false} />
+                </div>
+              )}
+              {wp.bestSellPrice != null && (
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-muted-foreground">Best sell</span>
+                  <Currency value={wp.bestSellPrice} icon={false} />
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Station info popover (screen-space, anchored to the selected station). */}
       {selectedStation && stationScreenPos.get(selectedStation.station_id) && (
         <StationPopover

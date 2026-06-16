@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Currency } from "./Currency";
-import { Loader2, Save } from "lucide-react";
+import { Loader2, RefreshCw, Save } from "lucide-react";
 
 export type SaveSummary = {
   key: string;
@@ -51,8 +51,19 @@ export function SaveSelector() {
 
   return (
     <div className="px-3 py-3 border-t border-border space-y-1.5">
-      <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        <Save className="h-3 w-3" /> Save
+      <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <span className="flex items-center gap-1.5"><Save className="h-3 w-3" /> Save</span>
+        {active && (
+          <button
+            type="button"
+            disabled={activate.isPending}
+            onClick={() => activate.mutate(active.key)}
+            className="p-0.5 rounded hover:bg-muted/50 transition-colors disabled:opacity-40"
+            title="Refresh save data"
+          >
+            <RefreshCw className={`h-3 w-3 ${activate.isPending ? "animate-spin" : ""}`} />
+          </button>
+        )}
       </div>
       {saves.length === 0 ? (
         <p className="text-xs text-muted-foreground">No saves found</p>

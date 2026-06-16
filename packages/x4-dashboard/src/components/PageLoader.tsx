@@ -1,4 +1,4 @@
-import { type LucideIcon, Activity, Boxes, Cpu, Crown, Loader2, Map, PackageOpen, Rocket, Shield, TrendingUp, User, Target } from "lucide-react";
+import { type LucideIcon, Activity, BookOpen, Boxes, Cpu, Crown, Loader2, Map, PackageOpen, Rocket, Shield, TrendingUp, User, Target } from "lucide-react";
 import { cn } from "../lib/utils";
 
 type PageLoaderProps = {
@@ -84,6 +84,12 @@ const presets: Record<string, { icon: LucideIcon; message: string; subtitle: str
     icon: Target,
     message: "Scanning mission board…",
     subtitle: "Retrieving active objectives and available offers",
+    color: "blue",
+  },
+  logbook: {
+    icon: BookOpen,
+    message: "Opening logbook…",
+    subtitle: "Chronicling your journey across the gate network",
     color: "blue",
   },
   player: {

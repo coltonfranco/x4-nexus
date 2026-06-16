@@ -114,6 +114,55 @@ def player_reputation(conn: Annotated[sqlite3.Connection, Depends(get_db)]) -> l
     return [PlayerRelation(**dict(r)) for r in rows]
 
 
+class PlayerMessage(PublicModel):
+    id: int
+    time: float
+    title: str
+    text: str | None
+    source: str | None
+    highpriority: int | None
+    interact: str | None
+    component: str | None
+    component_name: str | None
+    component_kind: str | None
+    read: int | None
+    extra_json: str | None
+
+
+@router.get("/player/messages", response_model=list[PlayerMessage])
+def player_messages(conn: Annotated[sqlite3.Connection, Depends(get_db)]) -> list[PlayerMessage]:
+    """Player message inbox from the save file. Newest first."""
+    rows = conn.execute(
+        """
+        SELECT pm.id, pm.time, pm.title, pm.text, pm.source,
+               pm.highpriority, pm.interact, pm.component, pm.read, pm.extra_json,
+               COALESCE(st.name, st.code) AS station_name,
+               COALESCE(sh.name, sh.code) AS ship_name
+        FROM player_messages pm
+        LEFT JOIN stations st ON st.station_id = pm.component
+        LEFT JOIN ships sh ON sh.ship_id = pm.component
+        ORDER BY pm.time DESC
+        """
+    ).fetchall()
+
+    result: list[PlayerMessage] = []
+    for r in rows:
+        d = dict(r)
+        name = d.pop("station_name", None) or d.pop("ship_name", None)
+        kind = "station" if d.get("station_name") else ("ship" if d.get("ship_name") else None)
+        # Put the cleaned dict values back (station_name/ship_name already popped)
+        result.append(
+            PlayerMessage(
+                id=d["id"], time=d["time"], title=d["title"], text=d["text"],
+                source=d["source"], highpriority=d["highpriority"],
+                interact=d["interact"], component=d["component"],
+                component_name=name, component_kind=kind,
+                read=d["read"], extra_json=d["extra_json"],
+            )
+        )
+    return result
+
+
 def _display_name(stat_id: str) -> str:
     """Convert snake_case stat_id to Title Case display name."""
     return " ".join(w.capitalize() for w in stat_id.split("_"))

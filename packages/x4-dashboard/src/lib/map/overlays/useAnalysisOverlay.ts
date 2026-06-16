@@ -38,6 +38,7 @@ export type AnalysisOverlay = {
   sectorForces: Map<string, SectorForceEntry>;
   sectorResources: Map<string, SectorResources>;
   sectorSunlight: Map<string, string>;         // lowercase sector → sunlight percentage (e.g. "134%")
+  sectorWarePrices: Map<string, { supply: number; demand: number; bestBuyPrice: number | null; bestSellPrice: number | null }>;
   alternateDots: Map<string, string[]>;       // lowercase sector → alt resource colors
   dimOthers: boolean;
   routeMarkers: RouteMarker[];
@@ -163,6 +164,7 @@ export function useAnalysisOverlay({
       sectorForces: new Map(),
       sectorResources: new Map(),
       sectorSunlight: new Map(),
+      sectorWarePrices: new Map(),
       alternateDots: new Map(),
     };
 
@@ -384,27 +386,43 @@ export function useAnalysisOverlay({
 
     if (wareOn) {
       // Signed net volume: green = surplus (supply − demand), red = deficit, gray ≈ 0.
-      const bySector = new Map<string, { supply: number; demand: number }>();
+      // Also track best buy/sell prices per sector for the hover tooltip.
+      const bySector = new Map<string, {
+        supply: number; demand: number;
+        bestBuyPrice: number | null; bestSellPrice: number | null;
+      }>();
       (offers.data ?? []).forEach((o) => {
         if (!o.sector_id) return;
         const sid = o.sector_id.toLowerCase();
-        const a = bySector.get(sid) ?? { supply: 0, demand: 0 };
-        if (o.side === "sell") a.supply += o.quantity;
-        else a.demand += o.quantity;
+        const a = bySector.get(sid) ?? { supply: 0, demand: 0, bestBuyPrice: null, bestSellPrice: null };
+        if (o.side === "sell") {
+          a.supply += o.quantity;
+          if (a.bestSellPrice === null || o.price < a.bestSellPrice) a.bestSellPrice = o.price;
+        } else {
+          a.demand += o.quantity;
+          if (a.bestBuyPrice === null || o.price > a.bestBuyPrice) a.bestBuyPrice = o.price;
+        }
         bySector.set(sid, a);
       });
       let maxAbs = 1;
       bySector.forEach((a) => { maxAbs = Math.max(maxAbs, Math.abs(a.supply - a.demand)); });
       const tint = new Map<string, SectorTint>();
       const badges = new Map<string, string>();
+      const sectorTooltips = new Map<string, string>();
       bySector.forEach((a, sid) => {
         const net = a.supply - a.demand;
         const mag = Math.abs(net) / maxAbs;
         const hex = net >= 0 ? STATUS_COLORS.success : STATUS_COLORS.danger;
         tint.set(sid, { fill: `${hex}${alpha(0.15 + 0.75 * mag)}`, stroke: `${hex}${alpha(0.85)}` });
         badges.set(sid, `${net >= 0 ? "+" : ""}${compact(net)}`);
+        const buyStr = a.bestBuyPrice != null ? `${a.bestBuyPrice.toLocaleString()} Cr` : "—";
+        const sellStr = a.bestSellPrice != null ? `${a.bestSellPrice.toLocaleString()} Cr` : "—";
+        sectorTooltips.set(
+          sid,
+          `Supply: ${a.supply.toLocaleString()} · Demand: ${a.demand.toLocaleString()} · Buy: ${buyStr} · Sell: ${sellStr}`
+        );
       });
-      return { ...empty, tint, badges, dim: true, loading: offers.isLoading };
+      return { ...empty, tint, badges, sectorTooltips, sectorWarePrices: bySector, dim: true, loading: offers.isLoading };
     }
 
     return empty; // faction, or trade-routes view (no fill tint)
@@ -490,12 +508,13 @@ export function useAnalysisOverlay({
   return useMemo(() => ({
     sectorTint: tradeRoutesOn ? routeData.tint : fill.tint,
     sectorBadges: tradeRoutesOn ? routeData.badges : fill.badges,
-    sectorTooltips: fill.tooltips,
+    sectorTooltips: fill.sectorTooltips,
     sectorConflicts: fill.sectorConflicts,
     borderTensions: fill.borderTensions,
     sectorForces: fill.sectorForces,
     sectorResources: fill.sectorResources,
     sectorSunlight: fill.sectorSunlight,
+    sectorWarePrices: fill.sectorWarePrices,
     alternateDots: fill.dots,
     dimOthers: fill.dim || tradeRoutesOn,
     routeMarkers,

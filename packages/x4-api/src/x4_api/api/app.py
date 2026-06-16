@@ -14,6 +14,7 @@ from fastapi.staticfiles import StaticFiles
 
 from x4_api import __version__
 from x4_api.api.v1 import (
+    deployables,
     diplomacy,
     drops,
     economy,
@@ -23,11 +24,13 @@ from x4_api.api.v1 import (
     fleet,
     health,
     loadouts,
+    logbook,
     map,
     mission_groups,
     missions,
     modules,
     npc_stations,
+    npcs,
     player,
     races,
     routes,
@@ -73,6 +76,9 @@ def app() -> FastAPI:
     fast.include_router(stations.router, prefix="/api/v1", tags=["stations"])
     fast.include_router(fleet.router, prefix="/api/v1", tags=["fleet"])
     fast.include_router(routes.router, prefix="/api/v1", tags=["routes"])
+    fast.include_router(logbook.router, prefix="/api/v1", tags=["logbook"])
+    fast.include_router(npcs.router, prefix="/api/v1", tags=["npcs"])
+    fast.include_router(deployables.router, prefix="/api/v1", tags=["deployables"])
     fast.include_router(economy.router, prefix="/api/v1", tags=["economy"])
 
     icons_dir = settings.data_dir / "icons"
