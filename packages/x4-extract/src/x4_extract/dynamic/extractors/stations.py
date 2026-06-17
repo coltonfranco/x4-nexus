@@ -295,6 +295,22 @@ class StationsCollector:
             )
         )
 
+    # --- delta source ----------------------------------------------------------
+    def keyed_rows(self, tier: Tier):
+        """Trade offers (VOLATILE) keyed by station+ware+side; a moved price or quantity
+        is a 'changed' economy event, a new/closed offer is 'added'/'removed'. Stations
+        themselves are STRUCTURAL and not diffed here."""
+        if tier is not Tier.VOLATILE:
+            return
+        for r in self.offer_rows:
+            yield "station_offer", f"{r.station_id}|{r.ware_id}|{r.side}", {
+                "station_id": r.station_id,
+                "ware_id": r.ware_id,
+                "side": r.side,
+                "price": r.price,
+                "quantity": r.quantity,
+            }
+
     # --- tiered contract -------------------------------------------------------
     def tables(self, tier: Tier) -> tuple[str, ...]:
         if tier is Tier.STRUCTURAL:

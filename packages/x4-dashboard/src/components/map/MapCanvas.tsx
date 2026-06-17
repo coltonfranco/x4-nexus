@@ -16,6 +16,7 @@ import { HexBuildGridLayer } from "./layers/HexBuildGridLayer";
 import { GateLayer, HighwayLayer } from "./layers/LinkLayer";
 import { SectorLayer } from "./layers/SectorLayer";
 import { StationLayer } from "./layers/StationLayer";
+import { PlayerLayer } from "./layers/PlayerLayer";
 import { NavLayer } from "./layers/AnalysisLayer";
 import { StationPopover } from "./StationPopover";
 import { Currency } from "../Currency";
@@ -29,6 +30,7 @@ export type MapToggles = {
   showStations: boolean;
   showFactionLogos: boolean;
   showSectorNames: boolean;
+  showPlayer: boolean;
   bgStyle: "nebula" | "starfield" | "flat";
 };
 
@@ -50,6 +52,7 @@ export function MapCanvas({
   selectedSectorId, hoveredSectorId, onSelectSector, onHoverSector, onContextSector,
   navFrom, navTo, onClearNav, sectorName,
   selectedStation, onSelectStation, showFactionLabels,
+  playerSectorId, playerZoneId,
 }: {
   data: MapData;
   layout: MapLayout;
@@ -72,6 +75,8 @@ export function MapCanvas({
   selectedStation: MapStation | null;
   onSelectStation: (st: MapStation | null) => void;
   showFactionLabels?: boolean;
+  playerSectorId?: string | null;
+  playerZoneId?: string | null;
 }) {
   const {
     sectorCoords, hexSize, zoneScaleMap, bgGrid, zoneScreenPos, overlappingPaths, zoneMap,
@@ -195,6 +200,17 @@ export function MapCanvas({
               hexSize={hexSize} transform={transform}
               selectedStationId={selectedStation?.station_id ?? null} onSelect={onSelectStation}
               onHover={setHoveredStation}
+            />
+          )}
+
+          {toggles.showPlayer && (
+            <PlayerLayer
+              sectorId={playerSectorId ?? null}
+              zoneId={playerZoneId ?? null}
+              sectorCoords={sectorCoords}
+              zoneScreenPos={zoneScreenPos}
+              hexSize={hexSize}
+              transform={transform}
             />
           )}
 

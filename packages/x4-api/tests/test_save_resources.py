@@ -1,8 +1,9 @@
 """Test the sector_resources collector via the dispatch loop.
 
-Uses the shared tiny_save.xml.gz fixture, whose single sector carries a
-<resourceareas> block with two areas: ore (one area) and silicon (split across two
-areas, to exercise per-(sector,ware) aggregation).
+Uses the shared tiny_save.xml.gz fixture, whose single sector carries a v9-format
+<resourceareas> block: one ore area plus two silicon areas (to exercise per-(sector,ware)
+aggregation). v9 stores current yield + tier on each <area yieldid=… yield=…>; the old
+nested max/recharge fields no longer exist, so those columns stay NULL.
 """
 
 from __future__ import annotations
@@ -40,11 +41,11 @@ def test_resources_aggregated_amounts(data_dir: Path, fixtures_dir: Path) -> Non
     rows = {r["ware"]: r for r in _collect(data_dir, fixtures_dir)}
 
     assert rows["ore"]["current"] == 4689
-    assert rows["ore"]["max"] == 7895
     assert rows["ore"]["yield_tier"] == "low"
+    assert rows["ore"]["max"] is None  # v9 saves don't carry a max
 
-    # Silicon spans two areas (14080 + 5000) / (23694 + 10000).
+    # Silicon spans two areas (14080 + 5000 = 19080).
     assert rows["silicon"]["current"] == 19080
-    assert rows["silicon"]["max"] == 33694
     assert rows["silicon"]["yield_tier"] == "lowplus"
-    assert rows["silicon"]["recharge_time"] == 108000
+    assert rows["silicon"]["max"] is None
+    assert rows["silicon"]["recharge_time"] is None

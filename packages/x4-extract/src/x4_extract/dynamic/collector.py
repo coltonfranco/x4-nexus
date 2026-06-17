@@ -56,6 +56,31 @@ class Collector(Protocol):
         ...
 
 
+@runtime_checkable
+class DeltaSource(Protocol):
+    """Opt-in capability: a collector that can emit its rows as keyed records for diffing.
+
+    The delta engine (dynamic/delta.py) compares this run's keyed rows against the last
+    run's stored hashes to derive added/changed/removed events. A collector implements
+    this only if its entities are worth tracking change-over-time (logbook, messages,
+    ships, relations, player); structural/derived collectors can ignore it entirely.
+    """
+
+    def keyed_rows(self, tier: Tier) -> Iterable[tuple[str, str, Mapping[str, object]]]:
+        """Yield (entity_type, stable_key, content) for each accumulated row in `tier`.
+
+        `entity_type` groups rows of one kind ("ship", "message", ...); `stable_key` is
+        that row's identity across runs; `content` is hashed to detect changes and stored
+        as the event payload. Empty when the collector contributes nothing to `tier`.
+        """
+        ...
+
+
+def row_hash(content: Mapping[str, object]) -> str:
+    """Content hash of a single keyed row — same scheme as hash_rows, one record."""
+    return hashlib.sha256(json.dumps(content, sort_keys=True, default=str).encode()).hexdigest()
+
+
 def hash_rows(rows: Iterable[Mapping[str, object]]) -> str:
     """Order-independent content hash of row dicts. Empty input → "" (no-data sentinel)."""
     digests = sorted(

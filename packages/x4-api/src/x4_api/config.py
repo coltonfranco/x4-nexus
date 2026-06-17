@@ -20,11 +20,23 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[4]
 class Settings(ExtractSettings):
     host: str = "127.0.0.1"
     port: int = 8765
+    background_refresh: bool = Field(
+        default=True,
+        description="Run the save-file watcher inside the API process so the active save's "
+        "dynamic DB stays fresh automatically. Disable to manage ingestion externally.",
+    )
 
     @model_validator(mode="after")
     def _pin_data_dir(self) -> "Settings":
-        """Always use the repo root's data/ folder, ignoring the env var."""
-        self.data_dir = (_PROJECT_ROOT / "data").resolve()
+        """Fall back to the repo's data/ folder only when X4C_DATA_DIR is empty.
+
+        An empty env var resolves (via ExtractSettings) to the current working directory,
+        which isn't where data/ lives. We override only that case — an explicitly
+        configured data_dir (a real env value, or a test passing data_dir=tmp) is honored,
+        which keeps test fixtures isolated from the real database.
+        """
+        if self.data_dir == Path.cwd():
+            self.data_dir = (_PROJECT_ROOT / "data").resolve()
         return self
 
 

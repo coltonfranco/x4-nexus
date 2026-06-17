@@ -112,6 +112,22 @@ def ingest_save(path: Path | None = typer.Argument(None)) -> None:
     run_dynamic(settings, save)
 
 
+@app.command("profile-save")
+def profile_save(path: Path | None = typer.Argument(None)) -> None:
+    """Time each ingest stage on a save to find where the 5-10s goes.
+
+    Defaults to the newest save in the save folder. Breaks the cost into decompress,
+    iterparse, visitor dispatch, and flush, with a cProfile breakdown of the dispatch.
+    """
+    from x4_extract.config import latest_save, resolve_save_path
+    from x4_extract.dynamic.profile import format_report, profile_save as run_profile
+
+    settings = _load_settings()
+    save = path or latest_save(resolve_save_path(settings.save_path))
+    typer.echo(f"Profiling {save} ... (streams the full save several times)")
+    typer.echo(format_report(run_profile(settings, save)))
+
+
 @app.command()
 def watch() -> None:
     """Poll the active save folder and keep its dynamic DB fresh until interrupted."""
@@ -131,9 +147,12 @@ def watch() -> None:
         else:
             typer.echo(f"[{ts}] {r.save_path.name} unchanged")
 
-    typer.echo(f"Watching for save changes every {settings.poll_interval_sec}s. Ctrl-C to stop.")
+    typer.echo(
+        f"Watching for save changes (event-driven, {settings.poll_interval_sec}s safety poll). "
+        "Ctrl-C to stop."
+    )
     try:
-        poller.watch(settings, on_tick)
+        poller.watch_realtime(settings, on_tick)
     except KeyboardInterrupt:
         typer.echo("stopped")
 

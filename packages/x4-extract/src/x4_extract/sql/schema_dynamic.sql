@@ -14,6 +14,34 @@ CREATE TABLE IF NOT EXISTS ingest_state (
     ingested_at TEXT NOT NULL
 );
 
+-- Delta tracking. `row_state` is the last-seen content hash per logical entity; the
+-- pipeline diffs each refresh's keyed rows against it to derive change events. `events`
+-- is an append-only telemetry feed (new logbook entries, ship losses, relation shifts,
+-- ...) classified by priority so consumers can surface alerts. See dynamic/delta.py.
+CREATE TABLE IF NOT EXISTS row_state (
+    entity_type TEXT NOT NULL,   -- 'ship' | 'message' | 'logbook' | 'faction_relation' | 'player' | ...
+    entity_key  TEXT NOT NULL,   -- stable identity within entity_type
+    row_hash    TEXT NOT NULL,   -- content hash; differs ⇒ a 'changed' event
+    updated_at  TEXT NOT NULL,   -- ISO wall clock of the last add/change
+    PRIMARY KEY (entity_type, entity_key)
+);
+
+CREATE TABLE IF NOT EXISTS events (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    game_time    REAL,           -- in-game seconds when observed (best-effort)
+    real_time    TEXT NOT NULL,  -- ISO wall clock when recorded
+    entity_type  TEXT NOT NULL,
+    entity_key   TEXT NOT NULL,
+    change_kind  TEXT NOT NULL,  -- 'added' | 'changed' | 'removed'
+    priority     TEXT NOT NULL,  -- 'info' | 'warn' | 'alert'
+    category     TEXT,           -- 'combat' | 'economy' | 'diplomacy' | 'fleet' | 'log' | 'message'
+    title        TEXT,
+    text         TEXT,
+    payload_json TEXT            -- the new row content (NULL for 'removed')
+);
+CREATE INDEX IF NOT EXISTS idx_events_game_time ON events(game_time);
+CREATE INDEX IF NOT EXISTS idx_events_priority ON events(priority);
+
 CREATE TABLE IF NOT EXISTS sector_state (
     sector_id       TEXT PRIMARY KEY,
     known_to_player INTEGER NOT NULL DEFAULT 0,

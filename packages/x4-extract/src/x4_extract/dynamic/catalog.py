@@ -157,7 +157,7 @@ def _to_info(
 ) -> SaveInfo:
     db = dynamic_db_path(settings, path)
     built = db.exists()
-    current = built and _db_source(db) == source_fingerprint(path)
+    current = built and _is_current(db, path)
     return SaveInfo(
         key=save_key(path),
         path=path,
@@ -175,21 +175,46 @@ def _to_info(
 
 
 def db_is_current(settings: ExtractSettings, save_path: Path) -> bool:
-    """True when the save's per-save DB exists and its source fingerprint is up to date."""
-    db = dynamic_db_path(settings, save_path)
-    return db.exists() and _db_source(db) == source_fingerprint(save_path)
+    """True when the save's per-save DB exists and is up to date with the file on disk."""
+    return _is_current(dynamic_db_path(settings, save_path), save_path)
+
+
+def _is_current(db_path: Path, save_path: Path) -> bool:
+    """Cheap-first freshness check. A pure stat() (mtime + size) avoids opening the save
+    file in the common unchanged case — only when stat has moved do we open it to verify
+    the content fingerprint. Keeps the watcher from colliding with X4's save writes."""
+    if not db_path.exists():
+        return False
+    st = save_path.stat()
+    if _db_stat(db_path) == (str(st.st_mtime_ns), str(st.st_size)):
+        return True
+    return _db_source(db_path) == source_fingerprint(save_path)
+
+
+def _db_stat(db_path: Path) -> tuple[str, str] | None:
+    """Stored (mtime_ns, size) of the last ingested source, or None if absent."""
+    vals = _read_ingest_tiers(db_path, ("source_mtime", "source_size"))
+    mtime, size = vals.get("source_mtime"), vals.get("source_size")
+    return (mtime, size) if mtime is not None and size is not None else None
 
 
 def _db_source(db_path: Path) -> str | None:
+    return _read_ingest_tiers(db_path, ("source",)).get("source")
+
+
+def _read_ingest_tiers(db_path: Path, tiers: tuple[str, ...]) -> dict[str, str]:
     try:
         conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     except sqlite3.OperationalError:
-        return None
+        return {}
     try:
-        row = conn.execute("SELECT fingerprint FROM ingest_state WHERE tier = 'source'").fetchone()
-        return row[0] if row else None
+        placeholders = ",".join("?" * len(tiers))
+        rows = conn.execute(
+            f"SELECT tier, fingerprint FROM ingest_state WHERE tier IN ({placeholders})", tiers
+        ).fetchall()
+        return {tier: fp for tier, fp in rows}
     except sqlite3.OperationalError:
-        return None
+        return {}
     finally:
         conn.close()
 
@@ -208,6 +233,13 @@ def get_active_key(settings: ExtractSettings) -> str | None:
 def set_active_key(settings: ExtractSettings, key: str) -> None:
     settings.data_dir.mkdir(parents=True, exist_ok=True)
     _active_file(settings).write_text(key, encoding="utf-8")
+
+
+def clear_active_key(settings: ExtractSettings) -> None:
+    """Drop the pin so the active save follows the newest file again ("live" mode)."""
+    f = _active_file(settings)
+    if f.exists():
+        f.unlink()
 
 
 def resolve_active_save(settings: ExtractSettings, folder: Path | None = None) -> Path | None:
@@ -236,14 +268,60 @@ def save_path_for_key(settings: ExtractSettings, key: str) -> Path | None:
     return None
 
 
-def ensure_active_dynamic_db(settings: ExtractSettings) -> Path:
-    """Resolve the active save's DB path, creating an empty schema'd DB if it's missing.
+def resolve_serving_save(settings: ExtractSettings, folder: Path | None = None) -> Path | None:
+    """The save the read-only API should serve and report as active.
 
-    Resilient: if no save folder/saves exist, returns a shared empty DB so the read-only
-    API can still ATTACH static and serve static-only endpoints.
+    The pin if one is set (its DB is built synchronously on activation); otherwise the newest
+    save whose DB is *current* — i.e. whose stored fingerprint matches the file on disk.
+
+    The "current" requirement is the important part. While following the latest save, X4
+    overwrites rotating slots (autosave_01, quicksave, …); the moment a slot is rewritten it
+    becomes the newest file, but its per-save DB still holds that slot's *previous* contents
+    until the refresher re-ingests it. Selecting by mtime alone (or by "DB has any data") would
+    serve that stale snapshot — which is exactly the dashboard briefly reverting to an older
+    credits value. Requiring a current DB skips the stale slot and keeps serving the most recent
+    fully-ingested save until the new data is actually ready, then advances to it atomically.
+
+    Returns None when no save has a current DB yet (nothing ingested).
+    """
+    folder = folder or resolve_save_path(settings.save_path)
+    saves = sorted(folder.glob("*.xml.gz"), key=lambda p: p.stat().st_mtime, reverse=True)
+    if not saves:
+        return None
+    key = get_active_key(settings)
+    if key is not None:
+        for p in saves:
+            if save_key(p) == key:
+                return p  # pinned: activation built it; honor the user's explicit choice
+        # Pinned file vanished → fall through to newest-current.
+    for p in saves:
+        if _db_matches_stat(dynamic_db_path(settings, p), p):
+            return p
+    return None
+
+
+def _db_matches_stat(db_path: Path, save_path: Path) -> bool:
+    """Currency check for the request-serving path: the DB's stored (mtime, size) equals the
+    file's, by stat() alone — it never opens the save file, so resolving which DB to serve on
+    every API request can't collide with X4 mid-write. A touched-but-identical file briefly
+    reads as not-current; the refresher's next pass re-stamps the stored stat and it heals.
+    """
+    if not db_path.exists():
+        return False
+    st = save_path.stat()
+    return _db_stat(db_path) == (str(st.st_mtime_ns), str(st.st_size))
+
+
+def ensure_active_dynamic_db(settings: ExtractSettings) -> Path:
+    """Resolve the DB the read-only API should serve, guaranteeing the file exists.
+
+    Serves the newest fully-ingested save (see `resolve_serving_save`) so the dashboard never
+    shows a half-written or stale-slot snapshot. Resilient: if nothing is ingested yet (or no
+    save folder exists), returns a shared empty DB so the read-only API can still ATTACH static
+    and serve static-only endpoints.
     """
     try:
-        save = resolve_active_save(settings)
+        save = resolve_serving_save(settings)
     except FileNotFoundError:
         save = None
     db = dynamic_db_path(settings, save) if save is not None else settings.dynamic_dir / _FALLBACK_DB

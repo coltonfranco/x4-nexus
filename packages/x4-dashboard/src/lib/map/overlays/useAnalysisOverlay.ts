@@ -182,15 +182,21 @@ export function useAnalysisOverlay({
         if (owner) {
           const rel = repMap.get(owner.toLowerCase()) ?? 0;
           const relUI = relationToUI(rel);
-          const mag = Math.min(30, Math.abs(relUI)) / 30.0;
-          
+
           badges.set(sec.sector_id.toLowerCase(), `${relUI >= 0 ? "+" : ""}${Math.round(relUI)}`);
 
-          if (Math.abs(relUI) >= 0.5) {
-            const fill = relUI > 0 ? STATUS_COLORS.success : STATUS_COLORS.danger;
+          if (relUI >= 10) {
+            // Allied: green, intensity from +10 (faint) to +30 (full)
+            const mag = Math.min(1, (relUI - 10) / 20);
             const opacity = 0.15 + 0.65 * mag;
-            tint.set(sec.sector_id.toLowerCase(), { fill: `${fill}${alpha(opacity)}`, stroke: `${fill}${alpha(0.85)}` });
+            tint.set(sec.sector_id.toLowerCase(), { fill: `${STATUS_COLORS.success}${alpha(opacity)}`, stroke: `${STATUS_COLORS.success}${alpha(0.85)}` });
+          } else if (relUI <= -10) {
+            // Hostile/enemy: red, intensity from -10 (faint) to -30 (full)
+            const mag = Math.min(1, (Math.abs(relUI) - 10) / 20);
+            const opacity = 0.15 + 0.65 * mag;
+            tint.set(sec.sector_id.toLowerCase(), { fill: `${STATUS_COLORS.danger}${alpha(opacity)}`, stroke: `${STATUS_COLORS.danger}${alpha(0.85)}` });
           }
+          // -9 to +9: neutral, no tint
         }
       });
       return { ...empty, tint, badges, dim: true, loading: relations.isLoading };

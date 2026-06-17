@@ -350,6 +350,37 @@ class MissionsCollector:
             "item": elem.get("item"),
         }
 
+    # --- delta source ------------------------------------------------------
+
+    def keyed_rows(self, tier: Tier):
+        """Active missions (keyed by mission_id) and available offers (by offer_id). A
+        mission appearing/completing or its active/priority state moving is a 'mission'
+        event; new BBS offers are 'mission_offer' events. Objectives are intentionally
+        left out of the feed for now — add them here keyed by (mission_id, step) later."""
+        if tier is not Tier.VOLATILE:
+            return
+        for r in self.mission_rows:
+            if r.mission_id is None:
+                continue
+            yield "mission", r.mission_id, {
+                "mission_id": r.mission_id,
+                "name": r.name,
+                "faction": r.faction,
+                "type": r.type,
+                "level": r.level,
+                "is_active": r.is_active,
+                "priority": r.priority,
+            }
+        for r in self.offer_rows:
+            if r.offer_id is None:
+                continue
+            yield "mission_offer", r.offer_id, {
+                "offer_id": r.offer_id,
+                "name": r.name,
+                "faction": r.faction,
+                "type": r.type,
+            }
+
     # --- tiered contract ---------------------------------------------------
 
     def tables(self, tier: Tier) -> tuple[str, ...]:

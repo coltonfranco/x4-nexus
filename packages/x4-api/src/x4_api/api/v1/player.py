@@ -24,6 +24,8 @@ class PlayerAccount(PublicModel):
     hq_station_id: str | None
     current_sector: str | None
     current_ship_id: str | None
+    sector_id: str | None = None
+    zone_id: str | None = None
 
 
 class BlueprintItem(PublicModel):
@@ -51,10 +53,17 @@ class PlayerRelation(PublicModel):
 
 @router.get("/player", response_model=PlayerAccount)
 def get_player(conn: Annotated[sqlite3.Connection, Depends(get_db)]) -> PlayerAccount:
-    """The player's account snapshot. 404 until a save has been ingested."""
+    """The player's account snapshot. 404 until a save has been ingested.
+
+    Joins the player's current ship to resolve live position (sector/zone).
+    """
     row = conn.execute(
-        "SELECT player_id, name, credits, hq_station_id, current_sector, current_ship_id "
-        "FROM player WHERE id = 1"
+        "SELECT p.player_id, p.name, p.credits, p.hq_station_id, "
+        "COALESCE(sh.sector_id, p.current_sector) AS current_sector, "
+        "p.current_ship_id, sh.sector_id, sh.zone_id "
+        "FROM player p "
+        "LEFT JOIN ships sh ON sh.ship_id = p.current_ship_id "
+        "WHERE p.id = 1"
     ).fetchone()
     if row is None:
         raise HTTPException(status_code=404, detail="No player data — ingest a save first.")

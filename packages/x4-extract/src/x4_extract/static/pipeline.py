@@ -23,7 +23,6 @@ from x4_extract.static import (
     map,
     missiongroups,
     modules,
-    npc_stations,
     races,
     regions,
     ships,
@@ -286,12 +285,6 @@ def run(settings: ExtractSettings) -> None:
                 map_result = map.extract(map_xmls)
                 map.write(conn, _localize_result(map_result))
                 _log(f"  -> {len(map_result.clusters)} clusters, {len(map_result.sectors)} sectors ({_elapsed(t0)})")
-
-            t0 = time.monotonic()
-            _log("Extracting: NPC stations (god.xml)")
-            god_xml = get_raw_file("libraries/god.xml")
-            if god_xml:
-                _log(f"  -> stations extracted ({_elapsed(t0)})")
 
             t0 = time.monotonic()
             _log("Extracting: terraforming")

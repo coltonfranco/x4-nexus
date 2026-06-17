@@ -5,11 +5,9 @@ import {
   BookOpen,
   Boxes,
   Crown,
-  Handshake,
   Home,
   Map,
   MessageSquare,
-  PackageOpen,
   Rocket,
   Shield,
   TrendingUp,
@@ -20,6 +18,8 @@ import {
 import { cn } from "../../lib/utils";
 import { useHasSave } from "../../lib/useHasSave";
 import { SaveSelector } from "../SaveSelector";
+import { PlayerSummary } from "../PlayerSummary";
+import { RefreshIndicator } from "../RefreshIndicator";
 import { SettingsModal } from "../SettingsModal";
 // ThemeToggle hidden per design — dark-only, infrastructure preserved for future light theme
 
@@ -73,7 +73,7 @@ export function AppLayout() {
           style={{ width: 240, flexShrink: 0 }}
           className="flex flex-col border-r border-border bg-card"
         >
-          {/* Logo */}
+          {/* Logo + settings */}
           <div className="flex items-center gap-3 px-4 py-4 border-b border-border select-none">
             <img
               src="/logo.svg"
@@ -84,7 +84,13 @@ export function AppLayout() {
               <span className="font-bold text-xl tracking-wide text-foreground">X4</span>
               <span className="font-medium text-[14px] tracking-[0.2em] text-primary uppercase">Nexus</span>
             </div>
+            <div className="ml-auto">
+              <SettingsModal />
+            </div>
           </div>
+
+          {/* Active player */}
+          <PlayerSummary />
 
           {/* Nav */}
           <nav className="flex flex-col gap-1 p-2 flex-1 overflow-y-auto">
@@ -111,9 +117,7 @@ export function AppLayout() {
 
           {/* Bottom */}
           <SaveSelector />
-          <div className="p-3 border-t border-border flex items-center justify-end">
-            <SettingsModal />
-          </div>
+          <RefreshIndicator />
         </aside>
       )}
 

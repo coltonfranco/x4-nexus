@@ -100,6 +100,20 @@ class PlayerCollector:
             "extra_json": json.dumps(extra, sort_keys=True) if extra else None,
         }
 
+    # --- delta source ----------------------------------------------------------
+    def keyed_rows(self, tier: Tier):
+        """Singleton 'player' row; credit/current-ship changes surface as 'changed'."""
+        if tier is not Tier.VOLATILE:
+            return
+        row = self._player_row()
+        if row is None:
+            return
+        yield "player", "player", {
+            "name": row["name"],
+            "credits": row["credits"],
+            "current_ship_id": row["current_ship_id"],
+        }
+
     # --- tiered contract -------------------------------------------------------
     def tables(self, tier: Tier) -> tuple[str, ...]:
         if tier is Tier.VOLATILE:

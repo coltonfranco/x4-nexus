@@ -74,6 +74,15 @@ class LogbookCollector:
             )
         )
 
+    # --- delta source ----------------------------------------------------------
+    def keyed_rows(self, tier: Tier):
+        """Logbook entries are append-only and immutable, so each is identified by its
+        (time, title) — new entries surface as 'added', the source of combat alerts."""
+        if tier is not Tier.VOLATILE:
+            return
+        for r in self.rows:
+            yield "logbook", f"{r.time}|{r.title}", dataclasses.asdict(r)
+
     # --- tiered contract -------------------------------------------------------
     def tables(self, tier: Tier) -> tuple[str, ...]:
         return ("logbook",) if tier is Tier.VOLATILE else ()

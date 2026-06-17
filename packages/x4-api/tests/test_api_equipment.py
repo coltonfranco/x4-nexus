@@ -129,7 +129,8 @@ def test_equipment_list_inlines_metadata_and_stats(client: TestClient, static_co
 
     engine = by_id["engine_arg_m_allround_01_mk1"]
     assert engine["kind"] == "engine"
-    assert engine["size"] == "m" and engine["mk"] == 1 and engine["faction_id"] == "arg"
+    # faction_id is canonicalized from the ware-id race code (arg → argon) by equipment_meta.
+    assert engine["size"] == "m" and engine["mk"] == 1 and engine["faction_id"] == "argon"
     assert engine["has_production"] is True
     # Stats are inlined in the list response, not behind a detail fetch.
     assert engine["engine_stats"]["thrust_forward"] == 900

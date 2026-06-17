@@ -7,12 +7,15 @@ bundle (when built) is mounted at `/`; the icon PNG directory is mounted at
 
 from __future__ import annotations
 
+import contextlib
+from collections.abc import AsyncIterator
 from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from x4_api import __version__
+from x4_api.api.refresher import BackgroundRefresher
 from x4_api.api.v1 import (
     deployables,
     diplomacy,
@@ -33,6 +36,7 @@ from x4_api.api.v1 import (
     npcs,
     player,
     races,
+    refresh,
     routes,
     saves,
     ships,
@@ -44,6 +48,22 @@ from x4_api.api.v1 import (
 from x4_api.config import settings
 
 
+@contextlib.asynccontextmanager
+async def _lifespan(fast: FastAPI) -> AsyncIterator[None]:
+    """Start/stop the in-process background save refresher around the server's lifetime."""
+    refresher = BackgroundRefresher(settings) if settings.background_refresh else None
+    # Exposed on app state so /api/v1/refresh-config can retune it at runtime (None when
+    # background refresh is disabled at the server level).
+    fast.state.refresher = refresher
+    if refresher is not None:
+        refresher.start()
+    try:
+        yield
+    finally:
+        if refresher is not None:
+            refresher.stop()
+
+
 def app() -> FastAPI:
     """Factory — used by `uvicorn ... --factory`."""
     fast = FastAPI(
@@ -51,6 +71,7 @@ def app() -> FastAPI:
         version=__version__,
         docs_url="/api/docs",
         openapi_url="/api/openapi.json",
+        lifespan=_lifespan,
     )
 
     fast.include_router(health.router, prefix="/api/v1", tags=["health"])
@@ -72,6 +93,7 @@ def app() -> FastAPI:
     fast.include_router(drops.router, prefix="/api/v1", tags=["drops"])
     # Dynamic (save-state) endpoints — read the active save's per-save DB.
     fast.include_router(saves.router, prefix="/api/v1", tags=["saves"])
+    fast.include_router(refresh.router, prefix="/api/v1", tags=["refresh"])
     fast.include_router(player.router, prefix="/api/v1", tags=["player"])
     fast.include_router(stations.router, prefix="/api/v1", tags=["stations"])
     fast.include_router(fleet.router, prefix="/api/v1", tags=["fleet"])

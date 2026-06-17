@@ -125,8 +125,9 @@ def extract(factions_bytes: bytes, colors_bytes: bytes | None = None) -> Extract
 def write(conn: sqlite3.Connection, result: ExtractResult) -> None:
     """Replace faction *definition* rows in static.db (reference layer).
 
-    Relations are gamestart seed, not reference — written to seed.db via
-    `write_relations`. Caller wraps in a transaction.
+    Faction relations are not written here: they come from the live save at runtime
+    (dynamic `faction_relations_current`), the seed.db gamestart snapshot having been
+    removed. Caller wraps in a transaction.
     """
     conn.execute("DELETE FROM faction_licences")
     conn.execute("DELETE FROM factions")
@@ -141,16 +142,6 @@ def write(conn: sqlite3.Connection, result: ExtractResult) -> None:
         "INSERT INTO faction_licences (licence_type, faction_id, name, description, icon, precursor, price, min_relation) "
         "VALUES (:licence_type, :faction_id, :name, :description, :icon, :precursor, :price, :min_relation)",
         result.licences,
-    )
-
-
-def write_relations(conn: sqlite3.Connection, result: ExtractResult) -> None:
-    """Replace gamestart faction relations in seed.db. Caller wraps in a transaction."""
-    conn.execute("DELETE FROM faction_relations")
-    conn.executemany(
-        "INSERT INTO faction_relations (faction_id, other_faction_id, initial_relation) "
-        "VALUES (:faction_id, :other_faction_id, :initial_relation)",
-        result.relations,
     )
 
 

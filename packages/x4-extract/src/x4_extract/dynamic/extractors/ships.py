@@ -111,6 +111,25 @@ class ShipsCollector:
             ancestor = ancestor.getparent()
         return sector_id, zone_id
 
+    # --- delta source ----------------------------------------------------------
+    def keyed_rows(self, tier: Tier):
+        """Keyed by ship_id. Content is the identity + state/location subset (not the
+        noisy 3D fields) so a destroyed/sold ship surfaces as 'removed', a new ship as
+        'added', and a state/sector move as 'changed'. Add hull here later to alert on
+        damage — the delta engine needs no changes for that."""
+        if tier is not Tier.VOLATILE:
+            return
+        for r in self.rows:
+            yield "ship", r.ship_id, {
+                "ship_id": r.ship_id,
+                "name": r.name,
+                "owner_faction": r.owner_faction,
+                "class_id": r.class_id,
+                "sector_id": r.sector_id,
+                "state": r.state,
+                "is_player_owned": r.is_player_owned,
+            }
+
     # --- tiered contract -------------------------------------------------------
     def tables(self, tier: Tier) -> tuple[str, ...]:
         return ("ships",) if tier is Tier.VOLATILE else ()

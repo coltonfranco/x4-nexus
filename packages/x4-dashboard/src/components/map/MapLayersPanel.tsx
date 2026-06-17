@@ -10,12 +10,12 @@ const BG_STYLES = [
 export function MapLayersPanel({
   allDlcs, activeDlcs,
   showGates, showHighways, showLocalHighways, showGrid, showStations, showFactionLogos, showSectorNames,
-  bgStyle, onBgStyleChange,
+  showPlayer, bgStyle, onBgStyleChange,
   onToggleGates, onToggleHighways, onToggleLocalHighways, onToggleGrid, onToggleStations, onToggleFactionLogos, onToggleSectorNames,
-  onToggleDlc,
+  onTogglePlayer, onToggleDlc,
 }: {
   allDlcs: string[]; activeDlcs: Set<string>;
-  showGates: boolean; showHighways: boolean; showLocalHighways: boolean; showGrid: boolean; showStations: boolean; showFactionLogos: boolean; showSectorNames: boolean;
+  showGates: boolean; showHighways: boolean; showLocalHighways: boolean; showGrid: boolean; showStations: boolean; showFactionLogos: boolean; showSectorNames: boolean; showPlayer: boolean;
   bgStyle: "nebula" | "starfield" | "flat";
   onBgStyleChange: (v: "nebula" | "starfield" | "flat") => void;
   onToggleGates: (v: boolean) => void;
@@ -25,6 +25,7 @@ export function MapLayersPanel({
   onToggleStations: (v: boolean) => void;
   onToggleFactionLogos: (v: boolean) => void;
   onToggleSectorNames: (v: boolean) => void;
+  onTogglePlayer: (v: boolean) => void;
   onToggleDlc: (dlc: string, on: boolean) => void;
 }) {
   const [dlcOpen, setDlcOpen] = useState(false);
@@ -37,6 +38,7 @@ export function MapLayersPanel({
     ["Stations", showStations, onToggleStations],
     ["Faction", showFactionLogos, onToggleFactionLogos],
     ["Sector Names", showSectorNames, onToggleSectorNames],
+    ["Player Location", showPlayer, onTogglePlayer],
   ] as [string, boolean, (v: boolean) => void][];
 
   return (

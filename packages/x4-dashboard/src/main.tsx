@@ -6,6 +6,7 @@ import { TooltipProvider } from "./components/ui/tooltip";
 import "./index.css";
 import { router } from "./router";
 import { SettingsProvider } from "./lib/settingsStore";
+import { BackgroundRefresh } from "./lib/useBackgroundRefresh";
 
 // Apply saved theme before first render to prevent flash.
 const savedTheme = localStorage.getItem("theme");
@@ -25,6 +26,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     <QueryClientProvider client={queryClient}>
       <SettingsProvider>
         <TooltipProvider>
+          <BackgroundRefresh />
           <RouterProvider router={router} />
         </TooltipProvider>
       </SettingsProvider>

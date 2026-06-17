@@ -49,6 +49,31 @@ def test_list_saves_reads_headers_and_db_status(data_dir: Path, fixtures_dir: Pa
     assert refreshed["save_001"].db_built is False
 
 
+def test_db_is_current_short_circuits_on_stat(data_dir: Path, fixtures_dir: Path, tmp_path: Path) -> None:
+    """The freshness check must answer from a pure stat() — without opening the save file —
+    when mtime+size are unchanged. Proven by clobbering the stored content fingerprint: if the
+    check still reports current, it never consulted (nor opened) the file for a fingerprint."""
+    folder = _save_folder(tmp_path, fixtures_dir)
+    settings = _settings(data_dir, folder)
+    save = folder / "save_002.xml.gz"
+
+    db = pipeline.run(settings, save)
+    assert catalog.db_is_current(settings, save) is True
+
+    # Corrupt the content fingerprint but leave the stored stat intact.
+    import sqlite3
+
+    with sqlite3.connect(db) as conn:
+        conn.execute("UPDATE ingest_state SET fingerprint = 'stale' WHERE tier = 'source'")
+    # Still current → the stat gate answered, the bad fingerprint was never reached.
+    assert catalog.db_is_current(settings, save) is True
+
+    # Touch the file so stat moves; now the (corrupt) fingerprint path runs and reports stale.
+    future = time.time() + 10
+    os.utime(save, (future, future))
+    assert catalog.db_is_current(settings, save) is False
+
+
 def test_active_save_defaults_to_newest_then_follows_selection(
     data_dir: Path, fixtures_dir: Path, tmp_path: Path
 ) -> None:
@@ -61,11 +86,64 @@ def test_active_save_defaults_to_newest_then_follows_selection(
     assert catalog.resolve_active_save(settings).name == "save_001.xml.gz"
 
 
-def test_ensure_active_dynamic_db_creates_schema(data_dir: Path, fixtures_dir: Path, tmp_path: Path) -> None:
+def test_ensure_active_db_serves_last_current_while_newest_ingests(
+    data_dir: Path, fixtures_dir: Path, tmp_path: Path
+) -> None:
+    """Following latest: when the newest save isn't ingested yet, serve the most recent save
+    whose DB is current instead of an empty one — so the dashboard doesn't blank on every save."""
     folder = _save_folder(tmp_path, fixtures_dir)
     settings = _settings(data_dir, folder)
 
-    db = catalog.ensure_active_dynamic_db(settings)
+    # Only the older save_001 is ingested; the newest (save_002) has no DB yet.
+    pipeline.run(settings, folder / "save_001.xml.gz")
+    assert catalog.resolve_active_save(settings).name == "save_002.xml.gz"  # newest, unbuilt
 
+    # Should hand back the current save_001 DB, not a blank save_002 DB.
+    assert catalog.ensure_active_dynamic_db(settings).name == "save_001.db"
+
+    # Once the newest save is ingested, it takes over.
+    pipeline.run(settings, folder / "save_002.xml.gz")
+    assert catalog.ensure_active_dynamic_db(settings).name == "save_002.db"
+
+
+def test_ensure_active_db_skips_stale_reused_slot(
+    data_dir: Path, fixtures_dir: Path, tmp_path: Path
+) -> None:
+    """The regression: X4 overwrites a rotating slot, so the newest *file* has a DB holding the
+    slot's previous contents until re-ingested. Serving must skip that stale DB (its fingerprint
+    no longer matches the file) and keep serving the most recent *current* save — not revert."""
+    folder = _save_folder(tmp_path, fixtures_dir)
+    settings = _settings(data_dir, folder)
+
+    # Both ingested and current; save_002 is newest.
+    pipeline.run(settings, folder / "save_001.xml.gz")
+    pipeline.run(settings, folder / "save_002.xml.gz")
+    assert catalog.ensure_active_dynamic_db(settings).name == "save_002.db"
+
+    # X4 rewrites the save_002 slot with new content: the file's bytes (and stat) change, so its
+    # existing DB — still holding the slot's previous snapshot — is now stale.
+    save_002 = folder / "save_002.xml.gz"
+    with save_002.open("ab") as f:
+        f.write(b"\x00")  # different size + tail → fingerprint no longer matches the DB
+    future = time.time() + 10
+    os.utime(save_002, (future, future))
+    assert catalog.db_is_current(settings, save_002) is False
+
+    # Newest file's DB is stale → serve the last current save (save_001), never the old snapshot.
+    assert catalog.ensure_active_dynamic_db(settings).name == "save_001.db"
+
+
+def test_ensure_active_dynamic_db_empty_until_first_ingest(
+    data_dir: Path, fixtures_dir: Path, tmp_path: Path
+) -> None:
+    folder = _save_folder(tmp_path, fixtures_dir)
+    settings = _settings(data_dir, folder)
+
+    # Nothing ingested yet → no save has a current DB → serve the shared empty DB (static-only).
+    db = catalog.ensure_active_dynamic_db(settings)
     assert db.exists()
-    assert db.name == "save_002.db"  # newest save's per-save DB
+    assert db.name == "_empty.db"
+
+    # After the newest is ingested, it becomes the served DB.
+    pipeline.run(settings, folder / "save_002.xml.gz")
+    assert catalog.ensure_active_dynamic_db(settings).name == "save_002.db"

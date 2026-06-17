@@ -82,13 +82,24 @@ def _dispatch(stream: IO[bytes], regs: list[Registration]) -> None:
     # most elements are rejected by one dict lookup: fixed-depth targets by their depth,
     # wildcard (depth=None) targets by tag. Matching uses elem.get() — never a per-element
     # attrib dict, which was the original O(elements x registrations) perf cliff.
+    #
+    # `<component>` is by far the commonest tag (every cluster/sector/zone/station/ship/
+    # module is one), and ~6 collectors wildcard-register on it — distinguished only by
+    # `class`. Keying those by (tag, class) turns "call matches() on all 6 for every one of
+    # millions of components" into a single dict lookup that misses for the classes we never
+    # extract. Profiling attributed ~1.5s of the dispatch overhead to that redundant matching.
     by_depth: dict[int, list[Registration]] = {}
-    wildcard_by_tag: dict[str, list[Registration]] = {}
+    wc_plain: dict[str, list[Registration]] = {}                 # wildcard, no class filter
+    wc_class: dict[tuple[str, str], list[Registration]] = {}     # wildcard + class_attr
     for reg in regs:
-        if reg.target.depth is None:
-            wildcard_by_tag.setdefault(reg.target.tag, []).append(reg)
+        t = reg.target
+        if t.depth is not None:
+            by_depth.setdefault(t.depth, []).append(reg)
+        elif t.class_attr is not None:
+            wc_class.setdefault((t.tag, t.class_attr), []).append(reg)
         else:
-            by_depth.setdefault(reg.target.depth, []).append(reg)
+            wc_plain.setdefault(t.tag, []).append(reg)
+    wc_class_tags = {tag for tag, _ in wc_class}  # only fetch class for tags that need it
 
     context = etree.iterparse(stream, events=("start", "end"), huge_tree=True)
     for event, elem in context:
@@ -98,11 +109,17 @@ def _dispatch(stream: IO[bytes], regs: list[Registration]) -> None:
             continue
 
         # end event — only the registrations that could possibly match this element.
+        tag = elem.tag
         candidates = by_depth.get(depth)
-        wildcards = wildcard_by_tag.get(elem.tag)
-        if candidates or wildcards:
+        wildcards = wc_plain.get(tag)
+        class_wilds = None
+        if tag in wc_class_tags:
+            cls = elem.get("class")
+            if cls is not None:
+                class_wilds = wc_class.get((tag, cls))
+        if candidates or wildcards or class_wilds:
             parent_tag = parent_stack[-2] if len(parent_stack) >= 2 else None
-            for reg in (*(candidates or ()), *(wildcards or ())):
+            for reg in (*(candidates or ()), *(wildcards or ()), *(class_wilds or ())):
                 if reg.target.matches(elem, depth, parent_tag):
                     reg.visitor(elem)
                     break  # one visitor per element; visitors are mutually exclusive

@@ -74,6 +74,19 @@ class FactionsCollector:
             )
         )
 
+    # --- delta source ----------------------------------------------------------
+    def keyed_rows(self, tier: Tier):
+        """Keyed by the ordered faction pair; a shifted relation value is a 'changed'
+        diplomacy event (turning hostile is flagged WARN by the alert rules)."""
+        if tier is not Tier.VOLATILE:
+            return
+        for r in self.rows:
+            yield "faction_relation", f"{r.faction_id}>{r.other_faction_id}", {
+                "faction_id": r.faction_id,
+                "other_faction_id": r.other_faction_id,
+                "relation": r.relation,
+            }
+
     # --- tiered contract -------------------------------------------------------
     def tables(self, tier: Tier) -> tuple[str, ...]:
         return ("faction_relations_current",) if tier is Tier.VOLATILE else ()

@@ -53,15 +53,19 @@ def _to_summary(info: catalog.SaveInfo, active_key: str) -> SaveSummary:
 
 
 def _active_key(settings: Settings) -> str:
-    """Selected key, else the newest save's key, else "" when the folder is empty."""
-    selected = catalog.get_active_key(settings)
-    if selected is not None:
-        return selected
+    """The key of the save the API is actually serving, else "" when none is ready.
+
+    Mirrors `ensure_active_dynamic_db`'s `resolve_serving_save` (pin, else newest *current*
+    save) so `/refresh-status`'s active_key matches the data being served. If it instead
+    reported the newest *file* while serving an older current one, the client's active-key
+    change would fire before the new data was ready — refetching stale data and then never
+    re-converging until a hard reload.
+    """
     try:
-        newest = catalog.resolve_active_save(settings)
+        serving = catalog.resolve_serving_save(settings)
     except FileNotFoundError:
         return ""
-    return save_key(newest) if newest is not None else ""
+    return save_key(serving) if serving is not None else ""
 
 
 @router.get("/saves", response_model=list[SaveSummary])
@@ -87,6 +91,26 @@ def get_active_save(settings: Annotated[Settings, Depends(get_settings)]) -> Sav
         if info.key == active:
             return _to_summary(info, active)
     raise HTTPException(status_code=404, detail="No active save — none found in the save folder.")
+
+
+@router.post("/saves/follow-latest", response_model=SaveSummary)
+def follow_latest(settings: Annotated[Settings, Depends(get_settings)]) -> SaveSummary:
+    """Switch to "live" mode: drop any pin so the active save tracks the newest file, and
+    ensure that newest save's DB is current. The background refresher then follows each
+    subsequent quicksave/autosave automatically."""
+    catalog.clear_active_key(settings)
+    try:
+        save = catalog.resolve_active_save(settings)
+    except FileNotFoundError:
+        save = None
+    if save is None:
+        raise HTTPException(status_code=404, detail="No saves found to follow.")
+    pipeline.run(settings, save)  # near-no-op when the newest save is already current
+    key = save_key(save)
+    for info in catalog.list_saves(settings):
+        if info.key == key:
+            return _to_summary(info, key)
+    raise HTTPException(status_code=404, detail="No saves found to follow.")
 
 
 @router.post("/saves/{key}/activate", response_model=SaveSummary)

@@ -105,6 +105,17 @@ class MetaCollector:
             extra_json=json.dumps(extra, sort_keys=True) if extra else None,
         )
 
+    def game_time_sec(self) -> int | None:
+        """In-game time (seconds) for this save, or None if not yet parsed. Used to stamp
+        delta events with when-in-game they were observed."""
+        row = self._row()
+        return row.in_game_time_sec if row else None
+
+    def player_name(self) -> str | None:
+        """The player/commander name — used as a cheap same-game lineage key so a new save
+        file can inherit the previous file's delta baseline (see pipeline carry-forward)."""
+        return self._player.get("name") or None
+
     # --- tiered contract -------------------------------------------------------
     def tables(self, tier: Tier) -> tuple[str, ...]:
         return ("save_meta",) if tier is Tier.VOLATILE else ()
@@ -154,6 +165,14 @@ class StatsCollector:
         if sid and val is not None:
             with contextlib.suppress(ValueError):
                 self.stats[sid] = float(val)
+
+    def keyed_rows(self, tier: Tier):
+        """Each player stat keyed by its id; a moved value is a 'stat' change. Low volume
+        and shallow, but changes often — handy for keeping a stats view live."""
+        if tier is not Tier.VOLATILE:
+            return
+        for sid, val in self.stats.items():
+            yield "stat", sid, {"stat_id": sid, "value": val}
 
     def tables(self, tier: Tier) -> tuple[str, ...]:
         return ("player_stats",) if tier is Tier.VOLATILE else ()

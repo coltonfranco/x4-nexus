@@ -10,6 +10,7 @@ dependencies = [
     "Pillow>=11.0",
     "texture2ddecoder>=0.1; platform_system != 'Darwin'",
     "pydantic-settings>=2.6",
+    "watchdog>=6.0.0",
 ]
 
 [build-system]

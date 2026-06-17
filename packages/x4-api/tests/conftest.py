@@ -13,6 +13,8 @@ import os
 
 # Satisfy pydantic-settings during test collection
 os.environ.setdefault("X4C_INSTALL_PATH", "C:/fake/x4")
+# Never start the in-process save watcher during tests (it would target the real save folder).
+os.environ.setdefault("X4C_BACKGROUND_REFRESH", "false")
 
 import sqlite3
 from collections.abc import Iterator
@@ -35,17 +37,6 @@ def data_dir(tmp_path: Path) -> Path:
 def static_conn(data_dir: Path) -> Iterator[sqlite3.Connection]:
     """Direct connection to a fresh static.db (reference layer). Use for extractor tests."""
     conn = sqlite3.connect(data_dir / "static.db")
-    conn.row_factory = sqlite3.Row
-    try:
-        yield conn
-    finally:
-        conn.close()
-
-
-@pytest.fixture
-def seed_conn(data_dir: Path) -> Iterator[sqlite3.Connection]:
-    """Direct connection to a fresh seed.db (gamestart snapshot). Use for seed extractor tests."""
-    conn = sqlite3.connect(data_dir / "seed.db")
     conn.row_factory = sqlite3.Row
     try:
         yield conn

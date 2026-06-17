@@ -47,6 +47,18 @@ class MessagesCollector:
     def _on_entry(self, elem: etree._Element) -> None:
         self.rows.append(dict(elem.attrib))
 
+    # --- delta source ----------------------------------------------------------
+    def keyed_rows(self, tier: Tier):
+        """Keyed by message id; a flipped `read`/`highpriority` flag shows up as
+        'changed', a brand-new inbox entry as 'added'."""
+        if tier is not Tier.VOLATILE:
+            return
+        for r in self.rows:
+            mid = r.get("id")
+            if mid is None:
+                continue
+            yield "message", str(mid), r
+
     # --- tiered contract -------------------------------------------------------
     def tables(self, tier: Tier) -> tuple[str, ...]:
         return ("player_messages",) if tier is Tier.VOLATILE else ()

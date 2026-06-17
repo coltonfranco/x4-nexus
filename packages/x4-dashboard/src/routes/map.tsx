@@ -30,7 +30,11 @@ export default function MapPage() {
   const { settings } = useSettings();
 
   // Per-sector detail data — ungated so the detail panel always has it.
-  const { data: player } = useQuery<{ current_sector: string | null } | null>({
+  const { data: player } = useQuery<{
+    current_sector: string | null;
+    sector_id: string | null;
+    zone_id: string | null;
+  } | null>({
     queryKey: ["player"],
     queryFn: () => fetch("/api/v1/player").then((r) => (r.ok ? r.json() : null)),
     staleTime: 30_000,
@@ -69,9 +73,9 @@ export default function MapPage() {
   const [toggles, setToggles] = useState<MapToggles>(() => {
     try {
       const saved = localStorage.getItem("x4map:toggles");
-      if (saved) return { showGates: true, showHighways: true, showLocalHighways: true, showGrid: true, showStations: true, showFactionLogos: true, showSectorNames: true, bgStyle: "nebula", ...JSON.parse(saved) };
+      if (saved) return { showGates: true, showHighways: true, showLocalHighways: true, showGrid: true, showStations: true, showFactionLogos: true, showSectorNames: true, showPlayer: true, bgStyle: "nebula", ...JSON.parse(saved) };
     } catch { /* ignore */ }
-    return { showGates: true, showHighways: true, showLocalHighways: true, showGrid: true, showStations: true, showFactionLogos: true, showSectorNames: true, bgStyle: "nebula" };
+    return { showGates: true, showHighways: true, showLocalHighways: true, showGrid: true, showStations: true, showFactionLogos: true, showSectorNames: true, showPlayer: true, bgStyle: "nebula" };
   });
 
   useEffect(() => {
@@ -303,6 +307,8 @@ export default function MapPage() {
         selectedStation={selectedStation}
         onSelectStation={handleSelectStation}
         showFactionLabels={toggles.showFactionLogos}
+        playerSectorId={player?.sector_id ?? player?.current_sector ?? null}
+        playerZoneId={player?.zone_id ?? null}
       />
 
       {/* No-save banner */}
@@ -390,6 +396,8 @@ export default function MapPage() {
           onToggleFactionLogos={setToggle("showFactionLogos")}
           showSectorNames={toggles.showSectorNames}
           onToggleSectorNames={setToggle("showSectorNames")}
+          showPlayer={toggles.showPlayer}
+          onTogglePlayer={setToggle("showPlayer")}
           bgStyle={toggles.bgStyle}
           onBgStyleChange={setToggle("bgStyle")}
           onToggleDlc={(dlc, on) => {

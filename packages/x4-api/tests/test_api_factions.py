@@ -94,19 +94,6 @@ def test_get_faction_detail_returns_full_record(client: TestClient, static_conn:
     assert "capital_sector" not in data
 
 
-def test_get_faction_relations(
-    client: TestClient, static_conn: sqlite3.Connection, seed_conn: sqlite3.Connection
-) -> None:
-    result = factions.extract(TINY_FACTIONS_XML, TINY_COLORS_XML)
-    factions.write(static_conn, result)  # faction definitions → static.db
-    static_conn.commit()
-    factions.write_relations(seed_conn, result)  # gamestart relations → seed.db
-    seed_conn.commit()
-
-    resp = client.get("/api/v1/factions/argon/relations")
-
-    assert resp.status_code == 200
-    data = resp.json()
-    assert len(data) == 1
-    assert data[0]["other_faction_id"] == "xenon"
-    assert data[0]["initial_relation"] == -1.0
+# Faction relations are now sourced from the live save (faction_relations_current), not
+# from static/seed definitions — that endpoint is covered by test_api_dynamic
+# (test_faction_relations_from_save) where a save is actually ingested.
