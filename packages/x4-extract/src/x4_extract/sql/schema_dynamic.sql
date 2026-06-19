@@ -352,6 +352,7 @@ CREATE TABLE IF NOT EXISTS deployables (
     owner_faction     TEXT,
     sector_id         TEXT,
     zone_id           TEXT,
+    x REAL, y REAL, z REAL,
     known_to_player   INTEGER NOT NULL DEFAULT 0,
     extra_json        TEXT
 );

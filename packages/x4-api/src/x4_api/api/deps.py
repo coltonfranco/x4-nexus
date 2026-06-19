@@ -22,6 +22,11 @@ def get_db(s: Settings = Depends(get_settings)) -> Iterator[sqlite3.Connection]:
     The dynamic DB is per-save (`dynamic/<save_key>.db`); the active save is the
     user-selected one or the newest. `ensure_active_dynamic_db` guarantees the file
     exists (empty schema if never ingested) so static-only endpoints always work.
+
+    Marked ``include_in_schema=False`` because Pydantic v2 can't resolve
+    ``Annotated[sqlite3.Connection, Depends(get_db)]`` when ``from __future__ import
+    annotations`` is active — the ForwardRef to ``Annotated`` itself fails to
+    materialize during JSON-schema generation.
     """
     dynamic_db = ensure_active_dynamic_db(s)
     conn = open_db(s.data_dir, dynamic_db=dynamic_db, read_only=True)
@@ -29,3 +34,4 @@ def get_db(s: Settings = Depends(get_settings)) -> Iterator[sqlite3.Connection]:
         yield conn
     finally:
         conn.close()
+

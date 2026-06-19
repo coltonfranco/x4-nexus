@@ -12,7 +12,6 @@ Stat coverage is partial for a few kinds (thrusters/missiles/drones have no stat
 table); those parts still carry price and parsed metadata (kind/size/mk/faction).
 """
 
-from __future__ import annotations
 
 import sqlite3
 from typing import Annotated
@@ -22,7 +21,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from x4_api.api.deps import get_db
 from x4_api.api.icons import ICON_BASE, get_icon_url
 from x4_api.api.schemas import PublicModel
-from x4_api.domain.ware_class import CATEGORY_SQL, equipment_kind, equipment_meta
+from x4_api.domain.ware_class import (
+    CATEGORY_SQL,
+    build_faction_map,
+    equipment_kind,
+    equipment_meta,
+)
 
 # Fallback icons for equipment kinds that don't have in-game icon images.
 # Sourced from the game's own ship builder sidebar tab icons.
@@ -187,9 +191,10 @@ def _build_item(
     shields: dict[str, sqlite3.Row],
     weapons: dict[str, sqlite3.Row],
     bullets: dict[str, sqlite3.Row],
+    faction_map: dict[str, str],
 ) -> EquipmentItem:
     kind = equipment_kind(row["group_id"], row["tags"])
-    faction, size, mk = equipment_meta(row["ware_id"])
+    faction, size, mk = equipment_meta(row["ware_id"], faction_map)
     macro = f"{row['ware_id']}_macro"
 
     compat_tags = None
@@ -288,11 +293,12 @@ def list_equipment(
         f"SELECT {_BASE_COLS} FROM s.wares WHERE ({CATEGORY_SQL}) = 'equipment' ORDER BY ware_id"
     ).fetchall()
     engines, shields, weapons, bullets = _load_stat_tables(conn)
+    faction_map = build_faction_map(conn)  # once per request, not per row
 
     out: list[EquipmentItem] = []
     needle = search.lower() if search else None
     for r in rows:
-        item = _build_item(conn, r, engines, shields, weapons, bullets)
+        item = _build_item(conn, r, engines, shields, weapons, bullets, faction_map)
         if kind is not None and item.kind != kind:
             continue
         if size is not None and item.size != size:
@@ -318,4 +324,4 @@ def get_equipment(
     if row is None or row["category"] != "equipment":
         raise HTTPException(status_code=404, detail=f"Unknown equipment ware_id: {ware_id}")
     engines, shields, weapons, bullets = _load_stat_tables(conn)
-    return _build_item(conn, row, engines, shields, weapons, bullets)
+    return _build_item(conn, row, engines, shields, weapons, bullets, build_faction_map(conn))

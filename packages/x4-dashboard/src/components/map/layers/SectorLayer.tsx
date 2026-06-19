@@ -145,58 +145,23 @@ export function SectorLayer({
             </text>
             )}
 
-            {showFactionLabels && effectiveFaction && (() => {
-              const iconSize = Math.max(5, Math.min(14, fontSize * 0.9));
-              const textY = cy + 11;
-              const nameStr = effectiveFaction.name;
-              // Total row width: icon + gap + text (approx)
-              const approxTextWidth = nameStr.length * fontSize * 0.42;
-              const gap = iconSize * 0.35;
-              const rowW = effectiveFaction.icon_url ? iconSize + gap + approxTextWidth : approxTextWidth;
-              const rowX = cx - rowW / 2;
-
-              return (
-                <g>
-                  {effectiveFaction.icon_url && (
-                    <foreignObject
-                      x={rowX}
-                      y={textY - iconSize * 0.82}
-                      width={iconSize}
-                      height={iconSize}
-                      style={{ pointerEvents: "none", overflow: "visible" }}
-                    >
-                      <div
-                        style={{
-                          width: iconSize,
-                          height: iconSize,
-                          backgroundColor: effectiveFaction.color_hex ?? "rgba(255,255,255,0.8)",
-                          WebkitMaskImage: `url(${effectiveFaction.icon_url})`,
-                          WebkitMaskSize: "contain",
-                          WebkitMaskRepeat: "no-repeat",
-                          WebkitMaskPosition: "center",
-                          filter: "drop-shadow(0 0 2px rgba(0,0,0,0.9))",
-                        }}
-                      />
-                    </foreignObject>
-                  )}
-                  <text
-                    x={effectiveFaction.icon_url ? rowX + iconSize + gap : cx}
-                    y={textY}
-                    textAnchor={effectiveFaction.icon_url ? "start" : "middle"}
-                    fill="rgba(220,228,242,0.65)"
-                    fontSize={fontSize * 0.7}
-                    fontWeight="500"
-                    stroke="rgba(5,8,14,0.8)"
-                    strokeWidth={2}
-                    strokeLinejoin="round"
-                    paintOrder="stroke"
-                    style={{ pointerEvents: "none", fontFamily: "'Space Grotesk', sans-serif" }}
-                  >
-                    {nameStr}
-                  </text>
-                </g>
-              );
-            })()}
+            {showFactionLabels && effectiveFaction && (
+              <text
+                x={cx}
+                y={cy + 11}
+                textAnchor="middle"
+                fill="rgba(220,228,242,0.65)"
+                fontSize={fontSize * 0.7}
+                fontWeight="500"
+                stroke="rgba(5,8,14,0.8)"
+                strokeWidth={2}
+                strokeLinejoin="round"
+                paintOrder="stroke"
+                style={{ pointerEvents: "none", fontFamily: "'Space Grotesk', sans-serif" }}
+              >
+                {effectiveFaction.name}
+              </text>
+            )}
 
             {sectorTooltips?.get(sidLower) && (
               <title>{sectorTooltips.get(sidLower)}</title>

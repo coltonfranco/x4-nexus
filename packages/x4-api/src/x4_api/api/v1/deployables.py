@@ -1,6 +1,5 @@
 """REST endpoint for deployables (satellites, resource probes, nav beacons, mines)."""
 
-from __future__ import annotations
 
 import sqlite3
 from typing import Annotated

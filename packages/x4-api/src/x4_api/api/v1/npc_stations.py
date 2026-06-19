@@ -1,7 +1,6 @@
 """REST endpoints for NPC station instances placed in the universe."""
 
-from __future__ import annotations
-
+import sqlite3
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query

@@ -6,6 +6,7 @@
 import { useMemo } from "react";
 
 import { RESOURCE_COLORS, STATUS_COLORS } from "../constants";
+import { getReputationScore } from "../../formatters";
 import { heatColor } from "./heat";
 import { buildAdjacency, findPath, type TravelSegmentKind, type PathResult } from "./pathfinding";
 import type { FillMode } from "./types";
@@ -183,7 +184,8 @@ export function useAnalysisOverlay({
           const rel = repMap.get(owner.toLowerCase()) ?? 0;
           const relUI = relationToUI(rel);
 
-          badges.set(sec.sector_id.toLowerCase(), `${relUI >= 0 ? "+" : ""}${Math.round(relUI)}`);
+          const repScore = getReputationScore(rel);
+          badges.set(sec.sector_id.toLowerCase(), `${repScore >= 0 ? "+" : ""}${repScore}`);
 
           if (relUI >= 10) {
             // Allied: green, intensity from +10 (faint) to +30 (full)

@@ -36,6 +36,7 @@ from x4_extract.dynamic.extractors.npcs import NPCsCollector
 from x4_extract.dynamic.extractors.player import PlayerCollector
 from x4_extract.dynamic.extractors.resources import ResourceAreasCollector
 from x4_extract.dynamic.extractors.sectors import SectorsCollector
+from x4_extract.dynamic.extractors.positions import load_static_zones
 from x4_extract.dynamic.extractors.ships import ShipsCollector
 from x4_extract.dynamic.extractors.stations import StationsCollector
 from x4_extract.dynamic.materialize import compute_top_routes
@@ -49,7 +50,7 @@ _FINGERPRINT_BLOCK = 1 << 16  # 64 KiB head+tail sample is enough to detect a re
 # that differs forces a full re-ingest even when the save file itself is unchanged —
 # otherwise a newly-added table (e.g. sector_resources) would never be populated for
 # saves already ingested under the old pipeline.
-_PIPELINE_VERSION = "10"
+_PIPELINE_VERSION = "15"
 
 # Delta entity types tracked in row_state but kept out of the events feed — high-churn,
 # low-signal data (player stats tick constantly and aren't worth alerting on).
@@ -123,6 +124,7 @@ def run(settings: ExtractSettings, save_path: Path, *, force: bool = False) -> P
         start = time.perf_counter()
         collectors = build_collectors(settings, save_path)
         registrations = [r for c in collectors for r in c.register()]
+        load_static_zones(str(settings.data_dir / "static.db"))
         stream_save(save_path, registrations)
 
         game_time = _game_time_sec(collectors)

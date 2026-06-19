@@ -72,6 +72,7 @@ def app() -> FastAPI:
         docs_url="/api/docs",
         openapi_url="/api/openapi.json",
         lifespan=_lifespan,
+        separate_input_output_schemas=False,
     )
 
     fast.include_router(health.router, prefix="/api/v1", tags=["health"])

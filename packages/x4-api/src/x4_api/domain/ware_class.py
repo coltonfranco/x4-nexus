@@ -13,6 +13,7 @@ The four buckets are exhaustive — every ware lands in exactly one.
 from __future__ import annotations
 
 import re
+import sqlite3
 
 # Bucket assignment as a SQL CASE expression over a `wares` row. Kept as SQL (not
 # Python) so endpoints can filter/aggregate by category without materializing rows.
@@ -72,45 +73,32 @@ _MK_RE = re.compile(r"_mk(?P<mk>\d+)")
 
 # Map equipment short faction codes → full faction_id.
 # Most codes are the first 3 letters of a primary_race (arg→argon, tel→teladi).
-# Built lazily from the live factions table so new DLC races work automatically.
+# Built from the live factions table so new DLC races work automatically.
 # Edge cases (pir, gen, atf) don't match any primary_race and are hardcoded.
-_faction_map_cache: dict[str, str] | None = None
+_HARDCODED_FACTION_CODES = {"pir": "scaleplate", "atf": "terran", "gen": "alliance"}
 
 
-def _build_faction_map() -> dict[str, str]:
-    """Build {short_code: faction_id} from the factions table."""
-    mapping: dict[str, str] = {
-        "pir": "scaleplate",
-        "atf": "terran",
-        "gen": "alliance",
-    }
+def build_faction_map(conn: sqlite3.Connection) -> dict[str, str]:
+    """Build {short_code: faction_id} from the request's attached static `factions` table.
+
+    Reads the caller's own connection (static is attached as `s`) rather than re-opening a
+    file by path off the global settings — the previous approach read whatever
+    `settings.data_dir/static.db` resolved to at import time, which under pytest (cwd =
+    packages/x4-api) pointed at a non-existent file, so every code fell through uncanonicalized
+    (arg→arg instead of arg→argon). Building from `conn` makes it see exactly the DB served.
+    """
+    mapping = dict(_HARDCODED_FACTION_CODES)
     try:
-        import sqlite3
-
-        from x4_api.config import settings
-        db = settings.data_dir / "static.db"
-        if db.exists():
-            conn = sqlite3.connect(db)
-            conn.row_factory = sqlite3.Row
-            rows = conn.execute(
-                "SELECT primary_race, faction_id FROM factions"
-                " WHERE primary_race IS NOT NULL"
-                " AND faction_id = primary_race"
-            ).fetchall()
-            for row in rows:
-                short = row["primary_race"][:3]
-                mapping.setdefault(short, row["faction_id"])
-            conn.close()
-    except Exception:
-        pass
+        rows = conn.execute(
+            "SELECT primary_race, faction_id FROM s.factions"
+            " WHERE primary_race IS NOT NULL AND faction_id = primary_race"
+        ).fetchall()
+    except sqlite3.Error:
+        return mapping  # factions table not attached (e.g. dynamic-only conn) — codes stay raw
+    for row in rows:
+        short = row["primary_race"][:3]
+        mapping.setdefault(short, row["faction_id"])
     return mapping
-
-
-def _faction_map() -> dict[str, str]:
-    global _faction_map_cache
-    if _faction_map_cache is None:
-        _faction_map_cache = _build_faction_map()
-    return _faction_map_cache
 
 
 # equipment kind → (stat table, primary-key column). Wares join via ware_id||'_macro'.
@@ -132,13 +120,19 @@ def equipment_kind(group_id: str | None, tags: str | None) -> str:
     return "other"
 
 
-def equipment_meta(ware_id: str) -> tuple[str | None, str | None, int | None]:
-    """Parse (faction, size, mk) from an equipment ware id. Any may be None."""
+def equipment_meta(
+    ware_id: str, faction_map: dict[str, str] | None = None
+) -> tuple[str | None, str | None, int | None]:
+    """Parse (faction, size, mk) from an equipment ware id. Any may be None.
+
+    `faction_map` (from `build_faction_map(conn)`) canonicalizes the short race code to a full
+    faction_id (arg→argon). When omitted, the raw short code is returned unchanged.
+    """
     faction: str | None = None
     size: str | None = None
     if (m := _META_RE.match(ware_id)) is not None:
         short = m.group("faction")
-        faction = _faction_map().get(short, short)
+        faction = (faction_map or {}).get(short, short)
         size = m.group("size")
     mk = int(mm.group("mk")) if (mm := _MK_RE.search(ware_id)) else None
     return faction, size, mk

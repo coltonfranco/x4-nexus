@@ -1,6 +1,5 @@
 """REST endpoints for game factions."""
 
-from __future__ import annotations
 
 import sqlite3
 from typing import Annotated, Any
@@ -8,6 +7,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, HTTPException
 
 from x4_api.api.deps import get_db
+from x4_api.api.faction_utils import disambiguate
 from x4_api.api.icons import get_icon_url
 from x4_api.api.schemas import PublicModel
 
@@ -81,15 +81,13 @@ def list_factions(conn: Annotated[sqlite3.Connection, Depends(get_db)]) -> list[
         "SELECT faction_id, name, color_hex, short_name, prefix_name, space_name, home_space_name, "
         "police_faction, icon_active, icon_inactive, icon_banner FROM s.factions "
         "WHERE faction_id NOT IN ('ownerless', 'visitor') "
-        "ORDER BY faction_id"
+        "ORDER BY name"
     ).fetchall()
 
-    out = []
-    for r in rows:
-        d = dict(r)
+    out: list[dict[str, Any]] = disambiguate([dict(r) for r in rows])
+    for d in out:
         d["icon_url"] = get_icon_url(d.get("icon_active"))
-        out.append(FactionSummary(**d))
-    return out
+    return [FactionSummary(**d) for d in out]
 
 
 class FactionStrength(PublicModel):
@@ -128,9 +126,10 @@ def faction_strength(
     standings reflect how the game has actually unfolded — seed/static is init state only
     and is not referenced once a save is loaded. The player is ranked alongside AI factions.
     """
-    factions_q = conn.execute(
+    factions_q_raw = conn.execute(
         "SELECT faction_id, name, color_hex FROM s.factions WHERE is_legacy = 0 ORDER BY name"
     ).fetchall()
+    factions_q = disambiguate([dict(r) for r in factions_q_raw])
 
     # Military: live combat ships, class-weighted (role/class come from the catalog via macro).
     mil_rows = conn.execute("""
@@ -311,6 +310,12 @@ def get_faction(
         raise HTTPException(status_code=404, detail=f"Unknown faction_id: {faction_id}")
     
     d = dict(row)
+    # Disambiguate if this faction's name collides with others
+    (same_name_count,) = conn.execute(
+        "SELECT COUNT(*) FROM s.factions WHERE name = :name", {"name": d["name"]}
+    ).fetchone()
+    if same_name_count > 1:
+        d["name"] = f"{d['name']} ({d['faction_id']})"
     d["icon_url"] = get_icon_url(d.get("icon_active"))
     return FactionDetail(**d)
 

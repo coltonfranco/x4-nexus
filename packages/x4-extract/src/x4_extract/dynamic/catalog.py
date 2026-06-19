@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import gzip
 import sqlite3
+import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -73,6 +74,18 @@ def _int(v: str | None) -> int | None:
     return int(float(v)) if v is not None else None
 
 
+def _file_is_quiescent(mtime: float, settle_sec: float) -> bool:
+    """True when a save file hasn't been touched within the last `settle_sec` seconds.
+
+    A pure-arithmetic proxy for "X4 has finished writing this save" — the same gate the
+    poller uses, kept here so the catalog never *opens* a save file that may still be
+    mid-write. Opening a half-written save on Windows blocks X4's own write and surfaces
+    in-game as "save failed", so any catalog path that would read the file (header parse,
+    source fingerprint) must skip it while it's hot and fall back to stat-only/cached data.
+    """
+    return settle_sec <= 0 or (time.time() - mtime) >= settle_sec
+
+
 # --- catalog cache ---------------------------------------------------------------
 
 def _open_catalog(settings: ExtractSettings) -> sqlite3.Connection:
@@ -105,13 +118,22 @@ def list_saves(settings: ExtractSettings, folder: Path | None = None) -> list[Sa
         infos: list[SaveInfo] = []
         for path in folder.glob("*.xml.gz"):
             st = path.stat()
+            quiescent = _file_is_quiescent(st.st_mtime, settings.save_settle_sec)
             row = cat.execute(
                 "SELECT * FROM save_catalog WHERE path = ? AND mtime = ? AND size = ?",
                 (str(path), st.st_mtime, st.st_size),
             ).fetchone()
-            if row is None:
+            if row is None and quiescent:
+                # Cache miss on a settled file: safe to open and parse its header.
                 row = _refresh_cache(cat, path, st.st_mtime, st.st_size)
-            infos.append(_to_info(settings, path, st.st_mtime, st.st_size, row))
+            elif row is None:
+                # Mid-write (e.g. the newest slot while X4 is saving): never open it. Reuse
+                # the last cached header for this path if we have one (its mtime/size will be
+                # stale, hence the earlier miss); otherwise serve a header-less placeholder.
+                row = cat.execute(
+                    "SELECT * FROM save_catalog WHERE path = ?", (str(path),)
+                ).fetchone()
+            infos.append(_to_info(settings, path, st.st_mtime, st.st_size, row, quiescent))
         cat.commit()
     finally:
         cat.close()
@@ -153,20 +175,27 @@ def _real_time(date: str | None) -> str | None:
 
 
 def _to_info(
-    settings: ExtractSettings, path: Path, mtime: float, size: int, row: sqlite3.Row
+    settings: ExtractSettings,
+    path: Path,
+    mtime: float,
+    size: int,
+    row: sqlite3.Row | None,
+    quiescent: bool,
 ) -> SaveInfo:
     db = dynamic_db_path(settings, path)
     built = db.exists()
-    current = built and _is_current(db, path)
+    # Currency: only open the save for a content fingerprint when it's settled. While it's
+    # mid-write, fall back to the stat-only check so we never collide with X4's save write.
+    current = built and (_is_current(db, path) if quiescent else _db_matches_stat(db, path))
     return SaveInfo(
         key=save_key(path),
         path=path,
-        save_name=row["save_name"],
-        in_game_time_sec=row["in_game_time_sec"],
-        real_time_iso=row["real_time_iso"],
-        game_version=row["game_version"],
-        player_name=row["player_name"],
-        player_credits=row["player_credits"],
+        save_name=row["save_name"] if row is not None else None,
+        in_game_time_sec=row["in_game_time_sec"] if row is not None else None,
+        real_time_iso=row["real_time_iso"] if row is not None else None,
+        game_version=row["game_version"] if row is not None else None,
+        player_name=row["player_name"] if row is not None else None,
+        player_credits=row["player_credits"] if row is not None else None,
         size_bytes=size,
         mtime=mtime,
         db_built=built,
@@ -282,7 +311,15 @@ def resolve_serving_save(settings: ExtractSettings, folder: Path | None = None) 
     credits value. Requiring a current DB skips the stale slot and keeps serving the most recent
     fully-ingested save until the new data is actually ready, then advances to it atomically.
 
-    Returns None when no save has a current DB yet (nothing ingested).
+    Within `serve_fallback_window_sec` of the newest file we only accept a *current* DB, so a
+    brief rotation gap advances cleanly to the new slot without flashing the previous slot's
+    contents. Beyond that window we fall back to the most recent save that holds *any* ingested
+    data, even if stale: on a cold start the newest file is a fresh quicksave that isn't
+    ingested yet, and rather than blank the dashboard for the ~15s until it ingests, we serve
+    last session's data immediately and advance in place the moment the newest DB is current.
+    (active_key tracks whichever save we serve, so the client refreshes when it advances.)
+
+    Returns None only when no save has any ingested data at all (nothing ever built).
     """
     folder = folder or resolve_save_path(settings.save_path)
     saves = sorted(folder.glob("*.xml.gz"), key=lambda p: p.stat().st_mtime, reverse=True)
@@ -294,10 +331,37 @@ def resolve_serving_save(settings: ExtractSettings, folder: Path | None = None) 
             if save_key(p) == key:
                 return p  # pinned: activation built it; honor the user's explicit choice
         # Pinned file vanished → fall through to newest-current.
+    newest_mtime = saves[0].stat().st_mtime
     for p in saves:
+        # saves are newest-first, so once one is too old the rest are too — stop looking.
+        if newest_mtime - p.stat().st_mtime > settings.serve_fallback_window_sec:
+            break
         if _db_matches_stat(dynamic_db_path(settings, p), p):
             return p
+    # No current DB inside the rotation window — serve the most recent save with any ingested
+    # data so the dashboard shows last-known state instead of blanking. Stat-only (reads each
+    # dynamic DB, never the save file), so it can't collide with X4 writing.
+    for p in saves:
+        if _db_has_data(dynamic_db_path(settings, p)):
+            return p
     return None
+
+
+def _db_has_data(db_path: Path) -> bool:
+    """True when a per-save dynamic DB has been ingested (has a save_meta row), not just a
+    bare schema. Reads the DB, never the source save file."""
+    if not db_path.exists():
+        return False
+    try:
+        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    except sqlite3.OperationalError:
+        return False
+    try:
+        return conn.execute("SELECT 1 FROM save_meta LIMIT 1").fetchone() is not None
+    except sqlite3.OperationalError:
+        return False
+    finally:
+        conn.close()
 
 
 def _db_matches_stat(db_path: Path, save_path: Path) -> bool:

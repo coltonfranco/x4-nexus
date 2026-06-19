@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 from lxml import etree
 
 from x4_extract.dynamic.collector import Tier, hash_rows
+from x4_extract.dynamic.extractors.positions import position_cache
 from x4_extract.savefile.dispatch import Registration, Target
 
 _DEPLOYABLE_CLASSES = ("satellite", "resourceprobe", "navbeacon", "mine", "lockbox")
@@ -50,6 +51,9 @@ class DeployableRow:
     owner_faction: str | None
     sector_id: str | None
     zone_id: str | None
+    x: float | None
+    y: float | None
+    z: float | None
     known_to_player: int
     extra_json: str | None
 
@@ -67,6 +71,29 @@ class DeployablesCollector:
             for cls in _DEPLOYABLE_CLASSES
         ]
 
+    @staticmethod
+    def _resolve_position(
+        elem: etree._Element, obj_id: str
+    ) -> tuple[float | None, float | None, float | None]:
+        """Find the deployable's position: own <offset><position> first, then walk
+        ancestors looking for the nearest component with a stored offset."""
+        own = position_cache.get(obj_id)
+        if own is not None:
+            return own
+
+        ancestor: etree._Element | None = elem.getparent()
+        for _ in range(_ANCESTOR_WALK_LIMIT):
+            if ancestor is None:
+                break
+            if ancestor.tag == "component":
+                aid = ancestor.get("id")
+                if aid:
+                    pos = position_cache.get(aid)
+                    if pos is not None:
+                        return pos
+            ancestor = ancestor.getparent()
+        return (None, None, None)
+
     def _on_deployable(self, elem: etree._Element) -> None:
         obj_id = elem.get("id")
         if not obj_id:
@@ -74,6 +101,7 @@ class DeployablesCollector:
         cls = elem.get("class", "")
         sector_id, zone_id = _enclosing_sector_zone(elem)
         known = 1 if elem.get("knownto") == "player" else 0
+        ox, oy, oz = self._resolve_position(elem, obj_id)
 
         mapped = frozenset({"id", "class", "code", "macro", "owner", "connection", "knownto"})
         extra = {k: v for k, v in elem.attrib.items() if k not in mapped}
@@ -87,6 +115,9 @@ class DeployablesCollector:
                 owner_faction=elem.get("owner"),
                 sector_id=sector_id,
                 zone_id=zone_id,
+                x=ox,
+                y=oy,
+                z=oz,
                 known_to_player=known,
                 extra_json=json.dumps(extra, sort_keys=True) if extra else None,
             )
@@ -108,10 +139,10 @@ class DeployablesCollector:
             """
             INSERT OR REPLACE INTO deployables
                 (id, class, code, macro, owner_faction, sector_id, zone_id,
-                 known_to_player, extra_json)
+                 x, y, z, known_to_player, extra_json)
             VALUES
                 (:id, :class_, :code, :macro, :owner_faction, :sector_id, :zone_id,
-                 :known_to_player, :extra_json)
+                 :x, :y, :z, :known_to_player, :extra_json)
             """,
             [dataclasses.asdict(r) for r in self.rows],
         )

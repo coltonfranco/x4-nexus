@@ -6,7 +6,6 @@ only that dataset (instead of the full invalidate the save-refresh button trigge
 `/events` feed exposes the classified change log (combat alerts, ship losses, …).
 """
 
-from __future__ import annotations
 
 import sqlite3
 from typing import Annotated

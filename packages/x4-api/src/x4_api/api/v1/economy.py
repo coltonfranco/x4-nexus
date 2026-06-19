@@ -4,7 +4,6 @@ Reads the active save's offers crossed with the static ware catalog. Empty until
 save is ingested.
 """
 
-from __future__ import annotations
 
 import dataclasses
 import sqlite3

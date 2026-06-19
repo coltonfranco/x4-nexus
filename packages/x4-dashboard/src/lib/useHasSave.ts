@@ -1,21 +1,25 @@
 import { useQuery } from "@tanstack/react-query";
 
-type HealthResponse = {
-  ok: boolean;
-  api_version: string;
-  save_age_sec: number | null;
-  game_version: string | null;
+type RefreshStatus = {
+  active_key: string;
+  following_latest: boolean;
+  ingested_at: string | null;
 };
 
 /**
  * True when a save has been ingested and live data is available.
- * Polls /api/v1/health; save_age_sec is null until the first save is parsed.
+ *
+ * Derived from the app-wide `/refresh-status` poll (shared query key, so this adds no extra
+ * request and re-evaluates every 7s). `active_key` is non-empty whenever the API is serving a
+ * built dynamic DB; it stays empty only when nothing has ever been ingested. Polling here is
+ * what lets a page that mounted before the first ingest finished recover on its own, instead
+ * of latching onto "no save" until a manual reload.
  */
 export function useHasSave() {
-  const { data, isLoading } = useQuery<HealthResponse>({
-    queryKey: ["health"],
-    queryFn: () => fetch("/api/v1/health").then((r) => r.json()),
-    staleTime: 30_000,
+  const { data, isLoading } = useQuery<RefreshStatus>({
+    queryKey: ["refresh-status"],
+    queryFn: () => fetch("/api/v1/refresh-status").then((r) => r.json()),
+    refetchInterval: 7000,
   });
-  return { hasSave: data?.save_age_sec != null, isLoading };
+  return { hasSave: !!data?.active_key, isLoading };
 }

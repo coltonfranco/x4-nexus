@@ -5,7 +5,6 @@ they exist right now in the player's save, including player-built ones and live 
 offers. Empty until a save is ingested.
 """
 
-from __future__ import annotations
 
 import sqlite3
 from typing import Annotated

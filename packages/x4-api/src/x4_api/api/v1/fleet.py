@@ -5,7 +5,6 @@ the actual ships in the player's save, at their current sectors and states. The 
 column joins `s.ships` for catalog specs. Empty until a save is ingested.
 """
 
-from __future__ import annotations
 
 import sqlite3
 from typing import Annotated

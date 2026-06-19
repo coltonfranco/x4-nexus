@@ -1,6 +1,5 @@
 """REST endpoints for the loot drop system."""
 
-from __future__ import annotations
 
 import sqlite3
 from typing import Annotated

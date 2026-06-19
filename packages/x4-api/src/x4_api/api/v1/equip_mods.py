@@ -1,6 +1,5 @@
 """Equipment mod endpoints."""
 
-from __future__ import annotations
 
 import sqlite3
 from typing import Annotated

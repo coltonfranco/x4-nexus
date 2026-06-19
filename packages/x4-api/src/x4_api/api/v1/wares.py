@@ -11,7 +11,6 @@ Add new public endpoints in the same shape:
     4. Empty result → empty list, never 404 for collection endpoints
 """
 
-from __future__ import annotations
 
 import sqlite3
 from typing import Annotated
@@ -56,17 +55,17 @@ class WareSummary(PublicModel):
     research_time: int | None = None
 
 
+class ProductionInput(PublicModel):
+    ware_id: str
+    amount: int
+
+
 class ProductionMethod(PublicModel):
     method: str
     time_sec: float
     amount: int
     workforce: int | None
     inputs: list[ProductionInput]
-
-
-class ProductionInput(PublicModel):
-    ware_id: str
-    amount: int
 
 
 class WareDetail(WareSummary):

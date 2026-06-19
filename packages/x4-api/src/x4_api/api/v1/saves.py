@@ -5,7 +5,6 @@ save drives which per-save dynamic DB the rest of the API reads; activating a sa
 selects it and builds its DB on the fly if needed.
 """
 
-from __future__ import annotations
 
 from typing import Annotated
 
@@ -115,12 +114,17 @@ def follow_latest(settings: Annotated[Settings, Depends(get_settings)]) -> SaveS
 
 @router.post("/saves/{key}/activate", response_model=SaveSummary)
 def activate_save(key: str, settings: Annotated[Settings, Depends(get_settings)]) -> SaveSummary:
-    """Select a save as active and (re)build its dynamic DB. 404 on unknown key."""
+    """Select a save as active and ensure its dynamic DB is current. 404 on unknown key.
+
+    Not forced: the pipeline's fingerprint check rebuilds only when the save's content (or the
+    pipeline version) actually changed, so re-activating or hitting Refresh on an unchanged
+    pinned save is a near-instant no-op instead of a full multi-second re-parse.
+    """
     save = catalog.save_path_for_key(settings, key)
     if save is None:
         raise HTTPException(status_code=404, detail=f"Unknown save key: {key}")
     catalog.set_active_key(settings, key)
-    pipeline.run(settings, save, force=True)
+    pipeline.run(settings, save)
     for info in catalog.list_saves(settings):
         if info.key == key:
             return _to_summary(info, key)

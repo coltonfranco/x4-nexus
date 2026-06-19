@@ -3,7 +3,6 @@
 Exposes clusters, sectors, and gates.
 """
 
-from __future__ import annotations
 
 import sqlite3
 from collections import defaultdict
@@ -12,9 +11,18 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from x4_api.api.deps import get_db
+from x4_api.api.faction_utils import disambiguate
 from x4_api.api.schemas import PublicModel
 
 router = APIRouter()
+
+
+def _faction_name_map(conn: sqlite3.Connection) -> dict[str, str]:
+    """Return {faction_id: disambiguated_name} for every non-legacy faction."""
+    rows = conn.execute(
+        "SELECT faction_id, name FROM s.factions WHERE is_legacy = 0"
+    ).fetchall()
+    return {r["faction_id"]: r["name"] for r in disambiguate([dict(r) for r in rows])}
 
 
 class ClusterSummary(PublicModel):
@@ -358,9 +366,37 @@ def list_map_stations(
 
     rows = conn.execute(" ".join(sql), params).fetchall()
     out: list[MapStation] = []
+    # ── resolve specific factory types from sell wares ──
+    # 85% of live stations share a generic factory_base macro; their real function is
+    # only visible through the wares they sell.  A single bulk query avoids N+1.
+    factory_ids = [
+        r["station_id"]
+        for r in rows
+        if _category_from_macro(r["macro"]) == "factory"
+        and (r["macro"] or "").lower().endswith("factory_base_01_macro")
+    ]
+    # station_id → human-readable factory type (e.g. "Weapon Components")
+    factory_type: dict[str, str] = {}
+    if factory_ids:
+        placeholders = ",".join("?" for _ in factory_ids)
+        fr = conn.execute(
+            f"SELECT so.station_id, w.name FROM station_offers so "
+            f"JOIN s.wares w ON w.ware_id = so.ware_id "
+            f"WHERE so.side = 'sell' AND so.station_id IN ({placeholders}) "
+            f"ORDER BY so.quantity DESC",
+            factory_ids,
+        ).fetchall()
+        seen: set[str] = set()
+        for station_id, ware_name in fr:
+            if station_id not in seen:
+                seen.add(station_id)
+                factory_type[station_id] = ware_name
+
     for r in rows:
         d = dict(r)
         category = _category_from_macro(d.get("macro"))
+        if category == "factory":
+            category = factory_type.get(d["station_id"], "Factory")
         out.append(MapStation(category=category, **d))
     return out
 
@@ -670,6 +706,7 @@ def list_forces(
     """).fetchall()
 
     from collections import defaultdict
+    conflict_name_map = _faction_name_map(conn)
     by_sector: dict[str, list[ConflictFaction]] = defaultdict(list)
     totals: dict[str, int] = defaultdict(int)
 
@@ -678,7 +715,7 @@ def list_forces(
         totals[sector_id] += cnt
         by_sector[sector_id].append(ConflictFaction(
             faction_id=faction, 
-            faction_name=fname or faction, 
+            faction_name=conflict_name_map.get(faction, fname or faction), 
             fighter_count=cnt
         ))
 
@@ -820,13 +857,16 @@ def list_conflicts(
 
     max_count = max(totals.values()) if totals else 0
     
+    name_map = _faction_name_map(conn)
+
     results = []
     for sector, factions in sorted(by_sector.items(), key=lambda x: -(totals[x[0]])):
         sorted_facs = sorted(factions.items(), key=lambda x: -(x[1][0]))
         
         sides: list[list[ConflictFaction]] = []
         for fid, (fcnt, fname) in sorted_facs:
-            cf = ConflictFaction(faction_id=fid, faction_name=fname, fighter_count=fcnt)
+            display_name = name_map.get(fid, fname)
+            cf = ConflictFaction(faction_id=fid, faction_name=display_name, fighter_count=fcnt)
             placed = False
             for side in sides:
                 is_hostile = False
@@ -971,11 +1011,16 @@ def list_tensions(
     """).fetchall()
 
     from collections import defaultdict
+    forces_name_map = _faction_name_map(conn)
     sector_forces: dict[str, list[dict]] = defaultdict(list)
     sector_owners_map: dict[str, str | None] = {}
     
     for sector, faction, cnt, fname, so_id in breakdown_rows:
-        sector_forces[sector].append({"faction_id": faction, "faction_name": fname, "cnt": cnt})
+        sector_forces[sector].append({
+            "faction_id": faction,
+            "faction_name": forces_name_map.get(faction, fname),
+            "cnt": cnt,
+        })
         if sector not in sector_owners_map:
             sector_owners_map[sector] = so_id
 

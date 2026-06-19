@@ -23,6 +23,11 @@ from dataclasses import dataclass, field
 from lxml import etree
 
 from x4_extract.dynamic.collector import Tier, hash_rows
+from x4_extract.dynamic.extractors.positions import (
+    position_cache,
+    register_offset_handler,
+    register_position_handler,
+)
 from x4_extract.savefile.dispatch import Registration, Target
 
 _SHIP_CLASSES = ("ship_xs", "ship_s", "ship_m", "ship_l", "ship_xl")
@@ -62,7 +67,35 @@ class ShipsCollector:
                 visitor=self._on_ship,
             )
             for cls in _SHIP_CLASSES
+        ] + [
+            register_position_handler(),
+            register_offset_handler(),
         ]
+
+    def _resolve_position(
+        self, elem: etree._Element, ship_id: str
+    ) -> tuple[float | None, float | None, float | None]:
+        """Find the ship's position: own <offset><position> first (docked ships),
+        then walk ancestors looking for the nearest component with a stored offset
+        (flying ships inherit the zone/sector position)."""
+        own = position_cache.get(ship_id)
+        if own is not None:
+            return own
+
+        # Walk ancestors: the first component with a stored offset is the ship's
+        # position in space (the enclosing zone or sector).
+        ancestor: etree._Element | None = elem.getparent()
+        for _ in range(_ANCESTOR_WALK_LIMIT):
+            if ancestor is None:
+                break
+            if ancestor.tag == "component":
+                aid = ancestor.get("id")
+                if aid:
+                    pos = position_cache.get(aid)
+                    if pos is not None:
+                        return pos
+            ancestor = ancestor.getparent()
+        return (None, None, None)
 
     def _on_ship(self, elem: etree._Element) -> None:
         ship_id = elem.get("id")
@@ -71,6 +104,7 @@ class ShipsCollector:
 
         sector_id, zone_id = self._enclosing_sector_zone(elem)
         owner = elem.get("owner")
+        ox, oy, oz = self._resolve_position(elem, ship_id)
         extra = {k: v for k, v in elem.attrib.items() if k not in _MAPPED_SHIP_ATTRS}
         self.rows.append(
             ShipRow(
@@ -82,9 +116,9 @@ class ShipsCollector:
                 class_id=elem.get("class"),
                 sector_id=sector_id,
                 zone_id=zone_id,
-                x=None,
-                y=None,
-                z=None,
+                x=ox,
+                y=oy,
+                z=oz,
                 commander_id=None,
                 state=elem.get("state"),
                 level=_float(elem.get("level")),

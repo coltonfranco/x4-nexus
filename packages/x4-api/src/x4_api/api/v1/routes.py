@@ -4,7 +4,6 @@ Reads the active save's materialized route candidates and scores them for a give
 Returns [] until a save is ingested.
 """
 
-from __future__ import annotations
 
 import dataclasses
 import sqlite3

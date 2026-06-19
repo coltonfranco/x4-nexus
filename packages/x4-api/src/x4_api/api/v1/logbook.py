@@ -5,7 +5,6 @@ Optional `category` and `q` (title/text search) filters narrow the list.
 Faction references like {20203,3001} are resolved via the game's text database.
 """
 
-from __future__ import annotations
 
 import sqlite3
 from functools import lru_cache

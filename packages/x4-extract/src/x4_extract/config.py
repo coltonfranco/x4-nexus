@@ -38,6 +38,22 @@ class ExtractSettings(BaseSettings):
         default=60,
         description="Seconds between save-folder polls when running `x4c watch`.",
     )
+    save_settle_sec: float = Field(
+        default=2.5,
+        description="Seconds a changed save file must stay unmodified before the watcher "
+        "opens it to ingest. While X4 streams a save its mtime keeps advancing; waiting for "
+        "it to go quiet avoids opening a file mid-write, which on Windows blocks X4's own "
+        "write and surfaces in-game as 'save failed'.",
+    )
+    serve_fallback_window_sec: float = Field(
+        default=3600,
+        description="While following the latest save and the newest file isn't ingested yet, "
+        "the API serves the most recent already-current save so the dashboard doesn't blank "
+        "during a rotation. This bounds how far back that fallback may reach: a current save "
+        "older than the newest file by more than this is treated as a previous-session leftover "
+        "and skipped (the dashboard shows 'loading' until the newest ingests) rather than "
+        "flashing hours-old data on startup.",
+    )
 
     @field_validator("install_path", "data_dir")
     @classmethod

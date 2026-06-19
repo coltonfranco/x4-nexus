@@ -4,7 +4,6 @@ These read the active save's dynamic DB. Before any save is ingested the tables 
 empty: the account endpoint 404s, the list endpoints return [].
 """
 
-from __future__ import annotations
 
 import sqlite3
 from typing import Annotated
@@ -12,6 +11,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException
 
 from x4_api.api.deps import get_db
+from x4_api.api.faction_utils import disambiguate
 from x4_api.api.schemas import PublicModel
 
 router = APIRouter()
@@ -112,7 +112,7 @@ def player_reputation(conn: Annotated[sqlite3.Connection, Depends(get_db)]) -> l
         """
         SELECT f.faction_id, f.name AS faction_name, f.color_hex,
                COALESCE(c.relation, 0.0) AS relation,
-               NULL AS initial_relation
+               COALESCE(c.relation, 0.0) AS initial_relation
         FROM s.factions f
         LEFT JOIN faction_relations_current c 
                ON c.faction_id = 'player' AND c.other_faction_id = f.faction_id
@@ -120,7 +120,8 @@ def player_reputation(conn: Annotated[sqlite3.Connection, Depends(get_db)]) -> l
         ORDER BY COALESCE(c.relation, 0.0) DESC
         """
     ).fetchall()
-    return [PlayerRelation(**dict(r)) for r in rows]
+
+    return [PlayerRelation(**d) for d in disambiguate([dict(r) for r in rows], name_col="faction_name")]
 
 
 class PlayerMessage(PublicModel):

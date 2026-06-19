@@ -55,7 +55,7 @@ export function EquipmentFilterBar({
         <button
           onClick={() => setObtainableOnly(!obtainableOnly)}
           className={cn(
-            "text-xs font-medium px-3 h-9 rounded transition-colors flex items-center shrink-0 border",
+            "text-xs font-medium px-3 h-7 rounded-[4px] transition-colors flex items-center shrink-0 border",
             obtainableOnly ? "bg-primary text-primary-foreground border-primary" : "bg-transparent text-foreground border-input hover:bg-accent hover:text-accent-foreground"
           )}
         >
@@ -65,7 +65,7 @@ export function EquipmentFilterBar({
 
       {showSort && setSortFilter && sortOptions && baseSorts && (
         <Select value={sortFilter || defaultSortId} onValueChange={setSortFilter}>
-          <SelectTrigger className="w-[180px] h-9 text-xs">
+          <SelectTrigger className="w-[180px] h-7 text-xs rounded-[4px]">
             <div className="flex items-center gap-1.5 text-muted-foreground truncate">
               <span>Order by:</span>
               <span className="text-foreground font-medium truncate"><SelectValue /></span>
@@ -84,7 +84,7 @@ export function EquipmentFilterBar({
 
       {["weapon", "turret"].includes(categoryKind) && (
         <Select value={typeFilter} onValueChange={setTypeFilter}>
-          <SelectTrigger className="w-[140px] h-9 text-xs">
+          <SelectTrigger className="w-[140px] h-7 text-xs rounded-[4px]">
             <SelectValue placeholder="All Types" />
           </SelectTrigger>
           <SelectContent>
@@ -97,14 +97,14 @@ export function EquipmentFilterBar({
       )}
 
       <Select value={mkFilter} onValueChange={setMkFilter}>
-        <SelectTrigger className="w-[120px] h-9 text-xs">
+        <SelectTrigger className="w-[120px] h-7 text-xs rounded-[4px]">
           <SelectValue placeholder="All Mks" />
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">All Mks</SelectItem>
           {availableMks.map(mk => (
             <SelectItem key={mk} value={mk.toString()}>
-              <div className="flex items-center py-0.5"><EquipmentMkBadge mk={mk} className="px-1.5 py-0 rounded text-xs" /></div>
+              <div className="flex items-center py-0.5"><EquipmentMkBadge mk={mk} className="px-1.5 py-0 rounded-[4px] text-xs" /></div>
             </SelectItem>
           ))}
         </SelectContent>
@@ -125,7 +125,7 @@ export function EquipmentFilterBar({
             if (setSortFilter) setSortFilter(""); 
             if (setObtainableOnly) setObtainableOnly(false); 
           }}
-          className="text-[11px] font-medium text-muted-foreground hover:text-foreground flex items-center gap-1.5 px-2 py-1.5 rounded bg-muted/30 hover:bg-muted/50 transition-colors"
+          className="text-[11px] font-medium text-muted-foreground hover:text-foreground flex items-center gap-1.5 px-2 py-1.5 rounded-[4px] bg-muted/30 hover:bg-muted/50 transition-colors"
         >
           <X className="w-3.5 h-3.5" /> Clear filters
         </button>

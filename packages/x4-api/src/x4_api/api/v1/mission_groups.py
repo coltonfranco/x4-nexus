@@ -5,7 +5,6 @@ war missions, and story plot chains. Enriches live mission data with
 human-readable group metadata.
 """
 
-from __future__ import annotations
 
 import sqlite3
 from typing import Annotated

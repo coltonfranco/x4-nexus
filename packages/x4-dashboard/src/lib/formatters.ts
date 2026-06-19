@@ -1,13 +1,15 @@
 import { getEntityCategory, CATEGORY_COLORS } from './constants';
 
 export function getReputationScore(relation: number): number {
-  if (relation >= -0.0032 && relation <= 0.0032) {
-    return 0; // Linear interpolation area near zero
-  }
-  const isNegative = relation < 0;
-  const absRel = Math.abs(relation);
-  const score = 10 * Math.log10(absRel * 1000);
-  return isNegative ? -score : score;
+  // Per EGOSOFT wiki: displayed = 10 * log10(actual * 1000)
+  // Floor matches the in-game HUD: you're "at" a reputation tier as soon as
+  // you cross the threshold — floor(22.75) = 22, -floor(8.80) = -8.
+  // The wiki formula breaks down below 0.001 (log10 < 1 → negative result
+  // that gets sign-flipped). Values in (-0.0032, +0.0032) display as 0.
+  const NEUTRAL = 0.0032;
+  if (Math.abs(relation) < NEUTRAL) return 0;
+  const score = 10 * Math.log10(Math.abs(relation) * 1000);
+  return relation > 0 ? Math.floor(score) : -Math.floor(score);
 }
 
 export function getReputationColor(repScore: number): string {

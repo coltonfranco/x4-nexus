@@ -1,6 +1,5 @@
 """REST endpoints for the diplomacy system."""
 
-from __future__ import annotations
 
 import sqlite3
 from typing import Annotated

@@ -3,14 +3,15 @@
 Probed structure (autosave_02.xml.gz):
 
     savegame(1) → universe(2) → factions(3)
-        → faction(4) id="argon"
-            → relations(5) → relation(6) faction="teladi" relation="-0.3"
-            → licences(5)  → licence(6)  type="capitalship" factions="argon player"
-            → account(5)   amount="..."
+        → faction(4) id="player"
+            → relations(5)
+                → relation(6) faction="terran" relation="0.01"
+                → booster(6)  faction="terran" relation="0.188509" time="95046"
 
-`relation` is on a -1..1 scale, the same scale as static `s.faction_relations`, so the
-API can COALESCE current over initial directly. The owning faction is the depth-4
-`<faction id=>`; the related faction + value live on each `<relation>`.
+The `<relation>` element carries the gamestart baseline or reference value.
+The `<booster>` element (when present) carries the *actual* current dynamic
+relation — this is what the game displays in the HUD.  This collector captures
+both and resolves booster over relation when both exist for the same pair.
 
 Tier: VOLATILE — relations shift continuously during play.
 """
@@ -28,7 +29,7 @@ from x4_extract.dynamic.collector import Tier, hash_rows
 from x4_extract.savefile.dispatch import Registration, Target
 
 _RELATION_DEPTH = 6
-_MAPPED_RELATION_ATTRS = frozenset({"faction", "relation"})
+_MAPPED_RELATION_ATTRS = frozenset({"faction", "relation", "time"})
 
 
 @dataclass(slots=True)
@@ -41,13 +42,19 @@ class RelationRow:
 
 @dataclass(slots=True)
 class FactionsCollector:
-    rows: list[RelationRow] = field(default_factory=list)
+    # Dict keyed by (faction_id, other_faction_id) — boosters overwrite relations
+    # so the final value for a pair is always the booster when present.
+    _rows: dict[tuple[str, str], RelationRow] = field(default_factory=dict)
 
     def register(self) -> list[Registration]:
         return [
             Registration(
                 target=Target(tag="relation", depth=_RELATION_DEPTH, parent_tag="relations"),
                 visitor=self._on_relation,
+            ),
+            Registration(
+                target=Target(tag="booster", depth=_RELATION_DEPTH, parent_tag="relations"),
+                visitor=self._on_relation,  # same logic, booster overwrites
             ),
         ]
 
@@ -57,7 +64,7 @@ class FactionsCollector:
         if other is None or value is None:
             return
 
-        # relation(6) → relations(5) → faction(4)
+        # relation/booster(6) → relations(5) → faction(4)
         relations = elem.getparent()
         faction = relations.getparent() if relations is not None else None
         owner = faction.get("id") if faction is not None else None
@@ -65,14 +72,17 @@ class FactionsCollector:
             return
 
         extra = {k: v for k, v in elem.attrib.items() if k not in _MAPPED_RELATION_ATTRS}
-        self.rows.append(
-            RelationRow(
-                faction_id=owner,
-                other_faction_id=other,
-                relation=float(value),
-                extra_json=json.dumps(extra, sort_keys=True) if extra else None,
-            )
+        key = (owner, other)
+        self._rows[key] = RelationRow(
+            faction_id=owner,
+            other_faction_id=other,
+            relation=float(value),
+            extra_json=json.dumps(extra, sort_keys=True) if extra else None,
         )
+
+    @property
+    def rows(self) -> list[RelationRow]:
+        return list(self._rows.values())
 
     # --- delta source ----------------------------------------------------------
     def keyed_rows(self, tier: Tier):
@@ -97,7 +107,7 @@ class FactionsCollector:
         return hash_rows(dataclasses.asdict(r) for r in self.rows)
 
     def flush(self, conn: sqlite3.Connection, tier: Tier | None = None) -> None:
-        if tier not in (None, Tier.VOLATILE) or not self.rows:
+        if tier not in (None, Tier.VOLATILE) or not self._rows:
             return
         conn.executemany(
             """
@@ -105,5 +115,5 @@ class FactionsCollector:
                 (faction_id, other_faction_id, relation, extra_json)
             VALUES (:faction_id, :other_faction_id, :relation, :extra_json)
             """,
-            [dataclasses.asdict(r) for r in self.rows],
+            [dataclasses.asdict(r) for r in self._rows.values()],
         )

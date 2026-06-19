@@ -51,6 +51,7 @@ x4-companion/
 ├── docs/
 │   ├── architecture.md                    ← pointer to the build plan
 │   ├── data-tiers.md                      ← V1 MUST / NICE / SKIP
+│   ├── save-refresh-lifecycle.md          ← when save data is stat'd / diffed / rebuilt
 │   └── openapi.yaml                       ← generated public contract
 ├── packages/
 │   ├── x4-api/

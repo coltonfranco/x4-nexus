@@ -19,8 +19,12 @@ def _save_folder(tmp_path: Path, fixtures_dir: Path) -> Path:
     newer = folder / "save_002.xml.gz"
     shutil.copyfile(fixtures_dir / "tiny_save.xml.gz", older)
     shutil.copyfile(fixtures_dir / "tiny_save.xml.gz", newer)
-    past = time.time() - 120
-    os.utime(older, (past, past))
+    # Both aged past the settle window so the catalog treats them as quiescent (fully written)
+    # and reads their headers; save_002 stays newest. A fresh-off-the-copy mtime would (rightly)
+    # be skipped as possibly mid-write, mirroring how the catalog avoids opening a live save.
+    now = time.time()
+    os.utime(older, (now - 120, now - 120))
+    os.utime(newer, (now - 30, now - 30))
     return folder
 
 
@@ -131,6 +135,30 @@ def test_ensure_active_db_skips_stale_reused_slot(
 
     # Newest file's DB is stale → serve the last current save (save_001), never the old snapshot.
     assert catalog.ensure_active_dynamic_db(settings).name == "save_001.db"
+
+
+def test_ensure_active_db_serves_stale_fallback_on_cold_start(
+    data_dir: Path, fixtures_dir: Path, tmp_path: Path
+) -> None:
+    """Cold start: the newest file is a fresh un-ingested quicksave, and the only ingested DB
+    belongs to a save from a previous session (far beyond the rotation window). Rather than
+    blanking the dashboard, serving hands back that last-known DB and advances to the newest
+    in place once it ingests (the "stale-then-update" behavior chosen over "blank-until-fresh")."""
+    folder = _save_folder(tmp_path, fixtures_dir)
+    settings = _settings(data_dir, folder)
+
+    # save_001 is the only ingested save, but it's well beyond the fallback window behind the
+    # newest file (save_002) — a previous-session leftover, not a current rotation slot.
+    pipeline.run(settings, folder / "save_001.xml.gz")
+    long_ago = time.time() - settings.serve_fallback_window_sec - 600
+    os.utime(folder / "save_001.xml.gz", (long_ago, long_ago))
+
+    # Newest (save_002) isn't ingested → serve the last save with any data instead of blanking.
+    assert catalog.ensure_active_dynamic_db(settings).name == "save_001.db"
+
+    # Once the newest save ingests, it takes over.
+    pipeline.run(settings, folder / "save_002.xml.gz")
+    assert catalog.ensure_active_dynamic_db(settings).name == "save_002.db"
 
 
 def test_ensure_active_dynamic_db_empty_until_first_ingest(

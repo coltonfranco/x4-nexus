@@ -6,8 +6,10 @@ saves / player / stations / fleet endpoints plus the faction-relation COALESCE o
 
 from __future__ import annotations
 
+import os
 import shutil
 import sqlite3
+import time
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -22,7 +24,12 @@ from x4_api.config import Settings
 def client(data_dir: Path, fixtures_dir: Path) -> Iterator[TestClient]:
     folder = data_dir / "saves"
     folder.mkdir()
-    shutil.copyfile(fixtures_dir / "tiny_save.xml.gz", folder / "save_001.xml.gz")
+    save = folder / "save_001.xml.gz"
+    shutil.copyfile(fixtures_dir / "tiny_save.xml.gz", save)
+    # Age it past the settle window so the catalog treats it as fully written and reads its
+    # header; a fresh mtime would (rightly) be skipped as possibly mid-write.
+    past = time.time() - 30
+    os.utime(save, (past, past))
 
     settings = Settings(install_path=Path("C:/fake/x4"), data_dir=data_dir, save_path=folder)
     fast_app = app_factory()

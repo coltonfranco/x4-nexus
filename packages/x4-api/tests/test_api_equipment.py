@@ -31,6 +31,11 @@ def client(data_dir: Path) -> TestClient:
 
 
 def _seed(conn: sqlite3.Connection) -> None:
+    # The faction the equipment race code resolves against (arg → argon). equipment_meta
+    # canonicalizes short codes against the attached factions table, so seed the one it needs.
+    conn.execute(
+        "INSERT INTO factions (faction_id, name, primary_race) VALUES ('argon', 'Argon', 'argon')"
+    )
     conn.executemany(
         "INSERT INTO wares (ware_id, name, group_id, transport, volume, "
         "price_min, price_avg, price_max, storage_class, tags, restriction_licence, icon_path) "

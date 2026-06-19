@@ -242,18 +242,18 @@ function FactionDetailPanel({ factionId, onClose, hasSave }: { factionId: string
     return result;
   }, [strengthData, factionId]);
 
-  const allies = useMemo(() => {
+  const rankedRelations = useMemo(() => {
     return relations
-      .filter((r) => getReputationScore(r.initial_relation) >= 10)
-      .map((r) => ({ rel: r, f: allFactions.find((x) => x.faction_id === r.other_faction_id) }))
-      .sort((a, b) => b.rel.initial_relation - a.rel.initial_relation);
-  }, [relations, allFactions]);
-
-  const enemies = useMemo(() => {
-    return relations
-      .filter((r) => getReputationScore(r.initial_relation) <= -10)
-      .map((r) => ({ rel: r, f: allFactions.find((x) => x.faction_id === r.other_faction_id) }))
-      .sort((a, b) => a.rel.initial_relation - b.rel.initial_relation);
+      .map((r) => {
+        const f = allFactions.find((x) => x.faction_id === r.other_faction_id);
+        return {
+          rel: r,
+          f,
+          label: f?.name || r.other_faction_id,
+          score: getReputationScore(r.initial_relation),
+        };
+      })
+      .sort((a, b) => b.score - a.score);
   }, [relations, allFactions]);
 
   if (factionLoading || licencesLoading) {
@@ -409,63 +409,38 @@ function FactionDetailPanel({ factionId, onClose, hasSave }: { factionId: string
           <div className="flex-1 overflow-auto px-6 pb-6 pt-2">
             {!hasSave ? (
               <NoSavePlaceholder title="No save loaded" />
-            ) : allies.length > 0 || enemies.length > 0 ? (
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-12 max-w-3xl">
-                {allies.length > 0 && (
-                  <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
-                      Friendly (+10 to +30)
-                    </p>
-                    <div className="space-y-2">
-                      {allies.map(({ rel, f }) => (
-                        <div
-                          key={rel.other_faction_id}
-                          className="flex items-center justify-between text-sm bg-muted/20 p-2 rounded"
-                        >
-                          <div className="flex items-center gap-2">
-                            {f?.color_hex && (
-                              <div
-                                className="w-2 h-2 rounded-full"
-                                style={{ backgroundColor: f.color_hex }}
-                              />
-                            )}
-                            <span className="truncate">{f?.name || rel.other_faction_id}</span>
-                          </div>
-                          <Reputation value={getReputationScore(rel.initial_relation)} />
-                        </div>
-                      ))}
+            ) : rankedRelations.length > 0 ? (
+              <div className="max-w-lg space-y-2">
+                {rankedRelations.map(({ rel, f, label, score }) => {
+                  const tier =
+                    score >= 10 ? "friendly" : score <= -10 ? "hostile" : "neutral";
+                  return (
+                    <div
+                      key={rel.other_faction_id}
+                      className={`flex items-center justify-between text-sm p-2 rounded ${
+                        tier === "friendly"
+                          ? "bg-emerald-500/5"
+                          : tier === "hostile"
+                          ? "bg-red-500/5"
+                          : "bg-muted/10"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        {f?.color_hex && (
+                          <div
+                            className="w-2 h-2 rounded-full shrink-0"
+                            style={{ backgroundColor: f.color_hex }}
+                          />
+                        )}
+                        <span className="truncate">{label}</span>
+                      </div>
+                      <Reputation value={score} />
                     </div>
-                  </div>
-                )}
-                {enemies.length > 0 && (
-                  <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
-                      Hostile (-10 to -30)
-                    </p>
-                    <div className="space-y-2">
-                      {enemies.map(({ rel, f }) => (
-                        <div
-                          key={rel.other_faction_id}
-                          className="flex items-center justify-between text-sm bg-muted/20 p-2 rounded"
-                        >
-                          <div className="flex items-center gap-2">
-                            {f?.color_hex && (
-                              <div
-                                className="w-2 h-2 rounded-full"
-                                style={{ backgroundColor: f.color_hex }}
-                              />
-                            )}
-                            <span className="truncate">{f?.name || rel.other_faction_id}</span>
-                          </div>
-                          <Reputation value={getReputationScore(rel.initial_relation)} />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                  );
+                })}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">No extreme relations found for this faction.</p>
+              <p className="text-sm text-muted-foreground">No diplomatic relations found.</p>
             )}
           </div>
         )}
@@ -706,7 +681,7 @@ function MatrixView({
                 return (
                   <td
                     key={to.faction_id}
-                    title={val != null ? `${from.name} → ${to.name}: ${val.toFixed(1)}` : undefined}
+                    title={val != null ? `${from.name} → ${to.name}: ${val}` : undefined}
                     className={cellClass}
                     style={{
                       padding: "6px 4px",

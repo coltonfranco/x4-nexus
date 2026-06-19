@@ -40,10 +40,18 @@ export function SectorDetailPanel({ sector, cluster, resources, factionMap, onCl
   }
   const hasLiveResources = liveByWare.size > 0;
 
-  // Station categories ordered and labeled.
+  // Station categories ordered and labeled.  Specific factory subtypes (e.g.
+  // "Weapon Components") aren't in CATEGORY_ORDER — append them after the known
+  // order so they still appear in the breakdown.
   const orderedCats = CATEGORY_ORDER
     .map((c) => ({ category: c, count: stationCategories.find((sc) => sc.category === c)?.count ?? 0 }))
     .filter((c) => c.count > 0);
+  const knownCats = new Set(orderedCats.map((c) => c.category));
+  for (const sc of stationCategories) {
+    if (!knownCats.has(sc.category)) {
+      orderedCats.push(sc);
+    }
+  }
 
   // Forces sorted by count desc.
   const sortedForces = forces ? [...forces].sort((a, b) => b.fighterCount - a.fighterCount) : null;

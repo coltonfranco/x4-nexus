@@ -1,6 +1,5 @@
 """REST endpoints for game ships."""
 
-from __future__ import annotations
 
 import sqlite3
 from typing import Annotated

@@ -1,6 +1,5 @@
 """REST endpoints for NPCs (crew, marines, station personnel)."""
 
-from __future__ import annotations
 
 import sqlite3
 from typing import Annotated
