@@ -83,12 +83,17 @@ def read_entry(entry: CatEntry, *, verify_hash: bool = False) -> bytes:
     return data
 
 
-def discover_cats(install_path: Path) -> list[Path]:
+def discover_cats(install_path: Path | None) -> list[Path]:
     """Return all .cat paths in canonical load order: base → DLC → workshop.
 
     `_sig.cat` files are signature variants used by the game's integrity check;
     they are excluded because they replay the same paths.
+
+    `install_path` may be None when the app is still unconfigured; callers treat an
+    empty list as "no game files found" and abort, so we return [] rather than raise.
     """
+    if install_path is None:
+        return []
     base = sorted(
         (p for p in install_path.glob("*.cat") if not p.stem.endswith("_sig")),
         key=lambda p: int(p.stem) if p.stem.isdigit() else 0,

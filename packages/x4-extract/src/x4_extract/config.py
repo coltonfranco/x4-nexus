@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from pydantic import Field, field_validator
+from pydantic import Field, ValidationInfo, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -22,9 +22,11 @@ class ExtractSettings(BaseSettings):
         extra="ignore",
     )
 
-    install_path: Path = Field(
-        ...,
-        description="Folder containing X4.exe and the .cat/.dat archives.",
+    install_path: Path | None = Field(
+        default=None,
+        description="Folder containing X4.exe and the .cat/.dat archives. Optional so the "
+        "API server can boot unconfigured and run the first-run setup wizard; extraction "
+        "commands fail loudly if it is still unset when they run.",
     )
     data_dir: Path = Field(
         default=Path("data"),
@@ -57,14 +59,15 @@ class ExtractSettings(BaseSettings):
 
     @field_validator("install_path", "data_dir")
     @classmethod
-    def _expand(cls, v: Path) -> Path:
-        resolved = Path(v).expanduser().resolve()
-        # An empty env var (X4C_DATA_DIR=) yields Path('.') → CWD.
-        # Treat that as "unset" so the Field default is used instead.
-        if resolved == Path.cwd() and str(v).strip() in ("", "."):
-            from pydantic.fields import FieldInfo
-            return resolved  # let pydantic use its default via validation context
-        return resolved
+    def _expand(cls, v: Path | None, info: ValidationInfo) -> Path | None:
+        if v is None or str(v).strip() in ("", "."):
+            # An empty env var (X4C_INSTALL_PATH=) yields Path('.') → CWD. Treat that as
+            # "unset": None for the optional install_path, CWD for data_dir (whose model
+            # validator then pins it to the right default).
+            if info.field_name == "install_path":
+                return None
+            return Path.cwd()
+        return Path(v).expanduser().resolve()
 
     @field_validator("save_path")
     @classmethod

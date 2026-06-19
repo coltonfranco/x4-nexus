@@ -39,6 +39,7 @@ from x4_api.api.v1 import (
     refresh,
     routes,
     saves,
+    setup,
     ships,
     stations,
     terraform,
@@ -76,6 +77,7 @@ def app() -> FastAPI:
     )
 
     fast.include_router(health.router, prefix="/api/v1", tags=["health"])
+    fast.include_router(setup.router, prefix="/api/v1", tags=["setup"])
     fast.include_router(wares.router, prefix="/api/v1", tags=["wares"])
     fast.include_router(equipment.router, prefix="/api/v1", tags=["equipment"])
     fast.include_router(factions.router, prefix="/api/v1", tags=["factions"])

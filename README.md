@@ -4,15 +4,19 @@ Second-monitor companion dashboard for X4: Foundations. Extracts the game's stat
 and live save state into a normalized REST API, plus an opinionated React dashboard that
 surfaces trade routes, production gaps, and construction needs.
 
-**This is a uv workspace with two packages:**
+**Four packages** (Python is a uv workspace; the dashboard and desktop shell are not):
 
 | Package | Purpose | Published |
 |---|---|---|
-| `packages/x4-api` | Extraction + REST API. The public contract. | Will ship to PyPI when stable |
+| `packages/x4-extract` | Game-data extraction: archives → `static.db`, saves → `dynamic/*.db` | With x4-api |
+| `packages/x4-api` | REST API + `x4c` CLI. The public contract. | Will ship to PyPI when stable |
 | `packages/x4-dashboard` | Opinionated React client. One consumer of the API. | Never |
+| `packages/x4-desktop` | Tauri desktop shell (product: **X4 Nexus**). | App installer |
 
 ## Read this first
 
+- **[`docs/developer-guide.md`](docs/developer-guide.md)** — what each package is and exactly
+  what you need installed to run them. Start here for setup.
 - **[AGENTS.md](AGENTS.md)** — coding standards, architecture, examples. Read before
   contributing or asking an AI assistant to contribute.
 - **[`docs/architecture.md`](docs/architecture.md)** — links to the full build plan.

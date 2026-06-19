@@ -16,6 +16,85 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HealthResponse'
+  /api/v1/setup/status:
+    get:
+      tags:
+      - setup
+      summary: Setup Status
+      operationId: setup_status_api_v1_setup_status_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SetupStatus'
+  /api/v1/setup/validate-path:
+    post:
+      tags:
+      - setup
+      summary: Validate Path
+      operationId: validate_path_api_v1_setup_validate_path_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ValidatePathRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PathValidation'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/setup/config:
+    post:
+      tags:
+      - setup
+      summary: Set Config
+      description: Persist folder choices and apply them to the live settings immediately.
+      operationId: set_config_api_v1_setup_config_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetupConfigRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SetupStatus'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/setup/initialize:
+    post:
+      tags:
+      - setup
+      summary: Initialize
+      description: Start the static build in the background. Idempotent while one
+        is running.
+      operationId: initialize_api_v1_setup_initialize_post
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SetupStatus'
   /api/v1/wares:
     get:
       tags:
@@ -128,9 +207,9 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "engine, shield, weapon, turret, thruster, missile, \u2026"
+          description: engine, shield, weapon, turret, thruster, missile, …
           title: Kind
-        description: "engine, shield, weapon, turret, thruster, missile, \u2026"
+        description: engine, shield, weapon, turret, thruster, missile, …
       - name: size
         in: query
         required: false
@@ -226,15 +305,8 @@ paths:
       tags:
       - factions
       summary: List All Faction Relations
-      description: 'Every faction-to-faction relation: gamestart value + current (from
-        the active save).
-
-
-        `current_relation` is NULL until a save is ingested; the same -1..1 scale
-        as
-
-        `initial_relation`, so the UI can show drift or COALESCE to the effective
-        value.'
+      description: Every faction-to-faction relation from the active save. Returns
+        [] until a save is ingested.
       operationId: list_all_faction_relations_api_v1_faction_relations_get
       responses:
         '200':
@@ -269,11 +341,18 @@ paths:
       tags:
       - factions
       summary: Faction Strength
-      description: "Relative strength metrics, normalized 0-100, computed from LIVE\
-        \ save state.\n\nEverything here is the *current* universe (dynamic ships/stations/relations)\
-        \ so the\nstandings reflect how the game has actually unfolded \u2014 seed/static\
-        \ is init state only\nand is not referenced once a save is loaded. The player\
-        \ is ranked alongside AI factions."
+      description: 'Relative strength metrics, normalized 0-100, computed from LIVE
+        save state.
+
+
+        Everything here is the *current* universe (dynamic ships/stations/relations)
+        so the
+
+        standings reflect how the game has actually unfolded — seed/static is init
+        state only
+
+        and is not referenced once a save is loaded. The player is ranked alongside
+        AI factions.'
       operationId: faction_strength_api_v1_factions_strength_get
       responses:
         '200':
@@ -334,8 +413,8 @@ paths:
       tags:
       - factions
       summary: List Faction Relations
-      description: 'Diplomatic relations for a faction: gamestart value + current
-        (from active save).'
+      description: Diplomatic relations for a faction from the active save. Returns
+        [] until a save is ingested.
       operationId: list_faction_relations_api_v1_factions__faction_id__relations_get
       parameters:
       - name: faction_id
@@ -1098,11 +1177,16 @@ paths:
       tags:
       - map
       summary: List Conflicts
-      description: "Sectors with active fighter presence from mutually-hostile factions.\n\
-        \nReturns one row per sector with a conflict score.  ``intensity`` is\n0.0\u2013\
-        1.0 normalized across all sectors; ``fighter_count`` is the raw\nnumber of\
-        \ combat-class ships from the hostile factions in that sector.\nReturns []\
-        \ until a save is ingested."
+      description: 'Sectors with active fighter presence from mutually-hostile factions.
+
+
+        Returns one row per sector with a conflict score.  ``intensity`` is
+
+        0.0–1.0 normalized across all sectors; ``fighter_count`` is the raw
+
+        number of combat-class ships from the hostile factions in that sector.
+
+        Returns [] until a save is ingested.'
       operationId: list_conflicts_api_v1_map_conflicts_get
       responses:
         '200':
@@ -1270,6 +1354,36 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/ships/class-max:
+    get:
+      tags:
+      - ships
+      summary: Class Max
+      description: Return the maximum theoretical value for each stat among ships
+        of the given class.
+      operationId: class_max_api_v1_ships_class_max_get
+      parameters:
+      - name: class_id
+        in: query
+        required: true
+        schema:
+          type: string
+          description: Canonical class_id, e.g. ship_xl
+          title: Class Id
+        description: Canonical class_id, e.g. ship_xl
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClassMax'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/v1/ships/{ship_id}:
     get:
       tags:
@@ -1302,8 +1416,8 @@ paths:
       tags:
       - npc-stations
       summary: List Npc Stations
-      description: List NPC stations in the universe, optionally filtered by owner,
-        tag, or sector.
+      description: 'Deprecated: seed database removed. Use /map/stations for live
+        station data.'
       operationId: list_npc_stations_api_v1_npc_stations_get
       parameters:
       - name: owner
@@ -1357,7 +1471,8 @@ paths:
       tags:
       - npc-stations
       summary: Get Npc Station
-      description: Get full details for a specific NPC station including coordinates.
+      description: 'Deprecated: seed database removed. Use /map/stations for live
+        station data.'
       operationId: get_npc_station_api_v1_npc_stations__station_id__get
       parameters:
       - name: station_id
@@ -1379,42 +1494,21 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /api/v1/loadouts:
+  /api/v1/ships/{ship_id}/loadout:
     get:
       tags:
       - loadouts
-      summary: List Loadouts
-      description: List loadout presets with full equipment. Filter by ship_macro
-        to see loadouts for a specific ship.
-      operationId: list_loadouts_api_v1_loadouts_get
+      summary: Get Ship Loadout
+      description: All installed equipment slots for a ship. Empty list when the table
+        doesn't exist yet.
+      operationId: get_ship_loadout_api_v1_ships__ship_id__loadout_get
       parameters:
-      - name: ship_macro
-        in: query
-        required: false
+      - name: ship_id
+        in: path
+        required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          description: Filter by ship macro ID
-          title: Ship Macro
-        description: Filter by ship macro ID
-      - name: limit
-        in: query
-        required: false
-        schema:
-          type: integer
-          maximum: 2000
-          minimum: 1
-          default: 500
-          title: Limit
-      - name: offset
-        in: query
-        required: false
-        schema:
-          type: integer
-          minimum: 0
-          default: 0
-          title: Offset
+          type: string
+          title: Ship Id
       responses:
         '200':
           description: Successful Response
@@ -1423,35 +1517,8 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/LoadoutDetail'
-                title: Response List Loadouts Api V1 Loadouts Get
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-  /api/v1/loadouts/{loadout_id}:
-    get:
-      tags:
-      - loadouts
-      summary: Get Loadout
-      description: Get a specific loadout with its full equipment list.
-      operationId: get_loadout_api_v1_loadouts__loadout_id__get
-      parameters:
-      - name: loadout_id
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Loadout Id
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/LoadoutDetail'
+                  $ref: '#/components/schemas/LoadoutSlot'
+                title: Response Get Ship Loadout Api V1 Ships  Ship Id  Loadout Get
         '422':
           description: Validation Error
           content:
@@ -1492,9 +1559,9 @@ paths:
           anyOf:
           - type: integer
           - type: 'null'
-          description: "Filter by quality tier 1\u20133"
+          description: Filter by quality tier 1–3
           title: Quality
-        description: "Filter by quality tier 1\u20133"
+        description: Filter by quality tier 1–3
       - name: limit
         in: query
         required: false
@@ -1682,6 +1749,212 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/WareGroup'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/mission-groups:
+    get:
+      tags:
+      - mission-groups
+      summary: List Mission Groups
+      description: List all mission group definitions, optionally filtered by faction
+        or story.
+      operationId: list_mission_groups_api_v1_mission_groups_get
+      parameters:
+      - name: faction
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filter by offering faction id
+          title: Faction
+        description: Filter by offering faction id
+      - name: story_only
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          description: Only story missions
+          title: Story Only
+        description: Only story missions
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MissionGroup'
+                title: Response List Mission Groups Api V1 Mission Groups Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/mission-groups/{group_id}:
+    get:
+      tags:
+      - mission-groups
+      summary: Get Mission Group
+      operationId: get_mission_group_api_v1_mission_groups__group_id__get
+      parameters:
+      - name: group_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Group Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MissionGroup'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/missions:
+    get:
+      tags:
+      - missions
+      summary: List Missions
+      description: List all active missions enriched with reference group data.
+      operationId: list_missions_api_v1_missions_get
+      parameters:
+      - name: faction
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filter by faction id
+          title: Faction
+        description: Filter by faction id
+      - name: type
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filter by mission type
+          title: Type
+        description: Filter by mission type
+      - name: active_only
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          description: Only active missions
+          title: Active Only
+        description: Only active missions
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Mission'
+                title: Response List Missions Api V1 Missions Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/missions/offers:
+    get:
+      tags:
+      - missions
+      summary: List Mission Offers
+      description: List available mission offers (the mission board).
+      operationId: list_mission_offers_api_v1_missions_offers_get
+      parameters:
+      - name: faction
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filter by faction
+          title: Faction
+        description: Filter by faction
+      - name: repeatable_only
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          description: Only repeatable guild/war offers
+          title: Repeatable Only
+        description: Only repeatable guild/war offers
+      - name: exclude_tutorials
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          description: Exclude tutorial offers
+          default: true
+          title: Exclude Tutorials
+        description: Exclude tutorial offers
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MissionOffer'
+                title: Response List Mission Offers Api V1 Missions Offers Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/missions/{mission_id}:
+    get:
+      tags:
+      - missions
+      summary: Get Mission
+      operationId: get_mission_api_v1_missions__mission_id__get
+      parameters:
+      - name: mission_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Mission Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Mission'
         '422':
           description: Validation Error
           content:
@@ -1929,13 +2202,42 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SaveSummary'
+  /api/v1/saves/follow-latest:
+    post:
+      tags:
+      - saves
+      summary: Follow Latest
+      description: 'Switch to "live" mode: drop any pin so the active save tracks
+        the newest file, and
+
+        ensure that newest save''s DB is current. The background refresher then follows
+        each
+
+        subsequent quicksave/autosave automatically.'
+      operationId: follow_latest_api_v1_saves_follow_latest_post
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SaveSummary'
   /api/v1/saves/{key}/activate:
     post:
       tags:
       - saves
       summary: Activate Save
-      description: Select a save as active and (re)build its dynamic DB. 404 on unknown
-        key.
+      description: 'Select a save as active and ensure its dynamic DB is current.
+        404 on unknown key.
+
+
+        Not forced: the pipeline''s fingerprint check rebuilds only when the save''s
+        content (or the
+
+        pipeline version) actually changed, so re-activating or hitting Refresh on
+        an unchanged
+
+        pinned save is a near-instant no-op instead of a full multi-second re-parse.'
       operationId: activate_save_api_v1_saves__key__activate_post
       parameters:
       - name: key
@@ -1957,12 +2259,134 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/refresh-status:
+    get:
+      tags:
+      - refresh
+      summary: Refresh Status
+      description: 'Cheap poll target: what changed in the active save since the client
+        last looked.'
+      operationId: refresh_status_api_v1_refresh_status_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshStatus'
+  /api/v1/refresh-config:
+    get:
+      tags:
+      - refresh
+      summary: Get Refresh Config
+      description: 'Current live-sync settings: whether the periodic backstop poll
+        runs, and how often.'
+      operationId: get_refresh_config_api_v1_refresh_config_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshConfigOut'
+    put:
+      tags:
+      - refresh
+      summary: Update Refresh Config
+      description: Enable/disable the backstop poll or change its interval; applied
+        immediately.
+      operationId: update_refresh_config_api_v1_refresh_config_put
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshConfigIn'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshConfigOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/events:
+    get:
+      tags:
+      - refresh
+      summary: List Events
+      description: Classified change feed, newest first. Use `since` to stream only
+        new events.
+      operationId: list_events_api_v1_events_get
+      parameters:
+      - name: since
+        in: query
+        required: false
+        schema:
+          type: integer
+          description: Return events with id greater than this.
+          default: 0
+          title: Since
+        description: Return events with id greater than this.
+      - name: min_priority
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: 'Lowest priority to include: info | warn | alert.'
+          title: Min Priority
+        description: 'Lowest priority to include: info | warn | alert.'
+      - name: category
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filter to one category.
+          title: Category
+        description: Filter to one category.
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 1000
+          minimum: 1
+          default: 200
+          title: Limit
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EventOut'
+                title: Response List Events Api V1 Events Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/v1/player:
     get:
       tags:
       - player
       summary: Get Player
-      description: The player's account snapshot. 404 until a save has been ingested.
+      description: 'The player''s account snapshot. 404 until a save has been ingested.
+
+
+        Joins the player''s current ship to resolve live position (sector/zone).'
       operationId: get_player_api_v1_player_get
       responses:
         '200':
@@ -2040,6 +2464,23 @@ paths:
                   $ref: '#/components/schemas/PlayerRelation'
                 type: array
                 title: Response Player Reputation Api V1 Player Reputation Get
+  /api/v1/player/messages:
+    get:
+      tags:
+      - player
+      summary: Player Messages
+      description: Player message inbox from the save file. Newest first.
+      operationId: player_messages_api_v1_player_messages_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/PlayerMessage'
+                type: array
+                title: Response Player Messages Api V1 Player Messages Get
   /api/v1/stations:
     get:
       tags:
@@ -2227,10 +2668,10 @@ paths:
         schema:
           type: integer
           minimum: 1
-          description: "Ship cargo capacity (m\xB3)"
+          description: Ship cargo capacity (m³)
           default: 8000
           title: Ship Cargo
-        description: "Ship cargo capacity (m\xB3)"
+        description: Ship cargo capacity (m³)
       - name: ship_speed
         in: query
         required: false
@@ -2260,6 +2701,219 @@ paths:
                 items:
                   $ref: '#/components/schemas/Route'
                 title: Response List Routes Api V1 Routes Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/logbook:
+    get:
+      tags:
+      - logbook
+      summary: List Logbook
+      description: 'Player logbook entries, newest first, with total count for pagination.
+
+        Faction references like {20203,3001} are resolved to readable names.'
+      operationId: list_logbook_api_v1_logbook_get
+      parameters:
+      - name: category
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filter by category
+          title: Category
+        description: Filter by category
+      - name: q
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Search in title and text
+          title: Q
+        description: Search in title and text
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 500
+          minimum: 1
+          description: Max entries
+          default: 200
+          title: Limit
+        description: Max entries
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          description: Skip first N
+          default: 0
+          title: Offset
+        description: Skip first N
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LogbookPage'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/logbook/categories:
+    get:
+      tags:
+      - logbook
+      summary: Logbook Categories
+      description: Distinct categories present in the logbook (for filter dropdowns).
+      operationId: logbook_categories_api_v1_logbook_categories_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  type: string
+                type: array
+                title: Response Logbook Categories Api V1 Logbook Categories Get
+  /api/v1/npcs:
+    get:
+      tags:
+      - npcs
+      summary: List Npcs
+      operationId: list_npcs_api_v1_npcs_get
+      parameters:
+      - name: employment
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: 'Filter by employment: owned, hireable'
+          title: Employment
+        description: 'Filter by employment: owned, hireable'
+      - name: owner
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filter by owner faction (e.g. player)
+          title: Owner
+        description: Filter by owner faction (e.g. player)
+      - name: entity_type
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filter by role (officer, aipilot, engineer, defence)
+          title: Entity Type
+        description: Filter by role (officer, aipilot, engineer, defence)
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 5000
+          minimum: 1
+          description: Max entries
+          default: 500
+          title: Limit
+        description: Max entries
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/NPCEntry'
+                title: Response List Npcs Api V1 Npcs Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/deployables:
+    get:
+      tags:
+      - deployables
+      summary: List Deployables
+      operationId: list_deployables_api_v1_deployables_get
+      parameters:
+      - name: class
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filter by class (satellite, resourceprobe, etc.)
+          title: Class
+        description: Filter by class (satellite, resourceprobe, etc.)
+      - name: owner
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filter by owner faction
+          title: Owner
+        description: Filter by owner faction
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 5000
+          minimum: 1
+          default: 500
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DeployableEntry'
+                title: Response List Deployables Api V1 Deployables Get
         '422':
           description: Validation Error
           content:
@@ -2333,8 +2987,8 @@ paths:
       tags:
       - economy
       summary: Ware Offer Breakdown
-      description: "Per-station offers for one ware \u2014 where it's demanded vs\
-        \ supplied (and hoarding)."
+      description: Per-station offers for one ware — where it's demanded vs supplied
+        (and hoarding).
       operationId: ware_offer_breakdown_api_v1_economy_wares__ware_id__stations_get
       parameters:
       - name: ware_id
@@ -2477,6 +3131,52 @@ components:
       - ware_tags
       - amount
       title: BribeWare
+    ClassMax:
+      properties:
+        hull:
+          type: integer
+          title: Hull
+        speed_max:
+          type: number
+          title: Speed Max
+        travel_max:
+          type: number
+          title: Travel Max
+        boost_max:
+          type: number
+          title: Boost Max
+        accel_max:
+          type: number
+          title: Accel Max
+        shield_capacity_max:
+          type: number
+          title: Shield Capacity Max
+        shield_recharge_max:
+          type: number
+          title: Shield Recharge Max
+        cargo_volume:
+          type: integer
+          title: Cargo Volume
+        dps_max:
+          type: number
+          title: Dps Max
+        range_max:
+          type: number
+          title: Range Max
+      additionalProperties: false
+      type: object
+      required:
+      - hull
+      - speed_max
+      - travel_max
+      - boost_max
+      - accel_max
+      - shield_capacity_max
+      - shield_recharge_max
+      - cargo_volume
+      - dps_max
+      - range_max
+      title: ClassMax
     ClusterConnection:
       properties:
         from_cluster_id:
@@ -2687,6 +3387,60 @@ components:
       - factions
       - fighter_count
       title: ConflictSide
+    DeployableEntry:
+      properties:
+        id:
+          type: string
+          title: Id
+        class_:
+          type: string
+          title: Class
+        code:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Code
+        macro:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Macro
+        owner_faction:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Owner Faction
+        sector_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Sector Id
+        zone_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Zone Id
+        known_to_player:
+          type: integer
+          title: Known To Player
+        extra_json:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Extra Json
+      additionalProperties: false
+      type: object
+      required:
+      - id
+      - class_
+      - code
+      - macro
+      - owner_faction
+      - sector_id
+      - zone_id
+      - known_to_player
+      - extra_json
+      title: DeployableEntry
     DiploAction:
       properties:
         action_id:
@@ -3123,6 +3877,16 @@ components:
           - type: integer
           - type: 'null'
           title: Mk
+        compat_tags:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Compat Tags
+        compat_ship_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Compat Ship Name
         faction_id:
           anyOf:
           - type: string
@@ -3176,6 +3940,8 @@ components:
       - kind
       - size
       - mk
+      - compat_tags
+      - compat_ship_name
       - faction_id
       - price_min
       - price_avg
@@ -3187,6 +3953,60 @@ components:
       - shield_stats
       - weapon_stats
       title: EquipmentItem
+    EventOut:
+      properties:
+        id:
+          type: integer
+          title: Id
+        game_time:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Game Time
+        real_time:
+          type: string
+          title: Real Time
+        entity_type:
+          type: string
+          title: Entity Type
+        entity_key:
+          type: string
+          title: Entity Key
+        change_kind:
+          type: string
+          title: Change Kind
+        priority:
+          type: string
+          title: Priority
+        category:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Category
+        title:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Title
+        text:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Text
+      additionalProperties: false
+      type: object
+      required:
+      - id
+      - game_time
+      - real_time
+      - entity_type
+      - entity_key
+      - change_kind
+      - priority
+      - category
+      - title
+      - text
+      title: EventOut
     FactionDetail:
       properties:
         faction_id:
@@ -3524,6 +4344,34 @@ components:
       - save_age_sec
       - game_version
       title: HealthResponse
+    InitStatus:
+      properties:
+        stage:
+          type: string
+          title: Stage
+        label:
+          type: string
+          title: Label
+        progress:
+          type: number
+          title: Progress
+        running:
+          type: boolean
+          title: Running
+        error:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Error
+      additionalProperties: false
+      type: object
+      required:
+      - stage
+      - label
+      - progress
+      - running
+      - error
+      title: InitStatus
     LicenceItem:
       properties:
         licence_type:
@@ -3734,76 +4582,108 @@ components:
       - is_under_construction
       - known_to_player
       title: LiveStation
-    LoadoutDetail:
+    LoadoutSlot:
       properties:
-        loadout_id:
+        ship_id:
           type: string
-          title: Loadout Id
-        ship_macro:
+          title: Ship Id
+        slot_type:
           type: string
-          title: Ship Macro
-        name:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Name
-        description:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Description
-        equipment:
-          items:
-            $ref: '#/components/schemas/LoadoutEquipmentItem'
-          type: array
-          title: Equipment
-      additionalProperties: false
-      type: object
-      required:
-      - loadout_id
-      - ship_macro
-      - equipment
-      title: LoadoutDetail
-    LoadoutEquipmentItem:
-      properties:
-        slot_path:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Slot Path
+          title: Slot Type
+        slot_connection:
+          type: string
+          title: Slot Connection
         macro:
           type: string
           title: Macro
-        kind:
-          type: string
-          title: Kind
-        optional:
-          type: boolean
-          title: Optional
-        quantity:
+        ammunition:
           anyOf:
           - type: integer
           - type: 'null'
-          title: Quantity
-        weaponmode:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Weaponmode
-        ammunition:
-          anyOf:
-          - type: string
-          - type: 'null'
           title: Ammunition
+        extra_json:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Extra Json
       additionalProperties: false
       type: object
       required:
-      - slot_path
+      - ship_id
+      - slot_type
+      - slot_connection
       - macro
-      - kind
-      - optional
-      - quantity
-      title: LoadoutEquipmentItem
+      - ammunition
+      - extra_json
+      title: LoadoutSlot
+    LogbookEntry:
+      properties:
+        id:
+          type: integer
+          title: Id
+        time:
+          type: number
+          title: Time
+        title:
+          type: string
+          title: Title
+        text:
+          type: string
+          title: Text
+        category:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Category
+        faction:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Faction
+        faction_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Faction Name
+        faction_color:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Faction Color
+        extra_json:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Extra Json
+      additionalProperties: false
+      type: object
+      required:
+      - id
+      - time
+      - title
+      - text
+      - category
+      - faction
+      - faction_name
+      - faction_color
+      - extra_json
+      title: LogbookEntry
+    LogbookPage:
+      properties:
+        entries:
+          items:
+            $ref: '#/components/schemas/LogbookEntry'
+          type: array
+          title: Entries
+        total:
+          type: integer
+          title: Total
+      additionalProperties: false
+      type: object
+      required:
+      - entries
+      - total
+      title: LogbookPage
     MapStation:
       properties:
         station_id:
@@ -3880,6 +4760,275 @@ components:
       required:
       - station_id
       title: MapStation
+    Mission:
+      properties:
+        mission_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Mission Id
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        faction:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Faction
+        type:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Type
+        level:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Level
+        is_active:
+          type: boolean
+          title: Is Active
+        priority:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Priority
+        abortable:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Abortable
+        associated_entity:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Associated Entity
+        group_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Group Id
+        is_story:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Is Story
+        rewardtext:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Rewardtext
+        reward_credits:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Reward Credits
+        opposing_faction:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Opposing Faction
+        caption:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Caption
+        icon:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon
+        time:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Time
+        objectives:
+          items:
+            $ref: '#/components/schemas/MissionObjective'
+          type: array
+          title: Objectives
+          default: []
+      additionalProperties: false
+      type: object
+      required:
+      - mission_id
+      - name
+      - description
+      - faction
+      - type
+      - level
+      - is_active
+      - priority
+      - abortable
+      - associated_entity
+      - group_id
+      title: Mission
+    MissionGroup:
+      properties:
+        group_id:
+          type: string
+          title: Group Id
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+        faction:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Faction
+        enemy:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Enemy
+        is_story:
+          type: boolean
+          title: Is Story
+      additionalProperties: false
+      type: object
+      required:
+      - group_id
+      - name
+      - faction
+      - enemy
+      - is_story
+      title: MissionGroup
+    MissionObjective:
+      properties:
+        step:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Step
+        type:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Type
+        text:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Text
+        is_active:
+          type: boolean
+          title: Is Active
+        target_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Target Id
+        progress_current:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Progress Current
+        progress_max:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Progress Max
+        progress_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Progress Name
+        encyclopedia_type:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Encyclopedia Type
+        encyclopedia_item:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Encyclopedia Item
+      additionalProperties: false
+      type: object
+      required:
+      - step
+      - type
+      - text
+      - is_active
+      title: MissionObjective
+    MissionOffer:
+      properties:
+        offer_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Offer Id
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        faction:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Faction
+        type:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Type
+        level:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Level
+        actor:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Actor
+        station_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Station Id
+        bbs_station_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bbs Station Id
+        is_repeatable:
+          type: boolean
+          title: Is Repeatable
+        rewardtext:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Rewardtext
+      additionalProperties: false
+      type: object
+      required:
+      - offer_id
+      - name
+      - description
+      - faction
+      - type
+      - level
+      - actor
+      - station_id
+      - is_repeatable
+      title: MissionOffer
     ModuleDetail:
       properties:
         module_id:
@@ -4320,6 +5469,80 @@ components:
       - workforce_capacity
       - icon_url
       title: ModuleSummary
+    NPCEntry:
+      properties:
+        id:
+          type: string
+          title: Id
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+        code:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Code
+        macro:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Macro
+        owner_faction:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Owner Faction
+        entity_type:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Entity Type
+        entity_post:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Entity Post
+        seed:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Seed
+        location_ship_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Location Ship Id
+        location_station_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Location Station Id
+        employment:
+          type: string
+          title: Employment
+        extra_json:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Extra Json
+      additionalProperties: false
+      type: object
+      required:
+      - id
+      - name
+      - code
+      - macro
+      - owner_faction
+      - entity_type
+      - entity_post
+      - seed
+      - location_ship_id
+      - location_station_id
+      - employment
+      - extra_json
+      title: NPCEntry
     NpcStationDetail:
       properties:
         station_id:
@@ -4416,6 +5639,24 @@ components:
       - tags
       - location_sector
       title: NpcStationSummary
+    PathValidation:
+      properties:
+        ok:
+          type: boolean
+          title: Ok
+        detail:
+          type: string
+          title: Detail
+        found:
+          type: integer
+          title: Found
+      additionalProperties: false
+      type: object
+      required:
+      - ok
+      - detail
+      - found
+      title: PathValidation
     PlayerAccount:
       properties:
         player_id:
@@ -4448,6 +5689,16 @@ components:
           - type: string
           - type: 'null'
           title: Current Ship Id
+        sector_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Sector Id
+        zone_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Zone Id
       additionalProperties: false
       type: object
       required:
@@ -4458,6 +5709,78 @@ components:
       - current_sector
       - current_ship_id
       title: PlayerAccount
+    PlayerMessage:
+      properties:
+        id:
+          type: integer
+          title: Id
+        time:
+          type: number
+          title: Time
+        title:
+          type: string
+          title: Title
+        text:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Text
+        source:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Source
+        highpriority:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Highpriority
+        interact:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Interact
+        component:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Component
+        component_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Component Name
+        component_kind:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Component Kind
+        read:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Read
+        extra_json:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Extra Json
+      additionalProperties: false
+      type: object
+      required:
+      - id
+      - time
+      - title
+      - text
+      - source
+      - highpriority
+      - interact
+      - component
+      - component_name
+      - component_kind
+      - read
+      - extra_json
+      title: PlayerMessage
     PlayerRelation:
       properties:
         faction_id:
@@ -4747,6 +6070,85 @@ components:
       - race_id
       - name
       title: RaceSummary
+    RefreshConfigIn:
+      properties:
+        interval_enabled:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Interval Enabled
+        interval_sec:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Interval Sec
+      additionalProperties: false
+      type: object
+      title: RefreshConfigIn
+    RefreshConfigOut:
+      properties:
+        background_refresh:
+          type: boolean
+          title: Background Refresh
+        interval_enabled:
+          type: boolean
+          title: Interval Enabled
+        interval_sec:
+          type: integer
+          title: Interval Sec
+        min_interval_sec:
+          type: integer
+          title: Min Interval Sec
+      additionalProperties: false
+      type: object
+      required:
+      - background_refresh
+      - interval_enabled
+      - interval_sec
+      - min_interval_sec
+      title: RefreshConfigOut
+    RefreshStatus:
+      properties:
+        active_key:
+          type: string
+          title: Active Key
+        following_latest:
+          type: boolean
+          title: Following Latest
+        ingested_at:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Ingested At
+        source_fingerprint:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Source Fingerprint
+        last_ingest_ms:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Last Ingest Ms
+        last_event_id:
+          type: integer
+          title: Last Event Id
+        markers:
+          additionalProperties:
+            type: integer
+          type: object
+          title: Markers
+      additionalProperties: false
+      type: object
+      required:
+      - active_key
+      - following_latest
+      - ingested_at
+      - source_fingerprint
+      - last_ingest_ms
+      - last_event_id
+      - markers
+      title: RefreshStatus
     RegionSummary:
       properties:
         region_id:
@@ -4987,6 +6389,13 @@ components:
             $ref: '#/components/schemas/ConflictFaction'
           type: array
           title: Factions
+        sides:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/ConflictSide'
+            type: array
+          - type: 'null'
+          title: Sides
       additionalProperties: false
       type: object
       required:
@@ -5100,6 +6509,53 @@ components:
       - cluster_id
       - owner_faction
       title: SectorSummary
+    SetupConfigRequest:
+      properties:
+        install_path:
+          type: string
+          title: Install Path
+        save_path:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Save Path
+      type: object
+      required:
+      - install_path
+      title: SetupConfigRequest
+    SetupStatus:
+      properties:
+        configured:
+          type: boolean
+          title: Configured
+        install_path:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Install Path
+        save_path:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Save Path
+        static_ready:
+          type: boolean
+          title: Static Ready
+        needs_setup:
+          type: boolean
+          title: Needs Setup
+        init:
+          $ref: '#/components/schemas/InitStatus'
+      additionalProperties: false
+      type: object
+      required:
+      - configured
+      - install_path
+      - save_path
+      - static_ready
+      - needs_setup
+      - init
+      title: SetupStatus
     ShieldStats:
       properties:
         mk:
@@ -5168,6 +6624,11 @@ components:
           - type: integer
           - type: 'null'
           title: Hull
+        shield_capacity_max:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Shield Capacity Max
         cargo_volume:
           anyOf:
           - type: integer
@@ -5188,6 +6649,36 @@ components:
           - type: number
           - type: 'null'
           title: Speed Max
+        travel_max:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Travel Max
+        boost_max:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Boost Max
+        accel_max:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Accel Max
+        shield_recharge_max:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Shield Recharge Max
+        radar_range:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Radar Range
+        range_max:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Range Max
         icon_url:
           anyOf:
           - type: string
@@ -5198,6 +6689,127 @@ components:
           - type: string
           - type: 'null'
           title: Image Url
+        people_capacity:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: People Capacity
+        missile_storage:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Missile Storage
+        drone_storage:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Drone Storage
+        countermeasure_storage:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Countermeasure Storage
+        deployable_storage:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Deployable Storage
+        dock_s:
+          type: integer
+          title: Dock S
+          default: 0
+        dock_m:
+          type: integer
+          title: Dock M
+          default: 0
+        dock_l:
+          type: integer
+          title: Dock L
+          default: 0
+        dock_xl:
+          type: integer
+          title: Dock Xl
+          default: 0
+        storage_s:
+          type: integer
+          title: Storage S
+          default: 0
+        storage_m:
+          type: integer
+          title: Storage M
+          default: 0
+        storage_l:
+          type: integer
+          title: Storage L
+          default: 0
+        storage_xl:
+          type: integer
+          title: Storage Xl
+          default: 0
+        weapons_s:
+          type: integer
+          title: Weapons S
+          default: 0
+        weapons_m:
+          type: integer
+          title: Weapons M
+          default: 0
+        weapons_l:
+          type: integer
+          title: Weapons L
+          default: 0
+        weapons_xl:
+          type: integer
+          title: Weapons Xl
+          default: 0
+        turrets_s:
+          type: integer
+          title: Turrets S
+          default: 0
+        turrets_m:
+          type: integer
+          title: Turrets M
+          default: 0
+        turrets_l:
+          type: integer
+          title: Turrets L
+          default: 0
+        turrets_xl:
+          type: integer
+          title: Turrets Xl
+          default: 0
+        shields_s:
+          type: integer
+          title: Shields S
+          default: 0
+        shields_m:
+          type: integer
+          title: Shields M
+          default: 0
+        shields_l:
+          type: integer
+          title: Shields L
+          default: 0
+        shields_xl:
+          type: integer
+          title: Shields Xl
+          default: 0
+        engines_s:
+          type: integer
+          title: Engines S
+          default: 0
+        engines_m:
+          type: integer
+          title: Engines M
+          default: 0
+        engines_l:
+          type: integer
+          title: Engines L
+          default: 0
+        engines_xl:
+          type: integer
+          title: Engines Xl
+          default: 0
         price_avg:
           anyOf:
           - type: integer
@@ -5216,6 +6828,11 @@ components:
           type: boolean
           title: Is Obtainable
           default: false
+        can_be_captured:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Can Be Captured
         description:
           anyOf:
           - type: string
@@ -5241,11 +6858,6 @@ components:
           - type: number
           - type: 'null'
           title: Travel Min
-        travel_max:
-          anyOf:
-          - type: number
-          - type: 'null'
-          title: Travel Max
         travel_stability:
           anyOf:
           - type: number
@@ -5256,11 +6868,6 @@ components:
           - type: number
           - type: 'null'
           title: Boost Min
-        boost_max:
-          anyOf:
-          - type: number
-          - type: 'null'
-          title: Boost Max
         pitch_min:
           anyOf:
           - type: number
@@ -5371,11 +6978,6 @@ components:
           - type: number
           - type: 'null'
           title: Gatherrate Silicon
-        can_be_captured:
-          anyOf:
-          - type: integer
-          - type: 'null'
-          title: Can Be Captured
         radar_range_direct:
           anyOf:
           - type: number
@@ -5401,21 +7003,11 @@ components:
           - type: number
           - type: 'null'
           title: Shield Capacity Min
-        shield_capacity_max:
-          anyOf:
-          - type: number
-          - type: 'null'
-          title: Shield Capacity Max
         shield_recharge_min:
           anyOf:
           - type: number
           - type: 'null'
           title: Shield Recharge Min
-        shield_recharge_max:
-          anyOf:
-          - type: number
-          - type: 'null'
-          title: Shield Recharge Max
         shield_delay_min:
           anyOf:
           - type: number
@@ -5426,11 +7018,6 @@ components:
           - type: number
           - type: 'null'
           title: Shield Delay Max
-        radar_range:
-          anyOf:
-          - type: number
-          - type: 'null'
-          title: Radar Range
         mass:
           anyOf:
           - type: number
@@ -5486,106 +7073,9 @@ components:
           - type: number
           - type: 'null'
           title: Inertia Roll
-        people_capacity:
-          anyOf:
-          - type: integer
-          - type: 'null'
-          title: People Capacity
-        missile_storage:
-          anyOf:
-          - type: integer
-          - type: 'null'
-          title: Missile Storage
-        drone_storage:
-          anyOf:
-          - type: integer
-          - type: 'null'
-          title: Drone Storage
-        countermeasure_storage:
-          anyOf:
-          - type: integer
-          - type: 'null'
-          title: Countermeasure Storage
-        deployable_storage:
-          anyOf:
-          - type: integer
-          - type: 'null'
-          title: Deployable Storage
-        dock_s:
-          type: integer
-          title: Dock S
-        dock_m:
-          type: integer
-          title: Dock M
-        dock_l:
-          type: integer
-          title: Dock L
-        dock_xl:
-          type: integer
-          title: Dock Xl
-        storage_s:
-          type: integer
-          title: Storage S
-        storage_m:
-          type: integer
-          title: Storage M
-        storage_l:
-          type: integer
-          title: Storage L
-        storage_xl:
-          type: integer
-          title: Storage Xl
         launch_tubes:
           type: integer
           title: Launch Tubes
-        weapons_s:
-          type: integer
-          title: Weapons S
-        weapons_m:
-          type: integer
-          title: Weapons M
-        weapons_l:
-          type: integer
-          title: Weapons L
-        weapons_xl:
-          type: integer
-          title: Weapons Xl
-        turrets_s:
-          type: integer
-          title: Turrets S
-        turrets_m:
-          type: integer
-          title: Turrets M
-        turrets_l:
-          type: integer
-          title: Turrets L
-        turrets_xl:
-          type: integer
-          title: Turrets Xl
-        shields_s:
-          type: integer
-          title: Shields S
-        shields_m:
-          type: integer
-          title: Shields M
-        shields_l:
-          type: integer
-          title: Shields L
-        shields_xl:
-          type: integer
-          title: Shields Xl
-        engines_s:
-          type: integer
-          title: Engines S
-        engines_m:
-          type: integer
-          title: Engines M
-        engines_l:
-          type: integer
-          title: Engines L
-        engines_xl:
-          type: integer
-          title: Engines Xl
         software:
           items:
             $ref: '#/components/schemas/ShipSoftware'
@@ -5607,22 +7097,28 @@ components:
       - faction_id
       - role
       - hull
+      - shield_capacity_max
       - cargo_volume
       - dps_max
       - speed_min
       - speed_max
+      - travel_max
+      - boost_max
+      - accel_max
+      - shield_recharge_max
+      - radar_range
+      - range_max
       - icon_url
       - image_url
       - price_avg
+      - can_be_captured
       - description
       - basename
       - variation
       - secrecy_level
       - travel_min
-      - travel_max
       - travel_stability
       - boost_min
-      - boost_max
       - pitch_min
       - pitch_max
       - yaw_min
@@ -5645,18 +7141,14 @@ components:
       - gatherrate_gas
       - gatherrate_ore
       - gatherrate_silicon
-      - can_be_captured
       - radar_range_direct
       - boost_recharge_delay
       - rotation_speed_max
       - rotation_accel_max
       - shield_capacity_min
-      - shield_capacity_max
       - shield_recharge_min
-      - shield_recharge_max
       - shield_delay_min
       - shield_delay_max
-      - radar_range
       - mass
       - drag_forward
       - drag_reverse
@@ -5668,36 +7160,7 @@ components:
       - inertia_pitch
       - inertia_yaw
       - inertia_roll
-      - people_capacity
-      - missile_storage
-      - drone_storage
-      - countermeasure_storage
-      - deployable_storage
-      - dock_s
-      - dock_m
-      - dock_l
-      - dock_xl
-      - storage_s
-      - storage_m
-      - storage_l
-      - storage_xl
       - launch_tubes
-      - weapons_s
-      - weapons_m
-      - weapons_l
-      - weapons_xl
-      - turrets_s
-      - turrets_m
-      - turrets_l
-      - turrets_xl
-      - shields_s
-      - shields_m
-      - shields_l
-      - shields_xl
-      - engines_s
-      - engines_m
-      - engines_l
-      - engines_xl
       - software
       - drop_list_id
       title: ShipDetail
@@ -5757,6 +7220,11 @@ components:
           - type: integer
           - type: 'null'
           title: Hull
+        shield_capacity_max:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Shield Capacity Max
         cargo_volume:
           anyOf:
           - type: integer
@@ -5777,6 +7245,36 @@ components:
           - type: number
           - type: 'null'
           title: Speed Max
+        travel_max:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Travel Max
+        boost_max:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Boost Max
+        accel_max:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Accel Max
+        shield_recharge_max:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Shield Recharge Max
+        radar_range:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Radar Range
+        range_max:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Range Max
         icon_url:
           anyOf:
           - type: string
@@ -5787,6 +7285,127 @@ components:
           - type: string
           - type: 'null'
           title: Image Url
+        people_capacity:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: People Capacity
+        missile_storage:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Missile Storage
+        drone_storage:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Drone Storage
+        countermeasure_storage:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Countermeasure Storage
+        deployable_storage:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Deployable Storage
+        dock_s:
+          type: integer
+          title: Dock S
+          default: 0
+        dock_m:
+          type: integer
+          title: Dock M
+          default: 0
+        dock_l:
+          type: integer
+          title: Dock L
+          default: 0
+        dock_xl:
+          type: integer
+          title: Dock Xl
+          default: 0
+        storage_s:
+          type: integer
+          title: Storage S
+          default: 0
+        storage_m:
+          type: integer
+          title: Storage M
+          default: 0
+        storage_l:
+          type: integer
+          title: Storage L
+          default: 0
+        storage_xl:
+          type: integer
+          title: Storage Xl
+          default: 0
+        weapons_s:
+          type: integer
+          title: Weapons S
+          default: 0
+        weapons_m:
+          type: integer
+          title: Weapons M
+          default: 0
+        weapons_l:
+          type: integer
+          title: Weapons L
+          default: 0
+        weapons_xl:
+          type: integer
+          title: Weapons Xl
+          default: 0
+        turrets_s:
+          type: integer
+          title: Turrets S
+          default: 0
+        turrets_m:
+          type: integer
+          title: Turrets M
+          default: 0
+        turrets_l:
+          type: integer
+          title: Turrets L
+          default: 0
+        turrets_xl:
+          type: integer
+          title: Turrets Xl
+          default: 0
+        shields_s:
+          type: integer
+          title: Shields S
+          default: 0
+        shields_m:
+          type: integer
+          title: Shields M
+          default: 0
+        shields_l:
+          type: integer
+          title: Shields L
+          default: 0
+        shields_xl:
+          type: integer
+          title: Shields Xl
+          default: 0
+        engines_s:
+          type: integer
+          title: Engines S
+          default: 0
+        engines_m:
+          type: integer
+          title: Engines M
+          default: 0
+        engines_l:
+          type: integer
+          title: Engines L
+          default: 0
+        engines_xl:
+          type: integer
+          title: Engines Xl
+          default: 0
         price_avg:
           anyOf:
           - type: integer
@@ -5805,6 +7424,10 @@ components:
           type: boolean
           title: Is Obtainable
           default: false
+        can_be_captured:
+          type: boolean
+          title: Can Be Captured
+          default: true
       additionalProperties: false
       type: object
       required:
@@ -5816,10 +7439,17 @@ components:
       - faction_id
       - role
       - hull
+      - shield_capacity_max
       - cargo_volume
       - dps_max
       - speed_min
       - speed_max
+      - travel_max
+      - boost_max
+      - accel_max
+      - shield_recharge_max
+      - radar_range
+      - range_max
       - icon_url
       - image_url
       - price_avg
@@ -6084,6 +7714,22 @@ components:
       - icon
       - default_val
       title: TerraformStat
+    ValidatePathRequest:
+      properties:
+        kind:
+          type: string
+          enum:
+          - install
+          - save
+          title: Kind
+        path:
+          type: string
+          title: Path
+      type: object
+      required:
+      - kind
+      - path
+      title: ValidatePathRequest
     ValidationError:
       properties:
         loc:
