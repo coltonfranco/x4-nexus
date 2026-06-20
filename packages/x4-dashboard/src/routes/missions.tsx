@@ -553,15 +553,18 @@ function MissionCard({
 
             const maxExplicitStep = Math.max(0, ...parsedObjectives.map(o => o.step ?? 0));
             parsedObjectives.forEach(o => {
-              // Active objectives often omit the step attribute in the save file, defaulting to 0.
-              // Push them after the explicit history steps so they sort correctly as the 'current' step.
-              if ((o.step == null || o.step === 0) && o.is_active) {
+              // Objectives from <mission> often omit the step attribute, defaulting to 0.
+              // Push them after the explicit history steps from <briefing> so they sort correctly.
+              if (o.step == null || o.step === 0) {
                 o.step = maxExplicitStep > 0 ? maxExplicitStep + 1 : 1;
               }
             });
 
             const sorted = [...parsedObjectives].sort((a, b) => (a.step ?? 0) - (b.step ?? 0));
-            const activeStep = sorted.find(o => o.is_active)?.step ?? 0;
+            
+            // X4 flags one objective as active, but concurrent objectives share the same step.
+            // If the game engine omits the flag, fallback to the latest step block.
+            const activeStep = sorted.find(o => o.is_active)?.step || Math.max(0, ...sorted.map(o => o.step ?? 0));
 
             const isComplete = (o: MissionObjective) => {
               if (activeStep > 0 && o.step != null && o.step < activeStep) return true;
@@ -573,10 +576,7 @@ function MissionCard({
 
             const effectiveActive = (o: MissionObjective) =>
               o.is_active ||
-              (!isComplete(o) &&
-               o.progress_current != null &&
-               o.progress_max != null &&
-               o.progress_current < o.progress_max);
+              (!isComplete(o) && o.step === activeStep);
 
             // Deduplicate past steps that are just old versions of a current step (e.g. Data Vault 1/30, 2/30...)
             const normalizeText = (t: string | null) => {
