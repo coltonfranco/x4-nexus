@@ -47,7 +47,11 @@ def list_fleet(
     """Live ship instances. Returns [] until a save is ingested."""
     # LEFT JOIN the static ship catalog (by macro) for role/type/name/cargo.
     sql = [
-        "SELECT sh.ship_id, sh.code, sh.name, sh.macro, sh.owner_faction, sh.class_id, "
+        "SELECT sh.ship_id, sh.code, "
+        "CASE WHEN sh.name LIKE '{%,%}' THEN "
+        "  COALESCE((SELECT text FROM s.texts WHERE page_id = CAST(SUBSTR(sh.name, 2, INSTR(sh.name, ',') - 2) AS INTEGER) AND text_id = CAST(SUBSTR(sh.name, INSTR(sh.name, ',') + 1, LENGTH(sh.name) - INSTR(sh.name, ',') - 1) AS INTEGER)), sh.name) "
+        "ELSE sh.name END AS name, "
+        "sh.macro, sh.owner_faction, sh.class_id, "
         "sh.sector_id, sh.state, sh.level, sh.thruster, sh.is_player_owned, "
         "c.name AS catalog_name, c.role, c.ship_type, c.cargo_volume "
         "FROM ships sh LEFT JOIN s.ships c ON c.ship_id = sh.macro WHERE 1=1"

@@ -102,33 +102,41 @@ export function ShipDetailPanel({ shipId, factions }: { shipId: string; factions
   const maxRange = cm?.range_max ?? RANGE_MAX[cid] ?? 20;
 
   return (
-    <div className="p-6 space-y-5">
-      <div className="flex flex-col sm:flex-row gap-6">
-        <ShipImage imageUrl={data.image_url} iconUrl={data.icon_url} name={data.name} role={data.role} classId={data.class_id} className="shrink-0 w-full sm:w-64 h-48 p-4 shadow-inner border-border/60" imageClassName="transition-transform hover:scale-105 duration-500" />
+    <div className="flex flex-col h-full -mx-6 -my-6 sm:-mx-6 sm:-my-6">
+      <div className="flex flex-col sm:flex-row gap-6 px-6 pt-6 pb-4">
+        <ShipImage imageUrl={data.image_url} iconUrl={data.icon_url} name={data.name} role={data.role} classId={data.class_id} className="shrink-0 w-full sm:w-56 h-48 sm:h-56 p-4 shadow-inner border-border/60 rounded-xl" imageClassName="transition-transform hover:scale-105 duration-500 w-full h-full object-contain" />
         <div className="flex-1 flex flex-col justify-center min-w-0 py-1">
           <div>
             <div className="flex items-center gap-3 min-w-0">
               {data.image_url && <EntityIcon src={data.icon_url} alt="Ship Class Icon" size={28} className="opacity-70 shrink-0" />}
-              <h2 className="text-2xl font-bold tracking-tight truncate" title={data.name}>{data.name}</h2>
+              <h2 className="text-2xl sm:text-3xl font-bold tracking-tight truncate" title={data.name}>{data.name}</h2>
             </div>
             <div className="flex items-center gap-2 mt-3 flex-wrap">
               <ShipClassBadge class_id={data.class_id} className="text-sm px-2.5 py-0.5" />
               <ShipTypeBadge role={data.role} subtype={data.ship_type} className="text-sm" />
               {faction && <FactionBadge name={faction.name} color_hex={faction.color_hex} icon_url={faction.icon_url} faction_id={faction.faction_id} size="md" className="text-sm" />}
             </div>
+            <div className="mt-4">
+              <Button variant="default" size="sm" asChild className="h-9 px-4 shadow-sm">
+                <Link to="/ships/builder" search={{ ship_id: data.ship_id }}>
+                  <Wrench className="h-4 w-4 mr-2" />Build Loadout
+                </Link>
+              </Button>
+            </div>
           </div>
         </div>
       </div>
 
-      <Tabs defaultValue="stats">
-        <div className="border-b border-border/40 pb-px">
-          <TabsList className="bg-transparent border-none p-0 h-auto space-x-6">
+      <Tabs defaultValue="stats" className="flex-1 flex flex-col">
+        <div className="border-b border-border/40 pb-px mt-2 px-6">
+          <TabsList className="bg-transparent border-none p-0 h-auto space-x-6 w-full justify-start">
             <TabsTrigger value="stats" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-1 pb-3 pt-2 font-medium text-muted-foreground data-[state=active]:text-foreground transition-colors hover:text-foreground">Stats</TabsTrigger>
             {data.drop_list_id && <TabsTrigger value="drops" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-1 pb-3 pt-2 font-medium text-muted-foreground data-[state=active]:text-foreground transition-colors hover:text-foreground">Drops</TabsTrigger>}
+            {data.description && <TabsTrigger value="description" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-1 pb-3 pt-2 font-medium text-muted-foreground data-[state=active]:text-foreground transition-colors hover:text-foreground">Description</TabsTrigger>}
           </TabsList>
         </div>
 
-        <TabsContent value="stats" className="space-y-6 pt-5">
+        <TabsContent value="stats" className="space-y-6 pt-5 px-6 pb-6 outline-none">
           <div className="bg-muted/10 border border-border/50 rounded-lg overflow-hidden">
             <div className="px-4 pt-3 pb-1 flex items-center justify-between border-b border-border/30">
               <span className="text-xs text-muted-foreground uppercase tracking-widest font-semibold flex items-center gap-1.5"><Info className="w-3.5 h-3.5" />Bars represent maximum potential relative to the best {classShort(data.class_id)}-class ship</span>
@@ -161,34 +169,11 @@ export function ShipDetailPanel({ shipId, factions }: { shipId: string; factions
                 {data.modifier_weapon_heat && data.modifier_weapon_heat !== 1 && <ShipDetailStatRow label="Heat Mod" min={null} max={data.modifier_weapon_heat} maxVal={2} format={(v: number) => `${v}x`} />}
               </div>
             </div>
-
-            <div className="border-t border-border/30 bg-muted/5 px-6 py-5 flex flex-col md:flex-row gap-10 justify-center">
-              <div className="flex flex-col gap-2 items-center md:items-start text-xs border-b md:border-b-0 md:border-r border-border/50 pb-4 md:pb-0 pr-0 md:pr-10">
-                <span className="text-xs text-muted-foreground font-bold tracking-widest uppercase mb-1">Physics</span>
-                <div className="flex justify-between w-48"><span className="text-muted-foreground uppercase">Mass</span><span className="font-semibold text-foreground">{(data.mass ?? 0).toLocaleString()} kg</span></div>
-                <div className="flex justify-between w-48"><span className="text-muted-foreground uppercase">Pitch Inertia</span><span className="font-semibold text-foreground">{(data.inertia_pitch ?? 0).toLocaleString()}</span></div>
-                <div className="flex justify-between w-48"><span className="text-muted-foreground uppercase">Fwd Drag</span><span className="font-semibold text-foreground">{(data.drag_forward ?? 0).toLocaleString()}</span></div>
-                <div className="flex justify-between w-48"><span className="text-muted-foreground uppercase">Rev Drag</span><span className="font-semibold text-foreground">{(data.drag_reverse ?? 0).toLocaleString()}</span></div>
-              </div>
-              <div className="flex flex-col gap-2 items-center md:items-start text-xs">
-                <span className="text-xs text-muted-foreground font-bold tracking-widest uppercase mb-1">Auxiliary</span>
-                <div className="flex justify-between w-48"><span className="text-muted-foreground uppercase">Fwd Accel</span><span className="font-semibold text-foreground">{(data.accel_max ?? 0).toFixed(0)} m/s²</span></div>
-                <div className="flex justify-between w-48"><span className="text-muted-foreground uppercase">Radar Range</span><span className="font-semibold text-foreground">{((data.radar_range ?? 0) / 1000).toFixed(0)} km</span></div>
-                <div className="flex justify-between w-48"><span className="text-muted-foreground uppercase">Drone Bay</span><span className="font-semibold text-foreground">{data.drone_storage ?? 0}</span></div>
-                <div className="flex justify-between w-48"><span className="text-muted-foreground uppercase">Flares</span><span className="font-semibold text-foreground">{data.countermeasure_storage ?? 0}</span></div>
-                {data.launch_tubes > 0 && <div className="flex justify-between w-48"><span className="text-muted-foreground uppercase">Launch Tubes</span><span className="font-semibold text-foreground">{data.launch_tubes}</span></div>}
-              </div>
-            </div>
           </div>
 
           <div>
             <div className="flex items-center justify-between mb-3">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Equipment Slots</p>
-              <Button variant="default" size="sm" asChild className="h-7 text-xs px-3 shadow-sm">
-                <Link to="/ships/builder" search={{ ship_id: data.ship_id }}>
-                  <Wrench className="h-3 w-3 mr-1.5" />Build Loadout
-                </Link>
-              </Button>
             </div>
             <div className="rounded-lg border border-border overflow-hidden">
               <table className="w-full text-sm">
@@ -224,12 +209,36 @@ export function ShipDetailPanel({ shipId, factions }: { shipId: string; factions
               </table>
             </div>
           </div>
+
+          <div className="rounded-lg border border-border/50 bg-muted/5 px-6 py-5 flex flex-col md:flex-row gap-10 justify-center">
+            <div className="flex flex-col gap-2 items-center md:items-start text-xs border-b md:border-b-0 md:border-r border-border/50 pb-4 md:pb-0 pr-0 md:pr-10">
+              <span className="text-xs text-muted-foreground font-bold tracking-widest uppercase mb-1">Physics</span>
+              <div className="flex justify-between w-48"><span className="text-muted-foreground uppercase">Mass</span><span className="font-semibold text-foreground">{(data.mass ?? 0).toLocaleString()} kg</span></div>
+              <div className="flex justify-between w-48"><span className="text-muted-foreground uppercase">Pitch Inertia</span><span className="font-semibold text-foreground">{(data.inertia_pitch ?? 0).toLocaleString()}</span></div>
+              <div className="flex justify-between w-48"><span className="text-muted-foreground uppercase">Fwd Drag</span><span className="font-semibold text-foreground">{(data.drag_forward ?? 0).toLocaleString()}</span></div>
+              <div className="flex justify-between w-48"><span className="text-muted-foreground uppercase">Rev Drag</span><span className="font-semibold text-foreground">{(data.drag_reverse ?? 0).toLocaleString()}</span></div>
+            </div>
+            <div className="flex flex-col gap-2 items-center md:items-start text-xs">
+              <span className="text-xs text-muted-foreground font-bold tracking-widest uppercase mb-1">Auxiliary</span>
+              <div className="flex justify-between w-48"><span className="text-muted-foreground uppercase">Fwd Accel</span><span className="font-semibold text-foreground">{(data.accel_max ?? 0).toFixed(0)} m/s²</span></div>
+              <div className="flex justify-between w-48"><span className="text-muted-foreground uppercase">Radar Range</span><span className="font-semibold text-foreground">{((data.radar_range ?? 0) / 1000).toFixed(0)} km</span></div>
+              <div className="flex justify-between w-48"><span className="text-muted-foreground uppercase">Drone Bay</span><span className="font-semibold text-foreground">{data.drone_storage ?? 0}</span></div>
+              <div className="flex justify-between w-48"><span className="text-muted-foreground uppercase">Flares</span><span className="font-semibold text-foreground">{data.countermeasure_storage ?? 0}</span></div>
+              {data.launch_tubes > 0 && <div className="flex justify-between w-48"><span className="text-muted-foreground uppercase">Launch Tubes</span><span className="font-semibold text-foreground">{data.launch_tubes}</span></div>}
+            </div>
+          </div>
         </TabsContent>
 
         {data.drop_list_id && (
-          <TabsContent value="drops" className="pt-4">
+          <TabsContent value="drops" className="pt-4 px-6 pb-6 outline-none flex-1">
             <p className="text-xs text-muted-foreground mb-4">Drop table: <span className="font-mono">{data.drop_list_id}</span>. Each row is an independent roll; within a row, one item is selected by weighted chance.</p>
             <ShipDropTable listId={data.drop_list_id} />
+          </TabsContent>
+        )}
+
+        {data.description && (
+          <TabsContent value="description" className="pt-4 px-6 pb-6 outline-none flex-1">
+            <p className="text-sm text-foreground/90 whitespace-pre-wrap leading-relaxed max-w-4xl">{data.description}</p>
           </TabsContent>
         )}
       </Tabs>

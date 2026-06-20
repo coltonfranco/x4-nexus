@@ -13,13 +13,15 @@ import type { FillMode } from "./types";
 import { useResourceData, useTopRoutes, useWareOffers, usePlayerRelations, useConflictData, useTensionData, useSectorForces, type ResourceSource, type SectorResources, type BorderTensionEntry, type ConflictEntry, type SectorForceEntry } from "./useAnalysisData";
 import type { Cluster, Gate, Highway, Sector, Zone } from "../types";
 
-export type SectorTint = { 
-  fill: string; 
-  stroke: string; 
-  strokeWidth?: number; 
-  strokeDasharray?: string | null; 
-  animate?: string; 
-  labelColor?: string; 
+export type SectorTint = {
+  fill: string;
+  stroke: string;
+  strokeWidth?: number;
+  strokeDasharray?: string | null;
+  animate?: string;
+  labelColor?: string;
+  marker?: string | null;
+  innerDangerBorder?: boolean | string;
 };
 export type RouteInfo = { wareName: string; sellSector: string; profitPerHour: number; hops: number | null };
 export type RouteMarker = { id: string; coord: [number, number]; color: string; routes: RouteInfo[] };
@@ -78,7 +80,7 @@ export type ConflictToggles = {
 };
 
 export function useAnalysisOverlay({
-  fillMode, resource, wareId, maxJumps, selectedRouteSector, navFrom, navTo, navFromPos, navToPos, sectorCoords, gates, highways, zoneMap, zoneScreenPos, sectors, clusterMap, zoneScaleMap, conflictToggles,
+  fillMode, resource, wareId, maxJumps, navFrom, navTo, navFromPos, navToPos, sectorCoords, gates, highways, zoneMap, zoneScreenPos, sectors, clusterMap, zoneScaleMap, conflictToggles,
 }: {
   fillMode: FillMode;
   resource: string | null;
@@ -210,14 +212,14 @@ export function useAnalysisOverlay({
       const borderTensions = new Map<string, BorderTensionEntry>();
       const sectorForces = new Map<string, SectorForceEntry>();
       const dots = new Map<string, string[]>();
-      
+
       const toggles = conflictToggles ?? { showConflicts: true, showTensions: true, showDanger: true, showPlayer: true };
 
       const forceData = forces.data ?? [];
       forceData.forEach((f) => {
         const sid = f.sector_id.toLowerCase();
         sectorForces.set(sid, f);
-        
+
         if (toggles.showPlayer) {
           const playerForce = f.factions.find((fac) => fac.faction_id === "player");
           if (playerForce && playerForce.fighter_count > 0) {
@@ -225,7 +227,7 @@ export function useAnalysisOverlay({
           }
         }
       });
-      
+
       const hostileFactions = new Set<string>();
       if (relations.data) {
         for (const rel of relations.data) {
@@ -239,7 +241,7 @@ export function useAnalysisOverlay({
       (conflicts.data ?? []).forEach((c) => {
         sectorConflicts.set(c.sector_id.toLowerCase(), c);
       });
-      
+
       sectors.forEach((s) => {
         const sid = s.sector_id.toLowerCase();
         let isDangerous = false;
@@ -325,7 +327,7 @@ export function useAnalysisOverlay({
           borderTensions.set(key, t);
         });
       }
-      
+
       return { ...empty, tint, sectorConflicts, borderTensions, sectorForces, dots, dim: true, loading: false };
     }
 
@@ -486,16 +488,16 @@ export function useAnalysisOverlay({
     const navSegments = pathToSegments(navPathResult);
     const navOrigin = navFrom ? (navFromPos ?? coordsCI.get(navFrom.toLowerCase()) ?? null) : null;
     const navDest = navTo ? (navToPos ?? coordsCI.get(navTo.toLowerCase()) ?? null) : null;
-    
+
     // If navigation is within the exact same sector, inject a single manual segment
     if (navSegments.length === 0 && navFrom && navFrom === navTo && navOrigin && navDest) {
       navSegments.push({ p1: navOrigin, p2: navDest, kind: "manual" });
     }
-    
+
     // Count only major inter-sector hops for the UI display, and sum travel distances.
     let hops = 0;
     let distSvg = 0;
-    
+
     for (const seg of navSegments) {
       if (seg.kind === "jump_gate" || seg.kind === "accelerator" || seg.kind === "superhighway") {
         hops++;
@@ -505,7 +507,7 @@ export function useAnalysisOverlay({
         distSvg += Math.sqrt(dx * dx + dy * dy);
       }
     }
-    
+
     const pathHops = navFrom && navTo && navFrom !== navTo && navPathResult ? hops : null;
     const defaultScale = zoneScaleMap.get("__default") ?? 1;
     const pathDistanceKm = (navFrom && navTo && defaultScale > 0) ? (distSvg / defaultScale) / 1000 : null;

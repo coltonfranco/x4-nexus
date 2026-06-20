@@ -18,7 +18,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from x4_api.api.deps import get_db
-from x4_api.api.icons import get_icon_url
+from x4_api.api.icons import get_icon_url, get_ware_icon_url
 from x4_api.api.schemas import PublicModel
 from x4_api.domain.ware_class import CATEGORIES, CATEGORY_SQL
 
@@ -173,7 +173,7 @@ def list_wares(
             price_avg=r["price_avg"],
             price_max=r["price_max"],
             tags=r["tags"],
-            icon_url=get_icon_url(r["icon_path"]),
+            icon_url=get_ware_icon_url(r["ware_id"], r["icon_path"], r["tags"]),
             sortorder=r["sortorder"],
             dismantlefactor=r["dismantlefactor"],
             research_time=r["research_time"],
@@ -250,7 +250,7 @@ def get_ware(
         use_threshold=row["use_threshold"],
         owners=[r["faction_id"] for r in owner_rows],
         illegal_factions=[r["faction_id"] for r in illegal_rows],
-        icon_url=get_icon_url(row["icon_path"]),
+        icon_url=get_ware_icon_url(row["ware_id"], row["icon_path"], row["tags"]),
         sortorder=row["sortorder"],
         dismantlefactor=row["dismantlefactor"],
         research_time=row["research_time"],

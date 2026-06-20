@@ -52,15 +52,28 @@ def _bool(v: str | None) -> bool | None:
     return v == "1"
 
 
+def _float(v: str | None) -> float | None:
+    if v is None:
+        return None
+    try:
+        return float(v)
+    except ValueError:
+        return None
+
+
 # Attributes promoted to columns for active missions.
 _MAPPED_MISSION = frozenset({
     "id", "name", "description", "faction", "type", "level",
     "active", "priority", "abortable", "associated", "activation", "alert",
+    "group", "caption", "icon", "time", "rewardtext", "reward",
+    "opposingfaction",
 })
 
 # Attributes promoted to columns for mission offers.
 _MAPPED_OFFER = frozenset({
     "id", "name", "description", "faction", "type", "level", "actor",
+    "opposingfaction", "group", "reward", "component", "distance", "threadtype",
+    "duration",
 })
 
 
@@ -79,7 +92,17 @@ class MissionRow:
     priority: int | None
     abortable: bool | None
     associated_entity: str | None
-    extra_json: str | None
+    group_id: str | None = None
+    is_story: bool = False
+    caption: str | None = None
+    icon: str | None = None
+    time: float | None = None
+    rewardtext: str | None = None
+    reward_credits: int | None = None
+    opposing_faction: str | None = None
+    activation: str | None = None
+    alert: str | None = None
+    extra_json: str | None = None
 
 
 @dataclass(slots=True)
@@ -110,7 +133,14 @@ class OfferRow:
     bbs_station_id: str | None      # from <bbs>/<space component="...">
     is_repeatable: bool              # has a <briefing>/<mission> child
     rewardtext: str | None           # from nested briefing/mission
-    extra_json: str | None
+    opposing_faction: str | None = None  # from XML opposingfaction attr
+    group_id: str | None = None          # from XML group attr
+    reward_credits: int | None = None    # from XML reward attr
+    component_id: str | None = None      # from XML component attr
+    distance: int | None = None          # from XML distance attr
+    thread_type: str | None = None       # from XML threadtype attr
+    duration: float | None = None        # from XML duration attr
+    extra_json: str | None = None
 
 
 # --- Collector -------------------------------------------------------------
@@ -196,6 +226,7 @@ class MissionsCollector:
                 if existing.mission_id == mission_id:
                     return
 
+        group_id = attrs.get("group")
         self.mission_rows.append(MissionRow(
             mission_id=mission_id,
             name=attrs.get("name"),
@@ -207,6 +238,16 @@ class MissionsCollector:
             priority=_int(attrs.get("priority")),
             abortable=_bool(attrs.get("abortable")),
             associated_entity=attrs.get("associated"),
+            group_id=group_id,
+            is_story=bool(group_id and group_id.startswith("story_")),
+            caption=attrs.get("caption"),
+            icon=attrs.get("icon"),
+            time=_float(attrs.get("time")),
+            rewardtext=attrs.get("rewardtext"),
+            reward_credits=_int(attrs.get("reward")),
+            opposing_faction=attrs.get("opposingfaction"),
+            activation=attrs.get("activation"),
+            alert=attrs.get("alert"),
             extra_json=json.dumps(extra, sort_keys=True) if extra else None,
         ))
 
@@ -235,6 +276,13 @@ class MissionsCollector:
             bbs_station_id=bbs_station_id,
             is_repeatable=is_repeatable,
             rewardtext=rewardtext,
+            opposing_faction=attrs.get("opposingfaction"),
+            group_id=attrs.get("group"),
+            reward_credits=_int(attrs.get("reward")),
+            component_id=attrs.get("component"),
+            distance=_int(attrs.get("distance")),
+            thread_type=attrs.get("threadtype"),
+            duration=_float(attrs.get("duration")),
             extra_json=json.dumps(extra, sort_keys=True) if extra else None,
         ))
 
@@ -313,10 +361,14 @@ class MissionsCollector:
         )
 
         # Deduplicate: keep active variant over completed variant.
+        # Normalise None→0 so that a stale copy at <mission>/<objective>
+        # (no step attr) matches its twin under <briefing>/<objective step="0">.
+        norm_step = step or 0
         for i, existing in enumerate(self.objective_rows):
-            if existing.mission_id == mission_id and existing.step == step:
-                if not existing.is_active:
+            if existing.mission_id == mission_id and (existing.step or 0) == norm_step:
+                if not existing.is_active and is_active:
                     self.objective_rows[i] = row
+                # Either way, don't append a duplicate.
                 return
 
         self.objective_rows.append(row)
@@ -411,10 +463,15 @@ class MissionsCollector:
         conn.executemany(
             """INSERT OR REPLACE INTO missions
                 (mission_id, name, description, faction, type, level,
-                 is_active, priority, abortable, associated_entity, extra_json)
+                 is_active, priority, abortable, associated_entity,
+                 group_id, is_story, caption, icon, time, rewardtext,
+                 reward_credits, opposing_faction, activation, alert,
+                 extra_json)
                VALUES
                 (:mission_id, :name, :description, :faction, :type, :level,
                  :is_active, :priority, :abortable, :associated_entity,
+                 :group_id, :is_story, :caption, :icon, :time, :rewardtext,
+                 :reward_credits, :opposing_faction, :activation, :alert,
                  :extra_json)""",
             [dataclasses.asdict(r) for r in self.mission_rows],
         )
@@ -432,11 +489,14 @@ class MissionsCollector:
         conn.executemany(
             """INSERT OR REPLACE INTO mission_offers
                 (offer_id, name, description, faction, type, level, actor,
-                 station_id, bbs_station_id, is_repeatable, rewardtext, extra_json)
+                 station_id, bbs_station_id, is_repeatable, rewardtext,
+                 opposing_faction, group_id, reward_credits, component_id,
+                 distance, thread_type, duration, extra_json)
                VALUES
                 (:offer_id, :name, :description, :faction, :type, :level,
                  :actor, :station_id, :bbs_station_id, :is_repeatable,
-                 :rewardtext, :extra_json)""",
+                 :rewardtext, :opposing_faction, :group_id, :reward_credits,
+                 :component_id, :distance, :thread_type, :duration, :extra_json)""",
             [dataclasses.asdict(r) for r in self.offer_rows],
         )
 

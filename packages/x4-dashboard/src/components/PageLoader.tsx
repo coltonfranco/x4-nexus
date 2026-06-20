@@ -1,4 +1,4 @@
-import { type LucideIcon, Activity, BookOpen, Boxes, Cpu, Crown, Loader2, Map, PackageOpen, Rocket, Shield, TrendingUp, User, Target } from "lucide-react";
+import { type LucideIcon, Activity, BookOpen, Boxes, Cpu, Crown, Loader2, Map, PackageOpen, Rocket, Shield, TrendingUp, User, Users, Target } from "lucide-react";
 import { cn } from "../lib/utils";
 
 type PageLoaderProps = {
@@ -96,6 +96,12 @@ const presets: Record<string, { icon: LucideIcon; message: string; subtitle: str
     icon: User,
     message: "Loading player profile…",
     subtitle: "Retrieving personal statistics and records",
+    color: "blue",
+  },
+  crew: {
+    icon: Users,
+    message: "Loading crew records…",
+    subtitle: "Retrieving personnel files and service histories",
     color: "blue",
   },
   default: {

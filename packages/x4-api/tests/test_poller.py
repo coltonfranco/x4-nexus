@@ -13,15 +13,15 @@ from x4_extract.dynamic.poller import PollResult
 from x4_extract.dynamic.pipeline import dynamic_db_path
 
 
-def _settings(tmp_path: Path, fixtures_dir: Path) -> ExtractSettings:
+def _settings(data_dir: Path, tmp_path: Path, fixtures_dir: Path) -> ExtractSettings:
     folder = tmp_path / "saves"
-    folder.mkdir()
+    folder.mkdir(exist_ok=True)
     shutil.copyfile(fixtures_dir / "tiny_save.xml.gz", folder / "save_001.xml.gz")
-    return ExtractSettings(data_dir=tmp_path / "data", save_path=folder)
+    return ExtractSettings(data_dir=data_dir, save_path=folder)
 
 
 def test_poll_once_ingests_then_reports_unchanged(data_dir: Path, fixtures_dir: Path, tmp_path: Path) -> None:
-    settings = _settings(tmp_path, fixtures_dir)
+    settings = _settings(data_dir, tmp_path, fixtures_dir)
 
     first = poller.poll_once(settings)
     assert first.save_path is not None
@@ -36,7 +36,7 @@ def test_poll_once_defers_a_save_written_within_the_quiet_window(
     data_dir: Path, fixtures_dir: Path, tmp_path: Path
 ) -> None:
     """A save whose mtime is fresh is treated as mid-write: deferred, file never opened."""
-    settings = _settings(tmp_path, fixtures_dir)
+    settings = _settings(data_dir, tmp_path, fixtures_dir)
     save = next((tmp_path / "saves").glob("*.xml.gz"))
     os.utime(save, (time.time(), time.time()))  # mtime = now → looks like an in-flight write
 
@@ -50,7 +50,7 @@ def test_poll_once_ingests_once_the_save_has_settled(
     data_dir: Path, fixtures_dir: Path, tmp_path: Path
 ) -> None:
     """Past the quiet window the same gated call opens the file and ingests normally."""
-    settings = _settings(tmp_path, fixtures_dir)
+    settings = _settings(data_dir, tmp_path, fixtures_dir)
     save = next((tmp_path / "saves").glob("*.xml.gz"))
     os.utime(save, (time.time() - 600, time.time() - 600))  # quiet for 10 min
 
@@ -74,7 +74,7 @@ def test_poll_once_no_saves_is_graceful(tmp_path: Path) -> None:
 def test_watch_runs_bounded_iterations_without_real_sleep(
     data_dir: Path, fixtures_dir: Path, tmp_path: Path
 ) -> None:
-    settings = _settings(tmp_path, fixtures_dir)
+    settings = _settings(data_dir, tmp_path, fixtures_dir)
     seen: list[PollResult] = []
     sleeps: list[float] = []
 

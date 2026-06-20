@@ -16,34 +16,19 @@ SchemaName = Literal["raw", "static", "dynamic"]
 
 
 def apply_schema(data_dir: Path, name: SchemaName, *, db_path: Path | None = None) -> None:
-    """Apply one of the bundled schema_*.sql files as a clean rebuild.
+    """Apply one of the bundled schema_*.sql files, creating the DB if absent.
 
-    Tries to delete the db file first for a true clean slate.  On Windows the
-    file may be locked by a running API server — in that case we drop every
-    existing table instead, which achieves the same result without requiring
-    the file handle to be released.
+    For a DB that already exists the schema SQL is re-executed as a no-op — every
+    statement uses ``IF NOT EXISTS``, so this is safe to call unconditionally before
+    an ingest (it brings pre-existing DBs up to date with newly-added tables) and
+    will never drop data from a live DB that the API is reading.
 
-    `db_path` overrides the default `<data_dir>/<name>.db` location — used for
-    per-save dynamic databases under `<data_dir>/dynamic/<save_key>.db`.
+    ``db_path`` overrides the default ``<data_dir>/<name>.db`` location — used for
+    per-save dynamic databases under ``<data_dir>/dynamic/<save_key>.db``.
     """
     sql = (_SQL_DIR / f"schema_{name}.sql").read_text()
     target = db_path if db_path is not None else data_dir / f"{name}.db"
     target.parent.mkdir(parents=True, exist_ok=True)
-
-    if target.exists():
-        try:
-            target.unlink()
-        except PermissionError:
-            # Windows: file locked by another process (e.g. API server running).
-            # Drop all user tables — SQLite drops their indexes automatically.
-            with sqlite3.connect(target) as conn:
-                tables = [
-                    row[0] for row in conn.execute(
-                        "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
-                    ).fetchall()
-                ]
-                for table in tables:
-                    conn.execute(f"DROP TABLE IF EXISTS [{table}]")
 
     with sqlite3.connect(target) as conn:
         conn.executescript(sql)

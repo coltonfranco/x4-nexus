@@ -27,9 +27,15 @@ from x4_extract.static import (
     regions,
     ships,
     station_types,
+    station_types,
     terraforming,
     waregroups,
     wares,
+    orders,
+    assignments,
+    behaviours,
+    roles,
+    texts,
 )
 
 # ── Logging helpers ────────────────────────────────────────────────────────────
@@ -315,6 +321,60 @@ def run(settings: ExtractSettings) -> None:
                         gs_result.stories,
                     )
                 _log(f"  -> {len(gs_result.stories)} stories ({_elapsed(t0)})")
+
+            t0 = time.monotonic()
+            _log("Extracting: assignments")
+            assign_xml = get_raw_file("libraries/assignments.xml")
+            if assign_xml:
+                a_result = assignments.extract(assign_xml)
+                assignments.write(conn, _localize_result(a_result))
+                _log(f"  -> {len(a_result.assignments)} assignments ({_elapsed(t0)})")
+
+            t0 = time.monotonic()
+            _log("Extracting: behaviours")
+            behav_xml = get_raw_file("libraries/behaviours.xml")
+            if behav_xml:
+                b_result = behaviours.extract(behav_xml)
+                behaviours.write(conn, _localize_result(b_result))
+                _log(f"  -> {len(b_result.behaviours)} behaviours ({_elapsed(t0)})")
+
+            t0 = time.monotonic()
+            _log("Extracting: roles")
+            roles_xml = get_raw_file("libraries/roles.xml")
+            posts_xml = get_raw_file("libraries/posts.xml")
+            if roles_xml:
+                r_result = roles.extract(roles_xml, posts_xml)
+                roles.write(conn, _localize_result(r_result))
+                _log(f"  -> {len(r_result.roles)} roles ({_elapsed(t0)})")
+
+            t0 = time.monotonic()
+            _log("Extracting: texts")
+            texts_xml = get_raw_file("t/0001-l044.xml")
+            if texts_xml:
+                t_result = texts.extract(texts_xml)
+                texts.write(conn, t_result)
+                _log(f"  -> {len(t_result.texts)} texts ({_elapsed(t0)})")
+
+            t0 = time.monotonic()
+            _log("Extracting: orders (aiscripts)")
+            # Get all aiscript files
+            ai_rows = conn.execute(
+                "SELECT content FROM raw.raw_files WHERE directory = 'aiscripts'"
+            ).fetchall()
+            if ai_rows:
+                total_orders = 0
+                conn.execute("DELETE FROM orders") # Clear table before loop
+                for row in ai_rows:
+                    o_result = orders.extract(row[0].encode("utf-8"))
+                    if o_result.orders:
+                        # localized right before insert
+                        o_result = _localize_result(o_result)
+                        conn.executemany(
+                            "INSERT INTO orders (order_id, name) VALUES (:order_id, :name)",
+                            o_result.orders,
+                        )
+                        total_orders += len(o_result.orders)
+                _log(f"  -> {total_orders} orders ({_elapsed(t0)})")
     finally:
         conn.close()
 

@@ -59,6 +59,7 @@ class ShipRow:
 @dataclass(slots=True)
 class ShipsCollector:
     rows: list[ShipRow] = field(default_factory=list)
+    _ship_orders: dict[str, str] = field(default_factory=dict)
 
     def register(self) -> list[Registration]:
         return [
@@ -68,9 +69,28 @@ class ShipsCollector:
             )
             for cls in _SHIP_CLASSES
         ] + [
+            Registration(
+                target=Target(tag="order", depth=None, parent_tag="orders"),
+                visitor=self._on_order,
+            ),
             register_position_handler(),
             register_offset_handler(),
         ]
+
+    def _on_order(self, elem: etree._Element) -> None:
+        parent = elem.getparent()
+        if parent is None: return
+        ship = parent.getparent()
+        if ship is None or not ship.get("class", "").startswith("ship_"):
+            return
+        ship_id = ship.get("id")
+        if not ship_id: return
+        
+        # Only keep the first order encountered per ship (usually the active one)
+        if ship_id not in self._ship_orders:
+            order_val = elem.get("order")
+            if order_val:
+                self._ship_orders[ship_id] = order_val
 
     def _resolve_position(
         self, elem: etree._Element, ship_id: str
@@ -102,10 +122,18 @@ class ShipsCollector:
         if not ship_id:
             return
 
+        name = elem.get("name")
+        macro = elem.get("macro")
+
         sector_id, zone_id = self._enclosing_sector_zone(elem)
         owner = elem.get("owner")
         ox, oy, oz = self._resolve_position(elem, ship_id)
         extra = {k: v for k, v in elem.attrib.items() if k not in _MAPPED_SHIP_ATTRS}
+        
+        current_order = self._ship_orders.pop(ship_id, None)
+        if current_order:
+            extra["current_order"] = current_order
+
         self.rows.append(
             ShipRow(
                 ship_id=ship_id,

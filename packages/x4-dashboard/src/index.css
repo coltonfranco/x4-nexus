@@ -132,6 +132,7 @@
     color: var(--text);
     font-family: var(--font-ui);
     -webkit-font-smoothing: antialiased;
+    user-select: none;
     background-image:
       radial-gradient(circle at 50% 0%, var(--accent-08) 0%, transparent 100%),
       linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),

@@ -53,3 +53,7 @@ icons/
 
 # Reasonix tool artifacts
 .reasonix/
+
+# Dev scratch / artifacts
+scratch/
+nul

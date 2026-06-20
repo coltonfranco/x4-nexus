@@ -2,15 +2,15 @@ import { useState, useMemo } from "react";
 import { ChevronDown } from "lucide-react";
 import { FillMode } from "../../lib/map/overlays/types";
 import { STATUS_COLORS, RESOURCE_COLORS, RESOURCE_ORDER, MAP_THEME } from "../../lib/map/constants";
-import type { Faction } from "../../lib/map/types";
+import type { FactionSummary } from "../../lib/map/types";
 
-export function MapLegend({ 
+export function MapLegend({
   fillMode,
   factionMap,
   resource,
-}: { 
+}: {
   fillMode: FillMode;
-  factionMap?: Map<string, Faction>;
+  factionMap?: Map<string, FactionSummary>;
   resource?: string | null;
 }) {
   const [open, setOpen] = useState(true);
@@ -19,7 +19,7 @@ export function MapLegend({
     fillMode === "conflict" ? "Conflict Legend" :
     fillMode === "relations" ? "Relations Legend" :
     fillMode === "trade" ? "Trade Legend" :
-    fillMode === "resources" ? "Resources Legend" : 
+    fillMode === "resources" ? "Resources Legend" :
     fillMode === "faction" ? "Faction Legend" : "Legend";
 
   const factionsList = useMemo(() => {
@@ -70,10 +70,10 @@ export function MapLegend({
             <div className="grid grid-cols-[16px_1fr] gap-x-2 gap-y-1.5 items-center">
               <div className="w-2.5 h-2.5 rounded-full bg-red-500 animate-[conflict-blink-intense_0.5s_infinite]" />
               <span>Intense Battle (10+ ships per side)</span>
-              
+
               <div className="w-2.5 h-2.5 rounded-full bg-orange-500 animate-[conflict-pulse-fast_1s_infinite]" />
               <span>Invasion (5+ hostiles vs Owner)</span>
-              
+
               <div className="w-2.5 h-2.5 rounded-full bg-yellow-500 animate-[conflict-pulse-slow_2s_infinite]" />
               <span>Skirmish (Minor Conflict)</span>
             </div>
@@ -84,13 +84,13 @@ export function MapLegend({
             <div className="grid grid-cols-[16px_1fr] gap-x-2 gap-y-1.5 items-center">
               <div className="w-3 h-0.5 bg-red-500 animate-[conflict-blink-intense_0.5s_infinite]" />
               <span>Massive Fleet (120+ ships)</span>
-              
+
               <div className="w-3 h-0.5 bg-red-500" />
               <span>Large Fleet (75-119 ships)</span>
-              
+
               <div className="w-3 h-0.5 bg-orange-500" />
               <span>Medium Fleet (45-74 ships)</span>
-              
+
               <div className="w-3 h-0.5 bg-yellow-500" />
               <span>Small Fleet (1-44 ships)</span>
             </div>
@@ -101,15 +101,15 @@ export function MapLegend({
             <div className="grid grid-cols-[16px_1fr] gap-x-2 gap-y-1.5 items-center">
               <div className="w-3 h-2.5 border-2 border-dashed border-red-500/80 rounded-[2px]" />
               <span>High Threat (10+ hostile)</span>
-              
+
               <div className="w-3 h-2.5 border-2 border-dashed border-orange-500/80 rounded-[2px]" />
               <span>Medium Threat (5-9 hostile)</span>
-              
+
               <div className="w-3 h-2.5 border-2 border-dashed border-yellow-500/80 rounded-[2px]" />
               <span>Low Threat (1-4 hostile)</span>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-2 mt-1">
             <div className="w-2 h-2 rounded-full bg-green-500 ml-0.5" />
             <span>Player Forces Present</span>
@@ -156,7 +156,7 @@ export function MapLegend({
           </div>
         </div>
       )}
-      
+
       {fillMode === "resources" && (
         <div className="flex flex-col gap-2">
           {resource ? (

@@ -1,19 +1,30 @@
 """Extract NPCs (crew, marines, station personnel) from a streamed save.
 
-Structure: <component class="npc" id="..." name="..." macro="..." owner="...">
+Structure: <component class="npc" id="..." name="..." code="..." macro="..."
+                        owner="..." connection="...">
   <entity type="officer" post="aipilot"/>
   <npcseed seed="1234567890"/>
-  <blackboard><value name="$HiringFee" type="money">...</value></blackboard>
+  <traits flags="remotecommable">
+    <skills boarding="6" engineering="1" management="1" morale="9" piloting="7"/>
+  </traits>
+  <blackboard>
+    <value name="$HiringFee" type="money">4500</value>
+  </blackboard>
 </component>
 
-NPC skills are NOT stored in the save — they're derived from `npcseed` + macro at
-runtime. We capture the seed for future skill computation.
+Skill values are 0-15 (0-5 stars x 3 pips per star).  Skills are stored as
+attributes on a single <skills> element inside <traits>.  They reflect the
+NPC's *current* skill levels, which start from the seed-derived base and
+increase through experience / seminars.  Not all five attributes are always
+present — missing ones are treated as 0 by the game.
 
-Children are cleared before the parent NPC's end event fires (dispatch design), so
-this collector uses three registrations:
+Children are cleared before the parent NPC's end event fires (dispatch design),
+so this collector uses five registrations:
   1. <component class="npc">  — captures attrs + walks ancestors for location
   2. <entity>                 — walks up to parent NPC, stores role
   3. <npcseed>                — walks up to parent NPC, stores seed
+  4. <skills parent=traits>   — walks up to parent NPC, stores skill attributes
+  5. <value parent=blackboard>— walks up to parent NPC, stores blackboard entries
 
 Data is accumulated in a dict keyed by NPC id and flushed at the end.
 
@@ -22,6 +33,7 @@ Tier: STRUCTURAL — NPC assignments are rare (hire/fire/reassign), not per-tick
 
 from __future__ import annotations
 
+import contextlib
 import dataclasses
 import json
 import sqlite3
@@ -45,8 +57,15 @@ class NPCRow:
     entity_type: str | None
     entity_post: str | None
     seed: str | None
+    connection: str | None
     location_ship_id: str | None
     location_station_id: str | None
+    skill_piloting: int | None
+    skill_morale: int | None
+    skill_engineering: int | None
+    skill_management: int | None
+    skill_boarding: int | None
+    blackboard_json: str | None
     employment: str
     extra_json: str | None
 
@@ -54,6 +73,7 @@ class NPCRow:
 @dataclass(slots=True)
 class NPCsCollector:
     _by_id: dict[str, dict[str, object]] = field(default_factory=dict)
+    _person_counter: int = 0
 
     def register(self) -> list[Registration]:
         return [
@@ -69,6 +89,26 @@ class NPCsCollector:
                 target=Target(tag="npcseed", depth=None),
                 visitor=self._on_npcseed,
             ),
+            Registration(
+                target=Target(tag="skills", depth=None, parent_tag="traits"),
+                visitor=self._on_skills,
+            ),
+            Registration(
+                target=Target(tag="value", depth=None, parent_tag="blackboard"),
+                visitor=self._on_blackboard_value,
+            ),
+            Registration(
+                target=Target(tag="person", depth=None, parent_tag="people"),
+                visitor=self._on_person,
+            ),
+            Registration(
+                target=Target(tag="npcseed", depth=None, parent_tag="person"),
+                visitor=self._on_person_npcseed,
+            ),
+            Registration(
+                target=Target(tag="skills", depth=None, parent_tag="person"),
+                visitor=self._on_person_skills,
+            ),
         ]
 
     def _npc_parent(self, elem: etree._Element) -> etree._Element | None:
@@ -82,24 +122,34 @@ class NPCsCollector:
             ancestor = ancestor.getparent()
         return None
 
-    def _enclosing_location(self, elem: etree._Element) -> tuple[str | None, str | None]:
-        """Walk ancestors to find the enclosing ship and/or station component id."""
+    def _enclosing_location(self, elem: etree._Element) -> tuple[str | None, str | None, str | None, str | None, bool]:
+        """Walk ancestors to find the enclosing ship, station, component owner, sector, and whether it's a buildstorage."""
         ship_id: str | None = None
         station_id: str | None = None
+        owner: str | None = None
+        sector_id: str | None = None
+        is_buildstorage = False
         ancestor: etree._Element | None = elem.getparent()
         for _ in range(_ANCESTOR_WALK_LIMIT):
             if ancestor is None:
                 break
             if ancestor.tag == "component":
                 cls = ancestor.get("class", "")
+                if owner is None and ancestor.get("owner"):
+                    owner = ancestor.get("owner")
                 if cls in ("ship_s", "ship_m", "ship_l", "ship_xl", "ship_xs") and ship_id is None:
                     ship_id = ancestor.get("id")
                 elif cls == "station" and station_id is None:
                     station_id = ancestor.get("id")
-            if ship_id is not None and station_id is not None:
+                elif cls == "buildstorage" and station_id is None:
+                    station_id = ancestor.get("id")
+                    is_buildstorage = True
+                elif cls == "sector" and sector_id is None:
+                    sector_id = ancestor.get("macro")
+            if ship_id is not None and station_id is not None and owner is not None and sector_id is not None:
                 break
             ancestor = ancestor.getparent()
-        return ship_id, station_id
+        return ship_id, station_id, owner, sector_id, is_buildstorage
 
     def _ensure(self, npc_id: str) -> dict[str, object]:
         if npc_id not in self._by_id:
@@ -114,13 +164,19 @@ class NPCsCollector:
         data["name"] = elem.get("name")
         data["code"] = elem.get("code")
         data["macro"] = elem.get("macro")
-        data["owner_faction"] = elem.get("owner")
-        ship_id, station_id = self._enclosing_location(elem)
+        data["connection"] = elem.get("connection")
+        ship_id, station_id, enclosing_owner, sector_id, is_buildstorage = self._enclosing_location(elem)
+        data["owner_faction"] = elem.get("owner") or enclosing_owner
         data["location_ship_id"] = ship_id
         data["location_station_id"] = station_id
         # Capture unmapped attributes
         mapped = frozenset({"id", "name", "code", "macro", "owner", "class", "connection"})
         extra = {k: v for k, v in elem.attrib.items() if k not in mapped}
+        if sector_id:
+            extra["sector_id"] = sector_id
+        if is_buildstorage:
+            extra["is_buildstorage"] = True
+        
         if extra:
             existing = data.get("_extra")
             if isinstance(existing, dict):
@@ -150,6 +206,98 @@ class NPCsCollector:
         if seed is not None:
             self._ensure(npc_id)["seed"] = seed
 
+    def _on_skills(self, elem: etree._Element) -> None:
+        """Parse <skills boarding="6" engineering="1" .../> attributes."""
+        npc = self._npc_parent(elem)
+        if npc is None:
+            return
+        npc_id = npc.get("id")
+        if not npc_id:
+            return
+        data = self._ensure(npc_id)
+        skills: dict[str, int] = data.setdefault("_skills", {})
+        for attr in ("piloting", "morale", "engineering", "management", "boarding"):
+            raw = elem.get(attr)
+            if raw is not None:
+                with contextlib.suppress(ValueError, TypeError):
+                    skills[attr] = int(raw)
+
+    def _on_blackboard_value(self, elem: etree._Element) -> None:
+        npc = self._npc_parent(elem)
+        if npc is None:
+            return
+        npc_id = npc.get("id")
+        if not npc_id:
+            return
+        name = elem.get("name")
+        text = elem.text
+        if name:
+            data = self._ensure(npc_id)
+            bb: dict[str, str] = data.setdefault("_blackboard", {})
+            bb[name] = text if text else ""
+
+    def _get_or_create_person_tmp_id(self, person: etree._Element) -> str:
+        tmp_id = person.get("_tmp_id")
+        if not tmp_id:
+            self._person_counter += 1
+            tmp_id = f"person_tmp_{self._person_counter}"
+            person.set("_tmp_id", tmp_id)
+        return tmp_id
+
+    def _on_person_skills(self, elem: etree._Element) -> None:
+        person = elem.getparent()
+        if person is None:
+            return
+        tmp_id = self._get_or_create_person_tmp_id(person)
+        data = self._ensure(tmp_id)
+        skills: dict[str, int] = data.setdefault("_skills", {})
+        for attr in ("piloting", "morale", "engineering", "management", "boarding"):
+            raw = elem.get(attr)
+            if raw is not None:
+                with contextlib.suppress(ValueError, TypeError):
+                    skills[attr] = int(raw)
+
+    def _on_person_npcseed(self, elem: etree._Element) -> None:
+        person = elem.getparent()
+        if person is None:
+            return
+        seed = elem.get("seed")
+        if seed is not None:
+            tmp_id = self._get_or_create_person_tmp_id(person)
+            self._ensure(tmp_id)["seed"] = seed
+
+    def _on_person(self, elem: etree._Element) -> None:
+        tmp_id = self._get_or_create_person_tmp_id(elem)
+        data = self._ensure(tmp_id)
+        
+        data["macro"] = elem.get("macro")
+        role = elem.get("role")
+        if role == "service":
+            data["entity_post"] = "engineer"
+            data["entity_type"] = "officer"
+        elif role == "marine":
+            data["entity_post"] = "marine"
+            data["entity_type"] = "officer"
+        else:
+            data["entity_post"] = role
+            data["entity_type"] = "officer"
+            
+        ship_id, station_id, enclosing_owner, sector_id, is_buildstorage = self._enclosing_location(elem)
+        data["owner_faction"] = enclosing_owner
+        data["location_ship_id"] = ship_id
+        data["location_station_id"] = station_id
+        
+        extra = data.get("_extra", {})
+        if sector_id:
+            extra["sector_id"] = sector_id
+        if is_buildstorage:
+            extra["is_buildstorage"] = True
+        if extra:
+            data["_extra"] = extra
+        
+        real_id = f"{ship_id or station_id or 'unknown'}-person-{data.get('seed', tmp_id)}"
+        self._by_id[real_id] = self._by_id.pop(tmp_id)
+
     # --- tiered contract -------------------------------------------------------
     def tables(self, tier: Tier) -> tuple[str, ...]:
         return ("npc",) if tier is Tier.STRUCTURAL else ()
@@ -177,6 +325,8 @@ class NPCsCollector:
         for npc_id, data in sorted(self._by_id.items()):
             owner = data.get("owner_faction")
             loc_station = data.get("location_station_id")
+            skills: dict[str, int] = data.get("_skills", {})
+            bb = data.get("_blackboard")
             rows.append(
                 NPCRow(
                     id=npc_id,
@@ -187,8 +337,15 @@ class NPCsCollector:
                     entity_type=data.get("entity_type"),
                     entity_post=data.get("entity_post"),
                     seed=data.get("seed"),
+                    connection=data.get("connection"),
                     location_ship_id=data.get("location_ship_id"),
                     location_station_id=loc_station,
+                    skill_piloting=skills.get("piloting"),
+                    skill_morale=skills.get("morale"),
+                    skill_engineering=skills.get("engineering"),
+                    skill_management=skills.get("management"),
+                    skill_boarding=skills.get("boarding"),
+                    blackboard_json=json.dumps(bb, sort_keys=True) if bb else None,
                     employment=self._employment(owner, loc_station),
                     extra_json=json.dumps(data["_extra"], sort_keys=True) if data.get("_extra") else None,
                 )
@@ -197,10 +354,14 @@ class NPCsCollector:
             """
             INSERT OR REPLACE INTO npc
                 (id, name, code, macro, owner_faction, entity_type, entity_post,
-                 seed, location_ship_id, location_station_id, employment, extra_json)
+                 seed, connection, location_ship_id, location_station_id,
+                 skill_piloting, skill_morale, skill_engineering, skill_management, skill_boarding,
+                 blackboard_json, employment, extra_json)
             VALUES
                 (:id, :name, :code, :macro, :owner_faction, :entity_type, :entity_post,
-                 :seed, :location_ship_id, :location_station_id, :employment, :extra_json)
+                 :seed, :connection, :location_ship_id, :location_station_id,
+                 :skill_piloting, :skill_morale, :skill_engineering, :skill_management, :skill_boarding,
+                 :blackboard_json, :employment, :extra_json)
             """,
             [dataclasses.asdict(r) for r in rows],
         )

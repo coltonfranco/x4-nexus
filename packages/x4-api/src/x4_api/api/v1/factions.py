@@ -23,6 +23,7 @@ class FactionSummary(PublicModel):
     space_name: str | None = None
     home_space_name: str | None = None
     police_faction: str | None = None
+    primary_race: str | None = None
     icon_active: str | None = None
     icon_inactive: str | None = None
     icon_banner: str | None = None
@@ -79,7 +80,7 @@ def list_factions(conn: Annotated[sqlite3.Connection, Depends(get_db)]) -> list[
     """List all factions in the game catalog."""
     rows = conn.execute(
         "SELECT faction_id, name, color_hex, short_name, prefix_name, space_name, home_space_name, "
-        "police_faction, icon_active, icon_inactive, icon_banner FROM s.factions "
+        "police_faction, primary_race, icon_active, icon_inactive, icon_banner FROM s.factions "
         "WHERE faction_id NOT IN ('ownerless', 'visitor') "
         "ORDER BY name"
     ).fetchall()

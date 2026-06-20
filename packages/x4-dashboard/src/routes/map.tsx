@@ -242,12 +242,12 @@ export default function MapPage() {
   // clicked sector's best route — the whole hex is the click target, not a tiny dot.
   const handleSelectSector = useCallback((id: string | null, mapPos?: [number, number]) => {
     setSelectedSectorId(id);
-    if (id) { 
+    if (id) {
       if (id !== navFrom) {
-        setNavTo(null); 
+        setNavTo(null);
         setNavToPos(null);
       }
-      setNavFrom(id); 
+      setNavFrom(id);
       setNavFromPos(mapPos ?? null);
     }
   }, [fillMode, wareId, navFrom]);
@@ -264,9 +264,9 @@ export default function MapPage() {
     setNavToPos(mapPos ?? null);
   }, []);
 
-  const clearNav = useCallback(() => { 
-    setNavFrom(null); setNavTo(null); 
-    setNavFromPos(null); setNavToPos(null); 
+  const clearNav = useCallback(() => {
+    setNavFrom(null); setNavTo(null);
+    setNavFromPos(null); setNavToPos(null);
   }, []);
 
   useEffect(() => {
@@ -364,11 +364,11 @@ export default function MapPage() {
           }}
         />
 
-        <button 
+        <button
           onClick={() => setLayersOpen(!layersOpen)}
           className={`flex items-center gap-[7px] px-[13px] py-[9px] backdrop-blur-[12px] rounded-[11px] font-['Space_Grotesk',sans-serif] text-[13px] cursor-pointer transition-colors ${
-            layersOpen 
-              ? 'bg-[#0d121e]/95 border border-white/[0.18] text-[#eef3fa]' 
+            layersOpen
+              ? 'bg-[#0d121e]/95 border border-white/[0.18] text-[#eef3fa]'
               : 'bg-[#0a0f1a]/85 border border-white/10 text-[#aeb7c8] hover:bg-[#0d121e]/95 hover:text-[#eef3fa]'
           }`}
         >
@@ -425,8 +425,6 @@ export default function MapPage() {
           onClearWare={() => setWareId(null)}
           economyWares={economyWaresQuery.data ?? []}
           waresLoading={economyWaresQuery.isLoading}
-          routesLoading={overlay.isLoading}
-          markerCount={overlay.routeMarkers.length}
           maxJumps={maxJumps}
           onMaxJumpsChange={setMaxJumps}
           overlayLoading={overlay.isLoading}
@@ -514,9 +512,9 @@ export default function MapPage() {
 
       {/* Temporarily reposition MapLegend until Phase 3 */}
       <div className="absolute bottom-[20px] left-[20px] pointer-events-auto z-10">
-        <MapLegend 
-          fillMode={fillMode} 
-          factionMap={layout.factionMap} 
+        <MapLegend
+          fillMode={fillMode}
+          factionMap={layout.factionMap}
           resource={resource}
         />
       </div>

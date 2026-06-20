@@ -12,6 +12,7 @@ from collections.abc import AsyncIterator
 from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from x4_api import __version__
@@ -37,6 +38,7 @@ from x4_api.api.v1 import (
     player,
     races,
     refresh,
+    roles,
     routes,
     saves,
     setup,
@@ -100,6 +102,7 @@ def app() -> FastAPI:
     fast.include_router(player.router, prefix="/api/v1", tags=["player"])
     fast.include_router(stations.router, prefix="/api/v1", tags=["stations"])
     fast.include_router(fleet.router, prefix="/api/v1", tags=["fleet"])
+    fast.include_router(roles.router, prefix="/api/v1", tags=["roles"])
     fast.include_router(routes.router, prefix="/api/v1", tags=["routes"])
     fast.include_router(logbook.router, prefix="/api/v1", tags=["logbook"])
     fast.include_router(npcs.router, prefix="/api/v1", tags=["npcs"])
@@ -112,7 +115,29 @@ def app() -> FastAPI:
 
     dashboard_dist = _dashboard_dist()
     if dashboard_dist is not None:
-        fast.mount("/", StaticFiles(directory=dashboard_dist, html=True), name="dashboard")
+        # Mount the assets directory for JS/CSS bundles.
+        assets_dir = dashboard_dist / "assets"
+        if assets_dir.is_dir():
+            fast.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
+
+        @fast.get("/favicon.ico")
+        async def _favicon() -> FileResponse:
+            # Browsers request /favicon.ico by default; serve the project logo.
+            logo = dashboard_dist / "logo.svg"
+            if logo.is_file():
+                return FileResponse(logo, media_type="image/svg+xml")
+            png = dashboard_dist / "logo.png"
+            if png.is_file():
+                return FileResponse(png, media_type="image/png")
+            return FileResponse(dashboard_dist / "index.html")
+
+        @fast.get("/{full_path:path}")
+        async def _spa_fallback(full_path: str) -> FileResponse:
+            """Serve a static file from the dist root, or index.html for SPA routes."""
+            candidate = dashboard_dist / full_path
+            if candidate.is_file():
+                return FileResponse(candidate)
+            return FileResponse(dashboard_dist / "index.html")
 
     return fast
 

@@ -45,6 +45,13 @@ CREATE TABLE IF NOT EXISTS ware_owners (
 );
 CREATE INDEX IF NOT EXISTS idx_ware_owners_faction ON ware_owners(faction_id);
 
+CREATE TABLE IF NOT EXISTS texts (
+    page_id    INTEGER,
+    text_id    INTEGER,
+    text       TEXT NOT NULL,
+    PRIMARY KEY (page_id, text_id)
+);
+
 CREATE TABLE IF NOT EXISTS ware_illegal (
     ware_id    TEXT NOT NULL,
     faction_id TEXT NOT NULL,
@@ -902,3 +909,32 @@ CREATE TABLE IF NOT EXISTS drop_list_wares (
 );
 CREATE INDEX IF NOT EXISTS idx_drop_list_wares_list ON drop_list_wares(list_id);
 CREATE INDEX IF NOT EXISTS idx_drop_list_wares_ware ON drop_list_wares(ware_id);
+
+CREATE TABLE IF NOT EXISTS orders (
+    order_id TEXT PRIMARY KEY,
+    name TEXT
+);
+
+CREATE TABLE IF NOT EXISTS assignments (
+    assignment_id TEXT PRIMARY KEY,
+    name TEXT
+);
+
+CREATE TABLE IF NOT EXISTS behaviours (
+    behaviour_id TEXT PRIMARY KEY,
+    name TEXT
+);
+
+CREATE TABLE IF NOT EXISTS roles (
+    role_id TEXT PRIMARY KEY,
+    name TEXT,
+    tag TEXT
+);
+
+CREATE TABLE IF NOT EXISTS role_skills (
+    role_id TEXT NOT NULL,
+    skill_ref TEXT NOT NULL,
+    relevance INTEGER NOT NULL,
+    PRIMARY KEY (role_id, skill_ref),
+    FOREIGN KEY (role_id) REFERENCES roles(role_id)
+);

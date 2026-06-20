@@ -207,9 +207,9 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: engine, shield, weapon, turret, thruster, missile, …
+          description: "engine, shield, weapon, turret, thruster, missile, \u2026"
           title: Kind
-        description: engine, shield, weapon, turret, thruster, missile, …
+        description: "engine, shield, weapon, turret, thruster, missile, \u2026"
       - name: size
         in: query
         required: false
@@ -341,18 +341,11 @@ paths:
       tags:
       - factions
       summary: Faction Strength
-      description: 'Relative strength metrics, normalized 0-100, computed from LIVE
-        save state.
-
-
-        Everything here is the *current* universe (dynamic ships/stations/relations)
-        so the
-
-        standings reflect how the game has actually unfolded — seed/static is init
-        state only
-
-        and is not referenced once a save is loaded. The player is ranked alongside
-        AI factions.'
+      description: "Relative strength metrics, normalized 0-100, computed from LIVE\
+        \ save state.\n\nEverything here is the *current* universe (dynamic ships/stations/relations)\
+        \ so the\nstandings reflect how the game has actually unfolded \u2014 seed/static\
+        \ is init state only\nand is not referenced once a save is loaded. The player\
+        \ is ranked alongside AI factions."
       operationId: faction_strength_api_v1_factions_strength_get
       responses:
         '200':
@@ -1177,16 +1170,11 @@ paths:
       tags:
       - map
       summary: List Conflicts
-      description: 'Sectors with active fighter presence from mutually-hostile factions.
-
-
-        Returns one row per sector with a conflict score.  ``intensity`` is
-
-        0.0–1.0 normalized across all sectors; ``fighter_count`` is the raw
-
-        number of combat-class ships from the hostile factions in that sector.
-
-        Returns [] until a save is ingested.'
+      description: "Sectors with active fighter presence from mutually-hostile factions.\n\
+        \nReturns one row per sector with a conflict score.  ``intensity`` is\n0.0\u2013\
+        1.0 normalized across all sectors; ``fighter_count`` is the raw\nnumber of\
+        \ combat-class ships from the hostile factions in that sector.\nReturns []\
+        \ until a save is ingested."
       operationId: list_conflicts_api_v1_map_conflicts_get
       responses:
         '200':
@@ -1559,9 +1547,9 @@ paths:
           anyOf:
           - type: integer
           - type: 'null'
-          description: Filter by quality tier 1–3
+          description: "Filter by quality tier 1\u20133"
           title: Quality
-        description: Filter by quality tier 1–3
+        description: "Filter by quality tier 1\u20133"
       - name: limit
         in: query
         required: false
@@ -2653,6 +2641,23 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/roles:
+    get:
+      tags:
+      - roles
+      summary: List Roles
+      description: List all NPC roles and their skill relevance weights.
+      operationId: list_roles_api_v1_roles_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/Role'
+                type: array
+                title: Response List Roles Api V1 Roles Get
   /api/v1/routes:
     get:
       tags:
@@ -2668,10 +2673,10 @@ paths:
         schema:
           type: integer
           minimum: 1
-          description: Ship cargo capacity (m³)
+          description: "Ship cargo capacity (m\xB3)"
           default: 8000
           title: Ship Cargo
-        description: Ship cargo capacity (m³)
+        description: "Ship cargo capacity (m\xB3)"
       - name: ship_speed
         in: query
         required: false
@@ -2987,8 +2992,8 @@ paths:
       tags:
       - economy
       summary: Ware Offer Breakdown
-      description: Per-station offers for one ware — where it's demanded vs supplied
-        (and hoarding).
+      description: "Per-station offers for one ware \u2014 where it's demanded vs\
+        \ supplied (and hoarding)."
       operationId: ware_offer_breakdown_api_v1_economy_wares__ware_id__stations_get
       parameters:
       - name: ware_id
@@ -3008,6 +3013,40 @@ paths:
                   $ref: '#/components/schemas/WareOfferRow'
                 title: Response Ware Offer Breakdown Api V1 Economy Wares  Ware Id  Stations
                   Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /favicon.ico:
+    get:
+      summary: ' Favicon'
+      operationId: _favicon_favicon_ico_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /{full_path}:
+    get:
+      summary: ' Spa Fallback'
+      description: Serve a static file from the dist root, or index.html for SPA routes.
+      operationId: _spa_fallback__full_path__get
+      parameters:
+      - name: full_path
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Full Path
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
         '422':
           description: Validation Error
           content:
@@ -4045,6 +4084,11 @@ components:
           - type: string
           - type: 'null'
           title: Police Faction
+        primary_race:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Primary Race
         icon_active:
           anyOf:
           - type: string
@@ -4065,11 +4109,6 @@ components:
           - type: string
           - type: 'null'
           title: Icon Url
-        primary_race:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Primary Race
         description:
           anyOf:
           - type: string
@@ -4262,6 +4301,11 @@ components:
           - type: string
           - type: 'null'
           title: Police Faction
+        primary_race:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Primary Race
         icon_active:
           anyOf:
           - type: string
@@ -4810,11 +4854,51 @@ components:
           - type: string
           - type: 'null'
           title: Associated Entity
+        associated_entity_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Associated Entity Name
+        associated_entity_kind:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Associated Entity Kind
+        associated_entity_sector_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Associated Entity Sector Id
+        associated_entity_zone_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Associated Entity Zone Id
+        associated_entity_x:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Associated Entity X
+        associated_entity_y:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Associated Entity Y
+        associated_entity_z:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Associated Entity Z
         group_id:
           anyOf:
           - type: string
           - type: 'null'
           title: Group Id
+        group_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Group Name
         is_story:
           anyOf:
           - type: boolean
@@ -4928,6 +5012,36 @@ components:
           - type: string
           - type: 'null'
           title: Target Id
+        target_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Target Name
+        target_sector_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Target Sector Id
+        target_zone_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Target Zone Id
+        target_x:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Target X
+        target_y:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Target Y
+        target_z:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Target Z
         progress_current:
           anyOf:
           - type: integer
@@ -4998,16 +5112,31 @@ components:
           - type: string
           - type: 'null'
           title: Actor
+        actor_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Actor Name
         station_id:
           anyOf:
           - type: string
           - type: 'null'
           title: Station Id
+        station_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Station Name
         bbs_station_id:
           anyOf:
           - type: string
           - type: 'null'
           title: Bbs Station Id
+        bbs_station_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bbs Station Name
         is_repeatable:
           type: boolean
           title: Is Repeatable
@@ -5016,6 +5145,36 @@ components:
           - type: string
           - type: 'null'
           title: Rewardtext
+        reward_credits:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Reward Credits
+        opposing_faction:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Opposing Faction
+        group_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Group Id
+        component_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Component Id
+        distance:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Distance
+        thread_type:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Thread Type
       additionalProperties: false
       type: object
       required:
@@ -5509,6 +5668,11 @@ components:
           - type: string
           - type: 'null'
           title: Seed
+        connection:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Connection
         location_ship_id:
           anyOf:
           - type: string
@@ -5519,6 +5683,86 @@ components:
           - type: string
           - type: 'null'
           title: Location Station Id
+        location_ship_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Location Ship Name
+        location_ship_code:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Location Ship Code
+        location_ship_command:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Location Ship Command
+        location_ship_command_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Location Ship Command Name
+        location_ship_assignment:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Location Ship Assignment
+        location_ship_assignment_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Location Ship Assignment Name
+        location_ship_icon_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Location Ship Icon Url
+        location_station_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Location Station Name
+        location_station_code:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Location Station Code
+        location_sector_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Location Sector Name
+        skill_piloting:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Skill Piloting
+        skill_morale:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Skill Morale
+        skill_engineering:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Skill Engineering
+        skill_management:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Skill Management
+        skill_boarding:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Skill Boarding
+        blackboard_json:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Blackboard Json
         employment:
           type: string
           title: Employment
@@ -6208,6 +6452,48 @@ components:
       - ware
       - yield_level
       title: ResourceEntry
+    Role:
+      properties:
+        role_id:
+          type: string
+          title: Role Id
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+        tag:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Tag
+        skills:
+          items:
+            $ref: '#/components/schemas/RoleSkill'
+          type: array
+          title: Skills
+      additionalProperties: false
+      type: object
+      required:
+      - role_id
+      - name
+      - tag
+      - skills
+      title: Role
+    RoleSkill:
+      properties:
+        skill_ref:
+          type: string
+          title: Skill Ref
+        relevance:
+          type: integer
+          title: Relevance
+      additionalProperties: false
+      type: object
+      required:
+      - skill_ref
+      - relevance
+      title: RoleSkill
     Route:
       properties:
         ware_id:

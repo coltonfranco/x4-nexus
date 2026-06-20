@@ -5,7 +5,7 @@ import { TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/tab
 
 export interface ColumnDef<T> {
   key: string;
-  label: string;
+  label: React.ReactNode;
   sortKey?: string;
   groupId?: string;
   align?: "left" | "right";

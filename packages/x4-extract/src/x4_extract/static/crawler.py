@@ -29,7 +29,8 @@ from x4_extract.static import catdat
 log = logging.getLogger(__name__)
 
 # Top-level directories that are runtime-only and add no static data value.
-EXCLUDE_DIRS = {"aiscripts", "md", "cutscenes", "fx", "ui"}
+# aiscripts is handled specially: we only extract <order> definitions from it.
+EXCLUDE_DIRS = {"md", "cutscenes", "fx", "ui"}
 
 
 def _log(msg: str) -> None:
@@ -68,7 +69,7 @@ def run_crawler(settings: ExtractSettings) -> None:
             if _keep(entry.path):
                 base_entries[entry.path] = entry   # last-wins
                 count += 1
-        _log(f"  {cat.stem}.cat → {count} XML entries")
+        _log(f"  {cat.stem}.cat -> {count} XML entries")
 
     _log(f"Base game: {len(base_entries)} unique XML files after last-cat-wins merge.")
 
@@ -142,9 +143,24 @@ def run_crawler(settings: ExtractSettings) -> None:
                 log.warning("Failed to read %s: %s", path, exc)
                 continue
 
-        content_str = content_bytes.decode("utf-8", errors="replace")
         top_dir  = path.split("/")[0] if "/" in path else ""
         filename = path.rsplit("/", 1)[-1]
+
+        if top_dir == "aiscripts":
+            try:
+                # We only want <order> elements to keep the database size down
+                root = etree.fromstring(content_bytes)
+                orders = root.xpath("//order")
+                if not orders:
+                    continue
+                new_root = etree.Element("aiscript")
+                for o in orders:
+                    new_root.append(o)
+                content_bytes = etree.tostring(new_root, encoding="utf-8")
+            except Exception:
+                continue
+
+        content_str = content_bytes.decode("utf-8", errors="replace")
 
         rows_to_insert.append({
             "filepath":  path,

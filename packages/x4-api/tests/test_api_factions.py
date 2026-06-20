@@ -64,7 +64,6 @@ def test_list_factions_returns_all_factions(client: TestClient, static_conn: sql
     assert argon["short_name"] == "ARG"
     assert argon["prefix_name"] == "Argon"
     assert argon["icon_active"] == "faction_argon"
-    assert "primary_race" not in argon  # summary only
 
 
 def test_get_faction_detail_returns_404_on_missing(client: TestClient) -> None:

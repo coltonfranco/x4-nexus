@@ -232,6 +232,16 @@ CREATE TABLE IF NOT EXISTS missions (
     priority           INTEGER,
     abortable          INTEGER,
     associated_entity  TEXT,
+    group_id           TEXT,              -- story / war guild group
+    is_story           INTEGER NOT NULL DEFAULT 0,  -- computed from group during extraction
+    caption            TEXT,              -- contact person name
+    icon               TEXT,              -- briefing portrait
+    time               REAL,              -- in-game timestamp
+    rewardtext         TEXT,              -- reward description
+    reward_credits     INTEGER,           -- credit reward
+    opposing_faction   TEXT,              -- enemy faction
+    activation         TEXT,              -- activation trigger
+    alert              TEXT,              -- alert level
     extra_json         TEXT
 );
 
@@ -267,6 +277,13 @@ CREATE TABLE IF NOT EXISTS mission_offers (
     bbs_station_id  TEXT,              -- from <bbs>/<space component="...">
     is_repeatable   INTEGER NOT NULL DEFAULT 0,
     rewardtext      TEXT,              -- from nested briefing/mission rewardtext
+    opposing_faction TEXT,             -- parsed from extra_json (war guild / one-shot)
+    group_id        TEXT,              -- war guild group (e.g. ter_war_xenon)
+    reward_credits  INTEGER,           -- parsed from extra_json
+    component_id    TEXT,              -- entity ref for one-shot missions
+    distance        INTEGER,           -- mission distance in metres
+    thread_type     TEXT,              -- "sequential" for war mission chains
+    duration        REAL,              -- mission time limit (seconds)
     extra_json      TEXT
 );
 
@@ -308,6 +325,9 @@ CREATE INDEX IF NOT EXISTS idx_player_msgs_time ON player_messages(time DESC);
 -- NPCs (crew, marines, station personnel) from <component class="npc">.
 -- `entity_type`/`entity_post` capture the assigned role (officer/aipilot/engineer/defence).
 -- `seed` is the deterministic NPC seed for skill generation.
+-- `connection` is the assigned slot on the ship/station (e.g. con_pilot_01).
+-- Skill values are 0–15 (0–5 stars × 3 pips per star).
+-- `blackboard_json` captures the NPC's blackboard key/value pairs.
 -- `location_ship_id`/`location_station_id` point to the enclosing ship/station (ancestor walk).
 CREATE TABLE IF NOT EXISTS npc (
     id                  TEXT PRIMARY KEY,
@@ -318,8 +338,15 @@ CREATE TABLE IF NOT EXISTS npc (
     entity_type         TEXT,
     entity_post         TEXT,
     seed                TEXT,
+    connection          TEXT,
     location_ship_id    TEXT,
     location_station_id TEXT,
+    skill_piloting      INTEGER,
+    skill_morale        INTEGER,
+    skill_engineering   INTEGER,
+    skill_management    INTEGER,
+    skill_boarding      INTEGER,
+    blackboard_json     TEXT,
     employment          TEXT NOT NULL DEFAULT 'other',  -- 'owned' | 'hireable' | 'other'
     extra_json          TEXT
 );

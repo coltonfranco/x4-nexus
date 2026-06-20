@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronRight, Coins } from "lucide-react";
+import { Coins } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Currency } from "../../components/Currency";
 import { WareDetailPanel } from "../../components/trade/WareDetailPanel";
@@ -28,6 +28,7 @@ type Ware = {
   price_min: number | null;
   price_avg: number | null;
   price_max: number | null;
+  icon_url: string | null;
   has_production: boolean;
   has_drops: boolean;
 };
@@ -86,12 +87,18 @@ const COLUMNS: ColumnDef<Row>[] = [
     key: "icon",
     label: "",
     align: "left",
-    className: "w-8 pl-4",
-    render: () => (
-      <span className="text-muted-foreground/40">
-        <ChevronRight className="h-3.5 w-3.5 opacity-0" />
-      </span>
-    ),
+    className: "w-10 pl-4",
+    render: ({ ware }) =>
+      ware.icon_url ? (
+        <img
+          src={ware.icon_url}
+          alt={ware.name}
+          className="h-8 w-8 object-contain"
+          loading="lazy"
+        />
+      ) : (
+        <span className="w-8 h-8" />
+      ),
   },
   {
     key: "name",
