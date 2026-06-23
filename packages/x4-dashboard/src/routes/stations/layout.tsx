@@ -1,11 +1,11 @@
 import { Link, Outlet, useRouterState } from "@tanstack/react-router";
-import { Building2, Database } from "lucide-react";
+import { Building2, Database, Factory } from "lucide-react";
 import { cn } from "../../lib/utils";
 
 const TABS = [
   { to: "/stations", label: "Modules", icon: Database, exact: true },
   { to: "/stations/overview", label: "My Stations", icon: Building2, exact: false },
-  // Future: { to: "/stations/planner", label: "Station Planner", icon: Factory, exact: false },
+  { to: "/stations/builder", label: "Station Builder", icon: Factory, exact: false },
 ] as const;
 
 /** Station construction hub: a tabbed layout over modules, and future planner. */

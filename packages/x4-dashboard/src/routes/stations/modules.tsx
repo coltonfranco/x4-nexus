@@ -35,7 +35,7 @@ import type { FactionSummary } from "../../lib/map/types";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-type ModuleSummary = {
+export type ModuleSummary = {
   module_id: string;
   name: string;
   dlc: string | null;
@@ -88,7 +88,7 @@ type ModuleSummary = {
   icon_url: string | null;
 };
 
-type ModuleDetail = ModuleSummary & {
+export type ModuleDetail = ModuleSummary & {
   construction_resources: Array<{
     ware_id: string;
     name: string;
@@ -120,7 +120,7 @@ const KIND_LABELS: Record<string, string> = {
   processingmodule: "Processing",
 };
 
-const KIND_COLORS: Record<string, string> = {
+export const KIND_COLORS: Record<string, string> = {
   storage: "bg-amber-500/20 text-amber-300 border-amber-500/30",
   dock: "bg-sky-500/20 text-sky-300 border-sky-500/30",
   connectionmodule: "bg-zinc-500/20 text-zinc-300 border-zinc-500/30",
@@ -163,7 +163,7 @@ function formatLicence(lic: string | null) {
 
 /** Check whether a module's licence is locked. When makerrace is null, the licence
  *  may be obtainable from any faction (or via research) — check the factionless set. */
-function isModuleLicenceLocked(
+export function isModuleLicenceLocked(
   makerrace: string | null,
   restriction_licence: string | null,
   licenceSet: Set<string>,
@@ -854,7 +854,6 @@ function UnlockGuide({ d, faction, licenceLocked }: {
   faction: FactionSummary | undefined;
   licenceLocked: boolean;
 }) {
-  const hasHeadquarters = d.build_sets?.includes("headquarters_player");
   const lic = d.restriction_licence;
 
   return (
@@ -914,16 +913,6 @@ function UnlockGuide({ d, faction, licenceLocked }: {
             </p>
           ) : null}
 
-          {/* PHQ Research */}
-          {hasHeadquarters && (
-            <div className="flex items-center gap-2 pt-1 border-t border-border/30">
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase bg-violet-500/15 text-violet-400 border border-violet-500/30">
-                PHQ
-              </span>
-              <span className="text-xs text-muted-foreground">Can be researched at the <span className="font-medium text-foreground/80">Player HQ</span> (bypasses purchase)</span>
-            </div>
-          )}
-
           {/* Licence requirement */}
           {lic ? (
             <div className="flex items-center gap-2 pt-1 border-t border-border/30">
@@ -960,7 +949,7 @@ function UnlockGuide({ d, faction, licenceLocked }: {
   );
 }
 
-function ModuleDetailPanel({ moduleId, summary, factions, licenceSet, anyLicenceSet }: { moduleId: string; summary: ModuleSummary; factions: FactionSummary[]; licenceSet: Set<string>; anyLicenceSet: Set<string> }) {
+export function ModuleDetailPanel({ moduleId, summary, factions, licenceSet, anyLicenceSet }: { moduleId: string; summary: ModuleSummary; factions: FactionSummary[]; licenceSet: Set<string>; anyLicenceSet: Set<string> }) {
   const { data: m } = useQuery<ModuleDetail>({
     queryKey: ["module", moduleId],
     queryFn: () => fetch(`/api/v1/modules/${moduleId}`).then((r) => r.json()),
@@ -1093,7 +1082,9 @@ function ModuleDetailPanel({ moduleId, summary, factions, licenceSet, anyLicence
             {hasBuildResources && (
               <TabsTrigger value="build" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-1 pb-3 pt-2 font-medium text-muted-foreground data-[state=active]:text-foreground transition-colors hover:text-foreground">Build</TabsTrigger>
             )}
-            <TabsTrigger value="unlock" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-1 pb-3 pt-2 font-medium text-muted-foreground data-[state=active]:text-foreground transition-colors hover:text-foreground">How to Unlock</TabsTrigger>
+            {!d.has_blueprint && (
+              <TabsTrigger value="unlock" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-1 pb-3 pt-2 font-medium text-muted-foreground data-[state=active]:text-foreground transition-colors hover:text-foreground">How to Unlock</TabsTrigger>
+            )}
           </TabsList>
         </div>
 

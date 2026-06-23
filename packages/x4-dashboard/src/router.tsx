@@ -27,6 +27,7 @@ import StyleguidePage from "./routes/styleguide";
 import { StationsLayout } from "./routes/stations/layout";
 import ModulesPage from "./routes/stations/modules";
 import MyStationsPage from "./routes/stations/overview";
+import StationBuilderPage from "./routes/stations/builder";
 
 const rootRoute = createRootRoute({ component: AppLayout });
 
@@ -124,6 +125,7 @@ const factionsDiplomacyRoute = createRoute({ getParentRoute: () => factionsRoute
 const stationsRoute = createRoute({ getParentRoute: () => rootRoute, path: "/stations", component: StationsLayout });
 const stationsModulesRoute = createRoute({ getParentRoute: () => stationsRoute, path: "/", component: ModulesPage });
 const stationsOverviewRoute = createRoute({ getParentRoute: () => stationsRoute, path: "overview", component: MyStationsPage });
+const stationsBuilderRoute = createRoute({ getParentRoute: () => stationsRoute, path: "builder", component: StationBuilderPage });
 const missionsRoute = createRoute({ getParentRoute: () => rootRoute, path: "/missions", component: MissionsPage });
 const messagesRoute = createRoute({ getParentRoute: () => rootRoute, path: "/messages", component: MessagesPage });
 const logbookRoute = createRoute({ getParentRoute: () => rootRoute, path: "/logbook", component: LogbookPage });
@@ -145,7 +147,7 @@ const routeTree = rootRoute.addChildren([
   diplomacyRedirect,
   mapRoute,
   shipsRoute.addChildren([shipsListRoute, shipsEquipmentRoute, shipsBuilderRoute]),
-  stationsRoute.addChildren([stationsModulesRoute, stationsOverviewRoute]),
+  stationsRoute.addChildren([stationsModulesRoute, stationsOverviewRoute, stationsBuilderRoute]),
   factionsRoute.addChildren([factionsListRoute, factionsDiplomacyRoute]),
   missionsRoute,
   messagesRoute,
