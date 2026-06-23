@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *{ box-sizing:border-box; }
+  body{ margin:0; }
+  ::-webkit-scrollbar{ width:10px; height:10px; }
+  ::-webkit-scrollbar-track{ background:transparent; }
+  ::-webkit-scrollbar-thumb{ background:#1d2740; border-radius:6px; border:2px solid transparent; background-clip:padding-box; }
+  ::-webkit-scrollbar-thumb:hover{ background:#2a3a5c; background-clip:padding-box; }
+  @keyframes msIn{ from{ opacity:0 } to{ opacity:1 } }
+  @keyframes msUp{ from{ opacity:0; transform:translateY(8px) } to{ opacity:1; transform:none } }
+</style>
+</helmet>
+<div style="display:flex; height:100vh; width:100%; font-family:'IBM Plex Sans',system-ui,sans-serif; color:#dfe6f0; background:#070b14; background-image:linear-gradient(0deg,rgba(255,255,255,.015) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.015) 1px,transparent 1px); background-size:46px 46px; overflow:hidden;">
+
+  <!-- SIDEBAR -->
+  <aside style="width:210px; flex:none; background:linear-gradient(180deg,#0a1020,#080d18); border-right:1px solid rgba(255,255,255,.06); display:flex; flex-direction:column; padding:18px 14px;">
+    <div style="display:flex; align-items:center; gap:10px; padding:4px 8px 22px;">
+      <div style="width:30px; height:30px; border:1.5px solid #3b9ae1; border-radius:7px; display:flex; align-items:center; justify-content:center; color:#3b9ae1; font-size:15px;">◆</div>
+      <div style="font-weight:700; letter-spacing:.5px; font-size:15px;">X4<span style="color:#5a6680; font-weight:500; letter-spacing:3px; font-size:11px; margin-left:5px;">NEXUS</span></div>
+    </div>
+    <sc-for list="{{ nav }}" as="n" hint-placeholder-count="9">
+      <div style="display:flex; align-items:center; gap:11px; padding:9px 12px; border-radius:8px; font-size:13.5px; cursor:pointer; margin-bottom:2px; background:{{ n.bg }}; color:{{ n.fg }}; border-left:2px solid {{ n.edge }};">
+        <span style="width:16px; text-align:center; opacity:.85;">{{ n.icon }}</span>{{ n.label }}
+      </div>
+    </sc-for>
+    <div style="margin-top:auto; padding:12px; border-top:1px solid rgba(255,255,255,.06);">
+      <div style="font-size:10px; letter-spacing:1.5px; color:#5a6680; margin-bottom:6px;">⛁ SAVE</div>
+      <div style="font-size:12px; color:#aab4c6;">Save 001 (15h 10m) ★</div>
+      <div style="display:flex; justify-content:space-between; font-family:'IBM Plex Mono'; font-size:11px; color:#5a6680; margin-top:5px;"><span>3,638,455 ◈</span><span>v900</span></div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div style="flex:1; min-width:0; display:flex; flex-direction:column;">
+
+    <!-- sub-tabs -->
+    <div style="height:50px; flex:none; border-bottom:1px solid rgba(255,255,255,.06); display:flex; align-items:center; gap:8px; padding:0 24px; background:rgba(8,13,24,.6);">
+      <div onClick="{{ goBoard }}" style="display:flex; align-items:center; gap:8px; font-size:13px; padding:7px 13px; border-radius:8px; cursor:pointer; background:{{ boardBg }}; color:{{ boardFg }};">◎ Mission Board</div>
+      <div onClick="{{ goRun }}" style="display:flex; align-items:center; gap:8px; font-size:13px; padding:7px 13px; border-radius:8px; cursor:pointer; background:{{ runBg }}; color:{{ runFg }};">⛓ Run Planner
+        <span style="font-family:'IBM Plex Mono'; font-size:11px; font-weight:600; min-width:18px; height:18px; padding:0 5px; border-radius:9px; display:inline-flex; align-items:center; justify-content:center; background:{{ runCountBg }}; color:{{ runCountFg }};">{{ runCount }}</span>
+      </div>
+      <div style="margin-left:auto; display:flex; align-items:center; gap:9px; font-family:'IBM Plex Mono'; font-size:11px; letter-spacing:1px; color:#5a6680;">
+        <span style="width:7px; height:7px; border-radius:50%; background:#34d399;"></span>{{ completedText }}
+      </div>
+    </div>
+
+    <!-- content: master + detail -->
+    <div style="flex:1; min-height:0; display:flex;">
+
+      <!-- ===== MASTER LIST ===== -->
+      <div style="width:438px; flex:none; border-right:1px solid rgba(255,255,255,.06); display:flex; flex-direction:column; background:rgba(8,12,22,.4);">
+        <div style="flex:none; padding:18px 20px 12px;">
+          <div style="font-size:22px; font-weight:600; letter-spacing:.3px;">Missions</div>
+          <div style="font-size:10.5px; letter-spacing:1.5px; color:#5a6680; margin-top:4px; font-family:'IBM Plex Mono';">{{ subtitle }}</div>
+
+          <!-- buckets -->
+          <div style="display:flex; gap:3px; background:#0c1322; border:1px solid rgba(255,255,255,.08); border-radius:9px; padding:3px; margin-top:14px;">
+            <sc-for list="{{ buckets }}" as="b" hint-placeholder-count="3">
+              <div data-k="{{ b.k }}" onClick="{{ onBucket }}" style="flex:1; text-align:center; padding:7px 6px; border-radius:6px; font-size:12px; font-weight:500; cursor:pointer; background:{{ b.bg }}; color:{{ b.fg }};">{{ b.label }} <span style="font-family:'IBM Plex Mono'; font-size:11px; opacity:.8;">{{ b.count }}</span></div>
+            </sc-for>
+          </div>
+
+          <!-- filter row -->
+          <div style="display:flex; align-items:center; gap:9px; margin-top:10px;">
+            <div style="flex:1; display:flex; align-items:center; gap:8px; background:#0c1322; border:1px solid rgba(255,255,255,.08); border-radius:8px; padding:8px 11px; color:#5a6680; font-size:12.5px;">⌕ <span>Filter missions…</span></div>
+            <div onClick="{{ onStory }}" style="display:flex; align-items:center; gap:7px; cursor:pointer; background:#0c1322; border:1px solid rgba(255,255,255,.08); border-radius:8px; padding:7px 11px;">
+              <div style="width:30px; height:16px; border-radius:9px; background:{{ storyTrack }}; position:relative; flex:none;"><div style="position:absolute; top:2px; left:{{ storyKnob }}; width:12px; height:12px; border-radius:50%; background:#fff;"></div></div>
+              <span style="font-size:12px; color:#8a95ab;">Story</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- list -->
+        <div style="flex:1; min-height:0; overflow:auto; padding:4px 14px 18px;">
+          <sc-for list="{{ list }}" as="m" hint-placeholder-count="7">
+            <div data-kind="{{ m.kind }}" data-id="{{ m.id }}" onClick="{{ onSelect }}" style="position:relative; margin-bottom:8px; padding:12px 13px 12px 14px; border-radius:11px; cursor:pointer; background:{{ m.cardBg }}; border:1px solid {{ m.cardBorder }}; overflow:hidden;">
+              <div style="position:absolute; left:0; top:0; bottom:0; width:3px; background:{{ m.edge }};"></div>
+
+              <div style="display:flex; align-items:flex-start; gap:10px;">
+                <div style="flex:1; min-width:0;">
+                  <div style="display:flex; align-items:center; gap:7px;">
+                    <span style="width:8px; height:8px; flex:none; border-radius:2px; background:{{ m.typeColor }};"></span>
+                    <span style="font-size:13.5px; font-weight:600; color:#eef2f8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ m.title }}</span>
+                  </div>
+                  <div style="font-size:11px; color:#6b7689; margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ m.sub }}</div>
+                </div>
+                <div style="flex:none; text-align:right;">
+                  <div style="font-family:'IBM Plex Mono'; font-size:13px; font-weight:600; color:{{ m.rewardColor }};">{{ m.rewardText }}</div>
+                  <sc-if value="{{ m.hasJumps }}" hint-placeholder-val="{{ false }}">
+                    <div style="font-family:'IBM Plex Mono'; font-size:10px; color:#5a6680; margin-top:3px;">⤳ {{ m.jumpsText }}</div>
+                  </sc-if>
+                </div>
+              </div>
+
+              <div style="display:flex; align-items:center; gap:6px; margin-top:10px; flex-wrap:wrap;">
+                <span style="font-size:9.5px; font-weight:600; letter-spacing:.4px; padding:2px 8px; border-radius:5px; background:{{ m.typeBg }}; color:{{ m.typeColor }};">{{ m.typeLabel }}</span>
+                <span style="font-size:9.5px; font-weight:600; letter-spacing:.4px; padding:2px 8px; border-radius:5px; background:{{ m.diffBg }}; color:{{ m.diffColor }};">{{ m.diffLabel }}</span>
+                <sc-if value="{{ m.story }}" hint-placeholder-val="{{ false }}">
+                  <span style="font-size:9.5px; font-weight:600; letter-spacing:.4px; padding:2px 8px; border-radius:5px; background:rgba(200,121,224,.14); color:#d79be8;">✦ STORY</span>
+                </sc-if>
+                <span style="display:inline-flex; align-items:center; gap:5px; font-size:10.5px; padding:2px 8px; border-radius:5px; background:{{ m.facBg }}; border:1px solid {{ m.facBorder }}; color:{{ m.facColor }}; white-space:nowrap;">◈ {{ m.facLabel }}</span>
+                <sc-if value="{{ m.hasVs }}" hint-placeholder-val="{{ false }}">
+                  <span style="display:inline-flex; align-items:center; gap:4px; font-size:10px; color:#6b7689;">vs <span style="color:{{ m.vsColor }}; font-weight:600;">{{ m.vsLabel }}</span></span>
+                </sc-if>
+                <sc-if value="{{ m.isGroup }}" hint-placeholder-val="{{ false }}">
+                  <span style="font-size:9.5px; font-weight:600; letter-spacing:.5px; padding:2px 8px; border-radius:5px; background:{{ m.groupTagBg }}; color:{{ m.groupTagColor }};">{{ m.groupTag }}</span>
+                </sc-if>
+              </div>
+
+              <sc-if value="{{ m.canRun }}" hint-placeholder-val="{{ false }}">
+                <div data-id="{{ m.id }}" onClick="{{ onToggleRun }}" title="Add to run" style="position:absolute; right:11px; bottom:11px; width:24px; height:24px; border-radius:7px; display:flex; align-items:center; justify-content:center; font-size:14px; cursor:pointer; background:{{ m.runBtnBg }}; border:1px solid {{ m.runBtnBorder }}; color:{{ m.runBtnColor }};">{{ m.runBtnIcon }}</div>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <!-- ===== DETAIL ===== -->
+      <div style="flex:1; min-width:0; overflow:auto; position:relative;">
+
+        <!-- MISSION DETAIL -->
+        <sc-if value="{{ showMission }}" hint-placeholder-val="{{ true }}">
+          <div style="padding:24px 28px 36px; max-width:760px; animation:msUp .18s ease;">
+            <div style="display:flex; align-items:flex-start; gap:14px;">
+              <div style="flex:1; min-width:0;">
+                <div style="font-size:10px; letter-spacing:2px; font-family:'IBM Plex Mono'; color:{{ md.bucketColor }}; margin-bottom:8px;">{{ md.bucketLabel }}</div>
+                <div style="font-size:26px; font-weight:600; line-height:1.15;">{{ md.title }}</div>
+                <div style="display:flex; align-items:center; gap:9px; margin-top:10px; flex-wrap:wrap;">
+                  <span style="font-size:9.5px; font-weight:600; letter-spacing:.5px; padding:3px 9px; border-radius:6px; background:{{ md.typeBg }}; color:{{ md.typeColor }};">{{ md.typeLabel }}</span>
+                  <span style="font-size:9.5px; font-weight:600; letter-spacing:.5px; padding:3px 9px; border-radius:6px; background:{{ md.diffBg }}; color:{{ md.diffColor }};">{{ md.diffLabel }}</span>
+                  <span style="display:inline-flex; align-items:center; gap:5px; font-size:11px; padding:3px 10px; border-radius:6px; background:{{ md.facBg }}; border:1px solid {{ md.facBorder }}; color:{{ md.facColor }};">◈ {{ md.facLabel }}</span>
+                  <sc-if value="{{ md.hasVs }}" hint-placeholder-val="{{ false }}">
+                    <span style="font-size:11px; color:#6b7689;">vs <span style="color:{{ md.vsColor }}; font-weight:600;">{{ md.vsLabel }}</span></span>
+                  </sc-if>
+                  <sc-if value="{{ md.repeatable }}" hint-placeholder-val="{{ false }}">
+                    <span style="display:inline-flex; align-items:center; gap:5px; font-size:10px; color:#6b7689;">↻ Repeatable</span>
+                  </sc-if>
+                </div>
+                <div style="font-size:12px; color:#6b7689; margin-top:9px;">⌖ Offered by <span style="color:#aab4c6;">{{ md.giver }}</span></div>
+              </div>
+            </div>
+
+            <!-- next-action callout (active) -->
+            <sc-if value="{{ md.hasNext }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex; align-items:center; gap:13px; margin-top:18px; padding:13px 16px; border-radius:11px; background:rgba(92,200,236,.08); border:1px solid rgba(92,200,236,.22);">
+                <div style="width:32px; height:32px; flex:none; border-radius:9px; background:rgba(92,200,236,.16); display:flex; align-items:center; justify-content:center; font-size:15px; color:#5cc8ec;">➤</div>
+                <div style="flex:1; min-width:0;">
+                  <div style="font-size:9.5px; letter-spacing:1.5px; font-family:'IBM Plex Mono'; color:#7fb9d6;">DO THIS NEXT</div>
+                  <div style="font-size:14px; font-weight:600; color:#eef2f8; margin-top:3px;">{{ md.nextText }}</div>
+                </div>
+                <div style="text-align:right; flex:none;">
+                  <div style="font-family:'IBM Plex Mono'; font-size:13px; font-weight:600; color:#5cc8ec;">{{ md.nextLoc }}</div>
+                  <div style="font-family:'IBM Plex Mono'; font-size:10px; color:#5a6680; margin-top:2px;">{{ md.nextJumps }}</div>
+                </div>
+              </div>
+            </sc-if>
+
+            <!-- reward + summary -->
+            <div style="display:flex; gap:14px; margin-top:18px;">
+              <div style="flex:none; width:178px; padding:14px 16px; border-radius:11px; background:rgba(240,217,138,.06); border:1px solid rgba(240,217,138,.18);">
+                <div style="font-size:9.5px; letter-spacing:1.5px; font-family:'IBM Plex Mono'; color:#a9966a;">REWARD</div>
+                <div style="font-family:'IBM Plex Mono'; font-size:21px; font-weight:600; color:#f0d98a; margin-top:6px; line-height:1.1;">{{ md.rewardBig }}</div>
+                <div style="font-size:11px; color:#8a8161; margin-top:4px;">{{ md.rewardSub }}</div>
+              </div>
+              <div style="flex:1; min-width:0; padding:14px 16px; border-radius:11px; background:rgba(255,255,255,.02); border:1px solid rgba(255,255,255,.06);">
+                <div style="font-size:9.5px; letter-spacing:1.5px; font-family:'IBM Plex Mono'; color:#7a8499;">BRIEFING</div>
+                <div style="font-size:12.5px; color:#aab4c6; line-height:1.55; margin-top:7px;">{{ md.summary }}</div>
+              </div>
+            </div>
+
+            <!-- objectives -->
+            <div style="display:flex; align-items:center; gap:9px; margin:24px 0 13px;">
+              <span style="font-size:11px; letter-spacing:1.5px; color:#7a8499; font-family:'IBM Plex Mono';">▸ OBJECTIVES</span>
+              <span style="font-size:10.5px; color:#5a6680;">{{ md.objNote }}</span>
+              <div style="flex:1; height:1px; background:rgba(255,255,255,.06);"></div>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:2px;">
+              <sc-for list="{{ md.steps }}" as="s" hint-placeholder-count="2">
+                <div style="display:flex; align-items:flex-start; gap:12px; padding:11px 14px; border-radius:10px; background:{{ s.rowBg }}; border:1px solid {{ s.rowBorder }};">
+                  <div style="width:20px; height:20px; flex:none; border-radius:50%; border:1.5px solid {{ s.dotBorder }}; background:{{ s.dotBg }}; display:flex; align-items:center; justify-content:center; font-size:10px; color:{{ s.dotFg }}; margin-top:1px;">{{ s.dotIcon }}</div>
+                  <div style="flex:1; min-width:0;">
+                    <div style="font-size:13.5px; font-weight:500; color:{{ s.titleColor }}; text-decoration:{{ s.strike }};">{{ s.label }}</div>
+                    <div style="font-size:11.5px; color:#7a8499; margin-top:2px;">{{ s.detail }}</div>
+                  </div>
+                  <sc-if value="{{ s.hasLoc }}" hint-placeholder-val="{{ false }}">
+                    <div style="flex:none; text-align:right; padding-top:1px;">
+                      <div style="font-family:'IBM Plex Mono'; font-size:11px; color:#7fb9d6;">⌖ {{ s.locName }}</div>
+                    </div>
+                  </sc-if>
+                </div>
+              </sc-for>
+            </div>
+
+            <!-- ROUTE MAP -->
+            <sc-if value="{{ md.hasMap }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex; align-items:center; gap:9px; margin:24px 0 12px;">
+                <span style="font-size:11px; letter-spacing:1.5px; color:#7a8499; font-family:'IBM Plex Mono';">▸ ROUTE</span>
+                <span style="font-size:10.5px; color:#5a6680;">{{ md.routeText }}</span>
+                <div style="flex:1; height:1px; background:rgba(255,255,255,.06);"></div>
+                <div onClick="{{ openMap }}" style="display:flex; align-items:center; gap:6px; font-size:11px; color:#7fb9d6; cursor:pointer; padding:5px 10px; border-radius:7px; border:1px solid rgba(92,200,236,.22); background:rgba(92,200,236,.06);">⤢ Expand</div>
+              </div>
+              <div onClick="{{ openMap }}" style="height:248px; border-radius:12px; border:1px solid rgba(255,255,255,.08); background:radial-gradient(680px 360px at 50% 30%, rgba(92,200,236,.08), transparent 62%), #060912; position:relative; overflow:hidden; cursor:pointer;">
+                <div style="position:absolute; inset:0; background-image:linear-gradient(rgba(255,255,255,.022) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.022) 1px,transparent 1px); background-size:42px 42px;"></div>
+                <div style="position:absolute; inset:14px;">
+                  <dc-import name="RouteMap" sectors="{{ boardMap.sectors }}" stops="{{ boardMap.stops }}" line-points="{{ boardMap.linePoints }}" hex-w="{{ boardMap.hexW }}" hex-h="{{ boardMap.hexH }}" label-size="{{ boardMap.labelSize }}" hint-size="100%,100%"></dc-import>
+                </div>
+              </div>
+            </sc-if>
+
+            <!-- actions -->
+            <div style="display:flex; align-items:center; gap:10px; margin-top:22px;">
+              <div style="display:flex; align-items:center; gap:8px; padding:11px 18px; border-radius:9px; background:#f0d98a; color:#231b06; font-size:13px; font-weight:600; cursor:pointer;">◎ Set as Active</div>
+              <div data-id="{{ md.id }}" onClick="{{ onToggleRun }}" style="display:flex; align-items:center; gap:8px; padding:11px 16px; border-radius:9px; background:{{ md.runBtnBg }}; border:1px solid {{ md.runBtnBorder }}; color:{{ md.runBtnColor }}; font-size:13px; font-weight:500; cursor:pointer;">{{ md.runBtnIcon }} {{ md.runBtnLabel }}</div>
+              <div style="display:flex; align-items:center; gap:8px; padding:11px 16px; border-radius:9px; background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.08); color:#aab4c6; font-size:13px; font-weight:500; cursor:pointer;">⊘ Abandon</div>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- CHOICE GROUP -->
+        <sc-if value="{{ showChoice }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:24px 28px 36px; max-width:760px; animation:msUp .18s ease;">
+            <div style="font-size:10px; letter-spacing:2px; font-family:'IBM Plex Mono'; color:#d79be8; margin-bottom:8px;">{{ cg.arc }} · BRANCHING</div>
+            <div style="font-size:26px; font-weight:600; line-height:1.15;">{{ cg.title }}</div>
+            <div style="display:flex; align-items:center; gap:9px; margin-top:10px;">
+              <span style="display:inline-flex; align-items:center; gap:5px; font-size:11px; padding:3px 10px; border-radius:6px; background:{{ cg.facBg }}; border:1px solid {{ cg.facBorder }}; color:{{ cg.facColor }};">◈ {{ cg.facLabel }}</span>
+              <span style="font-size:9.5px; font-weight:600; letter-spacing:.5px; padding:3px 9px; border-radius:6px; background:rgba(200,121,224,.14); color:#d79be8;">✦ STORY</span>
+            </div>
+
+            <div style="display:flex; align-items:flex-start; gap:12px; margin-top:18px; padding:13px 16px; border-radius:11px; background:rgba(200,121,224,.07); border:1px solid rgba(200,121,224,.2);">
+              <span style="font-size:16px; color:#d79be8;">⚠</span>
+              <div style="font-size:12.5px; color:#cdb6d6; line-height:1.55;">{{ cg.summary }}</div>
+            </div>
+
+            <div style="display:flex; align-items:center; gap:9px; margin:24px 0 13px;">
+              <span style="font-size:11px; letter-spacing:1.5px; color:#7a8499; font-family:'IBM Plex Mono';">▸ CHOOSE ONE PATH</span>
+              <div style="flex:1; height:1px; background:rgba(255,255,255,.06);"></div>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:10px;">
+              <sc-for list="{{ cg.paths }}" as="p" hint-placeholder-count="3">
+                <div data-idx="{{ p.idx }}" onClick="{{ onPath }}" style="padding:14px 16px; border-radius:12px; cursor:pointer; background:{{ p.bg }}; border:1px solid {{ p.border }}; position:relative; overflow:hidden;">
+                  <div style="position:absolute; left:0; top:0; bottom:0; width:3px; background:{{ p.edge }};"></div>
+                  <div style="display:flex; align-items:center; gap:11px;">
+                    <div style="width:22px; height:22px; flex:none; border-radius:50%; border:1.5px solid {{ p.radioBorder }}; background:{{ p.radioBg }}; display:flex; align-items:center; justify-content:center;">
+                      <div style="width:9px; height:9px; border-radius:50%; background:{{ p.radioDot }};"></div>
+                    </div>
+                    <div style="flex:1; min-width:0;">
+                      <div style="font-size:14.5px; font-weight:600; color:#eef2f8;">{{ p.title }}</div>
+                      <div style="font-size:11px; color:#6b7689; margin-top:2px;">⌖ {{ p.giver }}</div>
+                    </div>
+                    <div style="flex:none; display:flex; align-items:center; gap:6px;">
+                      <span style="font-size:9.5px; font-weight:600; letter-spacing:.4px; padding:2px 8px; border-radius:5px; background:{{ p.typeBg }}; color:{{ p.typeColor }};">{{ p.typeLabel }}</span>
+                      <span style="font-size:9.5px; font-weight:600; letter-spacing:.4px; padding:2px 8px; border-radius:5px; background:{{ p.diffBg }}; color:{{ p.diffColor }};">{{ p.diffLabel }}</span>
+                    </div>
+                  </div>
+                  <sc-if value="{{ p.selected }}" hint-placeholder-val="{{ false }}">
+                    <div style="margin-top:12px; padding-top:12px; border-top:1px solid rgba(255,255,255,.07);">
+                      <div style="font-size:12px; color:#aab4c6; line-height:1.55;">{{ p.summary }}</div>
+                      <div style="display:flex; align-items:flex-start; gap:9px; margin-top:11px; padding:10px 12px; border-radius:9px; background:rgba(255,255,255,.025); border:1px solid rgba(255,255,255,.07);">
+                        <span style="font-size:13px; color:{{ p.edge }};">⮑</span>
+                        <div style="font-size:11.5px; color:#9aa4ba; line-height:1.5;"><span style="font-family:'IBM Plex Mono'; font-size:9.5px; letter-spacing:1px; color:#7a8499;">CONSEQUENCE&nbsp;&nbsp;</span>{{ p.consequence }}</div>
+                      </div>
+                    </div>
+                  </sc-if>
+                </div>
+              </sc-for>
+            </div>
+
+            <!-- selected path route -->
+            <div style="display:flex; align-items:center; gap:9px; margin:24px 0 12px;">
+              <span style="font-size:11px; letter-spacing:1.5px; color:#7a8499; font-family:'IBM Plex Mono';">▸ ROUTE</span>
+              <span style="font-size:10.5px; color:#5a6680;">{{ cg.routeText }}</span>
+              <div style="flex:1; height:1px; background:rgba(255,255,255,.06);"></div>
+              <div onClick="{{ openMap }}" style="display:flex; align-items:center; gap:6px; font-size:11px; color:#7fb9d6; cursor:pointer; padding:5px 10px; border-radius:7px; border:1px solid rgba(92,200,236,.22); background:rgba(92,200,236,.06);">⤢ Expand</div>
+            </div>
+            <div onClick="{{ openMap }}" style="height:240px; border-radius:12px; border:1px solid rgba(255,255,255,.08); background:radial-gradient(680px 360px at 50% 30%, rgba(92,200,236,.08), transparent 62%), #060912; position:relative; overflow:hidden; cursor:pointer;">
+              <div style="position:absolute; inset:0; background-image:linear-gradient(rgba(255,255,255,.022) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.022) 1px,transparent 1px); background-size:42px 42px;"></div>
+              <div style="position:absolute; inset:14px;">
+                <dc-import name="RouteMap" sectors="{{ boardMap.sectors }}" stops="{{ boardMap.stops }}" line-points="{{ boardMap.linePoints }}" hex-w="{{ boardMap.hexW }}" hex-h="{{ boardMap.hexH }}" label-size="{{ boardMap.labelSize }}" hint-size="100%,100%"></dc-import>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- ALL-REQUIRED GROUP -->
+        <sc-if value="{{ showAll }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:24px 28px 36px; max-width:760px; animation:msUp .18s ease;">
+            <div style="font-size:10px; letter-spacing:2px; font-family:'IBM Plex Mono'; color:#7fb9d6; margin-bottom:8px;">{{ ag.arc }} · MULTI-STAGE</div>
+            <div style="font-size:26px; font-weight:600; line-height:1.15;">{{ ag.title }}</div>
+            <div style="display:flex; align-items:center; gap:9px; margin-top:10px;">
+              <span style="display:inline-flex; align-items:center; gap:5px; font-size:11px; padding:3px 10px; border-radius:6px; background:{{ ag.facBg }}; border:1px solid {{ ag.facBorder }}; color:{{ ag.facColor }};">◈ {{ ag.facLabel }}</span>
+              <sc-if value="{{ ag.hasVs }}" hint-placeholder-val="{{ false }}"><span style="font-size:11px; color:#6b7689;">vs <span style="color:{{ ag.vsColor }}; font-weight:600;">{{ ag.vsLabel }}</span></span></sc-if>
+            </div>
+
+            <div style="display:flex; align-items:center; gap:14px; margin-top:18px; padding:14px 16px; border-radius:11px; background:rgba(255,255,255,.02); border:1px solid rgba(255,255,255,.06);">
+              <div style="flex:1;">
+                <div style="font-size:12.5px; color:#aab4c6; line-height:1.5;">{{ ag.summary }}</div>
+              </div>
+              <div style="flex:none; text-align:right;">
+                <div style="font-family:'IBM Plex Mono'; font-size:20px; font-weight:600; color:#5cc8ec;">{{ ag.progressText }}</div>
+                <div style="font-size:10px; letter-spacing:1px; color:#5a6680; font-family:'IBM Plex Mono';">COMPLETE</div>
+              </div>
+            </div>
+            <div style="height:6px; border-radius:4px; background:rgba(255,255,255,.06); overflow:hidden; margin-top:10px;"><div style="height:100%; width:{{ ag.progressPct }}%; background:linear-gradient(90deg,#3b9ae1,#34d399); border-radius:4px;"></div></div>
+
+            <div style="display:flex; align-items:center; gap:9px; margin:24px 0 13px;">
+              <span style="font-size:11px; letter-spacing:1.5px; color:#7a8499; font-family:'IBM Plex Mono';">▸ ALL REQUIRED TO ADVANCE</span>
+              <div style="flex:1; height:1px; background:rgba(255,255,255,.06);"></div>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              <sc-for list="{{ ag.subs }}" as="s" hint-placeholder-count="3">
+                <div style="display:flex; align-items:center; gap:12px; padding:12px 14px; border-radius:11px; background:{{ s.rowBg }}; border:1px solid {{ s.rowBorder }};">
+                  <div style="width:24px; height:24px; flex:none; border-radius:50%; border:1.5px solid {{ s.dotBorder }}; background:{{ s.dotBg }}; display:flex; align-items:center; justify-content:center; font-family:'IBM Plex Mono'; font-size:11px; font-weight:600; color:{{ s.dotFg }};">{{ s.dotIcon }}</div>
+                  <div style="flex:1; min-width:0;">
+                    <div style="font-size:13.5px; font-weight:600; color:{{ s.titleColor }};">{{ s.title }}</div>
+                    <div style="display:flex; align-items:center; gap:8px; margin-top:4px;">
+                      <span style="font-size:9px; font-weight:600; letter-spacing:.4px; padding:2px 7px; border-radius:5px; background:{{ s.typeBg }}; color:{{ s.typeColor }};">{{ s.typeLabel }}</span>
+                      <span style="font-size:11px; color:#7a8499;">{{ s.statusText }}</span>
+                    </div>
+                  </div>
+                  <div style="flex:none; font-family:'IBM Plex Mono'; font-size:11px; color:#7fb9d6;">⌖ {{ s.destName }}</div>
+                </div>
+              </sc-for>
+            </div>
+
+            <div style="display:flex; align-items:center; gap:9px; margin:24px 0 12px;">
+              <span style="font-size:11px; letter-spacing:1.5px; color:#7a8499; font-family:'IBM Plex Mono';">▸ COMBINED ROUTE</span>
+              <span style="font-size:10.5px; color:#5a6680;">{{ ag.routeText }}</span>
+              <div style="flex:1; height:1px; background:rgba(255,255,255,.06);"></div>
+              <div onClick="{{ openMap }}" style="display:flex; align-items:center; gap:6px; font-size:11px; color:#7fb9d6; cursor:pointer; padding:5px 10px; border-radius:7px; border:1px solid rgba(92,200,236,.22); background:rgba(92,200,236,.06);">⤢ Expand</div>
+            </div>
+            <div onClick="{{ openMap }}" style="height:248px; border-radius:12px; border:1px solid rgba(255,255,255,.08); background:radial-gradient(680px 360px at 50% 30%, rgba(92,200,236,.08), transparent 62%), #060912; position:relative; overflow:hidden; cursor:pointer;">
+              <div style="position:absolute; inset:0; background-image:linear-gradient(rgba(255,255,255,.022) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.022) 1px,transparent 1px); background-size:42px 42px;"></div>
+              <div style="position:absolute; inset:14px;">
+                <dc-import name="RouteMap" sectors="{{ boardMap.sectors }}" stops="{{ boardMap.stops }}" line-points="{{ boardMap.linePoints }}" hex-w="{{ boardMap.hexW }}" hex-h="{{ boardMap.hexH }}" label-size="{{ boardMap.labelSize }}" hint-size="100%,100%"></dc-import>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- RUN PLANNER -->
+        <sc-if value="{{ showRun }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:24px 28px 36px; max-width:840px; animation:msUp .18s ease;">
+            <div style="font-size:10px; letter-spacing:2px; font-family:'IBM Plex Mono'; color:#7fb9d6; margin-bottom:8px;">NEXUS EXCLUSIVE</div>
+            <div style="font-size:26px; font-weight:600; line-height:1.15;">Run Planner</div>
+            <div style="font-size:12.5px; color:#8a95ab; margin-top:9px; line-height:1.55; max-width:600px;">The game only tracks one active mission at a time. Stack compatible missions into a single run and Nexus orders the stops into the shortest flight path — clear several objectives without flying back and forth.</div>
+
+            <sc-if value="{{ run.isEmpty }}" hint-placeholder-val="{{ true }}">
+              <div style="margin-top:26px; padding:48px 24px; border-radius:14px; border:1px dashed rgba(255,255,255,.12); display:flex; flex-direction:column; align-items:center; text-align:center;">
+                <div style="font-size:30px; opacity:.4; margin-bottom:14px;">⛓</div>
+                <div style="font-size:15px; color:#aab4c6;">No missions in this run yet</div>
+                <div style="font-size:12.5px; color:#5a6680; max-width:360px; line-height:1.55; margin-top:6px;">Hit the <span style="color:#7fb9d6;">＋</span> on any mission in the list to add it here. Nexus will plot the optimal multi-stop route.</div>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ run.has }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex; gap:14px; margin-top:22px;">
+                <div style="flex:1; padding:14px 16px; border-radius:11px; background:rgba(240,217,138,.06); border:1px solid rgba(240,217,138,.18);">
+                  <div style="font-size:9.5px; letter-spacing:1.5px; font-family:'IBM Plex Mono'; color:#a9966a;">TOTAL REWARD</div>
+                  <div style="font-family:'IBM Plex Mono'; font-size:20px; font-weight:600; color:#f0d98a; margin-top:5px;">{{ run.totalReward }}</div>
+                </div>
+                <div style="flex:1; padding:14px 16px; border-radius:11px; background:rgba(92,200,236,.06); border:1px solid rgba(92,200,236,.18);">
+                  <div style="font-size:9.5px; letter-spacing:1.5px; font-family:'IBM Plex Mono'; color:#6f93a6;">TOTAL JUMPS</div>
+                  <div style="font-family:'IBM Plex Mono'; font-size:20px; font-weight:600; color:#5cc8ec; margin-top:5px;">{{ run.totalJumps }}</div>
+                </div>
+                <div style="flex:1; padding:14px 16px; border-radius:11px; background:rgba(255,255,255,.02); border:1px solid rgba(255,255,255,.07);">
+                  <div style="font-size:9.5px; letter-spacing:1.5px; font-family:'IBM Plex Mono'; color:#7a8499;">STOPS</div>
+                  <div style="font-family:'IBM Plex Mono'; font-size:20px; font-weight:600; color:#dfe6f0; margin-top:5px;">{{ run.count }}</div>
+                </div>
+              </div>
+
+              <div style="display:flex; align-items:center; gap:9px; margin:24px 0 12px;">
+                <span style="font-size:11px; letter-spacing:1.5px; color:#7a8499; font-family:'IBM Plex Mono';">▸ OPTIMIZED ROUTE</span>
+                <div style="flex:1; height:1px; background:rgba(255,255,255,.06);"></div>
+                <div onClick="{{ onOptimize }}" style="display:flex; align-items:center; gap:6px; font-size:11px; color:#7ec9a0; cursor:pointer; padding:5px 10px; border-radius:7px; border:1px solid rgba(52,211,153,.25); background:rgba(52,211,153,.07);">⟲ Re-optimize</div>
+                <div onClick="{{ openMap }}" style="display:flex; align-items:center; gap:6px; font-size:11px; color:#7fb9d6; cursor:pointer; padding:5px 10px; border-radius:7px; border:1px solid rgba(92,200,236,.22); background:rgba(92,200,236,.06);">⤢ Expand</div>
+              </div>
+              <div onClick="{{ openMap }}" style="height:270px; border-radius:12px; border:1px solid rgba(255,255,255,.08); background:radial-gradient(700px 380px at 50% 30%, rgba(92,200,236,.08), transparent 62%), #060912; position:relative; overflow:hidden; cursor:pointer;">
+                <div style="position:absolute; inset:0; background-image:linear-gradient(rgba(255,255,255,.022) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.022) 1px,transparent 1px); background-size:42px 42px;"></div>
+                <div style="position:absolute; inset:14px;">
+                  <dc-import name="RouteMap" sectors="{{ runMap.sectors }}" stops="{{ runMap.stops }}" line-points="{{ runMap.linePoints }}" hex-w="{{ runMap.hexW }}" hex-h="{{ runMap.hexH }}" label-size="{{ runMap.labelSize }}" hint-size="100%,100%"></dc-import>
+                </div>
+              </div>
+
+              <div style="display:flex; align-items:center; gap:9px; margin:24px 0 13px;">
+                <span style="font-size:11px; letter-spacing:1.5px; color:#7a8499; font-family:'IBM Plex Mono';">▸ FLIGHT ORDER</span>
+                <div style="flex:1; height:1px; background:rgba(255,255,255,.06);"></div>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:0;">
+                <div style="display:flex; align-items:center; gap:12px; padding:9px 4px;">
+                  <div style="width:26px; height:26px; flex:none; border-radius:50%; border:2px solid #5cc8ec; background:#0c1322; display:flex; align-items:center; justify-content:center; font-size:12px; color:#5cc8ec;">◉</div>
+                  <div style="font-size:12.5px; color:#aab4c6;">You are here — <span style="color:#eef2f8;">{{ run.playerSector }}</span></div>
+                </div>
+                <sc-for list="{{ run.stops }}" as="s" hint-placeholder-count="3">
+                  <div>
+                    <div style="margin-left:12px; height:16px; border-left:2px dashed rgba(52,211,153,.4);"></div>
+                    <div style="display:flex; align-items:center; gap:12px; padding:11px 13px; border-radius:11px; background:rgba(255,255,255,.025); border:1px solid rgba(255,255,255,.07);">
+                      <div style="width:26px; height:26px; flex:none; border-radius:50%; border:2px solid #34d399; background:#0c1322; display:flex; align-items:center; justify-content:center; font-family:'IBM Plex Mono'; font-size:12px; font-weight:700; color:#34d399;">{{ s.n }}</div>
+                      <div style="flex:1; min-width:0;">
+                        <div style="font-size:13.5px; font-weight:600; color:#eef2f8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ s.title }}</div>
+                        <div style="display:flex; align-items:center; gap:8px; margin-top:4px;">
+                          <span style="font-size:9px; font-weight:600; letter-spacing:.4px; padding:2px 7px; border-radius:5px; background:{{ s.typeBg }}; color:{{ s.typeColor }};">{{ s.typeLabel }}</span>
+                          <span style="font-family:'IBM Plex Mono'; font-size:11px; color:#7fb9d6;">⌖ {{ s.destName }}</span>
+                          <span style="font-family:'IBM Plex Mono'; font-size:10.5px; color:#5a6680;">+{{ s.legJumps }} jumps</span>
+                        </div>
+                      </div>
+                      <div style="flex:none; text-align:right; display:flex; align-items:center; gap:12px;">
+                        <div style="font-family:'IBM Plex Mono'; font-size:13px; font-weight:600; color:{{ s.rewardColor }};">{{ s.rewardText }}</div>
+                        <div data-id="{{ s.id }}" onClick="{{ onToggleRun }}" style="width:24px; height:24px; border-radius:7px; display:flex; align-items:center; justify-content:center; font-size:13px; cursor:pointer; background:rgba(248,113,113,.1); border:1px solid rgba(248,113,113,.25); color:#f0928f;">✕</div>
+                      </div>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="font-size:11px; color:#5a6680; margin-top:14px; line-height:1.5;">ⓘ Jump estimates assume highway / accelerated travel between adjacent sectors. Re-optimize reorders stops by nearest-next from your position.</div>
+            </sc-if>
+          </div>
+        </sc-if>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== FULLSCREEN MAP MODAL ===== -->
+  <sc-if value="{{ mapFull }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeMap }}" style="position:fixed; inset:0; z-index:60; background:rgba(4,7,14,.74); backdrop-filter:blur(3px); display:flex; align-items:center; justify-content:center; padding:32px; animation:msIn .15s ease;">
+      <div onClick="{{ stop }}" style="width:min(1100px,100%); height:min(740px,100%); display:flex; flex-direction:column; background:#0a0f1c; border:1px solid rgba(255,255,255,.1); border-radius:16px; box-shadow:0 40px 100px -20px rgba(0,0,0,.8); overflow:hidden;">
+        <div style="flex:none; display:flex; align-items:center; gap:14px; padding:18px 22px; border-bottom:1px solid rgba(255,255,255,.07); background:linear-gradient(180deg,#0d1424,#0a0f1c);">
+          <div>
+            <div style="font-size:17px; font-weight:600;">{{ fullTitle }}</div>
+            <div style="font-family:'IBM Plex Mono'; font-size:11px; color:#5a6680; margin-top:3px;">{{ fullSub }}</div>
+          </div>
+          <div style="margin-left:auto; display:flex; align-items:center; gap:14px;">
+            <div style="display:flex; align-items:center; gap:7px; font-size:11px; color:#7fb9d6;"><span style="width:11px; height:11px; border-radius:50%; border:2px solid #5cc8ec;"></span>You</div>
+            <div style="display:flex; align-items:center; gap:7px; font-size:11px; color:#7ec9a0;"><span style="width:11px; height:11px; border-radius:50%; border:2px solid #34d399;"></span>Objective</div>
+            <div onClick="{{ closeMap }}" style="width:32px; height:32px; border-radius:8px; border:1px solid rgba(255,255,255,.14); display:flex; align-items:center; justify-content:center; cursor:pointer; color:#9aa4ba; font-size:15px;">✕</div>
+          </div>
+        </div>
+        <div style="flex:1; min-height:0; position:relative; background:radial-gradient(900px 540px at 50% 36%, rgba(92,200,236,.1), transparent 60%), #060912;">
+          <div style="position:absolute; inset:0; background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px); background-size:58px 58px;"></div>
+          <div style="position:absolute; inset:40px;">
+            <dc-import name="RouteMap" sectors="{{ fullMap.sectors }}" stops="{{ fullMap.stops }}" line-points="{{ fullMap.linePoints }}" hex-w="{{ fullMap.hexW }}" hex-h="{{ fullMap.hexH }}" label-size="{{ fullMap.labelSize }}" hint-size="100%,100%"></dc-import>
+          </div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:900}}">
+class Component extends DCLogic {
+  state = { tab:'board', bucket:'active', selKind:'mission', selId:'knowledge', pathSel:{ yaki:0 }, run:['lucrative','shakedown','maintenance'], mapFull:false };
+
+  // id:[name, cx, cy, facKey, short]
+  SEC = {
+    argonprime:['Argon Prime',32,64,'argon','Argon Prime'],
+    hatikvah:["Hatikvah's Choice I",22,46,'hatikvah','Hatikvah'],
+    silent1:['Silent Witness I',15,26,'argon','Silent W. I'],
+    silent11:['Silent Witness XI',43,16,'hatikvah','Silent W. XI'],
+    morningstar:['Morning Star IV',33,40,'argon','Morning Star'],
+    getsu:['Getsu Fune',12,62,'argon','Getsu Fune'],
+    thereach:['The Reach',20,80,'argon','The Reach'],
+    savage:['Savage Spur I',9,33,'zyarth','Savage Spur'],
+    mup:['MUP-957',24,30,'zyarth','MUP-957'],
+    matrix:['Matrix #79B',32,13,'xenon','Matrix #79B'],
+    profit:['Profit Center Alpha',80,24,'teladi','Profit Ctr.'],
+    eighteen:['Eighteen Billion',66,56,'teladi','Eighteen Bn'],
+    grandex:['Grand Exchange IV',90,48,'teladi','Grand Exch.'],
+    trinity:['Trinity Sanctum',86,76,'paranid','Trinity'],
+    presidents:["President's End",60,34,'argon',"President's End"],
+    familyzhin:['Family Zhin',54,80,'zyarth','Family Zhin'],
+    twograND:['Two Grand',72,13,'teladi','Two Grand'],
+  };
+  PLAYER = 'mup';
+
+  fac = { argon:'#3b9ae1', hatikvah:'#22d3ee', teladi:'#a3b545', zyarth:'#f59e0b', paranid:'#c879e0', terran:'#5fb6e6', xenon:'#ef4444', antigone:'#60a5fa', boron:'#34d3c5', yaki:'#fb7185', scaleplate:'#d9a441', alliance:'#c879e0' };
+  facName = { argon:'Argon Federation', hatikvah:'Hatikvah Free League', teladi:'Teladi Company', zyarth:'Zyarth Patriarchy', paranid:'Godrealm of Paranid', terran:'Terran Protectorate', xenon:'Xenon', antigone:'Antigone Republic', boron:'Queendom of Boron', yaki:'Yaki', scaleplate:'Scale Plate Pact', alliance:'Alliance of the Word' };
+  facShort = { argon:'Argon', hatikvah:'Hatikvah', teladi:'Teladi', zyarth:'Zyarth', paranid:'Paranid', terran:'Terran Prot.', xenon:'Xenon', antigone:'Antigone Rep.', boron:'Boron', yaki:'Yaki', scaleplate:'Scale Plate Pact', alliance:'Alliance of the Word' };
+  typeColor = { Fight:'#f87171', Deliver:'#60a5fa', Build:'#c084fc', Protect:'#38bdf8', Intelligence:'#a78bfa', Rescue:'#34d399', Destroy:'#fb7185', Board:'#f59e0b', Talk:'#8a95ab', Plot:'#d79be8', Mine:'#f5a524' };
+  diffColor = { 'Trivial':'#6f93a6', 'Very Easy':'#34d399', 'Easy':'#7ec96e', 'Medium':'#f5a524', 'Hard':'#f87171', 'Very Hard':'#ef4444' };
+
+  MISSIONS = [
+    { id:'knowledge', bucket:'active', ord:1, title:'Knowledge is Power', giver:'Saboteur Moreya', type:'Intelligence', diff:'Medium', fac:'antigone', vs:'yaki', reward:272300, story:false, repeatable:false,
+      summary:'A ship we have tracked for some time has entered our space. Gather as much intelligence on it as possible before it slips away again.',
+      dest:'savage', route:['mup','savage'], jumps:1,
+      steps:[ {label:'Fly to YAK Saboteur Moreya', detail:'Last seen drifting near the Spur', loc:'savage', status:'current'}, {label:'Scan the specified ship', detail:'Hold a close scan for 20s without being detected', loc:null, status:'next'} ] },
+    { id:'promotion', bucket:'active', ord:3, title:'Promotion to: Hero of Humanity', giver:'Devika Rubiera', type:'Talk', diff:'Trivial', fac:'terran', reward:0, story:false, repeatable:false,
+      summary:'The Terran Protectorate would like to honour your service. Meet their representative at headquarters to accept the new rank.',
+      dest:'presidents', route:['mup','morningstar','presidents'], jumps:2,
+      steps:[ {label:'Talk to Devika Rubiera', detail:'At Protectorate HQ', loc:'presidents', status:'current'} ] },
+    { id:'unknown', bucket:'active', ord:4, title:'Into the Unknown', giver:'Numanckaret', type:'Plot', diff:'Very Easy', fac:'alliance', arc:'Kingdom End', reward:0, story:true, repeatable:false,
+      summary:'The jump gate activated and revealed a hitherto unknown system. Our expedition was not received by our Boron allies as planned — find out why.',
+      dest:'silent11', route:['mup','silent11'], jumps:1,
+      steps:[ {label:'Talk to Boso Ta', detail:'Debrief complete', loc:null, status:'done'}, {label:'Survey the new system', detail:'Map all stations and gates', loc:'silent11', status:'current'} ] },
+    { id:'terranprep', bucket:'active', ord:5, title:'Terran Preparations', giver:'Mission Command', type:'Plot', diff:'Medium', fac:'terran', arc:'Terran Covert Operations', reward:0, story:true, repeatable:false,
+      summary:'Now that you have a foothold with the Terran Secret Service, study the political landscape of the Commonwealth before the next move.',
+      dest:'hatikvah', route:['mup','morningstar','hatikvah'], jumps:2,
+      steps:[ {label:'Investigate Hatikvah Free League politics', detail:'Gather standing reports from three stations', loc:'hatikvah', status:'current'} ] },
+
+    // guild & war — Terran vs Xenon, repeatable
+    { id:'atiya', bucket:'guild', ord:1, title:"Atiya's Misfortune I: Preemptive Intervention", giver:'Rachael Liang', type:'Fight', diff:'Hard', fac:'terran', vs:'xenon', reward:{ware:'Nividium Oxide ×40'}, story:false, repeatable:true,
+      summary:'Xenon scouts are massing on the border. Strike first and thin their numbers before the incursion gathers strength.',
+      dest:'matrix', route:['mup','matrix'], jumps:1,
+      steps:[ {label:'Destroy Xenon scouts', detail:'0 / 8 eliminated', loc:'matrix', status:'current'} ] },
+    { id:'matrix598', bucket:'guild', ord:2, title:'Matrix #598: Force Projection', giver:'Rachael Liang', type:'Protect', diff:'Medium', fac:'terran', vs:'xenon', reward:{ware:'Extended Fuel Container'}, story:false, repeatable:true,
+      summary:'Escort the survey wing while they hold position inside contested Xenon space.',
+      dest:'matrix', route:['mup','matrix'], jumps:1,
+      steps:[ {label:'Defend the survey wing', detail:'Hold for 5 minutes', loc:'matrix', status:'current'} ] },
+    { id:'tharka', bucket:'guild', ord:3, title:"Tharka's Ravine IV: A Show of Strength", giver:'Rachael Liang', type:'Protect', diff:'Medium', fac:'terran', vs:'xenon', reward:{ware:'Seminar · 1-Star Crew'}, story:false, repeatable:true,
+      summary:'Hold the line at the ravine and demonstrate Protectorate resolve to the watching factions.',
+      dest:'savage', route:['mup','savage'], jumps:1,
+      steps:[ {label:'Hold the ravine', detail:'Repel three waves', loc:'savage', status:'current'} ] },
+
+    // available offers
+    { id:'lucrative', bucket:'offer', ord:1, title:'A Lucrative Opportunity', giver:'Tumulis Yalamandis', type:'Deliver', diff:'Easy', fac:'scaleplate', reward:83970, story:false, repeatable:false,
+      summary:'A discreet client needs a shipment moved quickly and quietly. No questions, prompt pay.',
+      dest:'grandex', route:['mup','presidents','grandex'], jumps:3,
+      steps:[ {label:'Pick up the container', detail:'From the listed wharf', loc:null, status:'next'}, {label:'Deliver to Grand Exchange IV', detail:'Within the time limit', loc:'grandex', status:'next'} ] },
+    { id:'delicate', bucket:'offer', ord:2, title:'Delicate Situation', giver:'Yohulis Monisses', type:'Rescue', diff:'Easy', fac:'teladi', reward:50750, story:false, repeatable:false,
+      summary:'One of our scientists was running tests on new tech and has gone missing. Bring them home.',
+      dest:'trinity', route:['mup','eighteen','trinity'], jumps:4,
+      steps:[ {label:'Locate the escape pod', detail:'Scan the debris field', loc:'trinity', status:'next'}, {label:'Tow it to safety', detail:'Without taking fire', loc:null, status:'next'} ] },
+    { id:'maintenance', bucket:'offer', ord:3, title:'Maintenance Outsourcing', giver:'Brina Rider', type:'Rescue', diff:'Easy', fac:'argon', reward:46620, story:false, repeatable:false,
+      summary:'We are updating our security protocols and need a contractor to recover a stranded service crew.',
+      dest:'getsu', route:['mup','argonprime','getsu'], jumps:3,
+      steps:[ {label:'Reach the stranded crew', detail:'Beacon active', loc:'getsu', status:'next'} ] },
+    { id:'opportunity', bucket:'offer', ord:4, title:'Opportunity Knocks', giver:'Viv Olyva', type:'Deliver', diff:'Easy', fac:'hatikvah', reward:1052745, story:false, repeatable:false,
+      summary:'The local government has a high-value consignment that needs an experienced, trusted hauler.',
+      dest:'hatikvah', route:['mup','morningstar','hatikvah'], jumps:2,
+      steps:[ {label:'Collect the consignment', detail:'High-value — expect interest', loc:null, status:'next'}, {label:'Deliver to Hatikvah', detail:'On schedule', loc:'hatikvah', status:'next'} ] },
+    { id:'shakedown', bucket:'offer', ord:5, title:'Shakedown', giver:'Libaras Rusiris', type:'Destroy', diff:'Easy', fac:'teladi', reward:35730, story:false, repeatable:false,
+      summary:'A sharp rise in criminal traffic around our trade lanes needs a firm, immediate response.',
+      dest:'eighteen', route:['mup','eighteen'], jumps:2,
+      steps:[ {label:'Destroy the criminal vessels', detail:'0 / 5', loc:'eighteen', status:'next'} ] },
+    { id:'worthwhile', bucket:'offer', ord:6, title:'A Worthwhile Investment', giver:'Dasinos Hurilis', type:'Build', diff:'Hard', fac:'teladi', reward:0, story:false, repeatable:false,
+      summary:'We are looking to invest in new station capacity in the local vicinity and need a builder partner.',
+      dest:'grandex', route:['mup','presidents','grandex'], jumps:3,
+      steps:[ {label:'Construct the module', detail:'Provide build resources', loc:'grandex', status:'next'} ] },
+    { id:'takeover', bucket:'offer', ord:7, title:'Takeover', giver:'Hintorias Yooses', type:'Board', diff:'Hard', fac:'teladi', vs:'paranid', reward:1191290, story:false, repeatable:false,
+      summary:'We wish to delay a competitor beyond mere inconvenience. Board and seize the target vessel.',
+      dest:'trinity', route:['mup','eighteen','trinity'], jumps:4,
+      steps:[ {label:'Board the target ship', detail:'Bring marines', loc:'trinity', status:'next'} ] },
+  ];
+
+  GROUPS = [
+    { id:'yaki', type:'choice', bucket:'active', ord:2, title:'Yaki Investigation', arc:'Yaki Investigation', fac:'yaki', story:true,
+      summary:'You have uncovered the plight of the Yaki. Three irreconcilable plans lie before you — and you can only pursue one. Your choice is permanent and reshapes the faction\u2019s fate.',
+      paths:[
+        { title:'The Fate of the Yaki', giver:'Boso Ta', type:'Plot', diff:'Hard', dest:'savage', route:['mup','savage'], jumps:1,
+          summary:'Broker a clean slate. Win the Yaki\u2019s trust and bring them in from the cold.', consequence:'Spare the Yaki — gain their loyalty, but lose standing with the Terran Protectorate.',
+          steps:[ {label:'Meet the Yaki council', detail:'Unarmed approach', loc:'savage', status:'next'} ] },
+        { title:'Mutually Assured Destruction', giver:'Kendai Orcanic', type:'Plot', diff:'Easy', dest:'familyzhin', route:['mup','familyzhin'], jumps:2,
+          summary:'Plant a network of nav beacons as insurance, ready to act the moment things turn.', consequence:'Deploy beacons across six sectors. Keeps every option open — at the cost of time.',
+          steps:[ {label:'Deploy Nav Beacon · Savage Spur', detail:'1 of 6', loc:'savage', status:'next'}, {label:'Deploy Nav Beacon · Family Zhin', detail:'2 of 6', loc:'familyzhin', status:'next'} ] },
+        { title:'Save Them From Themselves', giver:'Haile Shinamon', type:'Plot', diff:'Hard', dest:'matrix', route:['mup','matrix'], jumps:1,
+          summary:'As long as the amplifier station stands it is a threat. End it.', consequence:'Destroy the amplifier station — removes the threat permanently, no going back.',
+          steps:[ {label:'Destroy the Amplifier Station', detail:'Heavy defenses expected', loc:'matrix', status:'next'} ] },
+      ] },
+    { id:'border', type:'all', bucket:'guild', ord:4, title:'Terran Border Lockdown', arc:'Operation Bulwark', fac:'terran', vs:'xenon', story:false,
+      summary:'A three-stage operation — all objectives must be completed to secure the border and advance the campaign.',
+      subs:[
+        { title:"Fortify the Gate at Heretic's End", type:'Build', dest:'presidents', status:'done' },
+        { title:'Clear the Xenon Patrol Lines', type:'Fight', dest:'matrix', status:'current' },
+        { title:'Deliver Defense Drones to the Front', type:'Deliver', dest:'eighteen', status:'next' },
+      ] },
+  ];
+
+  hexA(h,a){ h=(h||'#5cc8ec').replace('#',''); const n=parseInt(h,16); return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`; }
+  fmtCr(n){ return n>=1e6 ? (n/1e6).toFixed(2).replace(/\.?0+$/,'')+'M' : n>=1e3 ? (n/1e3).toFixed(1).replace(/\.0$/,'')+'k' : ''+n; }
+  jp(n){ return n+(n===1?' jump':' jumps'); }
+  byId(id){ return this.MISSIONS.find(m=>m.id===id); }
+  grpById(id){ return this.GROUPS.find(g=>g.id===id); }
+
+  componentDidMount(){ document.addEventListener('keydown', this._k=(e)=>{ if(e.key==='Escape'){ if(this.state.mapFull) this.setState({mapFull:false}); } }); }
+  componentWillUnmount(){ document.removeEventListener('keydown', this._k); }
+
+  // build map data for an array of sector ids + stop defs
+  buildMap(routeIds, stopDefs, full){
+    const hi = new Set(routeIds); stopDefs.forEach(s=>hi.add(s.secId));
+    const sectors = Object.keys(this.SEC).map(id=>{ const s=this.SEC[id]; const fc=this.fac[s[3]]||'#7a8499'; const on=hi.has(id);
+      return { cx:s[1], cy:s[2], name:(full||on)? s[4] : '', bg:on?this.hexA(fc,.22):this.hexA(fc,.06), border:on?this.hexA(fc,.62):'rgba(255,255,255,.07)', fg:on?'#eef2f8':'#566179', op:on?1:.5 }; });
+    const linePoints = routeIds.map(id=>{ const s=this.SEC[id]; return s[1]+','+s[2]; }).join(' ');
+    const stops = stopDefs.map(d=>{ const s=this.SEC[d.secId]; const player=d.kind==='player'; const col=player?'#5cc8ec':'#34d399';
+      return { cx:s[1], cy:s[2], size:full?30:22, fontSize:full?13:10, tagSize:full?10:8.5, bg:'#0c1322', border:col, glow:this.hexA(col,.55), fg:col, n:d.n, tag:d.tag, tagColor:player?'#7fb9d6':'#7ec9a0', tagDisp:'flex' }; });
+    return { sectors, linePoints, stops, hexW:full?78:50, hexH:full?70:45, labelSize:full?11:8.5 };
+  }
+
+  // single-mission map: player -> dest along route
+  missionMap(route, dest, full){
+    const stops=[ {secId:this.PLAYER, kind:'player', n:'◉', tag:'YOU'}, {secId:dest, kind:'dest', n:'◎', tag:this.SEC[dest][4]} ];
+    return this.buildMap(route, stops, full);
+  }
+  // multi-stop tour: player -> dest1 -> dest2 ...
+  tourMap(dests, full){
+    const route=[this.PLAYER, ...dests];
+    const stops=[ {secId:this.PLAYER, kind:'player', n:'◉', tag:'YOU'} ].concat(dests.map((d,i)=>({ secId:d, kind:'dest', n:''+(i+1), tag:this.SEC[d][4] })));
+    return this.buildMap(route, stops, full);
+  }
+
+  facChip(key){ const c=this.fac[key]||'#7a8499'; return { facColor:c, facBg:this.hexA(c,.12), facBorder:this.hexA(c,.4), facLabel:this.facShort[key]||key }; }
+  typeChip(t){ const c=this.typeColor[t]||'#8a95ab'; return { typeColor:c, typeBg:this.hexA(c,.14), typeLabel:t.toUpperCase() }; }
+  diffChip(d){ const c=this.diffColor[d]||'#8a95ab'; return { diffColor:c, diffBg:this.hexA(c,.14), diffLabel:d.toUpperCase() }; }
+  rewardOf(m){ if(!m.reward) return { rewardKind:'none', rewardText:'—', rewardColor:'#5a6680', rewardBig:'No payout', rewardSub:'reputation & standing' };
+    if(typeof m.reward==='object') return { rewardKind:'ware', rewardText:'⬡', rewardColor:'#c8b06a', rewardBig:m.reward.ware, rewardSub:'reward item' };
+    return { rewardKind:'cr', rewardText:this.fmtCr(m.reward), rewardColor:'#f0d98a', rewardBig:m.reward.toLocaleString('en-US'), rewardSub:'credits' }; }
+
+  stepRow(s){
+    const map={ done:{ic:'✓', dotBorder:'#34d399', dotBg:'rgba(52,211,153,.16)', dotFg:'#34d399', titleColor:'#7a8499', strike:'line-through', rowBg:'rgba(255,255,255,.015)', rowBorder:'rgba(255,255,255,.05)'},
+      current:{ic:'●', dotBorder:'#5cc8ec', dotBg:'rgba(92,200,236,.16)', dotFg:'#5cc8ec', titleColor:'#eef2f8', strike:'none', rowBg:'rgba(92,200,236,.05)', rowBorder:'rgba(92,200,236,.18)'},
+      next:{ic:'', dotBorder:'rgba(255,255,255,.18)', dotBg:'transparent', dotFg:'#5a6680', titleColor:'#cdd5e3', strike:'none', rowBg:'rgba(255,255,255,.015)', rowBorder:'rgba(255,255,255,.05)'} };
+    const m=map[s.status]||map.next;
+    return { label:s.label, detail:s.detail, dotIcon:m.ic, dotBorder:m.dotBorder, dotBg:m.dotBg, dotFg:m.dotFg, titleColor:m.titleColor, strike:m.strike, rowBg:m.rowBg, rowBorder:m.rowBorder, hasLoc:!!s.loc, locName: s.loc? this.SEC[s.loc][4] : '' }; }
+
+  // list entry for a single mission
+  missionEntry(m){
+    const sel = this.state.selKind==='mission' && this.state.selId===m.id;
+    const inRun = this.state.run.includes(m.id);
+    const tc=this.typeChip(m.type), dc=this.diffChip(m.diff), fc=this.facChip(m.fac), rw=this.rewardOf(m);
+    return { kind:'mission', id:m.id, isGroup:false, canRun:true,
+      title:m.title, sub:(m.arc? m.arc+' · ':'')+'⌖ '+m.giver,
+      typeColor:tc.typeColor, typeBg:tc.typeBg, typeLabel:tc.typeLabel,
+      diffColor:dc.diffColor, diffBg:dc.diffBg, diffLabel:dc.diffLabel,
+      story:!!m.story, facColor:fc.facColor, facBg:fc.facBg, facBorder:fc.facBorder, facLabel:fc.facLabel,
+      hasVs:!!m.vs, vsColor: m.vs?(this.fac[m.vs]||'#f87171'):'#f87171', vsLabel: m.vs?this.facShort[m.vs]:'',
+      rewardText:rw.rewardText, rewardColor:rw.rewardColor, hasJumps:true, jumpsText:m.jumps+(m.jumps===1?' jump':' jumps'),
+      cardBg: sel?'rgba(92,200,236,.08)':'rgba(255,255,255,.018)', cardBorder: sel?'rgba(92,200,236,.4)':'rgba(255,255,255,.07)', edge: sel?'#5cc8ec':'transparent',
+      runBtnIcon: inRun?'✓':'＋', runBtnBg: inRun?'rgba(52,211,153,.14)':'rgba(255,255,255,.04)', runBtnBorder: inRun?'rgba(52,211,153,.4)':'rgba(255,255,255,.1)', runBtnColor: inRun?'#34d399':'#7a8499',
+      groupTag:'', groupTagBg:'', groupTagColor:'' };
+  }
+  groupEntry(g){
+    const sel = this.state.selKind===g.type && this.state.selId===g.id;
+    const fc=this.facChip(g.fac);
+    let tag, tagColor, tagBg, sub, rewardText, rewardColor='#7a8499';
+    if(g.type==='choice'){ tag='CHOICE · '+g.paths.length+' PATHS'; tagColor='#d79be8'; tagBg='rgba(200,121,224,.14)'; sub=g.arc+' · pick one path'; rewardText='⑂'; rewardColor='#d79be8'; }
+    else { const done=g.subs.filter(s=>s.status==='done').length; tag='ALL REQUIRED · '+done+'/'+g.subs.length; tagColor='#7fb9d6'; tagBg='rgba(92,200,236,.14)'; sub=g.arc+' · all stages required'; rewardText='⛓'; rewardColor='#7fb9d6'; }
+    return { kind:g.type, id:g.id, isGroup:true, canRun:false,
+      title:g.title, sub:sub,
+      typeColor: g.type==='choice'?'#d79be8':'#7fb9d6', typeBg:'transparent', typeLabel: g.story?'STORY':'OPERATION',
+      diffColor:'#8a95ab', diffBg:'rgba(138,149,171,.12)', diffLabel: g.type==='choice'?'BRANCHING':'SEQUENCE',
+      story:!!g.story, facColor:fc.facColor, facBg:fc.facBg, facBorder:fc.facBorder, facLabel:fc.facLabel,
+      hasVs:!!g.vs, vsColor: g.vs?(this.fac[g.vs]||'#f87171'):'#f87171', vsLabel: g.vs?this.facShort[g.vs]:'',
+      rewardText:rewardText, rewardColor:rewardColor, hasJumps:false, jumpsText:'',
+      cardBg: sel?'rgba(92,200,236,.08)':'rgba(255,255,255,.018)', cardBorder: sel?'rgba(92,200,236,.4)':'rgba(255,255,255,.09)', edge: sel?'#5cc8ec':(g.type==='choice'?'#c879e0':'#3b9ae1'),
+      runBtnIcon:'', runBtnBg:'', runBtnBorder:'', runBtnColor:'',
+      groupTag:tag, groupTagBg:tagBg, groupTagColor:tagColor };
+  }
+
+  renderVals(){
+    const st=this.state;
+    const bucket=st.bucket;
+
+    // ---- list for current bucket ----
+    const ms=this.MISSIONS.filter(m=>m.bucket===bucket).map(m=>({ ord:m.ord, e:this.missionEntry(m) }));
+    const gs=this.GROUPS.filter(g=>g.bucket===bucket).map(g=>({ ord:g.ord, e:this.groupEntry(g) }));
+    const list=[...ms,...gs].sort((a,b)=>a.ord-b.ord).map(x=>x.e);
+
+    const cnt=(b)=>this.MISSIONS.filter(m=>m.bucket===b).length + this.GROUPS.filter(g=>g.bucket===b).length;
+    const buckets=[['active','Active'],['offer','Offers'],['guild','Guild & War']].map(([k,label])=>{ const a=bucket===k; return { k, label, count:cnt(k), bg:a?'#1d4f8a':'transparent', fg:a?'#fff':'#8a95ab' }; });
+
+    // ---- right pane ----
+    const tab=st.tab;
+    let showMission=false, showChoice=false, showAll=false, showRun=false;
+    let md=null, cg=null, ag=null, run=null, boardMap=null;
+
+    if(tab==='run'){ showRun=true; }
+    else if(st.selKind==='choice'){ showChoice=true; }
+    else if(st.selKind==='all'){ showAll=true; }
+    else { showMission=true; }
+
+    // mission detail
+    if(showMission){
+      const m=this.byId(st.selId) || this.MISSIONS[0];
+      const tc=this.typeChip(m.type), dc=this.diffChip(m.diff), fc=this.facChip(m.fac), rw=this.rewardOf(m);
+      const cur=m.steps.find(s=>s.status==='current');
+      const inRun=st.run.includes(m.id);
+      const bucketMeta={ active:['ACTIVE MISSION','#34d399'], guild:['GUILD & WAR','#f5a524'], offer:['AVAILABLE OFFER','#7fb9d6'] }[m.bucket];
+      md={ id:m.id, title:m.title, giver:m.giver, repeatable:!!m.repeatable, summary:m.summary,
+        typeColor:tc.typeColor, typeBg:tc.typeBg, typeLabel:tc.typeLabel, diffColor:dc.diffColor, diffBg:dc.diffBg, diffLabel:dc.diffLabel,
+        facColor:fc.facColor, facBg:fc.facBg, facBorder:fc.facBorder, facLabel:this.facName[m.fac],
+        hasVs:!!m.vs, vsColor: m.vs?(this.fac[m.vs]||'#f87171'):'#f87171', vsLabel: m.vs?this.facName[m.vs]:'',
+        bucketLabel:bucketMeta[0], bucketColor:bucketMeta[1],
+        rewardBig:rw.rewardBig, rewardSub:rw.rewardSub,
+        objNote: m.steps.length>1? '· '+m.steps.length+' steps' : '',
+        steps:m.steps.map(s=>this.stepRow(s)),
+        hasNext:m.bucket==='active' && !!cur, nextText: cur?cur.label:'', nextLoc: cur&&cur.loc?this.SEC[cur.loc][4]:'—', nextJumps: cur&&cur.loc? (m.jumps+(m.jumps===1?' jump':' jumps')):'on site',
+        hasMap:true, routeText: m.jumps+(m.jumps===1?' jump':' jumps')+' · to '+this.SEC[m.dest][0], destName:this.SEC[m.dest][0],
+        runBtnIcon: inRun?'✓':'＋', runBtnLabel: inRun?'In Run':'Add to Run', runBtnBg: inRun?'rgba(52,211,153,.12)':'rgba(255,255,255,.03)', runBtnBorder: inRun?'rgba(52,211,153,.4)':'rgba(255,255,255,.1)', runBtnColor: inRun?'#34d399':'#aab4c6' };
+      boardMap=this.missionMap(m.route, m.dest, false);
+    }
+
+    // choice group
+    if(showChoice){
+      const g=this.grpById(st.selId) || this.GROUPS.find(x=>x.type==='choice');
+      const fc=this.facChip(g.fac); const pi=(st.pathSel[g.id]??0);
+      const paths=g.paths.map((p,i)=>{ const tc=this.typeChip(p.type), dc=this.diffChip(p.diff); const on=i===pi; const edge=this.typeColor[p.type]||'#c879e0';
+        return { idx:i, selected:on, title:p.title, giver:p.giver, summary:p.summary, consequence:p.consequence,
+          typeColor:tc.typeColor, typeBg:tc.typeBg, typeLabel:tc.typeLabel, diffColor:dc.diffColor, diffBg:dc.diffBg, diffLabel:dc.diffLabel,
+          bg:on?'rgba(200,121,224,.07)':'rgba(255,255,255,.02)', border:on?'rgba(200,121,224,.4)':'rgba(255,255,255,.07)', edge:on?'#d79be8':'transparent',
+          radioBorder:on?'#d79be8':'rgba(255,255,255,.2)', radioBg:on?'rgba(200,121,224,.16)':'transparent', radioDot:on?'#d79be8':'transparent' }; });
+      const ap=g.paths[pi];
+      cg={ title:g.title, arc:g.arc, summary:g.summary, facColor:fc.facColor, facBg:fc.facBg, facBorder:fc.facBorder, facLabel:this.facName[g.fac], paths,
+        routeText: ap.jumps+(ap.jumps===1?' jump':' jumps')+' · '+ap.title };
+      boardMap=this.missionMap(ap.route, ap.dest, false);
+    }
+
+    // all-required group
+    if(showAll){
+      const g=this.grpById(st.selId) || this.GROUPS.find(x=>x.type==='all');
+      const fc=this.facChip(g.fac); const done=g.subs.filter(s=>s.status==='done').length;
+      const sm={ done:{ic:'✓',dotBorder:'#34d399',dotBg:'rgba(52,211,153,.16)',dotFg:'#34d399',titleColor:'#7a8499',rowBg:'rgba(255,255,255,.015)',rowBorder:'rgba(255,255,255,.05)',status:'Completed'},
+        current:{ic:'●',dotBorder:'#5cc8ec',dotBg:'rgba(92,200,236,.16)',dotFg:'#5cc8ec',titleColor:'#eef2f8',rowBg:'rgba(92,200,236,.05)',rowBorder:'rgba(92,200,236,.18)',status:'In progress'},
+        next:{ic:'',dotBorder:'rgba(255,255,255,.18)',dotBg:'transparent',dotFg:'#5a6680',titleColor:'#cdd5e3',rowBg:'rgba(255,255,255,.015)',rowBorder:'rgba(255,255,255,.05)',status:'Locked'} };
+      const subs=g.subs.map((s,i)=>{ const tc=this.typeChip(s.type); const mm=sm[s.status]||sm.next;
+        return { title:s.title, typeColor:tc.typeColor, typeBg:tc.typeBg, typeLabel:tc.typeLabel, statusText:mm.status, destName:this.SEC[s.dest][4],
+          dotIcon: mm.ic||(''+(i+1)), dotBorder:mm.dotBorder, dotBg:mm.dotBg, dotFg:mm.dotFg, titleColor:mm.titleColor, rowBg:mm.rowBg, rowBorder:mm.rowBorder }; });
+      ag={ title:g.title, arc:g.arc, summary:g.summary, facColor:fc.facColor, facBg:fc.facBg, facBorder:fc.facBorder, facLabel:this.facName[g.fac],
+        hasVs:!!g.vs, vsColor:g.vs?this.fac[g.vs]:'#f87171', vsLabel:g.vs?this.facName[g.vs]:'',
+        progressText:done+' / '+g.subs.length, progressPct: Math.round(done/g.subs.length*100), subs,
+        routeText:'tour of '+g.subs.length+' sectors' };
+      boardMap=this.tourMap(g.subs.map(s=>s.dest), false);
+    }
+
+    // run planner
+    const runIds=st.run.filter(id=>this.byId(id));
+    {
+      const stops=runIds.map((id,i)=>{ const m=this.byId(id); const tc=this.typeChip(m.type), rw=this.rewardOf(m);
+        return { n:''+(i+1), id, title:m.title, typeColor:tc.typeColor, typeBg:tc.typeBg, typeLabel:tc.typeLabel, destName:this.SEC[m.dest][0], legJumps:m.jumps, rewardText:rw.rewardText, rewardColor:rw.rewardColor }; });
+      const totalCr=runIds.reduce((a,id)=>{ const m=this.byId(id); return a+(typeof m.reward==='number'?m.reward:0); },0);
+      const totalJumps=runIds.reduce((a,id)=>a+this.byId(id).jumps,0);
+      run={ isEmpty:runIds.length===0, has:runIds.length>0, stops, count:runIds.length, totalReward:totalCr?this.fmtCr(totalCr)+' Cr':'—', totalJumps:''+totalJumps, playerSector:this.SEC[this.PLAYER][0] };
+    }
+    const runMap=this.tourMap(runIds.map(id=>this.byId(id).dest), false);
+
+    // fullscreen map
+    let fullMap=null, fullTitle='', fullSub='';
+    if(st.mapFull){
+      if(tab==='run'){ fullMap=this.tourMap(runIds.map(id=>this.byId(id).dest), true); fullTitle='Run Route'; fullSub=run.count+' stops · '+run.totalJumps+' jumps · from '+this.SEC[this.PLAYER][0]; }
+      else if(showChoice){ const g=this.grpById(st.selId); const ap=g.paths[(st.pathSel[g.id]??0)]; fullMap=this.missionMap(ap.route, ap.dest, true); fullTitle=ap.title; fullSub=this.jp(ap.jumps)+' · to '+this.SEC[ap.dest][0]; }
+      else if(showAll){ const g=this.grpById(st.selId); fullMap=this.tourMap(g.subs.map(s=>s.dest), true); fullTitle=g.title; fullSub='combined tour · '+g.subs.length+' sectors'; }
+      else { const m=this.byId(st.selId); fullMap=this.missionMap(m.route, m.dest, true); fullTitle=m.title; fullSub=this.jp(m.jumps)+' · to '+this.SEC[m.dest][0]; }
+    }
+
+    const knob=(on)=>on?'16px':'2px';
+    const runCount=runIds.length;
+    return {
+      nav:this._nav(), subtitle:'MISSION BOARD · 3/8 COMPLETED', completedText:'3 / 8 completed',
+      goBoard:()=>this.setState({tab:'board'}), goRun:()=>this.setState({tab:'run'}),
+      boardBg: tab==='board'?'rgba(92,200,236,.14)':'transparent', boardFg: tab==='board'?'#cfe6f7':'#7a8499',
+      runBg: tab==='run'?'rgba(92,200,236,.14)':'transparent', runFg: tab==='run'?'#cfe6f7':'#7a8499', runCount,
+      runCountBg: tab==='run'?'#5cc8ec':'rgba(255,255,255,.1)', runCountFg: tab==='run'?'#06121c':'#8a95ab',
+      buckets, onBucket:(e)=>this.setState({bucket:e.currentTarget.dataset.k}),
+      storyTrack:'#1d2740', storyKnob:knob(false), onStory:()=>{},
+      list,
+      onSelect:(e)=>{ const k=e.currentTarget.dataset.kind, id=e.currentTarget.dataset.id; this.setState({ selKind:k, selId:id, tab:'board' }); },
+      onToggleRun:(e)=>{ e.stopPropagation(); const id=e.currentTarget.dataset.id; this.setState(s=>({ run: s.run.includes(id)? s.run.filter(x=>x!==id) : [...s.run, id] })); },
+      onPath:(e)=>{ const idx=+e.currentTarget.dataset.idx; this.setState(s=>({ pathSel:{ ...s.pathSel, [s.selId]:idx } })); },
+      onOptimize:()=>{ this.setState(s=>({ run:[...s.run].sort((a,b)=>this.byId(a).jumps-this.byId(b).jumps) })); },
+      showMission, showChoice, showAll, showRun, md, cg, ag, run, boardMap, runMap,
+      openMap:()=>this.setState({mapFull:true}), closeMap:()=>this.setState({mapFull:false}), stop:(e)=>e.stopPropagation(),
+      mapFull:st.mapFull, fullMap, fullTitle, fullSub,
+    };
+  }
+
+  _nav(){
+    const items=[['🏠','Home'],['♛','Empire'],['↗','Trade'],['▦','Inventory'],['🗺','Map'],['🚀','Ships'],['◎','Missions',1],['✉','Messages'],['◇','Factions']];
+    return items.map(([icon,label,active])=>({icon,label, bg:active?'rgba(59,154,225,.14)':'transparent', fg:active?'#cfe6f7':'#7a8499', edge:active?'#3b9ae1':'transparent'}));
+  }
+}
+</script>
+</body>
+</html>

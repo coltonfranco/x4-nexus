@@ -7,7 +7,7 @@ import { HexGridLayer } from "./map/layers/HexGridLayer";
 import { SectorLayer } from "./map/layers/SectorLayer";
 import { PlayerLayer } from "./map/layers/PlayerLayer";
 import { NavLayer } from "./map/layers/AnalysisLayer";
-import { buildAdjacency, findPath, type PathResult, type TravelSegmentKind } from "../lib/map/overlays/pathfinding";
+import { buildAdjacency, findPath, type TravelSegmentKind } from "../lib/map/overlays/pathfinding";
 import type { Sector } from "../lib/map/types";
 import { sectorDisplayName } from "../lib/map/names";
 
@@ -116,7 +116,20 @@ export function MissionMapModal({ open, onClose, sectorId, objectives }: Mission
   const dragRef = useRef<{ sx: number; sy: number; tx: number; ty: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { setTransform(initialTransform); }, [initialTransform]);
+  useEffect(() => {
+    setTransform((prev) => {
+      // Only update if values actually changed — avoids infinite loops when
+      // sectorCoords Map gets a new reference but same values.
+      if (
+        Math.abs(prev.x - initialTransform.x) < 0.01 &&
+        Math.abs(prev.y - initialTransform.y) < 0.01 &&
+        Math.abs(prev.scale - initialTransform.scale) < 0.01
+      ) {
+        return prev;
+      }
+      return initialTransform;
+    });
+  }, [initialTransform]);
 
   const clampScale = (s: number) => Math.min(4, Math.max(0.3, s));
 

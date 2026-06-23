@@ -1103,7 +1103,7 @@ export default function ShipsPage() {
 
       <div className="flex-1 overflow-hidden px-6 pb-6 pt-2 flex flex-col min-h-0">
         <HUDCard className="h-full">
-          <div className="flex-1 overflow-auto px-6">
+          <div className="flex-1 overflow-auto">
             {isLoading ? (
               <PageLoaderPreset preset="ships" />
             ) : (

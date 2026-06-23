@@ -94,6 +94,33 @@ CREATE TABLE IF NOT EXISTS station_modules (
     PRIMARY KEY (station_id, module_id)
 );
 
+-- Full planned module list for a station under construction, aggregated by macro.
+-- Source = the in-progress <build component="<station>"> task's sequence, which is the
+-- complete plan (the station's own construction/sequence only holds the current stage).
+-- Drives the construction "bill of materials" (joined to static module recipes at query
+-- time). Empty for operational stations. See docs/save-structure.md.
+CREATE TABLE IF NOT EXISTS station_build_plan (
+    station_id TEXT NOT NULL,
+    module_id  TEXT NOT NULL,
+    macro      TEXT,
+    count      INTEGER NOT NULL,
+    PRIMARY KEY (station_id, module_id)
+);
+
+-- Per-station rollup for the "My Stations" overview (cheap list-level read, no joins).
+-- Scalars derived during extraction; the per-module detail lives in station_modules /
+-- station_build_plan. `workforce_*` are live (current headcount + productivity bonus);
+-- `account_amount` is the station's own credits (player stations only).
+CREATE TABLE IF NOT EXISTS station_overview (
+    station_id           TEXT PRIMARY KEY,
+    module_count         INTEGER,   -- realized/in-progress modules (station_modules)
+    planned_module_count INTEGER,   -- full plan from in-progress build task (NULL if not building)
+    account_amount       INTEGER,   -- station's own credits
+    workforce_current    INTEGER,   -- live workforce headcount (summed across races)
+    workforce_bonus      REAL,      -- workforce productivity bonus (~0..1)
+    production_product    TEXT       -- current production originalproduct
+);
+
 CREATE TABLE IF NOT EXISTS station_offers (
     station_id     TEXT NOT NULL,
     ware_id        TEXT NOT NULL,

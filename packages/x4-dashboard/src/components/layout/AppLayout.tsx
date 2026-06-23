@@ -14,6 +14,7 @@ import {
   Users,
   Activity,
   Target,
+  Factory,
 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { useHasSave } from "../../lib/useHasSave";
@@ -30,6 +31,7 @@ const navItems = [
   { to: "/inventory", label: "Inventory", icon: Boxes, requiresSave: false },
   { to: "/map", label: "Map", icon: Map, requiresSave: false },
   { to: "/ships", label: "Ships", icon: Rocket, requiresSave: false },
+  { to: "/stations", label: "Stations", icon: Factory, requiresSave: false },
   { to: "/missions", label: "Missions", icon: Target, requiresSave: true },
   { to: "/messages", label: "Messages", icon: MessageSquare, requiresSave: true },
   { to: "/logbook", label: "Logbook", icon: BookOpen, requiresSave: true },

@@ -85,12 +85,13 @@ def _parse_module(
     storage_el = macro_el.find("properties/storage")
     prod_el = macro_el.find("properties/production/queue")
     prod_parent = macro_el.find("properties/production")
+    build_el = macro_el.find("properties/build")
+    build_sets_el = build_el.find("sets") if build_el is not None else None
     dock_el = macro_el.find("properties/dock")
     docksize_el = macro_el.find("properties/docksize")
     equip_el = macro_el.find("properties/equip")
     supply_el = macro_el.find("properties/supply")
     builder_el = macro_el.find("properties/builder")
-    build_el = macro_el.find("properties/build")
     undock_el = macro_el.find("properties/undock")
     secrecy_el = macro_el.find("properties/secrecy")
     ownership_el = macro_el.find("properties/ownership")
@@ -115,6 +116,10 @@ def _parse_module(
         "turret_s": 0, "turret_m": 0, "turret_l": 0, "turret_xl": 0,
         "shield_s": 0, "shield_m": 0, "shield_l": 0, "shield_xl": 0,
     }
+    # Dock / hangar / snap counts
+    dock_counts = {"dock_s": 0, "dock_m": 0, "dock_l": 0, "dock_xl": 0}
+    hangar_counts = {"hangar_s": 0, "hangar_m": 0}
+    snap_points = 0
 
     comp_ref_el = macro_el.find("component")
     if comp_ref_el is not None:
@@ -123,8 +128,16 @@ def _parse_module(
             try:
                 comp_bytes = resolve_name(comp_ref)
                 _resolve_and_count_hardpoints(comp_bytes, resolve_name, hardpoints)
+                snap_points = _count_snap_points(comp_bytes)
             except (KeyError, OSError):
                 pass
+
+    # Count dock bays and hangars from macro connections
+    _count_dock_bays(macro_el, dock_counts, hangar_counts)
+
+    # Production method from queue
+    queue_el = macro_el.find("properties/production/queue")
+    production_method = queue_el.get("method") if queue_el is not None else None
 
     out.modules.append({
         "module_id": macro_name,
@@ -150,12 +163,14 @@ def _parse_module(
         "drone_capacity": _int(storage_el, "unit"),
         "workforce_capacity": _int(workforce_el, "capacity") if _int(workforce_el, "capacity") is not None else _int(workforce_el, "max"),
         "workforce_race": workforce_el.get("race") if workforce_el is not None else None,
+        "workforce_growthrate": _float(workforce_el, "growthrate"),
         "hull": _int(hull_el, "max"),
         "hull_min": _int(hull_el, "min"),
         "hull_integrated": _bool_attr(hull_el, "integrated"),
         "hull_invulnerable": _bool_attr(hull_el, "invulnerable"),
         "hull_noscrap": _bool_attr(hull_el, "noscrap"),
         "explosiondamage": _int(exp_el, "value"),
+        "explosion_shield_damage": _int(exp_el, "shield"),
         "secrecy_level": _int(secrecy_el, "level") if secrecy_el is not None else None,
         # Docks
         "dock_allow": _bool_attr(dock_el, "allow") if dock_el is not None else None,
@@ -176,6 +191,7 @@ def _parse_module(
         # Builder
         "builder_units": _int(builder_el, "optimalprocessorunits") if builder_el is not None else None,
         "build_has_storage": _bool_attr(build_el, "buildstorage") if build_el is not None else None,
+        "build_sets": _build_sets(build_sets_el),
         # Movement
         "rotation_speed_max": _float(rotationspeed_el, "max"),
         "rotation_accel_max": _float(rotationaccel_el, "max"),
@@ -196,9 +212,64 @@ def _parse_module(
         "shields_s": hardpoints["shield_s"],
         "shields_m": hardpoints["shield_m"],
         "shields_l": hardpoints["shield_l"],
+        # Dock / hangar
+        "dock_s": dock_counts["dock_s"],
+        "dock_m": dock_counts["dock_m"],
+        "dock_l": dock_counts["dock_l"],
+        "dock_xl": dock_counts["dock_xl"],
+        "hangar_s": hangar_counts["hangar_s"],
+        "hangar_m": hangar_counts["hangar_m"],
+        # Connection points
+        "snap_points": snap_points,
+        # Production
+        "production_method": production_method,
         "shields_xl": hardpoints["shield_xl"],
         "icon_path": f"/assets/icons/modules/{macro_name}.png",
     })
+
+
+def _count_dock_bays(
+    macro_el: etree._Element,
+    dock_counts: dict[str, int],
+    hangar_counts: dict[str, int],
+) -> None:
+    """Count docking bays (by ship size) and ship storage from macro connections."""
+    conns_el = macro_el.find("connections")
+    if conns_el is None:
+        return
+    for conn in conns_el.iterfind("connection"):
+        macro_ref_el = conn.find("macro")
+        if macro_ref_el is None:
+            continue
+        ref = macro_ref_el.get("ref", "")
+        if "dockingbay" in ref:
+            if "_xs_" in ref or "_s_" in ref:
+                dock_counts["dock_s"] += 1
+            elif "_m_" in ref:
+                dock_counts["dock_m"] += 1
+            elif "_l_" in ref:
+                dock_counts["dock_l"] += 1
+            elif "_xl_" in ref:
+                dock_counts["dock_xl"] += 1
+        elif "shipstorage" in ref:
+            if "_xs_" in ref or "_s_" in ref:
+                hangar_counts["hangar_s"] += 1
+            elif "_m_" in ref:
+                hangar_counts["hangar_m"] += 1
+
+
+def _count_snap_points(comp_bytes: bytes) -> int:
+    """Count <connection tags=\"snap\"> in component XML."""
+    try:
+        root = etree.fromstring(comp_bytes)
+    except etree.XMLSyntaxError:
+        return 0
+    count = 0
+    for conn in root.iterfind(".//connection"):
+        tags = conn.get("tags", "")
+        if "snap" in tags:
+            count += 1
+    return count
 
 
 def _resolve_and_count_hardpoints(
@@ -265,20 +336,25 @@ def write(conn: sqlite3.Connection, result: ExtractResult) -> None:
         "is_datavault", "is_landmark", "is_unique",
         "icon", "hudicon", "factionhqicon", "subtype",
         "produces_ware_id", "storage_capacity", "storage_type",
-        "drone_capacity", "workforce_capacity", "workforce_race",
+        "drone_capacity", "workforce_capacity", "workforce_race", "workforce_growthrate",
         "hull", "hull_min", "hull_integrated", "hull_invulnerable", "hull_noscrap",
-        "explosiondamage", "secrecy_level",
+        "explosiondamage", "explosion_shield_damage", "secrecy_level",
         "dock_allow", "dock_allowbuild", "dock_allowtrade", "dock_allowunits",
         "dock_external", "dock_playeronly", "dock_priority", "dock_showroom", "dock_size_tags",
         "equip_classes", "supply_classes",
         "production_research", "production_show_active",
-        "builder_units", "build_has_storage",
+        "builder_units", "build_has_storage", "build_sets",
         "rotation_speed_max", "rotation_accel_max",
         "translation_speed_max", "translation_accel_max",
         "undock_distance", "undock_speed", "undock_rotate",
         "autoaim_allow", "ownership_claim", "longrangescan_minlevel",
         "turrets_s", "turrets_m", "turrets_l", "turrets_xl",
-        "shields_s", "shields_m", "shields_l", "shields_xl", "icon_path"
+        "shields_s", "shields_m", "shields_l", "shields_xl",
+        "dock_s", "dock_m", "dock_l", "dock_xl",
+        "hangar_s", "hangar_m",
+        "snap_points",
+        "production_method",
+        "icon_path"
     ]
 
     if result.modules:
@@ -319,3 +395,11 @@ def _bool_attr(el: etree._Element | None, attr: str) -> bool | None:
     if v is None:
         return None
     return v == "1"
+
+
+def _build_sets(el: etree._Element | None) -> str | None:
+    """Extract space-separated build set refs from <sets><set ref="..."/>."""
+    if el is None:
+        return None
+    refs = [s.get("ref") for s in el.iterfind("set") if s.get("ref")]
+    return " ".join(refs) if refs else None

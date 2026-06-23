@@ -7,6 +7,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query
 
 from x4_api.api.deps import get_db
+from x4_api.api.icons import get_icon_url
 from x4_api.api.schemas import PublicModel
 
 router = APIRouter()
@@ -31,7 +32,7 @@ class NPCEntry(PublicModel):
     location_ship_assignment: str | None = None
     location_ship_assignment_name: str | None = None
     ship_macro: str | None = None
-    ship_icon_path: str | None = None
+    location_ship_icon_url: str | None = None
     location_station_name: str | None = None
     location_station_code: str | None = None
     location_sector_name: str | None = None
@@ -61,7 +62,7 @@ _NPC_JOINED_COLS = (
     "json_extract(sh.extra_json, '$.subordinate_assignment') AS location_ship_assignment, "
     "sa.name AS location_ship_assignment_name, "
     "sh.macro AS ship_macro, "
-    "sc.icon_path AS ship_icon_path, "
+    "sc.icon_path AS _ship_icon_path, "
     "COALESCE("
     "  CASE WHEN st.name LIKE '{%,%}' THEN (SELECT text FROM s.texts WHERE page_id = CAST(SUBSTR(st.name, 2, INSTR(st.name, ',') - 2) AS INTEGER) AND text_id = CAST(SUBSTR(st.name, INSTR(st.name, ',') + 1, LENGTH(st.name) - INSTR(st.name, ',') - 1) AS INTEGER)) ELSE st.name END, "
     "  st.code, "
@@ -124,4 +125,9 @@ def list_npcs(
         """,
         params,
     ).fetchall()
-    return [NPCEntry(**dict(r)) for r in rows]
+    result: list[NPCEntry] = []
+    for r in rows:
+        d = dict(r)
+        d["location_ship_icon_url"] = get_icon_url(d.pop("_ship_icon_path", None))
+        result.append(NPCEntry(**d))
+    return result

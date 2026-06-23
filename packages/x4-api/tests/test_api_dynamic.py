@@ -92,6 +92,31 @@ def test_live_stations_and_fleet(client: TestClient) -> None:
     assert fleet[0]["is_player_owned"] is True
 
 
+def test_station_modules_and_construction_endpoints(client: TestClient) -> None:
+    _activate(client)
+
+    stations = client.get("/api/v1/stations").json()
+    sid = stations[0]["station_id"]
+    # New rollup fields are present (the tiny fixture has no composition, so counts are empty).
+    assert "category" in stations[0]
+    assert "module_count" in stations[0]
+    assert stations[0]["is_under_construction"] is False
+
+    # Sub-endpoints resolve for a known station (empty for the module-less fixture).
+    mods = client.get(f"/api/v1/stations/{sid}/modules")
+    assert mods.status_code == 200
+    assert mods.json() == []
+
+    constr = client.get(f"/api/v1/stations/{sid}/construction").json()
+    assert constr["is_under_construction"] is False
+    assert constr["planned_modules"] == []
+    assert constr["bill_of_materials"] == []
+
+    # Unknown station → 404 on every sub-endpoint.
+    assert client.get("/api/v1/stations/[0xdead]/modules").status_code == 404
+    assert client.get("/api/v1/stations/[0xdead]/construction").status_code == 404
+
+
 def test_refresh_config_disabled_when_no_refresher(client: TestClient) -> None:
     # The test client never runs lifespan, so no refresher is attached — config is read-only.
     got = client.get("/api/v1/refresh-config").json()

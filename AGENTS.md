@@ -120,6 +120,12 @@ inside `packages/`. Before committing, clean up anything outside `tmp/`.
 - **API client is GENERATED** from `docs/openapi.yaml`. Do not hand-edit `src/lib/apiClient.ts`.
 - **CSS-in-JS not adopted.** Inline `style={}` is fine for v1; revisit when complexity
   warrants a styling layer.
+- **Dropdown items match column style.** Every `<SelectItem>` inside a filter
+  dropdown must render the same visual element used in the corresponding table
+  column. Examples: size filter items use `<SizeBadge>`, kind filter items use
+  the same colored border badge as the Kind column, faction items use
+  `<FactionBadge>`. Never use plain text in a filter dropdown when the table
+  column renders a styled component.
 
 ### 4.3 SQL
 

@@ -40,6 +40,31 @@ Key structural facts (already encoded in the collectors):
 | **faction** | `factions/faction` | `id` + `account@amount` (live credits) + `relations/relation{faction,relation,booster}` + `licences/licence{type,factions}` |
 | **player** | `component[class=player]` + `<blueprints>` | character: `id, name, macro, lastcontrolled` · account credits (player faction) · blueprints (`ware`) · licences (held) |
 
+### Station composition & construction (probed `autosave_01.xml`, game 8.00, 2026-06)
+
+Probe of a player HQ mid-"expand" (`/tmp/probe*.py` throwaways). Key facts for the
+station-composition extractor:
+
+- **Module list** lives in `station/construction/sequence/entry` —
+  `entry[@id,@index,@macro,@connection]` (+ nested `predecessor`, `offset/position`).
+  This is the authoritative module composition. The `connections/connection[@connection=modules]`
+  children are **empty `<component/>` placeholders** for player stations — do *not* read
+  modules from there (the prior extractor did, and got nothing).
+- **Built vs planned**: `station/snapshot/entry` mirrors the realized state; a sequence
+  entry absent from snapshot is pending/under-construction.
+- **Under construction**: `station/buildtasks[@build="<id>"]` references an in-progress
+  `<build type="expand|build" component="<station id>" faction builder time>` found under a
+  global `buildtasks/inprogress`. Presence of the ref ⇒ active build task.
+- **Station budget**: `station/account[@amount,@min,@max,@own]` — the station's own credits
+  (e.g. HQ amount=339148). A cheap, monitorable metric.
+- **Construction material needs (required/delivered)**: **NOT present** in this save — no
+  `buildstorage`/`constructionplan`/build-cargo structures exist (HQ was an `expand` of a
+  preexisting base). Needs a save with a freshly-placed station mid-build to probe; the
+  `construction_needs` table is left best-effort/empty until then.
+- **Module macro → static join**: sequence macros (e.g. `dockarea_arg_m_station_01_macro`)
+  match `static.db` `modules.module_id`; non-module landmarks (`landmarks_*`) won't join and
+  show as composition without static facts.
+
 ## Seed source inventory (god.xml + factions.xml)
 
 From `docs/xml_schemas/god_schema.md` / `factions_schema.md`:

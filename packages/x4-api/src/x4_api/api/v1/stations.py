@@ -3,6 +3,12 @@
 Distinct from `/npc-stations` (static gamestart placements): these are the stations as
 they exist right now in the player's save, including player-built ones and live trade
 offers. Empty until a save is ingested.
+
+The list endpoint carries a per-station rollup (modules, workforce, build status, account)
+from `station_overview` so the "My Stations" overview renders without N+1 calls; the
+`/modules` and `/construction` sub-endpoints serve the detail. Build-material delivery
+progress is not persisted in the save, so `/construction` derives the bill of materials
+from static module recipes (see docs/save-structure.md).
 """
 
 
@@ -13,6 +19,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from x4_api.api.deps import get_db
 from x4_api.api.schemas import PublicModel
+from x4_api.api.v1.map import _category_from_macro
 
 router = APIRouter()
 
@@ -24,8 +31,19 @@ class LiveStation(PublicModel):
     macro: str | None
     owner_faction: str | None
     sector_id: str | None
+    # Function category derived from the macro (factory/shipyard/wharf/tradestation/…).
+    category: str | None = None
     is_player_owned: bool
     is_under_construction: bool
+    # Rollup from station_overview (None until a save with composition is ingested).
+    build_pct: float | None = None
+    module_count: int | None = None
+    planned_module_count: int | None = None
+    account_amount: int | None = None
+    workforce_current: int | None = None
+    workforce_capacity: int | None = None
+    workforce_bonus: float | None = None
+    production_product: str | None = None
     seed_id: str | None = None
     dynamic_tags: str | None = None
     known_to_player: bool
@@ -40,6 +58,61 @@ class StationOffer(PublicModel):
     quantity: int
 
 
+class StationModule(PublicModel):
+    module_id: str
+    macro: str | None
+    name: str | None
+    kind: str | None
+    size: str | None
+    produces_ware_id: str | None
+    count: int
+    construction_pct: float | None = None
+
+
+class BuildMaterial(PublicModel):
+    ware_id: str
+    name: str | None
+    amount: int
+    price_avg: int | None
+    total: int | None
+
+
+class PlannedModule(PublicModel):
+    module_id: str
+    macro: str | None
+    name: str | None
+    kind: str | None
+    count: int
+
+
+class StationConstruction(PublicModel):
+    station_id: str
+    is_under_construction: bool
+    build_pct: float | None
+    module_count: int | None
+    planned_module_count: int | None
+    planned_modules: list[PlannedModule]
+    bill_of_materials: list[BuildMaterial]
+
+
+_LIST_COLS = (
+    "st.station_id, st.code, st.name, st.macro, st.owner_faction, st.sector_id, "
+    "st.is_player_owned, st.is_under_construction, st.build_pct, "
+    "st.seed_id, st.dynamic_tags, st.known_to_player, st.basename, st.nameindex, "
+    "ov.module_count, ov.planned_module_count, ov.account_amount, "
+    "ov.workforce_current, ov.workforce_bonus, ov.production_product, "
+    # Capacity = sum of static workforce_capacity over installed modules (for utilisation %).
+    "(SELECT SUM(m.workforce_capacity * sm.count) FROM station_modules sm "
+    " JOIN s.modules m ON m.module_id = sm.module_id "
+    " WHERE sm.station_id = st.station_id) AS workforce_capacity"
+)
+
+
+def _row_to_station(r: sqlite3.Row) -> LiveStation:
+    d = dict(r)
+    return LiveStation(category=_category_from_macro(d.get("macro")), **d)
+
+
 @router.get("/stations", response_model=list[LiveStation])
 def list_stations(
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
@@ -51,25 +124,34 @@ def list_stations(
 ) -> list[LiveStation]:
     """Live stations, newest snapshot. Returns [] until a save is ingested."""
     sql = [
-        "SELECT station_id, code, name, macro, owner_faction, sector_id, "
-        "is_player_owned, is_under_construction, seed_id, dynamic_tags, "
-        "known_to_player, basename, nameindex "
-        "FROM stations WHERE 1=1"
+        f"SELECT {_LIST_COLS} FROM stations st "
+        "LEFT JOIN station_overview ov ON ov.station_id = st.station_id WHERE 1=1"
     ]
     params: dict[str, object] = {}
     if owner is not None:
-        sql.append("AND owner_faction = :owner")
+        sql.append("AND st.owner_faction = :owner")
         params["owner"] = owner
     if sector is not None:
-        sql.append("AND sector_id = :sector")
+        sql.append("AND st.sector_id = :sector")
         params["sector"] = sector
     if player_only:
-        sql.append("AND is_player_owned = 1")
-    sql.append("ORDER BY station_id LIMIT :limit OFFSET :offset")
+        sql.append("AND st.is_player_owned = 1")
+    sql.append("ORDER BY st.station_id LIMIT :limit OFFSET :offset")
     params["limit"] = limit
     params["offset"] = offset
     rows = conn.execute(" ".join(sql), params).fetchall()
-    return [LiveStation(**dict(r)) for r in rows]
+    return [_row_to_station(r) for r in rows]
+
+
+def _require_station(conn: sqlite3.Connection, station_id: str) -> sqlite3.Row:
+    row = conn.execute(
+        "SELECT station_id, is_under_construction, build_pct FROM stations "
+        "WHERE station_id = :id",
+        {"id": station_id},
+    ).fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"Unknown station_id: {station_id}")
+    return row
 
 
 @router.get("/stations/{station_id}/offers", response_model=list[StationOffer])
@@ -78,14 +160,88 @@ def station_offers(
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
 ) -> list[StationOffer]:
     """Current buy/sell offers at a station. 404 if the station is not in the save."""
-    exists = conn.execute(
-        "SELECT 1 FROM stations WHERE station_id = :id", {"id": station_id}
-    ).fetchone()
-    if exists is None:
-        raise HTTPException(status_code=404, detail=f"Unknown station_id: {station_id}")
+    _require_station(conn, station_id)
     rows = conn.execute(
         "SELECT ware_id, side, price, quantity FROM station_offers "
         "WHERE station_id = :id ORDER BY side, ware_id",
         {"id": station_id},
     ).fetchall()
     return [StationOffer(**dict(r)) for r in rows]
+
+
+@router.get("/stations/{station_id}/modules", response_model=list[StationModule])
+def station_modules(
+    station_id: str,
+    conn: Annotated[sqlite3.Connection, Depends(get_db)],
+) -> list[StationModule]:
+    """Installed modules at a station, with static name/kind/size joined. 404 if unknown."""
+    _require_station(conn, station_id)
+    rows = conn.execute(
+        """
+        SELECT sm.module_id, sm.macro, sm.count, sm.construction_pct,
+               m.name, m.kind, m.size, m.produces_ware_id
+        FROM station_modules sm
+        LEFT JOIN s.modules m ON m.module_id = sm.module_id
+        WHERE sm.station_id = :id
+        ORDER BY m.kind, m.name, sm.macro
+        """,
+        {"id": station_id},
+    ).fetchall()
+    return [StationModule(**dict(r)) for r in rows]
+
+
+@router.get("/stations/{station_id}/construction", response_model=StationConstruction)
+def station_construction(
+    station_id: str,
+    conn: Annotated[sqlite3.Connection, Depends(get_db)],
+) -> StationConstruction:
+    """Build status + planned modules + bill of materials (from static recipes).
+
+    The save does not persist build-material delivery progress, so the bill of materials is
+    the total resource cost of the planned modules (no live "delivered" figure).
+    """
+    st = _require_station(conn, station_id)
+    ov = conn.execute(
+        "SELECT module_count, planned_module_count FROM station_overview WHERE station_id = :id",
+        {"id": station_id},
+    ).fetchone()
+
+    planned = conn.execute(
+        """
+        SELECT bp.module_id, bp.macro, bp.count, m.name, m.kind
+        FROM station_build_plan bp
+        LEFT JOIN s.modules m ON m.module_id = bp.module_id
+        WHERE bp.station_id = :id
+        ORDER BY bp.count DESC, m.name
+        """,
+        {"id": station_id},
+    ).fetchall()
+
+    # Bill of materials: sum each planned module's construction inputs × its count. Module
+    # build recipes hang off the module's ware via wares.component_ref → ware_inputs.
+    bom = conn.execute(
+        """
+        SELECT wi.input_ware_id AS ware_id, wr.name,
+               SUM(wi.amount * bp.count) AS amount,
+               wr.price_avg,
+               SUM(wi.amount * bp.count * wr.price_avg) AS total
+        FROM station_build_plan bp
+        JOIN s.wares w ON w.component_ref = bp.module_id
+        JOIN s.ware_inputs wi ON wi.ware_id = w.ware_id
+        JOIN s.wares wr ON wr.ware_id = wi.input_ware_id
+        WHERE bp.station_id = :id
+        GROUP BY wi.input_ware_id, wr.name, wr.price_avg
+        ORDER BY total DESC
+        """,
+        {"id": station_id},
+    ).fetchall()
+
+    return StationConstruction(
+        station_id=station_id,
+        is_under_construction=bool(st["is_under_construction"]),
+        build_pct=st["build_pct"],
+        module_count=ov["module_count"] if ov else None,
+        planned_module_count=ov["planned_module_count"] if ov else None,
+        planned_modules=[PlannedModule(**dict(r)) for r in planned],
+        bill_of_materials=[BuildMaterial(**dict(r)) for r in bom],
+    )

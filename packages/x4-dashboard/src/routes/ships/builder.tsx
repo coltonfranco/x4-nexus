@@ -8,13 +8,13 @@ import { Currency } from "../../components/Currency";
 import { EntityIcon } from "../../components/EntityIcon";
 
 import { StatBar } from "../../components/StatBar";
-import { classFull, classShort, getMkGradientClass, getClassColor, getTypeColor } from "../../lib/formatters";
+import { classShort, getMkGradientClass, getClassColor, getTypeColor } from "../../lib/formatters";
 import type { FactionSummary } from "../../lib/map/types";
 import { cn } from "../../lib/utils";
 import { Card, CardContent } from "../../components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
-import { ShipClassBadge, ShipTypeBadge, EquipmentMkBadge } from "../../components/ShipBadges";
+import { ShipClassBadge, SizeBadge, ShipTypeBadge, EquipmentMkBadge } from "../../components/ShipBadges";
 import { FactionCombobox } from "../../components/FactionCombobox";
 import { ShipImage } from "../../components/ShipImage";
 import { Switch } from "../../components/ui/switch";
@@ -587,12 +587,7 @@ function EquipmentCard({
         </p>
         
         <div className="flex items-center gap-2 flex-wrap justify-center w-full">
-          {item.size && (
-            <div className="flex items-center gap-1">
-              <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50" />
-              <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">{classFull(item.size)}</span>
-            </div>
-          )}
+          {item.size && <SizeBadge size={item.size} className="text-[11px]" />}
           {item.faction_id && shortToFullFaction && (
             (() => {
               const resolvedFactionId = shortToFullFaction.get(item.faction_id) ?? item.faction_id;
@@ -1286,10 +1281,7 @@ export default function BuilderPage() {
                 <div className="mt-2 text-center">
                   <p className="text-sm font-bold leading-tight">{shipDetail.name}</p>
                   <div className="flex items-center justify-center gap-3 mt-2 flex-wrap">
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-2 h-2 rounded-full bg-muted-foreground/50" />
-                      <span className="text-xs font-bold text-foreground uppercase tracking-widest">{classFull(shipDetail.class_id)}</span>
-                    </div>
+                    <SizeBadge size={shipDetail.class_id} />
                     {shipFaction && (
                       <div className="flex items-center gap-1.5">
                         <div className="w-2 h-2 rounded-full" style={{ backgroundColor: shipFaction.color_hex ?? 'var(--muted-foreground)' }} />

@@ -13,6 +13,9 @@ import { cn } from "../lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { useColumnVisibility } from "../lib/useColumnVisibility";
 import { MultiSelect } from "../components/ui/multi-select";
+import { EntityIcon } from "../components/EntityIcon";
+import { ShipDetailPanel } from "../components/ShipDetailPanel";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
 
 type RoleSkillWeight = {
   skill_ref: string;
@@ -46,6 +49,7 @@ type NPCEntry = {
   location_ship_command_name: string | null;
   location_ship_assignment: string | null;
   location_ship_assignment_name: string | null;
+  ship_macro: string | null;
   location_ship_icon_url: string | null;
   location_station_name: string | null;
   location_station_code: string | null;
@@ -264,6 +268,7 @@ export default function CrewPage() {
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [groupBy, setGroupBy] = useState<GroupByKey>("none");
   const [visibleColumns, setVisibleColumns] = useColumnVisibility(STORAGE_KEY, DEFAULT_VISIBLE);
+  const [selectedShipId, setSelectedShipId] = useState<string | null>(null);
 
   const { data: npcs = [], isLoading } = useQuery<NPCEntry[]>({
     queryKey: ["npcs", "player"],
@@ -401,7 +406,7 @@ export default function CrewPage() {
   // ── Column Implementation ───────────────────────────────────────────────────
 
   const columns = useMemo<ColumnDef<EnrichedNPC>[]>(() => {
-    return [
+    const all: ColumnDef<EnrichedNPC>[] = [
       {
         key: "name",
         label: "Name",
@@ -489,7 +494,6 @@ export default function CrewPage() {
         render: (npc) => {
           const sName = npc.location_ship_name;
           const sCode = npc.location_ship_code;
-          const shipIcon = npc.location_ship_icon_url;
           const stName = npc.location_station_name;
           const stCode = npc.location_station_code;
           
@@ -505,29 +509,19 @@ export default function CrewPage() {
             <span className="text-muted-foreground flex items-center gap-1.5">
               {npc.location_ship_id ? (
                 <>
-                  {shipIcon ? (
-                    <span
-                      className="shrink-0"
-                      style={{
-                        width: 14,
-                        height: 14,
-                        backgroundColor: "currentColor",
-                        maskImage: `url(${shipIcon})`,
-                        WebkitMaskImage: `url(${shipIcon})`,
-                        maskSize: "contain",
-                        WebkitMaskSize: "contain",
-                        maskRepeat: "no-repeat",
-                        WebkitMaskRepeat: "no-repeat",
-                        maskPosition: "center",
-                        WebkitMaskPosition: "center",
-                      }}
-                    />
+                  {npc.location_ship_icon_url ? (
+                    <EntityIcon src={npc.location_ship_icon_url} alt={sName || "Ship"} size={16} />
                   ) : (
                     <Ship className="h-3.5 w-3.5" />
                   )}
-                  <span className="truncate max-w-[160px]" title={display}>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedShipId(npc.ship_macro ?? null)}
+                    className="truncate max-w-[160px] text-left hover:text-primary hover:underline transition-colors bg-transparent border-0 p-0 text-inherit"
+                    title={`${display} — click for details`}
+                  >
                     {display}
-                  </span>
+                  </button>
                 </>
               ) : npc.location_station_id ? (
                 <>
@@ -554,7 +548,8 @@ export default function CrewPage() {
           </span>
         ),
       },
-    ].filter(c => visibleColumns.has(c.key));
+    ];
+    return all.filter(c => visibleColumns.has(c.key));
   }, [visibleColumns]);
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -562,7 +557,8 @@ export default function CrewPage() {
   if (isLoading) return <PageLoaderPreset preset="crew" />;
 
   return (
-    <div className="flex flex-col h-full">
+    <>
+      <div className="flex flex-col h-full">
       <div className="px-6 pt-5 shrink-0">
         <h1 className="text-2xl font-bold flex items-center gap-2 tracking-tight">
           <Users className="h-6 w-6 text-primary" /> Crew
@@ -637,7 +633,6 @@ export default function CrewPage() {
           </div>
           
           <MultiSelect
-            title="Columns"
             options={ALL_COLUMNS.map((c) => ({
               value: c.key,
               label: c.label,
@@ -676,5 +671,14 @@ export default function CrewPage() {
         </HUDCard>
       </div>
     </div>
+    <Dialog open={selectedShipId !== null} onOpenChange={(open) => { if (!open) setSelectedShipId(null); }}>
+      <DialogContent className="sm:max-w-2xl md:max-w-3xl">
+        <DialogHeader className="sr-only">
+          <DialogTitle>Ship Details</DialogTitle>
+        </DialogHeader>
+        {selectedShipId && <ShipDetailPanel shipId={selectedShipId} factions={factions} />}
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }

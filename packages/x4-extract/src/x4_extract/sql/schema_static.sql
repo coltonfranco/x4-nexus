@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS wares (
     storage_class       TEXT,
     tags                TEXT,        -- space-separated ware tags e.g. "equipment crafting"
     restriction_licence TEXT,        -- licence required to trade (NULL = unrestricted)
+    component_ref       TEXT,        -- macro ref for modules (e.g. struct_arg_base_01_macro)
     use_threshold       REAL,        -- player relation threshold required for use
     icon_path           TEXT,        -- raw path from icons.xml; resolved to /static/icons/{id}.png at query time
     sortorder           INTEGER,     -- display sort order (101, 201, 301…)
@@ -101,12 +102,14 @@ CREATE TABLE IF NOT EXISTS modules (
     drone_capacity     INTEGER,
     workforce_capacity INTEGER,
     workforce_race     TEXT,
+    workforce_growthrate REAL,
     hull               INTEGER,
     hull_min           INTEGER,
     hull_integrated    BOOLEAN,
     hull_invulnerable  BOOLEAN,
     hull_noscrap       BOOLEAN,
     explosiondamage    INTEGER,
+    explosion_shield_damage INTEGER,
     secrecy_level      INTEGER,
     dock_allow         BOOLEAN,
     dock_allowbuild    BOOLEAN,
@@ -123,6 +126,7 @@ CREATE TABLE IF NOT EXISTS modules (
     production_show_active BOOLEAN,
     builder_units      INTEGER,
     build_has_storage  BOOLEAN,
+    build_sets         TEXT,
     rotation_speed_max    REAL,
     rotation_accel_max    REAL,
     translation_speed_max REAL,
@@ -141,6 +145,14 @@ CREATE TABLE IF NOT EXISTS modules (
     shields_m          INTEGER DEFAULT 0,
     shields_l          INTEGER DEFAULT 0,
     shields_xl         INTEGER DEFAULT 0,
+    dock_s             INTEGER DEFAULT 0,
+    dock_m             INTEGER DEFAULT 0,
+    dock_l             INTEGER DEFAULT 0,
+    dock_xl            INTEGER DEFAULT 0,
+    hangar_s           INTEGER DEFAULT 0,
+    hangar_m           INTEGER DEFAULT 0,
+    snap_points        INTEGER DEFAULT 0,
+    production_method  TEXT,
     icon_path          TEXT
 );
 

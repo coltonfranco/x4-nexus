@@ -46,6 +46,7 @@ def extract(xml_bytes: bytes) -> ExtractResult:
         storage_class = transport if transport in ("container", "solid", "liquid") else None
 
         restriction_el = ware_el.find("restriction")
+        component_el = ware_el.find("component")
         use_el = ware_el.find("use")
         raw_tags = ware_el.get("tags", "").strip()
 
@@ -64,6 +65,7 @@ def extract(xml_bytes: bytes) -> ExtractResult:
                 "storage_class": storage_class,
                 "tags": raw_tags if raw_tags else None,
                 "restriction_licence": restriction_el.get("licence") if restriction_el is not None else None,
+                "component_ref": component_el.get("ref") if component_el is not None else None,
                 "use_threshold": _float(use_el, "threshold") if use_el is not None else None,
                 "icon_path": _icon_path(ware_el),
                 "sortorder": _int(ware_el, "sortorder"),
@@ -128,11 +130,11 @@ def write(conn: sqlite3.Connection, result: ExtractResult) -> None:
         """
         INSERT INTO wares (ware_id, name, shortname, description, group_id, transport, volume,
                            price_min, price_avg, price_max, storage_class,
-                           tags, restriction_licence, use_threshold, icon_path,
+                           tags, restriction_licence, component_ref, use_threshold, icon_path,
                            sortorder, dismantlefactor, research_time)
         VALUES (:ware_id, :name, :shortname, :description, :group_id, :transport, :volume,
                 :price_min, :price_avg, :price_max, :storage_class,
-                :tags, :restriction_licence, :use_threshold, :icon_path,
+                :tags, :restriction_licence, :component_ref, :use_threshold, :icon_path,
                 :sortorder, :dismantlefactor, :research_time)
         """,
         result.wares,

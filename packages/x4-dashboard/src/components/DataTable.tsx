@@ -220,12 +220,7 @@ export function DataTable<T>({
   return (
     <table className={cn("w-full caption-bottom text-xs", className)}>
       <TableHeader
-        className={cn(
-          "[&_th]:bg-[var(--surface-2)] [&_th]:backdrop-blur-sm",
-          hasGroups
-            ? "sticky top-0 z-20"
-            : "[&_th]:sticky [&_th]:top-0 [&_th]:z-20"
-        )}
+        className="sticky top-0 z-20 bg-[var(--surface-2)] backdrop-blur-md"
       >
         {hasGroups ? (
           <>
