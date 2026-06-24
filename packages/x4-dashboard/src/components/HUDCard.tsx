@@ -1,14 +1,13 @@
-import { ReactNode } from "react";
+import { HTMLAttributes, ReactNode } from "react";
 import { cn } from "../lib/utils";
 
-type HUDCardProps = {
+interface HUDCardProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
-  className?: string;
   /** Pass false to hide corner accents, true by default */
   accents?: boolean;
-};
+}
 
-export function HUDCard({ children, className, accents = true }: HUDCardProps) {
+export function HUDCard({ children, className, accents = true, style, ...props }: HUDCardProps) {
   return (
     <div 
       className={cn(
@@ -19,8 +18,10 @@ export function HUDCard({ children, className, accents = true }: HUDCardProps) {
       style={{ 
         backgroundColor: 'rgba(12, 16, 28, 0.65)',
         backgroundImage: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0) 40%, rgba(0,0,0,0.3) 100%)',
-        boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.08), inset 0 0 20px rgba(0,0,0,0.5)'
+        boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.08), inset 0 0 20px rgba(0,0,0,0.5)',
+        ...style
       }}
+      {...props}
     >
       {/* Subtle scanline overlay */}
       <div className="absolute inset-0 pointer-events-none opacity-[0.03] bg-[linear-gradient(transparent_50%,rgba(0,0,0,1)_50%)] bg-[length:100%_4px] z-0" />

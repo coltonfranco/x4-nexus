@@ -44,13 +44,35 @@ import { HUDCard } from "../../components/HUDCard";
 import { cn } from "../../lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
 import { Switch } from "../../components/ui/switch";
-import { AlertCircle, Plus, GripHorizontal, X, Settings, Undo, Redo } from "lucide-react";
+import { AlertCircle, Plus, GripHorizontal, X, Settings, Undo, Redo, Save, FolderOpen, FilePlus2, Trash2, Loader2, DownloadCloud, Wand2, Route } from "lucide-react";
+import { useBlocker } from "@tanstack/react-router";
+import { Button } from "../../components/ui/button";
+import { Input } from "../../components/ui/input";
+import {
+  serializeNodes,
+  serializeEdges,
+  designSignature,
+  computeLockReason,
+  fetchBuilderStation,
+  useBuilderStationList,
+  useBuilderStationMutations,
+  usePlayerStations,
+  fetchStationLayout,
+  layoutToDesign,
+  autoLayoutGraph,
+  autoRouteHandles,
+  type BuilderStationDetail,
+  type BuilderStationInput,
+  type NodeAlignment,
+} from "./builder-persistence";
 
 export const BuilderSettingsContext = React.createContext<{ 
   gridMode: boolean; 
   setGridMode: (v: boolean) => void;
+  nodeAlignment: NodeAlignment;
+  setNodeAlignment: (v: NodeAlignment) => void;
   takeSnapshot?: (nodes: Node<ModuleNodeData>[], edges: Edge[]) => void;
-}>({ gridMode: false, setGridMode: () => {} });
+}>({ gridMode: false, setGridMode: () => {}, nodeAlignment: 'distributed', setNodeAlignment: () => {} });
 export const useBuilderSettings = () => React.useContext(BuilderSettingsContext);
 
 // --- Types ---
@@ -267,7 +289,7 @@ const ModuleNodeComponent = memo(({ id: _id, data, selected }: NodeProps<Node<Mo
   const selectedCount = useStore(selectedCountSelector);
   const showDelete = selected && selectedCount === 1;
   const { setNodes, setEdges, getNodes, getEdges } = useReactFlow();
-  const { takeSnapshot } = useBuilderSettings();
+  const { takeSnapshot, nodeAlignment } = useBuilderSettings();
 
   const handleRemove = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -281,15 +303,38 @@ const ModuleNodeComponent = memo(({ id: _id, data, selected }: NodeProps<Node<Mo
   const allDefaultHandles = useMemo(() => {
     const handlesRecord: Record<string, { pos: Position, left?: string, top?: string }> = {};
     for (let i = 0; i < snapPoints; i++) {
-      const side = i % 4;
-      const countOnSide = Math.ceil((snapPoints - side) / 4);
-      const indexOnSide = Math.floor(i / 4);
-      const offset = countOnSide === 1 ? 50 : (100 / (countOnSide + 1)) * (indexOnSide + 1);
-      
       let pos = Position.Top;
-      if (side === 1) pos = Position.Right;
-      if (side === 2) pos = Position.Bottom;
-      if (side === 3) pos = Position.Left;
+      let offset = 50;
+
+      if (nodeAlignment === 'right') {
+        if (i === 0) {
+          pos = Position.Left;
+          offset = 50;
+        } else {
+          pos = Position.Right;
+          const countOnSide = snapPoints - 1;
+          offset = countOnSide === 1 ? 50 : (100 / (countOnSide + 1)) * i;
+        }
+      } else if (nodeAlignment === 'bottom') {
+        if (i === 0) {
+          pos = Position.Top;
+          offset = 50;
+        } else {
+          pos = Position.Bottom;
+          const countOnSide = snapPoints - 1;
+          offset = countOnSide === 1 ? 50 : (100 / (countOnSide + 1)) * i;
+        }
+      } else {
+        const side = i % 4;
+        const countOnSide = Math.ceil((snapPoints - side) / 4);
+        const indexOnSide = Math.floor(i / 4);
+        offset = countOnSide === 1 ? 50 : (100 / (countOnSide + 1)) * (indexOnSide + 1);
+        
+        pos = Position.Top;
+        if (side === 1) pos = Position.Right;
+        if (side === 2) pos = Position.Bottom;
+        if (side === 3) pos = Position.Left;
+      }
 
       handlesRecord[`p-${i}`] = { 
         pos, 
@@ -298,7 +343,7 @@ const ModuleNodeComponent = memo(({ id: _id, data, selected }: NodeProps<Node<Mo
       };
     }
     return handlesRecord;
-  }, [snapPoints]);
+  }, [snapPoints, nodeAlignment]);
 
   const handles = Object.entries(allDefaultHandles).map(([id, handleData]) => (
     <DraggableHandle
@@ -443,7 +488,7 @@ function StationBuilderContent() {
   };
   const lastMousePos = useRef<{ x: number, y: number }>({ x: 0, y: 0 });
   const { screenToFlowPosition, getViewport } = useReactFlow();
-  const { gridMode, setGridMode } = useBuilderSettings();
+  const { gridMode, setGridMode, nodeAlignment, setNodeAlignment } = useBuilderSettings();
 
   const { takeSnapshot, undo, redo, canUndo, canRedo } = useUndoRedo<ModuleNodeData>();
   const { copy, paste, hasClipboard } = useClipboard<ModuleNodeData>();
@@ -492,19 +537,7 @@ function StationBuilderContent() {
 
   useEffect(() => {
     setNodes(nds => nds.map(n => {
-      const m = n.data.summary;
-      const licenceLocked = isModuleLicenceLocked(m.makerrace, m.restriction_licence, licenceSet, anyLicenceSet);
-      const isFreeDefault = !m.blueprint_price_avg && m.is_obtainable;
-      
-      let lockReason = undefined;
-      if (licenceLocked && !m.has_blueprint && !isFreeDefault) {
-        lockReason = "Missing blueprint and required faction licence.";
-      } else if (licenceLocked) {
-        lockReason = "Missing required faction licence.";
-      } else if (!m.has_blueprint && !isFreeDefault) {
-        lockReason = "Missing blueprint.";
-      }
-
+      const lockReason = computeLockReason(n.data.summary, licenceSet, anyLicenceSet);
       if (n.data.lockReason !== lockReason) {
         return { ...n, data: { ...n.data, lockReason } };
       }
@@ -528,6 +561,223 @@ function StationBuilderContent() {
     });
     return map;
   }, [moduleDetailsQueries]);
+
+  // --- Save / load / delete (appdata.db) ---
+  const DEFAULT_NAME = "Untitled Station";
+  const [currentStationId, setCurrentStationId] = useState<string | null>(null);
+  const [stationName, setStationName] = useState(DEFAULT_NAME);
+  const [savedSignature, setSavedSignature] = useState(() => designSignature([], [], DEFAULT_NAME));
+  const [loadDialogOpen, setLoadDialogOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  // When the current design was imported from an in-game station, its station_id — recorded
+  // as provenance on the fork created by the first save. Cleared on New/load of a saved design.
+  const [importSourceRef, setImportSourceRef] = useState<string | null>(null);
+  // Name prompt for "Save" (no current id) and "Save As".
+  const [nameDialog, setNameDialog] = useState<{ asNew: boolean; draft: string } | null>(null);
+  // Generic confirm (discard unsaved work, delete a design).
+  const [confirmState, setConfirmState] = useState<{ title: string; desc: string; confirmLabel: string; destructive?: boolean; onConfirm: () => void } | null>(null);
+
+  const stationList = useBuilderStationList();
+  const playerStations = usePlayerStations();
+  const { create, update, remove } = useBuilderStationMutations();
+  const saving = create.isPending || update.isPending;
+
+  const currentSignature = useMemo(() => designSignature(nodes, edges, stationName), [nodes, edges, stationName]);
+  const isDirty = currentSignature !== savedSignature;
+
+  // Run `action` immediately when clean; otherwise gate it behind a discard confirm.
+  const guardDirty = useCallback((action: () => void) => {
+    if (!isDirty) { action(); return; }
+    setConfirmState({
+      title: "Discard unsaved changes?",
+      desc: "You have unsaved changes to this station design. Continue and lose them?",
+      confirmLabel: "Discard",
+      destructive: true,
+      onConfirm: action,
+    });
+  }, [isDirty]);
+
+  const persistDesign = useCallback(async (name: string, asNew: boolean) => {
+    const body: BuilderStationInput = {
+      name,
+      grid_mode: gridMode,
+      nodes: serializeNodes(nodes),
+      edges: serializeEdges(edges),
+    };
+    try {
+      let id = currentStationId;
+      if (!asNew && currentStationId) {
+        await update.mutateAsync({ id: currentStationId, body });
+      } else {
+        // First save of a fresh/imported design → create. Carry provenance when forking
+        // an in-game station so the new row records where it came from.
+        if (importSourceRef) {
+          body.source_kind = "imported";
+          body.source_ref = importSourceRef;
+        }
+        const created = await create.mutateAsync(body);
+        id = created.id;
+      }
+      setCurrentStationId(id);
+      setStationName(name);
+      setSavedSignature(designSignature(nodes, edges, name));
+      showToast("Saved", `Saved "${name}".`, "success");
+    } catch (err) {
+      showToast("Save failed", err instanceof Error ? err.message : String(err));
+    }
+  }, [nodes, edges, gridMode, currentStationId, importSourceRef, create, update]);
+
+  const handleSave = useCallback(() => {
+    if (currentStationId) persistDesign(stationName, false);
+    else setNameDialog({ asNew: false, draft: stationName });
+  }, [currentStationId, stationName, persistDesign]);
+
+  const clearCanvas = useCallback(() => {
+    setNodes([]);
+    setEdges([]);
+    setCurrentStationId(null);
+    setImportSourceRef(null);
+    setStationName(DEFAULT_NAME);
+    setSavedSignature(designSignature([], [], DEFAULT_NAME));
+  }, [setNodes, setEdges]);
+
+  // `imported` designs aren't yet in appdata: they load with no current id (so the first save
+  // forks them) and stay dirty so the user is nudged to save. Saved designs load as clean.
+  const loadDesign = useCallback((detail: BuilderStationDetail, opts?: { imported?: boolean }) => {
+    const moduleMap = new Map(modules.map((m) => [m.module_id, m]));
+    const dropped: string[] = [];
+    const loadedNodes: Node<ModuleNodeData>[] = [];
+    for (const nd of detail.nodes) {
+      const summary = moduleMap.get(nd.module_id);
+      if (!summary) { dropped.push(nd.module_id); continue; }
+      const nodeId = nd.node_id;
+      loadedNodes.push({
+        id: nodeId,
+        type: "moduleNode",
+        position: { x: nd.pos_x, y: nd.pos_y },
+        data: {
+          summary,
+          onClickDetail: () => setSelectedDetailId(summary.module_id),
+          lockReason: computeLockReason(summary, licenceSet, anyLicenceSet),
+          handlePositions: nd.handle_positions ? JSON.parse(nd.handle_positions) : undefined,
+          onRemove: () => {
+            setNodes((nds) => nds.filter((n) => n.id !== nodeId));
+            setEdges((eds) => eds.filter((e) => e.source !== nodeId && e.target !== nodeId));
+          },
+        },
+      });
+    }
+    const validIds = new Set(loadedNodes.map((n) => n.id));
+    const loadedEdges: Edge[] = detail.edges
+      .filter((e) => validIds.has(e.source) && validIds.has(e.target))
+      .map((e) => ({
+        id: e.edge_id,
+        source: e.source,
+        target: e.target,
+        sourceHandle: e.source_handle ?? undefined,
+        targetHandle: e.target_handle ?? undefined,
+        type: "moduleEdge",
+      }));
+    setNodes(loadedNodes);
+    setEdges(loadedEdges);
+    setGridMode(detail.grid_mode);
+    setStationName(detail.name);
+    if (opts?.imported) {
+      // Not persisted yet: no current id (next save forks), provenance recorded, kept dirty.
+      setCurrentStationId(null);
+      setImportSourceRef(detail.source_ref ?? null);
+      setSavedSignature(designSignature([], [], detail.name));
+      const skipped = dropped.length ? ` (${dropped.length} non-buildable part(s) skipped)` : "";
+      showToast("Imported", `Imported "${detail.name}". Save to keep an editable copy.${skipped}`, "success");
+    } else {
+      setCurrentStationId(detail.id);
+      setImportSourceRef(null);
+      setSavedSignature(designSignature(loadedNodes, loadedEdges, detail.name));
+      if (dropped.length) {
+        showToast("Loaded with warnings", `${dropped.length} module(s) no longer in the catalog were skipped.`, "info");
+      } else {
+        showToast("Loaded", `Loaded "${detail.name}".`, "success");
+      }
+    }
+  }, [modules, licenceSet, anyLicenceSet, setNodes, setEdges, setGridMode]);
+
+  const handleSelectToLoad = useCallback(async (id: string) => {
+    try {
+      const detail = await fetchBuilderStation(id);
+      setLoadDialogOpen(false);
+      guardDirty(() => loadDesign(detail));
+    } catch (err) {
+      showToast("Load failed", err instanceof Error ? err.message : String(err));
+    }
+  }, [guardDirty, loadDesign]);
+
+  const handleSelectToImport = useCallback(async (stationId: string, stationName: string) => {
+    try {
+      const layout = await fetchStationLayout(stationId);
+      if (layout.length === 0) {
+        showToast("Nothing to import", "This station has no captured module layout yet.", "info");
+        return;
+      }
+      const snapByModule = new Map(modules.map((m) => [m.module_id, m.snap_points ?? 0]));
+      const design = layoutToDesign(layout, `${stationName} (imported)`, stationId, snapByModule, nodeAlignment);
+      setImportDialogOpen(false);
+      guardDirty(() => loadDesign(design, { imported: true }));
+    } catch (err) {
+      showToast("Import failed", err instanceof Error ? err.message : String(err));
+    }
+  }, [guardDirty, loadDesign, modules, nodeAlignment]);
+
+  const handleDeleteCurrent = useCallback(() => {
+    if (!currentStationId) return;
+    setConfirmState({
+      title: "Delete this design?",
+      desc: `Permanently delete "${stationName}". This cannot be undone.`,
+      confirmLabel: "Delete",
+      destructive: true,
+      onConfirm: async () => {
+        try {
+          await remove.mutateAsync(currentStationId);
+          clearCanvas();
+          showToast("Deleted", "Design deleted.", "success");
+        } catch (err) {
+          showToast("Delete failed", err instanceof Error ? err.message : String(err));
+        }
+      },
+    });
+  }, [currentStationId, stationName, remove, clearCanvas]);
+
+  const handleAutoLayout = useCallback(() => {
+    if (nodes.length === 0) return;
+    setConfirmState({
+      title: "Auto-Layout Graph?",
+      desc: "This will completely reorganize your modules and overwrite your manual layout. Proceed?",
+      confirmLabel: "Auto-Layout",
+      destructive: true,
+      onConfirm: () => {
+        takeSnapshot(nodes, edges);
+        const { nodes: nextNodes, edges: nextEdges } = autoLayoutGraph(nodes, edges, nodeAlignment);
+        setNodes(nextNodes);
+        setEdges(nextEdges);
+        showToast("Auto-Layout Complete", "Your modules have been reorganized.", "success");
+      },
+    });
+  }, [nodes, edges, nodeAlignment, takeSnapshot, setNodes, setEdges]);
+
+  const handleAutoRoute = useCallback(() => {
+    if (nodes.length === 0) return;
+    takeSnapshot(nodes, edges);
+    const { nodes: nextNodes, edges: nextEdges } = autoRouteHandles(nodes, edges, nodeAlignment);
+    setNodes(nextNodes);
+    setEdges(nextEdges);
+    showToast("Auto-Route Complete", "Connections optimized based on current positions.", "success");
+  }, [nodes, edges, nodeAlignment, takeSnapshot, setNodes, setEdges]);
+
+  // Block in-app navigation and tab close while there are unsaved changes.
+  const blocker = useBlocker({
+    shouldBlockFn: () => isDirty,
+    enableBeforeUnload: () => isDirty,
+    withResolver: true,
+  });
 
   const onConnect = useCallback((params: Connection) => {
     if (params.source === params.target) return;
@@ -631,7 +881,10 @@ function StationBuilderContent() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
       if (e.ctrlKey || e.metaKey) {
-        if (e.key === 'c' || e.key === 'C') {
+        if (e.key === 's' || e.key === 'S') {
+          e.preventDefault();
+          handleSave();
+        } else if (e.key === 'c' || e.key === 'C') {
           copy(nodes, edges);
           showToast("Copied", "Copied selected modules", "success");
         } else if (e.key === 'v' || e.key === 'V') {
@@ -660,11 +913,55 @@ function StationBuilderContent() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [nodes, edges, copy, paste, undo, redo, takeSnapshot]);
+  }, [nodes, edges, copy, paste, undo, redo, takeSnapshot, handleSave]);
 
   const onDragStart = (event: React.DragEvent, module: ModuleSummary) => {
     event.dataTransfer.setData("application/reactflow", JSON.stringify(module));
     event.dataTransfer.effectAllowed = "move";
+
+    const dragEl = document.createElement('div');
+    dragEl.className = "w-32 h-32 bg-[#0a0a0a] border border-border rounded-md shadow-lg flex flex-col items-center justify-center p-2 text-foreground font-sans text-sm";
+    dragEl.style.position = 'absolute';
+    dragEl.style.top = '-1000px';
+    dragEl.style.left = '-1000px';
+    
+    if (module.icon_url) {
+      const img = document.createElement('img');
+      img.src = module.icon_url;
+      // EntityIcon has style for w-12 h-12 object-contain etc
+      img.style.width = '48px';
+      img.style.height = '48px';
+      img.style.objectFit = 'contain';
+      img.style.marginBottom = '8px';
+      dragEl.appendChild(img);
+    }
+    
+    const nameSpan = document.createElement('span');
+    nameSpan.className = "text-xs font-medium text-center line-clamp-2 max-w-[100px]";
+    nameSpan.style.display = '-webkit-box';
+    nameSpan.style.webkitLineClamp = '2';
+    nameSpan.style.webkitBoxOrient = 'vertical';
+    nameSpan.style.overflow = 'hidden';
+    nameSpan.innerText = module.name;
+    dragEl.appendChild(nameSpan);
+
+    if (module.kind) {
+      const kindSpan = document.createElement('span');
+      // Resolve kind color class
+      const kindClass = KIND_COLORS[module.kind.toLowerCase()] || "bg-muted";
+      kindSpan.className = `mt-1 px-1.5 py-0.5 rounded text-[8px] uppercase tracking-wider border ${kindClass}`;
+      kindSpan.innerText = module.kind;
+      dragEl.appendChild(kindSpan);
+    }
+
+    document.body.appendChild(dragEl);
+    event.dataTransfer.setDragImage(dragEl, 64, 64);
+    
+    setTimeout(() => {
+      if (document.body.contains(dragEl)) {
+        document.body.removeChild(dragEl);
+      }
+    }, 0);
   };
 
   const onDragOver = useCallback((event: React.DragEvent) => { event.preventDefault(); event.dataTransfer.dropEffect = "move"; }, []);
@@ -677,17 +974,7 @@ function StationBuilderContent() {
     const position = screenToFlowPosition({ x: event.clientX, y: event.clientY });
     position.x -= 64; // center the drop point (128px wide)
     position.y -= 64; // center the drop point (128px tall)
-    const isFreeDefault = !moduleData.blueprint_price_avg && moduleData.is_obtainable;
-    const licenceLocked = isModuleLicenceLocked(moduleData.makerrace, moduleData.restriction_licence, licenceSet, anyLicenceSet);
-    
-    let lockReason = undefined;
-    if (licenceLocked && !moduleData.has_blueprint && !isFreeDefault) {
-      lockReason = "Missing blueprint and required faction licence.";
-    } else if (licenceLocked) {
-      lockReason = "Missing required faction licence.";
-    } else if (!moduleData.has_blueprint && !isFreeDefault) {
-      lockReason = "Missing blueprint.";
-    }
+    const lockReason = computeLockReason(moduleData, licenceSet, anyLicenceSet);
 
     let dropX = position.x;
     let dropY = position.y;
@@ -772,17 +1059,7 @@ function StationBuilderContent() {
 
   const onAddModuleToMap = useCallback((e: React.MouseEvent, moduleData: ModuleSummary) => {
     e.stopPropagation();
-    const isFreeDefault = !moduleData.blueprint_price_avg && moduleData.is_obtainable;
-    const licenceLocked = isModuleLicenceLocked(moduleData.makerrace, moduleData.restriction_licence, licenceSet, anyLicenceSet);
-    
-    let lockReason = undefined;
-    if (licenceLocked && !moduleData.has_blueprint && !isFreeDefault) {
-      lockReason = "Missing blueprint and required faction licence.";
-    } else if (licenceLocked) {
-      lockReason = "Missing required faction licence.";
-    } else if (!moduleData.has_blueprint && !isFreeDefault) {
-      lockReason = "Missing blueprint.";
-    }
+    const lockReason = computeLockReason(moduleData, licenceSet, anyLicenceSet);
 
     const { x, y, zoom } = getViewport();
     let dropX = -x / zoom + (window.innerWidth / 3) / zoom - 64;
@@ -928,11 +1205,50 @@ function StationBuilderContent() {
               />
               <Panel position="top-right" className="bg-card border border-border rounded-md shadow-lg p-3 min-w-[200px] z-50">
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
-                  <Settings className="w-3.5 h-3.5" /> Map Settings
+                  <Settings className="w-3.5 h-3.5" /> Settings
                 </h3>
-                <div className="flex items-center justify-between">
-                  <label htmlFor="grid-mode" className="text-xs">Grid Mode</label>
-                  <Switch id="grid-mode" checked={gridMode} onCheckedChange={setGridMode} />
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center justify-between">
+                    <label htmlFor="grid-mode" className="text-xs">Grid Mode</label>
+                    <Switch id="grid-mode" checked={gridMode} onCheckedChange={setGridMode} />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs">Node Alignment</label>
+                    <Select value={nodeAlignment} onValueChange={setNodeAlignment}>
+                      <SelectTrigger className="h-7 text-xs">
+                        <SelectValue placeholder="Alignment" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="distributed" className="text-xs">Equally Distributed</SelectItem>
+                        <SelectItem value="right" className="text-xs">Left to Right</SelectItem>
+                        <SelectItem value="bottom" className="text-xs">Top Down</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex flex-col gap-2 pt-2 border-t border-border mt-1">
+                    <TooltipProvider delayDuration={200}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="outline" size="sm" className="h-7 text-xs w-full justify-start gap-2" onClick={handleAutoLayout}>
+                            <Wand2 className="w-3.5 h-3.5" /> Auto-Layout
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="left" className="max-w-[200px]">
+                          <p>Reorganizes all modules into a neat tree structure based on your selected alignment.</p>
+                        </TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="outline" size="sm" className="h-7 text-xs w-full justify-start gap-2" onClick={handleAutoRoute}>
+                            <Route className="w-3.5 h-3.5" /> Auto-Route
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="left" className="max-w-[200px]">
+                          <p>Recalculates connections to use the shortest paths without moving any modules.</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
                 </div>
               </Panel>
             </ReactFlow>
@@ -1000,23 +1316,56 @@ function StationBuilderContent() {
               />
             )}
             
-            <div className="absolute top-4 left-4 z-10 flex items-center gap-1 bg-card border border-border shadow-md rounded p-1">
-               <button 
-                  onClick={() => { const s = undo(nodes, edges); if(s){ setNodes(s.nodes); setEdges(s.edges); } }} 
-                  disabled={!canUndo}
-                  className={cn("p-1.5 rounded transition-colors", canUndo ? "hover:bg-muted cursor-pointer" : "opacity-50 cursor-not-allowed")}
-                  title="Undo (Ctrl+Z)"
-               >
-                  <Undo className="w-4 h-4" />
-               </button>
-               <button 
-                  onClick={() => { const s = redo(nodes, edges); if(s){ setNodes(s.nodes); setEdges(s.edges); } }} 
-                  disabled={!canRedo}
-                  className={cn("p-1.5 rounded transition-colors", canRedo ? "hover:bg-muted cursor-pointer" : "opacity-50 cursor-not-allowed")}
-                  title="Redo (Ctrl+Y)"
-               >
-                  <Redo className="w-4 h-4" />
-               </button>
+            <div className="absolute top-4 left-4 z-10 flex items-center gap-2">
+              <div className="flex items-center gap-1 bg-card border border-border shadow-md rounded p-1">
+                 <button
+                    onClick={() => { const s = undo(nodes, edges); if(s){ setNodes(s.nodes); setEdges(s.edges); } }}
+                    disabled={!canUndo}
+                    className={cn("p-1.5 rounded transition-colors", canUndo ? "hover:bg-muted cursor-pointer" : "opacity-50 cursor-not-allowed")}
+                    title="Undo (Ctrl+Z)"
+                 >
+                    <Undo className="w-4 h-4" />
+                 </button>
+                 <button
+                    onClick={() => { const s = redo(nodes, edges); if(s){ setNodes(s.nodes); setEdges(s.edges); } }}
+                    disabled={!canRedo}
+                    className={cn("p-1.5 rounded transition-colors", canRedo ? "hover:bg-muted cursor-pointer" : "opacity-50 cursor-not-allowed")}
+                    title="Redo (Ctrl+Y)"
+                 >
+                    <Redo className="w-4 h-4" />
+                 </button>
+              </div>
+
+              <div className="flex items-center gap-1 bg-card border border-border shadow-md rounded p-1">
+                <div className="flex items-center gap-1.5 px-2 max-w-[200px]" title={stationName}>
+                  <span className="text-xs font-medium truncate">{stationName}</span>
+                  {importSourceRef && !currentStationId && (
+                    <span className="text-[9px] uppercase tracking-wider px-1 py-0.5 rounded bg-sky-500/15 text-sky-400 border border-sky-500/30 shrink-0" title="Imported from a save — Save creates an editable copy">imported</span>
+                  )}
+                  {isDirty && <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" title="Unsaved changes" />}
+                </div>
+                <Button size="sm" variant="ghost" className="h-7 px-2" onClick={handleSave} disabled={saving} title="Save (Ctrl+S)">
+                  {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                  <span className="ml-1">Save</span>
+                </Button>
+                <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setNameDialog({ asNew: true, draft: `${stationName} copy` })} disabled={saving || nodes.length === 0} title="Save as a new design">
+                  Save As
+                </Button>
+                <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setLoadDialogOpen(true)} title="Load a saved design">
+                  <FolderOpen className="w-3.5 h-3.5" /><span className="ml-1">Load</span>
+                </Button>
+                <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setImportDialogOpen(true)} title="Import an existing in-game station">
+                  <DownloadCloud className="w-3.5 h-3.5" /><span className="ml-1">Import</span>
+                </Button>
+                <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => guardDirty(clearCanvas)} title="New / clear canvas">
+                  <FilePlus2 className="w-3.5 h-3.5" /><span className="ml-1">New</span>
+                </Button>
+                {currentStationId && (
+                  <Button size="sm" variant="ghost" className="h-7 px-2 text-destructive hover:text-destructive" onClick={handleDeleteCurrent} title="Delete this design">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
           <div className="h-14 bg-card border-t border-border flex flex-wrap items-center px-6 gap-8 shrink-0 relative z-10 text-xs shadow-lg overflow-x-auto">
@@ -1117,14 +1466,166 @@ function StationBuilderContent() {
             <DialogTitle>{selectedModuleSummary?.name ?? "Module details"}</DialogTitle>
           </DialogHeader>
           {selectedModuleSummary && (
-            <ModuleDetailPanel 
-              moduleId={selectedModuleSummary.module_id} 
-              summary={selectedModuleSummary} 
-              factions={factions} 
-              licenceSet={licenceSet} 
-              anyLicenceSet={anyLicenceSet} 
+            <ModuleDetailPanel
+              moduleId={selectedModuleSummary.module_id}
+              summary={selectedModuleSummary}
+              factions={factions}
+              licenceSet={licenceSet}
+              anyLicenceSet={anyLicenceSet}
             />
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Load a saved design */}
+      <Dialog open={loadDialogOpen} onOpenChange={setLoadDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Load station design</DialogTitle>
+          </DialogHeader>
+          <div className="max-h-[60vh] overflow-y-auto -mx-2 px-2">
+            {stationList.isLoading ? (
+              <div className="text-sm text-muted-foreground p-4 text-center">Loading…</div>
+            ) : (stationList.data?.length ?? 0) === 0 ? (
+              <div className="text-sm text-muted-foreground p-6 text-center">No saved designs yet.</div>
+            ) : (
+              <div className="space-y-1">
+                {stationList.data!.map((s) => (
+                  <div key={s.id} className={cn("flex items-center gap-2 p-2 rounded border border-border hover:bg-muted/50 transition-colors", s.id === currentStationId && "border-primary/50 bg-primary/5")}>
+                    <button className="flex-1 min-w-0 text-left" onClick={() => handleSelectToLoad(s.id)}>
+                      <div className="text-sm font-medium truncate">{s.name}</div>
+                      <div className="text-[11px] text-muted-foreground">{s.node_count} modules · {s.edge_count} links · updated {new Date(s.updated_at).toLocaleString()}</div>
+                    </button>
+                    <button
+                      className="p-1.5 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
+                      title="Delete design"
+                      onClick={() => setConfirmState({
+                        title: "Delete this design?",
+                        desc: `Permanently delete "${s.name}". This cannot be undone.`,
+                        confirmLabel: "Delete",
+                        destructive: true,
+                        onConfirm: async () => {
+                          try {
+                            await remove.mutateAsync(s.id);
+                            if (s.id === currentStationId) clearCanvas();
+                            showToast("Deleted", "Design deleted.", "success");
+                          } catch (err) {
+                            showToast("Delete failed", err instanceof Error ? err.message : String(err));
+                          }
+                        },
+                      })}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Import an existing in-game station */}
+      <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Import a station from your save</DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-muted-foreground -mt-2">
+            Loads one of your in-game stations with its real layout and connections. It opens as an
+            editable copy — saving creates a new design (the original is never changed).
+          </p>
+          <div className="max-h-[60vh] overflow-y-auto -mx-2 px-2">
+            {playerStations.isLoading ? (
+              <div className="text-sm text-muted-foreground p-4 text-center">Loading…</div>
+            ) : (playerStations.data?.length ?? 0) === 0 ? (
+              <div className="text-sm text-muted-foreground p-6 text-center">No player stations in the active save.</div>
+            ) : (
+              <div className="space-y-1">
+                {playerStations.data!.map((s) => {
+                  const label = s.name || s.code || s.station_id;
+                  return (
+                    <button
+                      key={s.station_id}
+                      className="w-full flex items-center gap-2 p-2 rounded border border-border hover:bg-muted/50 transition-colors text-left"
+                      onClick={() => handleSelectToImport(s.station_id, label)}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium truncate">{label}</div>
+                        <div className="text-[11px] text-muted-foreground">
+                          {s.module_count ?? 0} modules{s.sector_id ? ` · ${s.sector_id}` : ""}
+                        </div>
+                      </div>
+                      <DownloadCloud className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Name prompt for Save (new) / Save As */}
+      <Dialog open={nameDialog !== null} onOpenChange={(open) => { if (!open) setNameDialog(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{nameDialog?.asNew ? "Save as new design" : "Save station design"}</DialogTitle>
+          </DialogHeader>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const name = (nameDialog?.draft ?? "").trim();
+              if (!name) return;
+              const asNew = nameDialog?.asNew ?? false;
+              setNameDialog(null);
+              persistDesign(name, asNew);
+            }}
+          >
+            <Input
+              autoFocus
+              value={nameDialog?.draft ?? ""}
+              onChange={(e) => setNameDialog((d) => (d ? { ...d, draft: e.target.value } : d))}
+              placeholder="Station name"
+            />
+            <div className="flex justify-end gap-2 mt-4">
+              <Button type="button" variant="ghost" onClick={() => setNameDialog(null)}>Cancel</Button>
+              <Button type="submit" disabled={!(nameDialog?.draft ?? "").trim() || saving}>Save</Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Generic confirm (discard / delete) */}
+      <Dialog open={confirmState !== null} onOpenChange={(open) => { if (!open) setConfirmState(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{confirmState?.title}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">{confirmState?.desc}</p>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="ghost" onClick={() => setConfirmState(null)}>Cancel</Button>
+            <Button
+              variant={confirmState?.destructive ? "destructive" : "default"}
+              onClick={() => { const c = confirmState; setConfirmState(null); c?.onConfirm(); }}
+            >
+              {confirmState?.confirmLabel ?? "Confirm"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Unsaved-changes navigation guard */}
+      <Dialog open={blocker.status === "blocked"} onOpenChange={(open) => { if (!open && blocker.status === "blocked") blocker.reset(); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Leave without saving?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">You have unsaved changes to this station design. If you leave now, they will be lost.</p>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="ghost" onClick={() => { if (blocker.status === "blocked") blocker.reset(); }}>Stay</Button>
+            <Button variant="destructive" onClick={() => { if (blocker.status === "blocked") blocker.proceed(); }}>Leave</Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
@@ -1133,8 +1634,24 @@ function StationBuilderContent() {
 
 export default function StationBuilderPage() {
   const [gridMode, setGridMode] = useState(true);
+  const [nodeAlignment, setNodeAlignmentState] = useState<NodeAlignment>(() => {
+    try {
+      const saved = localStorage.getItem('builder_node_alignment');
+      return (saved as NodeAlignment) || 'distributed';
+    } catch {
+      return 'distributed';
+    }
+  });
+
+  const setNodeAlignment = useCallback((v: NodeAlignment) => {
+    setNodeAlignmentState(v);
+    try {
+      localStorage.setItem('builder_node_alignment', v);
+    } catch {}
+  }, []);
+
   return (
-    <BuilderSettingsContext.Provider value={{ gridMode, setGridMode }}>
+    <BuilderSettingsContext.Provider value={{ gridMode, setGridMode, nodeAlignment, setNodeAlignment }}>
       <ReactFlowProvider>
         <StationBuilderContent />
       </ReactFlowProvider>

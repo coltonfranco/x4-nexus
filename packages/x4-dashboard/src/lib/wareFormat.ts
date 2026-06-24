@@ -1,6 +1,6 @@
 // Shared formatting helpers for the trade / equipment / inventory pages.
 
-export type WareCategory = "commodity" | "equipment" | "inventory" | "ship";
+export type WareCategory = "commodity" | "equipment" | "inventory" | "module" | "ship";
 
 export function fmtNum(n: number | null | undefined, suffix = ""): string {
   return n == null ? "—" : `${n.toLocaleString()}${suffix}`;

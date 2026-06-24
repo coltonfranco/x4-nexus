@@ -58,6 +58,12 @@ _STATION_POS_DEPTH = 17
 _STATION_CHILD_DEPTH = _STATION_DEPTH + 1
 # workforces/workforce + workforces/bonus sit at station depth + 2.
 _STATION_GRANDCHILD_DEPTH = _STATION_DEPTH + 2
+# Construction-sequence layout (probed against a real save, see docs/save-structure.md):
+#   station(15)/construction(16)/sequence(17)/entry(18)/predecessor(19)
+#   station(15)/construction(16)/sequence(17)/entry(18)/offset(19)/position(20)
+# Fixed depths matter: a wildcard on <position> would fire on millions of elements.
+_ENTRY_PRED_DEPTH = _STATION_DEPTH + 4   # 19
+_ENTRY_POS_DEPTH = _STATION_DEPTH + 5    # 20
 
 
 def _f(v: str | None) -> float | None:
@@ -137,6 +143,17 @@ class StationsCollector:
     planned_modules: dict[str, Counter[str]] = field(default_factory=lambda: defaultdict(Counter))
     # station ids with an active build task (under construction).
     building: set[str] = field(default_factory=set)
+    # Per-module construction layout, keyed by the entry's save-unique id. Three streams
+    # (entry meta, predecessor link, position) are stitched together in flush() — children
+    # end before their parent <entry>, so they're captured separately and joined by id.
+    # entry_id -> {station_id, entry_index, macro, connection}
+    entry_meta: dict[str, dict[str, object]] = field(default_factory=dict)
+    # entry_id -> (predecessor_index, predecessor_connection)
+    entry_pred: dict[str, tuple[int | None, str | None]] = field(default_factory=dict)
+    # entry_id -> (x, y, z) station-frame offset (any axis may be None)
+    entry_pos: dict[str, tuple[float | None, float | None, float | None]] = field(
+        default_factory=dict
+    )
     # rollup scalars, keyed by station id
     workforce_current: dict[str, int] = field(default_factory=lambda: defaultdict(int))
     workforce_bonus: dict[str, float] = field(default_factory=dict)
@@ -172,6 +189,17 @@ class StationsCollector:
             Registration(
                 target=Target(tag="entry", parent_tag="sequence"),
                 visitor=self._on_seq_entry,
+            ),
+            # Construction layout: a placed module's parent link + position. Fixed depths
+            # (19/20) scope these to a station's construction/sequence — build-task entries
+            # sit elsewhere — and keep the hot <position> tag from matching universe-wide.
+            Registration(
+                target=Target(depth=_ENTRY_PRED_DEPTH, tag="predecessor", parent_tag="entry"),
+                visitor=self._on_entry_predecessor,
+            ),
+            Registration(
+                target=Target(depth=_ENTRY_POS_DEPTH, tag="position", parent_tag="offset"),
+                visitor=self._on_entry_position,
             ),
             # Rollup: workforce headcount + productivity bonus, current product, account.
             Registration(
@@ -232,11 +260,45 @@ class StationsCollector:
                 sid = station.get("id")
                 if sid:
                     self.current_modules[sid][macro] += 1
+                    # Record this placed module's identity for layout reconstruction. Its
+                    # predecessor link + position arrive via separate visitors (children end
+                    # before this <entry> does) and are joined by entry id in flush().
+                    eid = elem.get("id")
+                    if eid:
+                        self.entry_meta[eid] = {
+                            "station_id": sid,
+                            "entry_index": _i(elem.get("index")),
+                            "macro": macro,
+                            "connection": elem.get("connection"),
+                        }
         elif gp.tag == "build":
             sid = gp.get("component")
             if sid:
                 self.planned_modules[sid][macro] += 1
                 self.building.add(sid)
+
+    def _on_entry_predecessor(self, elem: etree._Element) -> None:
+        """<predecessor index=.. connection=..> under a construction <entry>. Records the
+        parent link keyed by the entry's id (resolved from the still-attached parent)."""
+        entry = elem.getparent()
+        if entry is None or entry.tag != "entry":
+            return
+        eid = entry.get("id")
+        if eid:
+            self.entry_pred[eid] = (_i(elem.get("index")), elem.get("connection"))
+
+    def _on_entry_position(self, elem: etree._Element) -> None:
+        """<position> under a construction entry's <offset>. Guard on grandparent == entry
+        so this never captures non-entry offsets that happen to share the depth."""
+        offset = elem.getparent()
+        if offset is None or offset.tag != "offset":
+            return
+        entry = offset.getparent()
+        if entry is None or entry.tag != "entry":
+            return
+        eid = entry.get("id")
+        if eid:
+            self.entry_pos[eid] = (_f(elem.get("x")), _f(elem.get("y")), _f(elem.get("z")))
 
     def _station_id_via_parent(self, elem: etree._Element, parent_tag: str) -> str | None:
         """station id when `elem`'s parent is `parent_tag` and its grandparent is the station,
@@ -456,6 +518,29 @@ class StationsCollector:
                 )
         return rows
 
+    def _construction_entry_rows(self) -> list[dict[str, object]]:
+        """One row per placed module of every station's construction sequence, stitching the
+        three layout streams (meta + predecessor + position) together by entry id."""
+        rows: list[dict[str, object]] = []
+        for eid, meta in self.entry_meta.items():
+            pred_index, pred_conn = self.entry_pred.get(eid, (None, None))
+            px, py, pz = self.entry_pos.get(eid, (None, None, None))
+            rows.append(
+                {
+                    "station_id": meta["station_id"],
+                    "entry_id": eid,
+                    "entry_index": meta["entry_index"],
+                    "macro": meta["macro"],
+                    "predecessor_index": pred_index,
+                    "connection": meta["connection"],
+                    "predecessor_connection": pred_conn,
+                    "pos_x": px,
+                    "pos_y": py,
+                    "pos_z": pz,
+                }
+            )
+        return rows
+
     # --- delta source ----------------------------------------------------------
     def keyed_rows(self, tier: Tier):
         """Trade offers (VOLATILE) keyed by station+ware+side; a moved price or quantity
@@ -475,7 +560,13 @@ class StationsCollector:
     # --- tiered contract -------------------------------------------------------
     def tables(self, tier: Tier) -> tuple[str, ...]:
         if tier is Tier.STRUCTURAL:
-            return ("stations", "station_modules", "station_build_plan", "station_overview")
+            return (
+                "stations",
+                "station_modules",
+                "station_build_plan",
+                "station_overview",
+                "station_construction_entries",
+            )
         return ("station_offers",)
 
     def fingerprint(self, tier: Tier) -> str:
@@ -489,6 +580,7 @@ class StationsCollector:
                 *self._module_rows(self.current_modules),
                 *self._module_rows(self.planned_modules),
                 *self._overview_rows(),
+                *self._construction_entry_rows(),
             ]
         )
 
@@ -527,6 +619,14 @@ class StationsCollector:
                 "VALUES (:station_id, :module_count, :planned_module_count, :account_amount, "
                 " :workforce_current, :workforce_bonus, :production_product)",
                 self._overview_rows(),
+            )
+            conn.executemany(
+                "INSERT OR REPLACE INTO station_construction_entries "
+                "(station_id, entry_id, entry_index, macro, predecessor_index, connection, "
+                " predecessor_connection, pos_x, pos_y, pos_z) "
+                "VALUES (:station_id, :entry_id, :entry_index, :macro, :predecessor_index, "
+                " :connection, :predecessor_connection, :pos_x, :pos_y, :pos_z)",
+                self._construction_entry_rows(),
             )
         if tier in (None, Tier.VOLATILE):
             conn.executemany(

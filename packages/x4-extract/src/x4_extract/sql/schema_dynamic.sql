@@ -94,6 +94,27 @@ CREATE TABLE IF NOT EXISTS station_modules (
     PRIMARY KEY (station_id, module_id)
 );
 
+-- Per-module construction-sequence layout: the placed-module graph of a station, as
+-- the save records it under station/construction/sequence/entry. Unlike station_modules
+-- (which aggregates by macro into counts), this preserves each placed module's identity,
+-- its parent (the spanning tree that defines connections) and its station-frame position.
+-- This is what lets the dashboard reconstruct an existing station in the builder with its
+-- real layout + connections. `predecessor_index` references another entry's `entry_index`
+-- within the same station (NULL for the root/fixed module). Positions are zone/station-frame
+-- metres (any axis may be absent in the save → NULL). See docs/save-structure.md.
+CREATE TABLE IF NOT EXISTS station_construction_entries (
+    station_id             TEXT NOT NULL,
+    entry_id               TEXT NOT NULL,   -- save-unique component id of the placed module
+    entry_index            INTEGER,         -- sequence index within the station
+    macro                  TEXT,            -- module macro → s.modules.module_id
+    predecessor_index      INTEGER,         -- parent entry_index (NULL for root)
+    connection             TEXT,            -- this module's connecting snap point
+    predecessor_connection TEXT,            -- the parent's snap point it attaches to
+    pos_x REAL, pos_y REAL, pos_z REAL,
+    PRIMARY KEY (station_id, entry_id)
+);
+CREATE INDEX IF NOT EXISTS idx_station_entries_station ON station_construction_entries(station_id);
+
 -- Full planned module list for a station under construction, aggregated by macro.
 -- Source = the in-progress <build component="<station>"> task's sequence, which is the
 -- complete plan (the station's own construction/sequence only holds the current stage).

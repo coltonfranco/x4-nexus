@@ -733,6 +733,7 @@ export default function ModulesPage() {
             onChange={setVisibleColumns}
             placeholder="Columns"
             className="h-7 text-xs w-36"
+            hideClear
           />
           <Select value={groupBy} onValueChange={(v) => setGroupBy(v as GroupByKey)}>
             <SelectTrigger className="w-24 h-7 text-xs"><SelectValue placeholder="Group by" /></SelectTrigger>

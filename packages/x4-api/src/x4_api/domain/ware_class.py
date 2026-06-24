@@ -25,13 +25,13 @@ CASE
                     'missiles','drones','countermeasures') THEN 'equipment'
   WHEN transport IN ('equipment','software') THEN 'equipment'
   WHEN transport = 'ship' THEN 'ship'
-  WHEN transport IN ('container','solid','liquid','condensate','gases')
-       AND tags NOT LIKE '%module%' THEN 'commodity'
+  WHEN tags LIKE '%module%' THEN 'module'
+  WHEN transport IN ('container','solid','liquid','condensate','gases') THEN 'commodity'
   ELSE 'inventory'
 END
 """.strip()
 
-CATEGORIES = ("commodity", "equipment", "inventory", "ship")
+CATEGORIES = ("commodity", "equipment", "inventory", "module", "ship")
 
 # group_id → equipment kind. Authoritative when present.
 _GROUP_KIND = {

@@ -18,6 +18,7 @@ import MapPage from "./routes/map";
 import ShipsListPage from "./routes/ships/list";
 import { ShipsLayout } from "./routes/ships/layout";
 import BuilderPage from "./routes/ships/builder";
+import PaintModsPage from "./routes/ships/paintmods";
 import { PlayerCard } from "./components/PlayerCard";
 import TradeCatalogPage from "./routes/trade/catalog";
 import { TradeLayout } from "./routes/trade/layout";
@@ -111,6 +112,7 @@ const shipsBuilderRoute = createRoute({
     ship_id: typeof search.ship_id === "string" ? search.ship_id : undefined,
   }),
 });
+const shipsPaintModsRoute = createRoute({ getParentRoute: () => shipsRoute, path: "paintmods", component: PaintModsPage });
 const factionsRoute = createRoute({ getParentRoute: () => rootRoute, path: "/factions", component: FactionsLayout });
 const factionsListRoute = createRoute({
   getParentRoute: () => factionsRoute,
@@ -146,7 +148,7 @@ const routeTree = rootRoute.addChildren([
   dropsRedirect,
   diplomacyRedirect,
   mapRoute,
-  shipsRoute.addChildren([shipsListRoute, shipsEquipmentRoute, shipsBuilderRoute]),
+  shipsRoute.addChildren([shipsListRoute, shipsEquipmentRoute, shipsBuilderRoute, shipsPaintModsRoute]),
   stationsRoute.addChildren([stationsModulesRoute, stationsOverviewRoute, stationsBuilderRoute]),
   factionsRoute.addChildren([factionsListRoute, factionsDiplomacyRoute]),
   missionsRoute,

@@ -18,6 +18,7 @@ from fastapi.staticfiles import StaticFiles
 from x4_api import __version__
 from x4_api.api.refresher import BackgroundRefresher
 from x4_api.api.v1 import (
+    builder,
     deployables,
     diplomacy,
     drops,
@@ -108,6 +109,8 @@ def app() -> FastAPI:
     fast.include_router(npcs.router, prefix="/api/v1", tags=["npcs"])
     fast.include_router(deployables.router, prefix="/api/v1", tags=["deployables"])
     fast.include_router(economy.router, prefix="/api/v1", tags=["economy"])
+    # App-data (user-authored) endpoints — read/write the standalone appdata.db.
+    fast.include_router(builder.router, prefix="/api/v1", tags=["builder"])
 
     icons_dir = settings.data_dir / "icons"
     if icons_dir.exists():

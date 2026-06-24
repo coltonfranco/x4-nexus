@@ -34,7 +34,6 @@ type Ware = {
 };
 
 const BUCKETS = [
-  "Paint Mods",
   "Equipment Mods",
   "Crafting Materials",
   "Bribes",
@@ -52,7 +51,6 @@ function bucketOf(w: Ware): Bucket {
   const t = w.tags ?? "";
   const has = (s: string) => t.includes(s);
   if (w.group_id === "contraband" || has("contraband")) return "Contraband";
-  if (has("paintmod")) return "Paint Mods";
   if (has("equipmentmod")) return "Equipment Mods";
   if (has("bribe")) return "Bribes";
   if (w.group_id === "luxuryitem") return "Luxury Goods";
@@ -168,7 +166,9 @@ export default function InventoryPage() {
   });
 
   const withBucket = useMemo(
-    () => wares.map((w) => ({ ware: w, bucket: bucketOf(w) })),
+    () => wares
+      .filter((w) => !(w.tags ?? "").includes("paintmod"))
+      .map((w) => ({ ware: w, bucket: bucketOf(w) })),
     [wares]
   );
 
@@ -222,7 +222,7 @@ export default function InventoryPage() {
           Inventory &amp; Crafting
         </h1>
         <p className="text-xs uppercase tracking-widest text-muted-foreground mt-1 font-semibold">
-          {wares.length} inventory items · paint mods, crafting materials,
+          {withBucket.length} inventory items · crafting materials,
           mission items, contraband and curiosities
         </p>
         <PageTabs>

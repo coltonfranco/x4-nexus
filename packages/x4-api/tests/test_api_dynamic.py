@@ -112,9 +112,15 @@ def test_station_modules_and_construction_endpoints(client: TestClient) -> None:
     assert constr["planned_modules"] == []
     assert constr["bill_of_materials"] == []
 
+    # Layout (builder-import source) resolves; empty for the composition-less fixture.
+    layout = client.get(f"/api/v1/stations/{sid}/layout")
+    assert layout.status_code == 200
+    assert layout.json() == []
+
     # Unknown station → 404 on every sub-endpoint.
     assert client.get("/api/v1/stations/[0xdead]/modules").status_code == 404
     assert client.get("/api/v1/stations/[0xdead]/construction").status_code == 404
+    assert client.get("/api/v1/stations/[0xdead]/layout").status_code == 404
 
 
 def test_refresh_config_disabled_when_no_refresher(client: TestClient) -> None:

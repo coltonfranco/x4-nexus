@@ -95,6 +95,23 @@ class StationConstruction(PublicModel):
     bill_of_materials: list[BuildMaterial]
 
 
+class StationLayoutEntry(PublicModel):
+    """One placed module of a station's construction sequence, with its parent link and
+    station-frame position — enough to reconstruct the station in the dashboard builder.
+    `module_id` is the macro (joins s.modules); `name`/`kind` are convenience joins.
+    `predecessor_index` references another entry's `entry_index` (None for the root)."""
+
+    entry_id: str
+    entry_index: int | None
+    predecessor_index: int | None
+    module_id: str | None
+    name: str | None
+    kind: str | None
+    pos_x: float | None
+    pos_y: float | None
+    pos_z: float | None
+
+
 _LIST_COLS = (
     "st.station_id, st.code, st.name, st.macro, st.owner_faction, st.sector_id, "
     "st.is_player_owned, st.is_under_construction, st.build_pct, "
@@ -245,3 +262,27 @@ def station_construction(
         planned_modules=[PlannedModule(**dict(r)) for r in planned],
         bill_of_materials=[BuildMaterial(**dict(r)) for r in bom],
     )
+
+
+@router.get("/stations/{station_id}/layout", response_model=list[StationLayoutEntry])
+def station_layout(
+    station_id: str,
+    conn: Annotated[sqlite3.Connection, Depends(get_db)],
+) -> list[StationLayoutEntry]:
+    """The placed-module graph (identity + parent link + position) of a station's construction
+    sequence — the source for importing an existing station into the builder. Empty list if the
+    station has no captured layout (e.g. ingested before this data existed); 404 if unknown.
+    """
+    _require_station(conn, station_id)
+    rows = conn.execute(
+        """
+        SELECT ce.entry_id, ce.entry_index, ce.predecessor_index, ce.macro AS module_id,
+               ce.pos_x, ce.pos_y, ce.pos_z, m.name, m.kind
+        FROM station_construction_entries ce
+        LEFT JOIN s.modules m ON m.module_id = ce.macro
+        WHERE ce.station_id = :id
+        ORDER BY ce.entry_index
+        """,
+        {"id": station_id},
+    ).fetchall()
+    return [StationLayoutEntry(**dict(r)) for r in rows]

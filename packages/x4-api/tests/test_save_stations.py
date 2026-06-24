@@ -41,8 +41,14 @@ _COMPOSITION_SAVE = b"""<?xml version="1.0"?>
               <offset><position x="1000" z="2000"/></offset>
               <construction>
                 <sequence>
-                  <entry index="1" macro="prod_ter_energycells_macro"/>
-                  <entry index="2" macro="storage_ter_s_container_01_macro"/>
+                  <entry id="[0xE1]" index="1" macro="prod_ter_energycells_macro" fixed="1">
+                    <offset><position x="100" y="0" z="200"/></offset>
+                  </entry>
+                  <entry id="[0xE2]" index="2" macro="storage_ter_s_container_01_macro"
+                         connection="connectionsnap001">
+                    <predecessor index="1" connection="connectionsnap002"/>
+                    <offset><position x="100" z="-300"/></offset>
+                  </entry>
                 </sequence>
               </construction>
               <workforces lasttime="100">
@@ -195,3 +201,38 @@ def test_station_build_plan_and_overview(tmp_path: Path, data_dir: Path) -> None
     assert station["is_under_construction"] == 1
     # build_pct = realized (2) / planned (4) = 50%.
     assert station["build_pct"] == 50.0
+
+
+def test_station_construction_entries_layout(tmp_path: Path, data_dir: Path) -> None:
+    _ingest_composition(tmp_path, data_dir)
+    conn = open_db(data_dir)
+    try:
+        rows = {
+            r["entry_id"]: dict(r)
+            for r in conn.execute(
+                "SELECT * FROM station_construction_entries WHERE station_id = '[0x200]'"
+            )
+        }
+    finally:
+        conn.close()
+
+    # One row per placed module in the station's construction/sequence (not the build plan).
+    assert set(rows) == {"[0xE1]", "[0xE2]"}
+
+    root = rows["[0xE1]"]
+    assert root["entry_index"] == 1
+    assert root["macro"] == "prod_ter_energycells_macro"
+    assert root["predecessor_index"] is None  # the fixed root has no parent
+    assert root["pos_x"] == 100
+    assert root["pos_y"] == 0
+    assert root["pos_z"] == 200
+
+    child = rows["[0xE2]"]
+    assert child["entry_index"] == 2
+    # The spanning tree: child attaches to the root (index 1).
+    assert child["predecessor_index"] == 1
+    assert child["connection"] == "connectionsnap001"
+    assert child["predecessor_connection"] == "connectionsnap002"
+    assert child["pos_x"] == 100
+    assert child["pos_y"] is None  # absent axis → NULL
+    assert child["pos_z"] == -300

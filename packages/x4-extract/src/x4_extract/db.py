@@ -12,7 +12,7 @@ from typing import Literal
 
 _SQL_DIR = Path(__file__).parent / "sql"
 
-SchemaName = Literal["raw", "static", "dynamic"]
+SchemaName = Literal["raw", "static", "dynamic", "appdata"]
 
 
 def apply_schema(data_dir: Path, name: SchemaName, *, db_path: Path | None = None) -> None:
@@ -39,6 +39,7 @@ def migrate_all(data_dir: Path) -> None:
     apply_schema(data_dir, "static")
     apply_schema(data_dir, "raw")
     apply_schema(data_dir, "dynamic")
+    apply_schema(data_dir, "appdata")
 
 
 def open_db(
