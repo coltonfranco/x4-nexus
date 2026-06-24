@@ -6,7 +6,6 @@ import DiplomacyPage from "./routes/factions/diplomacy";
 import { InventoryLayout } from "./routes/inventory/layout";
 import InventoryCatalogPage from "./routes/inventory/catalog";
 import DropsPage from "./routes/inventory/drops";
-import EconomyPage from "./routes/economy";
 import EmpirePage from "./routes/empire";
 import MissionsPage from "./routes/missions";
 import LogbookPage from "./routes/logbook";
@@ -22,6 +21,7 @@ import PaintModsPage from "./routes/ships/paintmods";
 import { PlayerCard } from "./components/PlayerCard";
 import TradeCatalogPage from "./routes/trade/catalog";
 import { TradeLayout } from "./routes/trade/layout";
+import ProductionChainsPage from "./routes/trade/production";
 import TradeRoutesPage from "./routes/routes";
 import SectorTestPage from "./routes/sector_test";
 import StyleguidePage from "./routes/styleguide";
@@ -38,17 +38,10 @@ const empireRoute = createRoute({ getParentRoute: () => rootRoute, path: "/empir
 // Trade hub — a tabbed layout over the commodity catalog, supply radar, and routes.
 const tradeRoute = createRoute({ getParentRoute: () => rootRoute, path: "/trade", component: TradeLayout });
 const tradeCatalogRoute = createRoute({ getParentRoute: () => tradeRoute, path: "/", component: TradeCatalogPage });
-const tradeSupplyRoute = createRoute({ getParentRoute: () => tradeRoute, path: "supply", component: EconomyPage });
+const tradeProductionRoute = createRoute({ getParentRoute: () => tradeRoute, path: "production", component: ProductionChainsPage });
 const tradeRoutesRoute = createRoute({ getParentRoute: () => tradeRoute, path: "routes", component: TradeRoutesPage });
 
 // Legacy paths kept as redirects into the trade hub.
-const economyRedirect = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/economy",
-  beforeLoad: () => {
-    throw redirect({ to: "/trade/supply" });
-  },
-});
 const routesRedirect = createRoute({
   getParentRoute: () => rootRoute,
   path: "/routes",
@@ -139,8 +132,7 @@ const styleguideRoute = createRoute({ getParentRoute: () => rootRoute, path: "/s
 const routeTree = rootRoute.addChildren([
   indexRoute,
   empireRoute,
-  tradeRoute.addChildren([tradeCatalogRoute, tradeSupplyRoute, tradeRoutesRoute]),
-  economyRedirect,
+  tradeRoute.addChildren([tradeCatalogRoute, tradeProductionRoute, tradeRoutesRoute]),
   routesRedirect,
   waresRedirect,
   equipmentRedirect,

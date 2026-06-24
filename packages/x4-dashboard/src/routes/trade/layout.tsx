@@ -1,11 +1,11 @@
 import { Link, Outlet, useRouterState } from "@tanstack/react-router";
-import { AlertTriangle, BookOpen, TrendingUp } from "lucide-react";
+import { BookOpen, Network, TrendingUp } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { useHasSave } from "../../lib/useHasSave";
 
 const TABS = [
   { to: "/trade", label: "Catalog", icon: BookOpen, exact: true, requiresSave: false },
-  { to: "/trade/supply", label: "Supply Radar", icon: AlertTriangle, exact: false, requiresSave: true },
+  { to: "/trade/production", label: "Production Chains", icon: Network, exact: false, requiresSave: false },
   { to: "/trade/routes", label: "Routes", icon: TrendingUp, exact: false, requiresSave: true },
 ] as const;
 

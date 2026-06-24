@@ -27,7 +27,6 @@ from x4_extract.static import (
     regions,
     ships,
     station_types,
-    station_types,
     terraforming,
     waregroups,
     wares,
@@ -151,7 +150,7 @@ def run(settings: ExtractSettings) -> None:
             _log("Extracting: wares")
             wares_xml = get_raw_file("libraries/wares.xml")
             if wares_xml:
-                result = wares.extract(wares_xml)
+                result = wares.extract(wares_xml)  # extract() fills each ware's production tier
                 wares.write(conn, _localize_result(result))
                 _log(f"  -> {len(result.wares)} wares ({_elapsed(t0)})")
                 mods_xml = get_raw_file("libraries/equipmentmods.xml")

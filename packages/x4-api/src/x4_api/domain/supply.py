@@ -63,14 +63,22 @@ def _classify(sell_qty: int, buy_qty: int) -> str:
 class WareOffer:
     station_id: str
     station_name: str | None
+    station_code: str | None
+    owner_faction: str | None   # faction_id — resolve to display name/colour on the client
     sector_id: str | None
     side: str           # 'sell' = station supplies it (you buy); 'buy' = station demands it (you sell)
     price: int
     quantity: int
 
 
+# Procedural NPC stations carry no `name`; fall back to the in-game code, then the id, so the
+# UI never shows a bare internal id. owner_faction + sector_id are resolved to display names
+# client-side (factions / map-sectors are already cached there).
 _OFFERS_QUERY = """
-SELECT o.station_id, st.name AS station_name, st.sector_id, o.side, o.price, o.quantity
+SELECT o.station_id,
+       COALESCE(NULLIF(st.name, ''), NULLIF(st.code, ''), o.station_id) AS station_name,
+       st.code AS station_code, st.owner_faction, st.sector_id,
+       o.side, o.price, o.quantity
 FROM station_offers o
 LEFT JOIN stations st ON st.station_id = o.station_id
 WHERE o.ware_id = ?
@@ -84,6 +92,8 @@ def ware_stations(conn: sqlite3.Connection, ware_id: str) -> list[WareOffer]:
         WareOffer(
             station_id=r["station_id"],
             station_name=r["station_name"],
+            station_code=r["station_code"],
+            owner_faction=r["owner_faction"],
             sector_id=r["sector_id"],
             side=r["side"],
             price=r["price"],

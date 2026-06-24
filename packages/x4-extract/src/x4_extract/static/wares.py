@@ -71,6 +71,7 @@ def extract(xml_bytes: bytes) -> ExtractResult:
                 "sortorder": _int(ware_el, "sortorder"),
                 "dismantlefactor": None,  # filled below from production
                 "research_time": None,   # filled below from research
+                "tier": None,            # filled in pipeline from production depth
             }
         )
 
@@ -115,7 +116,41 @@ def extract(xml_bytes: bytes) -> ExtractResult:
         if research_el is not None:
             out.wares[-1]["research_time"] = _int(research_el, "time")
 
+    _assign_production_tiers(out)
     return out
+
+
+def _assign_production_tiers(out: ExtractResult) -> None:
+    """Fill each ware's `tier` = its production-chain depth (1 = raw, 2 = first refine, …).
+
+    Single source of truth for the dashboard's tier columns (production chains) and the
+    catalog tier badge — computed once here so both read the same value. Depth is the
+    longest chain of `default`-method inputs back to a ware with none (a raw resource).
+    `default` only + a `visiting` guard keeps it acyclic (recycling methods can loop).
+    """
+    node_ids = {w["ware_id"] for w in out.wares}
+    default_inputs: dict[str, list[str]] = {}
+    for inp in out.inputs:
+        if inp["method"] == "default":
+            default_inputs.setdefault(inp["ware_id"], []).append(inp["input_ware_id"])
+
+    memo: dict[str, int] = {}
+
+    def depth(ware_id: str, visiting: frozenset[str]) -> int:
+        if ware_id in memo:
+            return memo[ware_id]
+        if ware_id in visiting:
+            return 0  # cycle — treat as raw
+        ins = [i for i in default_inputs.get(ware_id, ()) if i in node_ids]
+        if not ins:
+            memo[ware_id] = 0
+            return 0
+        d = 1 + max(depth(i, visiting | {ware_id}) for i in ins)
+        memo[ware_id] = d
+        return d
+
+    for w in out.wares:
+        w["tier"] = depth(w["ware_id"], frozenset()) + 1
 
 
 def write(conn: sqlite3.Connection, result: ExtractResult) -> None:
@@ -131,11 +166,11 @@ def write(conn: sqlite3.Connection, result: ExtractResult) -> None:
         INSERT INTO wares (ware_id, name, shortname, description, group_id, transport, volume,
                            price_min, price_avg, price_max, storage_class,
                            tags, restriction_licence, component_ref, use_threshold, icon_path,
-                           sortorder, dismantlefactor, research_time)
+                           sortorder, dismantlefactor, research_time, tier)
         VALUES (:ware_id, :name, :shortname, :description, :group_id, :transport, :volume,
                 :price_min, :price_avg, :price_max, :storage_class,
                 :tags, :restriction_licence, :component_ref, :use_threshold, :icon_path,
-                :sortorder, :dismantlefactor, :research_time)
+                :sortorder, :dismantlefactor, :research_time, :tier)
         """,
         result.wares,
     )

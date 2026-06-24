@@ -851,8 +851,14 @@ export function MapCanvas({
                     >
                       <div className="flex items-center gap-2">
                         <div
-                          className="w-2.5 h-2.5 rounded-full"
-                          style={{ backgroundColor: color }}
+                          className="w-3.5 h-3.5 shrink-0"
+                          style={{
+                            backgroundColor: color,
+                            WebkitMaskImage: `url(/static/icons/wares/ware_${res.ware === "rawscrap" ? "scrapmetal" : res.ware}.png)`,
+                            WebkitMaskSize: "contain",
+                            WebkitMaskRepeat: "no-repeat",
+                            WebkitMaskPosition: "center",
+                          }}
                         />
                         <span className="capitalize">
                           {res.ware.replace(/_/g, " ")}
@@ -868,7 +874,7 @@ export function MapCanvas({
                   <div className="flex items-center justify-between gap-4 border-t border-border/30 pt-1.5 mt-0.5">
                     <div className="flex items-center gap-2">
                       <div
-                        className="w-2.5 h-2.5 rounded-full"
+                        className="w-2.5 h-2.5 rounded-full mx-[2px]"
                         style={{ backgroundColor: RESOURCE_COLORS.sunlight }}
                       />
                       <span className="capitalize">Sunlight</span>

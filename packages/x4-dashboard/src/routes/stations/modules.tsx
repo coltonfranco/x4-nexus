@@ -32,6 +32,7 @@ import {
 } from "../../components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import type { FactionSummary } from "../../lib/map/types";
+import { ProductionChain } from "../../components/trade/ProductionChain";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -284,7 +285,7 @@ export default function ModulesPage() {
   const { data: factions = [] } = useQuery<FactionSummary[]>({
     queryKey: ["factions"],
     queryFn: () => fetch("/api/v1/factions").then((r) => r.json()),
-    staleTime: 10 * 60_000,
+    staleTime: Infinity,
   });
 
   const { data: playerLicences = [] } = useQuery<
@@ -1201,58 +1202,9 @@ export function ModuleDetailPanel({ moduleId, summary, factions, licenceSet, any
         )}
 
         {/* ── Production tab ── */}
-        {d.kind === "production" && (
+        {d.kind === "production" && d.produces_ware_id && (
           <TabsContent value="production" className="pt-5 px-6 pb-6 outline-none">
-            <div className="flex flex-col lg:flex-row items-stretch gap-4">
-              {/* Inputs */}
-              <div className="flex-1 rounded-lg border border-border/50 bg-muted/5 p-4">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Inputs</p>
-                {d.production_inputs && d.production_inputs.length > 0 ? (
-                  <div className="space-y-3">
-                    {d.production_inputs.map((inp) => (
-                      <div key={inp.ware_id} className="flex items-center justify-between gap-3">
-                        <div>
-                          <div className="text-sm font-semibold">{inp.name}</div>
-                          <div className="text-xs text-muted-foreground">{inp.amount.toLocaleString()} × per cycle</div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-sm font-mono font-semibold">{inp.rate_per_hour.toLocaleString()} / hr</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-xs text-muted-foreground italic">No inputs — raw resource.</div>
-                )}
-              </div>
-
-              {/* Arrow */}
-              <div className="flex lg:flex-col items-center justify-center py-2 lg:py-0">
-                <span className="text-2xl lg:text-3xl text-muted-foreground/30 select-none">→</span>
-              </div>
-
-              {/* Output */}
-              <div className="flex-1 rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-4">
-                <p className="text-xs font-semibold text-emerald-400 uppercase tracking-wide mb-3">Output</p>
-                <div>
-                  <div className="text-sm font-semibold">{d.produces_ware_name ?? d.produces_ware_id}</div>
-                  {d.production_method && (
-                    <div className="text-xs text-muted-foreground mt-0.5">Method: <span className="capitalize">{d.production_method}</span></div>
-                  )}
-                  {d.production_rate != null && (
-                    <div className="mt-2">
-                      <div className="text-sm font-mono font-semibold">{Math.round(d.production_rate * 3600).toLocaleString()} / hr</div>
-                      <div className="text-xs text-muted-foreground">{d.production_rate.toFixed(2)} / sec</div>
-                    </div>
-                  )}
-                  {d.production_inputs && d.production_inputs.length > 0 && (
-                    <div className="mt-2 text-xs text-muted-foreground">
-                      {d.production_inputs[0].output_amount.toLocaleString()} × per cycle · {d.production_inputs[0].time_sec}s
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
+            <ProductionChain wareId={d.produces_ware_id} filterMethod={d.production_method ?? undefined} />
           </TabsContent>
         )}
 

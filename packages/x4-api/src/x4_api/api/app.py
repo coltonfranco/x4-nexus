@@ -37,6 +37,7 @@ from x4_api.api.v1 import (
     npc_stations,
     npcs,
     player,
+    production_chain,
     races,
     refresh,
     roles,
@@ -109,6 +110,7 @@ def app() -> FastAPI:
     fast.include_router(npcs.router, prefix="/api/v1", tags=["npcs"])
     fast.include_router(deployables.router, prefix="/api/v1", tags=["deployables"])
     fast.include_router(economy.router, prefix="/api/v1", tags=["economy"])
+    fast.include_router(production_chain.router, prefix="/api/v1", tags=["economy"])
     # App-data (user-authored) endpoints — read/write the standalone appdata.db.
     fast.include_router(builder.router, prefix="/api/v1", tags=["builder"])
 

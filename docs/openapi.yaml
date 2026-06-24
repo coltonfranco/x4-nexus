@@ -3127,6 +3127,21 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/economy/production-chain:
+    get:
+      tags:
+      - economy
+      summary: Production Chain
+      description: Full commodity production graph with recipe + live overlay data
+        in one payload.
+      operationId: production_chain_api_v1_economy_production_chain_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductionChainResponse'
   /api/v1/builder/stations:
     get:
       tags:
@@ -3624,6 +3639,50 @@ components:
       - created_at
       - updated_at
       title: BuilderStationSummary
+    ChainInput:
+      properties:
+        ware_id:
+          type: string
+          title: Ware Id
+        amount:
+          type: integer
+          title: Amount
+      additionalProperties: false
+      type: object
+      required:
+      - ware_id
+      - amount
+      title: ChainInput
+    ChainRecipe:
+      properties:
+        method:
+          type: string
+          title: Method
+        time_sec:
+          type: number
+          title: Time Sec
+        amount:
+          type: integer
+          title: Amount
+        workforce:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Workforce
+        inputs:
+          items:
+            $ref: '#/components/schemas/ChainInput'
+          type: array
+          title: Inputs
+      additionalProperties: false
+      type: object
+      required:
+      - method
+      - time_sec
+      - amount
+      - workforce
+      - inputs
+      title: ChainRecipe
     ClassMax:
       properties:
         hull:
@@ -6927,6 +6986,160 @@ components:
       - value
       - display
       title: PlayerStat
+    ProducerModule:
+      properties:
+        module_id:
+          type: string
+          title: Module Id
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+        makerrace:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Makerrace
+        production_method:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Production Method
+      additionalProperties: false
+      type: object
+      required:
+      - module_id
+      - name
+      - makerrace
+      title: ProducerModule
+      description: A station production module that makes this ware (static catalog).
+    ProductionChainNode:
+      properties:
+        ware_id:
+          type: string
+          title: Ware Id
+        name:
+          type: string
+          title: Name
+        group_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Group Id
+        category:
+          type: string
+          title: Category
+        group_tier:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Group Tier
+        depth:
+          type: integer
+          title: Depth
+        price_min:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Price Min
+        price_avg:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Price Avg
+        price_max:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Price Max
+        icon_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon Url
+        market_avg:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Market Avg
+        sell_qty:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Sell Qty
+        buy_qty:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Buy Qty
+        net_demand:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Net Demand
+        empire_production:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Empire Production
+        empire_consumption:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Empire Consumption
+        recipes:
+          additionalProperties:
+            $ref: '#/components/schemas/ChainRecipe'
+          type: object
+          title: Recipes
+        producer_modules:
+          items:
+            $ref: '#/components/schemas/ProducerModule'
+          type: array
+          title: Producer Modules
+      additionalProperties: false
+      type: object
+      required:
+      - ware_id
+      - name
+      - group_id
+      - category
+      - group_tier
+      - depth
+      - price_min
+      - price_avg
+      - price_max
+      - icon_url
+      - recipes
+      - producer_modules
+      title: ProductionChainNode
+    ProductionChainResponse:
+      properties:
+        nodes:
+          items:
+            $ref: '#/components/schemas/ProductionChainNode'
+          type: array
+          title: Nodes
+        methods:
+          items:
+            type: string
+          type: array
+          title: Methods
+        has_market:
+          type: boolean
+          title: Has Market
+        has_empire:
+          type: boolean
+          title: Has Empire
+      additionalProperties: false
+      type: object
+      required:
+      - nodes
+      - methods
+      - has_market
+      - has_empire
+      title: ProductionChainResponse
     ProductionInput:
       properties:
         ware_id:
@@ -9089,6 +9302,36 @@ components:
           - type: integer
           - type: 'null'
           title: Price Max
+        market_min:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Market Min
+        market_avg:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Market Avg
+        market_max:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Market Max
+        sell_qty:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Sell Qty
+        buy_qty:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Buy Qty
+        net_demand:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Net Demand
         tags:
           anyOf:
           - type: string
@@ -9130,6 +9373,11 @@ components:
           - type: integer
           - type: 'null'
           title: Research Time
+        tier:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Tier
         storage_class:
           anyOf:
           - type: string
@@ -9323,6 +9571,16 @@ components:
           - type: string
           - type: 'null'
           title: Station Name
+        station_code:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Station Code
+        owner_faction:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Owner Faction
         sector_id:
           anyOf:
           - type: string
@@ -9342,6 +9600,8 @@ components:
       required:
       - station_id
       - station_name
+      - station_code
+      - owner_faction
       - sector_id
       - side
       - price
@@ -9386,6 +9646,36 @@ components:
           - type: integer
           - type: 'null'
           title: Price Max
+        market_min:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Market Min
+        market_avg:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Market Avg
+        market_max:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Market Max
+        sell_qty:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Sell Qty
+        buy_qty:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Buy Qty
+        net_demand:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Net Demand
         tags:
           anyOf:
           - type: string
@@ -9427,6 +9717,11 @@ components:
           - type: integer
           - type: 'null'
           title: Research Time
+        tier:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Tier
       additionalProperties: false
       type: object
       required:

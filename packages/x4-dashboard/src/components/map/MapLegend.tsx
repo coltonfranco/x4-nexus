@@ -181,7 +181,23 @@ export function MapLegend({
               <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 mt-1">
                 {RESOURCE_ORDER.map(res => (
                   <div key={res} className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded shrink-0" style={{ backgroundColor: RESOURCE_COLORS[res] ?? "#888" }} />
+                    {res !== "sunlight" ? (
+                      <div
+                        className="w-3.5 h-3.5 shrink-0"
+                        style={{
+                          backgroundColor: RESOURCE_COLORS[res] ?? "#888",
+                          WebkitMaskImage: `url(/static/icons/wares/ware_${res === "rawscrap" ? "scrapmetal" : res}.png)`,
+                          WebkitMaskSize: "contain",
+                          WebkitMaskRepeat: "no-repeat",
+                          WebkitMaskPosition: "center",
+                        }}
+                      />
+                    ) : (
+                      <div
+                        className="w-3 h-3 rounded shrink-0 mx-[1px]"
+                        style={{ backgroundColor: RESOURCE_COLORS[res] ?? "#888" }}
+                      />
+                    )}
                     <span className="capitalize">{res.replace(/_/g, " ")}</span>
                   </div>
                 ))}

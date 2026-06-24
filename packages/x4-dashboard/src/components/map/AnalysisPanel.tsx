@@ -4,6 +4,7 @@
 
 import { useState } from "react";
 import { ChevronDown, Search } from "lucide-react";
+import { EntityIcon } from "../../components/EntityIcon";
 
 import { RESOURCE_COLORS, RESOURCE_ORDER } from "../../lib/map/constants";
 import type { FillMode } from "../../lib/map/overlays/types";
@@ -226,10 +227,23 @@ export function AnalysisPanel({
                           : "font-medium border border-white/10 bg-white/5 text-[#9aa6ba] hover:text-[#c4ccda]"
                       }`}
                     >
-                      <span
-                        className="w-2 h-2 rounded-full shrink-0"
-                        style={{ background: RESOURCE_COLORS[r] ?? "#888" }}
-                      />
+                      {r !== "sunlight" ? (
+                        <div
+                          className="w-3.5 h-3.5 shrink-0"
+                          style={{
+                            backgroundColor: RESOURCE_COLORS[r] ?? "#888",
+                            WebkitMaskImage: `url(/static/icons/wares/ware_${r === "rawscrap" ? "scrapmetal" : r}.png)`,
+                            WebkitMaskSize: "contain",
+                            WebkitMaskRepeat: "no-repeat",
+                            WebkitMaskPosition: "center",
+                          }}
+                        />
+                      ) : (
+                        <span
+                          className="w-2 h-2 rounded-full shrink-0 mx-[3px]"
+                          style={{ background: RESOURCE_COLORS[r] ?? "#888" }}
+                        />
+                      )}
                       <span className="capitalize">{r}</span>
                     </button>
                   );

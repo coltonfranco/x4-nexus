@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from x4_api.domain.supply import ware_market
+from x4_api.domain.supply import ware_market, ware_stations
 from x4_extract.db import open_db
 
 
@@ -69,3 +69,33 @@ def test_ware_market_empty_without_offers(data_dir: Path) -> None:
         assert ware_market(conn) == []
     finally:
         conn.close()
+
+
+def test_ware_stations_resolves_names_and_faction(data_dir: Path) -> None:
+    """Offer rows fall back name → code → id and carry the owner faction for the UI."""
+    conn = open_db(data_dir)
+    try:
+        conn.execute(
+            "INSERT INTO s.wares (ware_id, name, volume) VALUES ('hullparts', 'Hull Parts', 1)"
+        )
+        # Procedural NPC station: empty name, so the code is the display fallback.
+        conn.execute(
+            "INSERT INTO stations (station_id, name, code, owner_faction, sector_id, "
+            "is_player_owned, is_under_construction) "
+            "VALUES ('st1', '', 'ARG-01', 'argon', 'sec_01', 0, 0)"
+        )
+        conn.execute(
+            "INSERT INTO station_offers (station_id, ware_id, side, price, quantity) "
+            "VALUES ('st1', 'hullparts', 'sell', 300, 5000)"
+        )
+        conn.commit()
+        offers = ware_stations(conn, "hullparts")
+    finally:
+        conn.close()
+
+    assert len(offers) == 1
+    o = offers[0]
+    assert o.station_name == "ARG-01"  # name was empty → code fallback
+    assert o.station_code == "ARG-01"
+    assert o.owner_faction == "argon"
+    assert o.sector_id == "sec_01"

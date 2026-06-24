@@ -64,6 +64,8 @@ def list_ware_market(
 class WareOfferRow(PublicModel):
     station_id: str
     station_name: str | None
+    station_code: str | None
+    owner_faction: str | None
     sector_id: str | None
     side: str
     price: int

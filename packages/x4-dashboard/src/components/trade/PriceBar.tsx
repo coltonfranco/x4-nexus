@@ -16,7 +16,7 @@ export function PriceBar({
   if (min == null || max == null || max <= min) {
     return <Currency value={avg} className="text-xs" icon={false} />;
   }
-  const avgPct = ((avg - min) / (max - min)) * 100;
+  const avgPct = Math.max(0, Math.min(100, ((avg - min) / (max - min)) * 100));
   return (
     <div className="flex items-center gap-2">
       <div
@@ -24,11 +24,7 @@ export function PriceBar({
         className="relative shrink-0 rounded-none bg-muted"
       >
         <div
-          className="absolute inset-0 rounded-none opacity-70"
-          style={{
-            background:
-              "linear-gradient(to right, var(--info), var(--warning), var(--success))",
-          }}
+          className="absolute inset-0 rounded-none opacity-70 bg-gradient-to-r from-destructive via-warning to-success"
         />
         <div
           className="absolute rounded-sm bg-foreground"

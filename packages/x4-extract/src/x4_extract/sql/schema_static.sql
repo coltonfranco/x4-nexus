@@ -35,7 +35,8 @@ CREATE TABLE IF NOT EXISTS wares (
     icon_path           TEXT,        -- raw path from icons.xml; resolved to /static/icons/{id}.png at query time
     sortorder           INTEGER,     -- display sort order (101, 201, 301…)
     dismantlefactor     REAL,        -- recycling yield multiplier
-    research_time       INTEGER      -- research duration in seconds
+    research_time       INTEGER,     -- research duration in seconds
+    tier                INTEGER      -- computed production chain tier (1=raw, 2=refined, etc)
 );
 CREATE INDEX IF NOT EXISTS idx_wares_group ON wares(group_id);
 

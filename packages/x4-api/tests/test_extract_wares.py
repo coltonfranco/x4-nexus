@@ -69,6 +69,14 @@ def test_extract_captures_production_method_and_inputs() -> None:
     ]
 
 
+def test_extract_assigns_production_tier_from_chain_depth() -> None:
+    """tier = 1 for a raw resource, +1 for each default-recipe step away from raw."""
+    result = wares.extract(TINY_WARES_XML)
+    tier = {w["ware_id"]: w["tier"] for w in result.wares}
+    assert tier["hydrogen"] == 1  # raw — no inputs
+    assert tier["energycells"] == 2  # made from hydrogen
+
+
 def test_write_round_trips_through_static_db(static_conn: sqlite3.Connection) -> None:
     result = wares.extract(TINY_WARES_XML)
     wares.write(static_conn, result)

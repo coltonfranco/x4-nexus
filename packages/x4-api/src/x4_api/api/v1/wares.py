@@ -33,6 +33,10 @@ _FLAGS_SQL = (
     "EXISTS(SELECT 1 FROM s.drop_list_wares d WHERE d.ware_id = w.ware_id) AS has_drops"
 )
 
+# Fix for ambiguous columns when joining ware_groups
+_CAT_SQL = CATEGORY_SQL.replace("group_id", "w.group_id").replace("transport", "w.transport").replace("tags", "w.tags")
+
+
 
 class WareSummary(PublicModel):
     ware_id: str
@@ -44,6 +48,12 @@ class WareSummary(PublicModel):
     price_min: int | None
     price_avg: int | None
     price_max: int | None
+    market_min: int | None = None
+    market_avg: int | None = None
+    market_max: int | None = None
+    sell_qty: int | None = None
+    buy_qty: int | None = None
+    net_demand: int | None = None
     tags: str | None
     icon_url: str | None
     has_production: bool
@@ -53,6 +63,7 @@ class WareSummary(PublicModel):
     sortorder: int | None = None
     dismantlefactor: float | None = None
     research_time: int | None = None
+    tier: int | None = None
 
 
 class ProductionInput(PublicModel):
@@ -93,12 +104,17 @@ def _market_price_sql(conn: sqlite3.Connection) -> tuple[str, bool]:
         ).fetchone()
     )
     if not has_offers:
-        return ("price_min, price_avg, price_max", False)
+        return (
+            "w.price_min, w.price_avg, w.price_max, "
+            "NULL AS market_min, NULL AS market_avg, NULL AS market_max, "
+            "NULL AS sell_qty, NULL AS buy_qty, NULL AS net_demand", 
+            False
+        )
 
     return (
-        "COALESCE(m.market_min, w.price_min)  AS price_min, "
-        "COALESCE(m.market_avg, w.price_avg)  AS price_avg, "
-        "COALESCE(m.market_max, w.price_max)  AS price_max",
+        "w.price_min, w.price_avg, w.price_max, "
+        "m.market_min, m.market_avg, m.market_max, "
+        "m.sell_qty, m.buy_qty, m.net_demand",
         True,
     )
 
@@ -110,7 +126,10 @@ def _market_join_sql() -> str:
         "  SELECT ware_id,"
         "         CAST(MIN(price) AS INTEGER) AS market_min,"
         "         CAST(AVG(price) AS INTEGER) AS market_avg,"
-        "         CAST(MAX(price) AS INTEGER) AS market_max"
+        "         CAST(MAX(price) AS INTEGER) AS market_max,"
+        "         SUM(CASE WHEN side='sell' THEN quantity ELSE 0 END) AS sell_qty,"
+        "         SUM(CASE WHEN side='buy' THEN quantity ELSE 0 END) AS buy_qty,"
+        "         SUM(CASE WHEN side='buy' THEN quantity ELSE 0 END) - SUM(CASE WHEN side='sell' THEN quantity ELSE 0 END) AS net_demand"
         "  FROM station_offers"
         "  GROUP BY ware_id"
         ") m ON w.ware_id = m.ware_id"
@@ -135,16 +154,17 @@ def list_wares(
 
     sql = [
         f"SELECT w.ware_id, w.name, w.shortname, w.description, w.group_id,"
-        f"       ({CATEGORY_SQL}) AS category, w.transport, w.volume,",
+        f"       ({_CAT_SQL}) AS category, w.transport, w.volume,",
         f"       {price_sql},",
         "       w.tags, w.icon_path,",
         "       w.sortorder, w.dismantlefactor, w.research_time,",
-        f"       {_FLAGS_SQL}",
+        f"       {_FLAGS_SQL}, w.tier",
         "FROM s.wares w",
+        "LEFT JOIN s.ware_groups g ON w.group_id = g.group_id",
     ]
     if has_live:
         sql.append(_market_join_sql())
-    sql.append("WHERE 1=1")
+    sql.append("WHERE w.name NOT LIKE '(TEMP)%'")
 
     params: dict[str, object] = {"limit": limit, "offset": offset}
     if group is not None:
@@ -154,7 +174,7 @@ def list_wares(
         sql.append("AND w.transport = :transport")
         params["transport"] = transport
     if category is not None:
-        sql.append(f"AND ({CATEGORY_SQL}) = :category")
+        sql.append(f"AND ({_CAT_SQL}) = :category")
         params["category"] = category
     sql.append("ORDER BY w.ware_id LIMIT :limit OFFSET :offset")
 
@@ -172,6 +192,12 @@ def list_wares(
             price_min=r["price_min"],
             price_avg=r["price_avg"],
             price_max=r["price_max"],
+            market_min=r["market_min"],
+            market_avg=r["market_avg"],
+            market_max=r["market_max"],
+            sell_qty=r["sell_qty"],
+            buy_qty=r["buy_qty"],
+            net_demand=r["net_demand"],
             tags=r["tags"],
             icon_url=get_ware_icon_url(r["ware_id"], r["icon_path"], r["tags"]),
             sortorder=r["sortorder"],
@@ -179,6 +205,7 @@ def list_wares(
             research_time=r["research_time"],
             has_production=bool(r["has_production"]),
             has_drops=bool(r["has_drops"]),
+            tier=r["tier"],
         )
         for r in rows
     ]
@@ -195,12 +222,13 @@ def get_ware(
     row = conn.execute(
         f"""
         SELECT w.ware_id, w.name, w.shortname, w.description, w.group_id,
-               ({CATEGORY_SQL}) AS category, w.transport, w.volume,
+               ({_CAT_SQL}) AS category, w.transport, w.volume,
                {price_sql}, w.storage_class,
                w.tags, w.restriction_licence, w.use_threshold, w.icon_path,
                w.sortorder, w.dismantlefactor, w.research_time,
-               {_FLAGS_SQL}
+               {_FLAGS_SQL}, w.tier
         FROM s.wares w
+        LEFT JOIN s.ware_groups g ON w.group_id = g.group_id
         {join_clause}
         WHERE w.ware_id = :id
         """,
@@ -244,6 +272,12 @@ def get_ware(
         price_min=row["price_min"],
         price_avg=row["price_avg"],
         price_max=row["price_max"],
+        market_min=row["market_min"],
+        market_avg=row["market_avg"],
+        market_max=row["market_max"],
+        sell_qty=row["sell_qty"],
+        buy_qty=row["buy_qty"],
+        net_demand=row["net_demand"],
         storage_class=row["storage_class"],
         tags=row["tags"],
         restriction_licence=row["restriction_licence"],
@@ -256,6 +290,7 @@ def get_ware(
         research_time=row["research_time"],
         has_production=bool(row["has_production"]),
         has_drops=bool(row["has_drops"]),
+        tier=row["tier"],
         production=[
             ProductionMethod(
                 method=pr["method"],
