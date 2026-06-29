@@ -1,0 +1,241 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=JetBrains+Mono:wght@400;600;700&display=swap');
+@import "tailwindcss";
+
+/* ── X4 Companion Retheme — design tokens from design_handoff_x4_theme ────── */
+
+@custom-variant dark (&:is(.dark *));
+
+@layer base {
+  :root {
+    /* Surfaces */
+    --bg:             #04060c;
+    --surface-1:      rgba(16,20,34,.55);
+    --surface-2:      rgba(16,20,34,.78);
+    --surface-input:  rgba(16,20,34,.70);
+
+    /* Borders */
+    --border:         rgba(255,255,255,.09);
+    --border-2:       rgba(255,255,255,.12);
+
+    /* Accent (themeable) */
+    --accent:         #3d7df2;
+    --accent-deep:    #1f50b8;
+    --accent-light:   #aeccfb;
+    --accent-08:      rgba(61,125,242,.08);
+    --accent-14:      rgba(61,125,242,.14);
+    --accent-dim:     rgba(61,125,242,.16);
+    --accent-30:      rgba(61,125,242,.30);
+    --accent-50:      rgba(61,125,242,.50);
+    --accent-glow:    rgba(61,125,242,.42);
+
+    /* Currency */
+    --gold:           #facc15;
+    --gold-dim:       #a8852e;
+
+    /* Text */
+    --text:           #e6e9f2;
+    --text-2:         #c7cce0;
+    --text-muted:     #8b93ad;
+    --text-faint:     #6b7490;
+    --text-ghost:     #5b6178;
+
+    /* Semantic */
+    --success:        #4ade80;
+    --danger:         #fb7185;
+    --critical:       #ef4444;
+    --warning:        #f59e0b;
+    --info:           #38bdf8;
+
+    /* Grade ramp */
+    --grade-a:        #ef4444;
+    --grade-b:        #f59e0b;
+    --grade-c:        #22c55e;
+    --grade:          linear-gradient(90deg, var(--grade-a), var(--grade-b), var(--grade-c));
+
+    /* Radius — sharp system */
+    --r-sharp:        0;
+    --r-full:         9999px;
+
+    /* Type */
+    --font-ui:        'Roboto', system-ui, sans-serif;
+    --font-data:      'JetBrains Mono', ui-monospace, monospace;
+
+    /* Elevation */
+    --shadow-panel:   0 8px 30px rgba(0,0,0,.55);
+    --shadow-modal:   0 18px 50px rgba(0,0,0,.55);
+    --glow-accent:    0 0 18px var(--accent-glow);
+
+    /* Faction colours — FIXED, from game data, do not theme */
+    --fac-argon:      #3b82f6;
+    --fac-antigone:   #60a5fa;
+    --fac-hatikvah:   #22d3ee;
+    --fac-boron:      #34d3c5;
+    --fac-teladi:     #14b8a6;
+    --fac-ministry:   #a3a830;
+    --fac-split:      #f43f6e;
+    --fac-paranid:    #a855f7;
+    --fac-terran:     #34d399;
+    --fac-xenon:      #dc2626;
+
+    /* Backward-compat: shadcn expects these to exist */
+    --background:     var(--bg);
+    --foreground:     var(--text);
+    --card:           var(--surface-1);
+    --card-foreground: var(--text);
+    --popover:        var(--surface-2);
+    --popover-foreground: var(--text);
+    --primary:        var(--accent);
+    --primary-foreground: #fff;
+    --secondary:      var(--surface-2);
+    --secondary-foreground: var(--text-2);
+    --muted:          var(--surface-2);
+    --muted-foreground: var(--text-muted);
+    --accent-shadcn:  var(--accent);
+    --accent-foreground: #fff;
+    --destructive:    var(--danger);
+    --destructive-foreground: #fff;
+    --ring:           var(--accent-50);
+    --radius:         0;  /* — sharp system */
+    --input:          rgba(255,255,255,.12);
+  }
+
+  /* Neutralize light/dark toggle — force dark-only, keep infrastructure */
+  .dark {
+    --background:     var(--bg);
+    --foreground:     var(--text);
+    --card:           var(--surface-1);
+    --card-foreground: var(--text);
+    --popover:        var(--surface-2);
+    --popover-foreground: var(--text);
+    --primary:        var(--accent);
+    --primary-foreground: #fff;
+    --secondary:      var(--surface-2);
+    --secondary-foreground: var(--text-2);
+    --muted:          var(--surface-2);
+    --muted-foreground: var(--text-muted);
+    --accent-shadcn:  var(--accent);
+    --accent-foreground: #fff;
+    --destructive:    var(--danger);
+    --destructive-foreground: #fff;
+    --ring:           var(--accent-50);
+    --radius:         0;
+    --input:          rgba(255,255,255,.12);
+  }
+
+  * {
+    border-color: var(--border);
+    box-sizing: border-box;
+  }
+
+  body {
+    background-color: var(--bg);
+    color: var(--text);
+    font-family: var(--font-ui);
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+    background-image:
+      radial-gradient(circle at 50% 0%, var(--accent-08) 0%, transparent 100%),
+      linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+    background-size: 100% 100%, 48px 48px, 48px 48px;
+    background-attachment: fixed;
+  }
+
+  /* Thin dark scrollbars — match the web (Chrome) look in WebView2 */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.22);
+  }
+
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+}
+
+/* ── Tailwind v4 theme bridge — maps tokens to utility classes ─────────── */
+
+@theme inline {
+  --color-background: var(--bg);
+  --color-foreground: var(--text);
+  --color-card: var(--surface-1);
+  --color-card-foreground: var(--text);
+  --color-popover: var(--surface-2);
+  --color-popover-foreground: var(--text);
+  --color-primary: var(--accent);
+  --color-primary-foreground: #fff;
+  --color-secondary: var(--surface-2);
+  --color-secondary-foreground: var(--text-2);
+  --color-muted: var(--surface-2);
+  --color-muted-foreground: var(--text-muted);
+  --color-accent: var(--accent);
+  --color-accent-foreground: #fff;
+  --color-destructive: var(--danger);
+  --color-destructive-foreground: #fff;
+  --color-border: var(--border);
+  --color-input: rgba(255,255,255,.12);
+  --color-ring: var(--accent-50);
+  --color-success: var(--success);
+  --color-success-foreground: #fff;
+  --color-warning: var(--warning);
+  --color-warning-foreground: #fff;
+  --color-info: var(--info);
+  --color-info-foreground: #fff;
+  --color-gold: var(--gold);
+
+  /* Font families */
+  --font-sans: var(--font-ui);
+  --font-mono: var(--font-data);
+
+  /* Radius — all zero, sharp system. rounded-full kept for true circles. */
+  --radius: 0;
+  --radius-sm: 0;
+  --radius-md: 0;
+  --radius-lg: 0;
+  --radius-xl: 0;
+
+  /* Preserved animations */
+  --animate-hover-bob-sm: hover-bob-sm 3s ease-in-out infinite;
+  --animate-hover-bob-md: hover-bob-md 5s ease-in-out infinite;
+  --animate-hover-bob-lg: hover-bob-lg 8s ease-in-out infinite;
+}
+
+@keyframes hover-bob-sm {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-12px); }
+}
+@keyframes hover-bob-md {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+@keyframes hover-bob-lg {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+@keyframes conflict-pulse-fast {
+  0% { opacity: 0.3; }
+  100% { opacity: 1; }
+}
+
+@keyframes conflict-pulse-slow {
+  0% { opacity: 0.6; }
+  100% { opacity: 1; }
+}
+
+@keyframes conflict-blink-intense {
+  0% { opacity: 0.1; }
+  100% { opacity: 1; }
+}

@@ -9,13 +9,19 @@ Patterns:
 
 from __future__ import annotations
 
+import os
+
+# Satisfy pydantic-settings during test collection
+os.environ.setdefault("X4C_INSTALL_PATH", "C:/fake/x4")
+# Never start the in-process save watcher during tests (it would target the real save folder).
+os.environ.setdefault("X4C_BACKGROUND_REFRESH", "false")
+
 import sqlite3
 from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
-
-from x4_api.db.migrate import migrate_all
+from x4_extract.db import migrate_all
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -29,7 +35,7 @@ def data_dir(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def static_conn(data_dir: Path) -> Iterator[sqlite3.Connection]:
-    """Direct connection to a fresh static.db. Use for extractor tests."""
+    """Direct connection to a fresh static.db (reference layer). Use for extractor tests."""
     conn = sqlite3.connect(data_dir / "static.db")
     conn.row_factory = sqlite3.Row
     try:

@@ -5,10 +5,11 @@ description = "X4: Foundations companion dashboard — uv workspace root (not a 
 requires-python = ">=3.12"
 
 [tool.uv.workspace]
-members = ["packages/x4-api"]
+members = ["packages/x4-api", "packages/x4-extract"]
 
 [tool.uv.sources]
 x4-api = { workspace = true }
+x4-extract = { workspace = true }
 
 [dependency-groups]
 dev = [
@@ -17,6 +18,14 @@ dev = [
     "ruff>=0.7",
     "mypy>=1.13",
     "httpx>=0.27",
+    "httpx2",
+    "lxml-stubs>=0.5.1",
+]
+# Sidecar packaging — kept out of the default dev install (heavy, only needed for
+# release builds). Use it via:  uv sync --group packaging  then
+#   uv run pyinstaller packages/x4-api/x4c-server.spec
+packaging = [
+    "pyinstaller>=6.11",
 ]
 
 [tool.ruff]
@@ -35,4 +44,4 @@ filterwarnings = ["error"]
 [tool.mypy]
 python_version = "3.12"
 strict = true
-files = ["packages/x4-api/src"]
+files = ["packages/x4-api/src", "packages/x4-extract/src"]

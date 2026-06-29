@@ -16,13 +16,10 @@ classifiers = [
 dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.32",
-    "lxml>=5.3",
     "pydantic>=2.9",
-    "pydantic-settings>=2.6",
     "typer>=0.13",
     "networkx>=3.4",
-    "texture2ddecoder>=0.1; platform_system != 'Darwin'",
-    "Pillow>=11.0",
+    "x4-extract",
 ]
 
 [project.scripts]

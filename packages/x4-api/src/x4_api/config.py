@@ -1,104 +1,121 @@
-"""Environment + path resolution.
+"""API runtime settings.
 
-Save folders are commonly relocated; never silently fall back to the Egosoft default
-without telling the user where we looked. The `doctor` CLI exercises every resolver
-branch.
+Extraction concerns (install/save paths, save resolution) live in
+`x4_extract.config`. This module adds the server runtime fields and two things a
+packaged desktop build needs that the bare extraction settings don't:
+
+1. A **persisted JSON config source** (``x4_api.appdata``) layered *below* env vars
+   and ``.env`` — so the first-run wizard's folder choices survive a restart while
+   the dev's ``.env`` workflow still wins.
+2. A **data_dir fallback** to the per-user app-data directory when not running from
+   a source checkout (a packaged exe has no repo ``data/`` folder).
+
+`install_path` is optional (inherited from ExtractSettings) so the server can boot
+with nothing configured and serve the setup API; see ``x4_api.api.v1.setup``.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from pydantic import Field, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field, model_validator
+from pydantic_settings import BaseSettings, PydanticBaseSettingsSource
+from x4_extract.config import ExtractSettings
+
+from x4_api import appdata
+
+# Project root: packages/x4-api/src/x4_api/config.py → parents[4] = repo root.
+# In a packaged build this path won't contain a data/ folder, which is the signal
+# to fall back to app-data (see _pin_data_dir).
+_PROJECT_ROOT = Path(__file__).resolve().parents[4]
 
 
-class Settings(BaseSettings):
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        env_prefix="X4C_",
-        extra="ignore",
-    )
+class _JsonConfigSource(PydanticBaseSettingsSource):
+    """Settings source backed by the persisted app-data config.json.
 
-    install_path: Path = Field(
-        ...,
-        description="Folder containing X4.exe and the .cat/.dat archives.",
-    )
-    save_path: Path | None = Field(
-        default=None,
-        description="Folder containing *.xml.gz save files. If unset, resolve() tries defaults.",
-    )
-    data_dir: Path = Field(
-        # Resolves to packages/x4-api/data/ when running from the workspace.
-        default=Path(__file__).resolve().parents[2] / "data",
-        description="Where static.db, dynamic.db, extracted XML cache, and icons live.",
-    )
+    Lowest priority among the real sources: only fills fields that env / .env / the
+    constructor didn't already provide.
+    """
+
+    def get_field_value(self, field, field_name):  # type: ignore[no-untyped-def]
+        # Not used — we return the whole mapping from __call__ instead.
+        return None, field_name, False
+
+    def __call__(self) -> dict[str, object]:
+        return dict(appdata.read_config())
+
+
+class Settings(ExtractSettings):
     host: str = "127.0.0.1"
     port: int = 8765
-    poll_interval_sec: int = 60
-
-    @field_validator("install_path", "data_dir")
-    @classmethod
-    def _expand(cls, v: Path) -> Path:
-        return Path(v).expanduser().resolve()
-
-    @field_validator("save_path")
-    @classmethod
-    def _expand_optional(cls, v: Path | None) -> Path | None:
-        return Path(v).expanduser().resolve() if v else None
-
-
-_DEFAULT_SAVE_CANDIDATES = (
-    Path.home() / "Documents" / "Egosoft" / "X4",
-    Path("C:/Program Files (x86)/Steam/userdata"),
-)
-
-
-def resolve_save_path(configured: Path | None) -> Path:
-    """Return a save folder containing *.xml.gz files, or raise with a useful message.
-
-    Priority:
-      1. X4C_SAVE_PATH env var (authoritative — no fallback if it's set but empty).
-      2. Egosoft default: ~/Documents/Egosoft/X4/<profile-id>/save/.
-      3. Steam Cloud overrides under userdata/<steam_id>/392160/remote/.
-    """
-    if configured is not None:
-        if not configured.exists():
-            raise FileNotFoundError(
-                f"X4C_SAVE_PATH={configured} does not exist. "
-                "Set it to the folder directly containing your *.xml.gz save files."
-            )
-        if not any(configured.glob("*.xml.gz")):
-            raise FileNotFoundError(
-                f"X4C_SAVE_PATH={configured} contains no *.xml.gz files. "
-                "Check you pointed at the inner save/ folder, not the profile folder."
-            )
-        return configured
-
-    tried: list[str] = []
-    for base in _DEFAULT_SAVE_CANDIDATES:
-        if not base.exists():
-            tried.append(f"  {base} (not found)")
-            continue
-        for profile in base.iterdir():
-            candidate = profile / "save"
-            if candidate.is_dir() and any(candidate.glob("*.xml.gz")):
-                return candidate
-            tried.append(f"  {candidate} (no *.xml.gz)")
-
-    raise FileNotFoundError(
-        "Could not auto-detect an X4 save folder. Set X4C_SAVE_PATH explicitly.\n"
-        "Tried:\n" + "\n".join(tried)
+    background_refresh: bool = Field(
+        default=True,
+        description="Run the save-file watcher inside the API process so the active save's "
+        "dynamic DB stays fresh automatically. Disable to manage ingestion externally.",
     )
 
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
+        # Priority high→low: constructor args, env vars, .env, persisted config.json,
+        # secrets. The wizard writes config.json; the dev's .env still overrides it.
+        return (
+            init_settings,
+            env_settings,
+            dotenv_settings,
+            _JsonConfigSource(settings_cls),
+            file_secret_settings,
+        )
 
-def latest_save(folder: Path) -> Path:
-    """Most recently modified *.xml.gz in `folder`."""
-    saves = sorted(folder.glob("*.xml.gz"), key=lambda p: p.stat().st_mtime, reverse=True)
-    if not saves:
-        raise FileNotFoundError(f"No *.xml.gz in {folder}")
-    return saves[0]
+    @model_validator(mode="after")
+    def _pin_data_dir(self) -> Settings:
+        """Resolve data_dir when it wasn't explicitly configured.
+
+        An empty/absent X4C_DATA_DIR resolves (via ExtractSettings) to the current
+        working directory, which isn't where data/ lives. In that case prefer the
+        repo's data/ folder when present (source checkout), otherwise the per-user
+        app-data dir (packaged build). An explicitly configured data_dir — a real env
+        value, or a test passing data_dir=tmp — is honored untouched.
+        """
+        if self.data_dir == Path.cwd():
+            repo_data = (_PROJECT_ROOT / "data").resolve()
+            self.data_dir = repo_data if repo_data.exists() else (appdata.app_data_dir() / "data")
+        return self
 
 
-settings = Settings()  # raises on first import if required env vars are missing
+def is_configured(settings: Settings) -> bool:
+    """True once a game install folder is set — the minimum to run extraction."""
+    return settings.install_path is not None
+
+
+def static_db_ready(settings: Settings) -> bool:
+    """True when static.db exists and has been populated (wares is a core table).
+
+    The setup gate uses this: the main app requires a populated static DB; save data
+    builds on top of it.
+    """
+    import sqlite3
+
+    static_path = settings.data_dir / "static.db"
+    if not static_path.exists():
+        return False
+    try:
+        conn = sqlite3.connect(f"file:{static_path}?mode=ro", uri=True)
+    except sqlite3.OperationalError:
+        return False
+    try:
+        row = conn.execute("SELECT COUNT(*) FROM wares").fetchone()
+        return bool(row and row[0] > 0)
+    except sqlite3.OperationalError:
+        return False
+    finally:
+        conn.close()
+
+
+settings = Settings()  # never raises now — install_path is optional until setup completes

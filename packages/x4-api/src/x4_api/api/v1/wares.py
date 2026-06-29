@@ -11,7 +11,6 @@ Add new public endpoints in the same shape:
     4. Empty result → empty list, never 404 for collection endpoints
 """
 
-from __future__ import annotations
 
 import sqlite3
 from typing import Annotated
@@ -19,29 +18,52 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from x4_api.api.deps import get_db
+from x4_api.api.icons import get_ware_icon_url
 from x4_api.api.schemas import PublicModel
+from x4_api.domain.ware_class import CATEGORIES, CATEGORY_SQL
 
 router = APIRouter()
 
 ICON_BASE = "/static/icons"
+
+# Whether a ware has any production method / can be obtained from a drop list.
+# Drives which detail tabs the dashboard shows, so empty tabs never render.
+_FLAGS_SQL = (
+    "EXISTS(SELECT 1 FROM s.ware_production p WHERE p.ware_id = w.ware_id) AS has_production, "
+    "EXISTS(SELECT 1 FROM s.drop_list_wares d WHERE d.ware_id = w.ware_id) AS has_drops"
+)
+
+# Fix for ambiguous columns when joining ware_groups
+_CAT_SQL = CATEGORY_SQL.replace("group_id", "w.group_id").replace("transport", "w.transport").replace("tags", "w.tags")
+
 
 
 class WareSummary(PublicModel):
     ware_id: str
     name: str
     group_id: str | None
+    category: str
     transport: str | None
     volume: float
+    price_min: int | None
     price_avg: int | None
+    price_max: int | None
+    market_min: int | None = None
+    market_avg: int | None = None
+    market_max: int | None = None
+    sell_qty: int | None = None
+    buy_qty: int | None = None
+    net_demand: int | None = None
+    tags: str | None
     icon_url: str | None
-
-
-class ProductionMethod(PublicModel):
-    method: str
-    time_sec: float
-    amount: int
-    workforce: int | None
-    inputs: list["ProductionInput"]
+    has_production: bool
+    has_drops: bool
+    shortname: str | None = None
+    description: str | None = None
+    sortorder: int | None = None
+    dismantlefactor: float | None = None
+    research_time: int | None = None
+    tier: int | None = None
 
 
 class ProductionInput(PublicModel):
@@ -49,11 +71,78 @@ class ProductionInput(PublicModel):
     amount: int
 
 
+class ProductionMethod(PublicModel):
+    method: str
+    time_sec: float
+    amount: int
+    workforce: int | None
+    inputs: list[ProductionInput]
+
+
+class WareUse(PublicModel):
+    type: str
+    id: str
+    name: str
+    icon_url: str | None = None
+
+
 class WareDetail(WareSummary):
-    price_min: int | None
-    price_max: int | None
     storage_class: str | None
+    restriction_licence: str | None = None
+    use_threshold: float | None = None
+    owners: list[str]
+    illegal_factions: list[str]
+    used_for: list[WareUse]
     production: list[ProductionMethod]
+    exclusive_race: str | None = None
+
+
+# ── Live price enrichment (from dynamic station_offers, when available) ─────────
+
+def _market_price_sql(conn: sqlite3.Connection) -> tuple[str, bool]:
+    """Return (sql_fragment, has_live_data) for enriching static prices with market data.
+
+    When the active save has been ingested, station_offers carries real buy/sell prices
+    from every station.  We LEFT JOIN per-ware MIN/AVG/MAX so the catalog reflects the
+    live economy.  When no save is active (or the table doesn't exist yet) the static
+    reference prices are used as-is.
+    """
+    has_offers = bool(
+        conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='station_offers'"
+        ).fetchone()
+    )
+    if not has_offers:
+        return (
+            "w.price_min, w.price_avg, w.price_max, "
+            "NULL AS market_min, NULL AS market_avg, NULL AS market_max, "
+            "NULL AS sell_qty, NULL AS buy_qty, NULL AS net_demand", 
+            False
+        )
+
+    return (
+        "w.price_min, w.price_avg, w.price_max, "
+        "m.market_min, m.market_avg, m.market_max, "
+        "m.sell_qty, m.buy_qty, m.net_demand",
+        True,
+    )
+
+
+def _market_join_sql() -> str:
+    """Subquery that computes live price ranges per ware from station trade offers."""
+    return (
+        "LEFT JOIN ("
+        "  SELECT ware_id,"
+        "         CAST(MIN(price) AS INTEGER) AS market_min,"
+        "         CAST(AVG(price) AS INTEGER) AS market_avg,"
+        "         CAST(MAX(price) AS INTEGER) AS market_max,"
+        "         SUM(CASE WHEN side='sell' THEN quantity ELSE 0 END) AS sell_qty,"
+        "         SUM(CASE WHEN side='buy' THEN quantity ELSE 0 END) AS buy_qty,"
+        "         SUM(CASE WHEN side='buy' THEN quantity ELSE 0 END) - SUM(CASE WHEN side='sell' THEN quantity ELSE 0 END) AS net_demand"
+        "  FROM station_offers"
+        "  GROUP BY ware_id"
+        ") m ON w.ware_id = m.ware_id"
+    )
 
 
 @router.get("/wares", response_model=list[WareSummary])
@@ -61,32 +150,71 @@ def list_wares(
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
     group: str | None = Query(None),
     transport: str | None = Query(None),
+    category: str | None = Query(
+        None, description=f"Filter by computed bucket: {', '.join(CATEGORIES)}"
+    ),
     limit: int = Query(500, ge=1, le=2000),
     offset: int = Query(0, ge=0),
 ) -> list[WareSummary]:
+    if category is not None and category not in CATEGORIES:
+        raise HTTPException(status_code=422, detail=f"Unknown category: {category}")
+
+    price_sql, has_live = _market_price_sql(conn)
+
     sql = [
-        "SELECT ware_id, name, group_id, transport, volume, price_avg, icon_path",
-        "FROM s.wares WHERE 1=1",
+        f"SELECT w.ware_id, w.name, w.shortname, w.description, w.group_id,"
+        f"       ({_CAT_SQL}) AS category, w.transport, w.volume,",
+        f"       {price_sql},",
+        "       w.tags, w.icon_path,",
+        "       w.sortorder, w.dismantlefactor, w.research_time,",
+        f"       {_FLAGS_SQL}, w.tier",
+        "FROM s.wares w",
+        "LEFT JOIN s.ware_groups g ON w.group_id = g.group_id",
     ]
+    if has_live:
+        sql.append(_market_join_sql())
+    sql.append("WHERE w.name NOT LIKE '(TEMP)%'")
+
     params: dict[str, object] = {"limit": limit, "offset": offset}
     if group is not None:
-        sql.append("AND group_id = :group")
+        sql.append("AND w.group_id = :group")
         params["group"] = group
     if transport is not None:
-        sql.append("AND transport = :transport")
+        sql.append("AND w.transport = :transport")
         params["transport"] = transport
-    sql.append("ORDER BY ware_id LIMIT :limit OFFSET :offset")
+    if category is not None:
+        sql.append(f"AND ({_CAT_SQL}) = :category")
+        params["category"] = category
+    sql.append("ORDER BY w.ware_id LIMIT :limit OFFSET :offset")
 
     rows = conn.execute(" ".join(sql), params).fetchall()
     return [
         WareSummary(
             ware_id=r["ware_id"],
             name=r["name"],
+            shortname=r["shortname"],
+            description=r["description"],
             group_id=r["group_id"],
+            category=r["category"],
             transport=r["transport"],
             volume=r["volume"],
+            price_min=r["price_min"],
             price_avg=r["price_avg"],
-            icon_url=_icon_url(r["icon_path"]),
+            price_max=r["price_max"],
+            market_min=r["market_min"],
+            market_avg=r["market_avg"],
+            market_max=r["market_max"],
+            sell_qty=r["sell_qty"],
+            buy_qty=r["buy_qty"],
+            net_demand=r["net_demand"],
+            tags=r["tags"],
+            icon_url=get_ware_icon_url(r["ware_id"], r["icon_path"], r["tags"]),
+            sortorder=r["sortorder"],
+            dismantlefactor=r["dismantlefactor"],
+            research_time=r["research_time"],
+            has_production=bool(r["has_production"]),
+            has_drops=bool(r["has_drops"]),
+            tier=r["tier"],
         )
         for r in rows
     ]
@@ -97,17 +225,42 @@ def get_ware(
     ware_id: str,
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
 ) -> WareDetail:
+    price_sql, has_live = _market_price_sql(conn)
+    join_clause = _market_join_sql() if has_live else ""
+
     row = conn.execute(
-        """
-        SELECT ware_id, name, group_id, transport, volume,
-               price_min, price_avg, price_max, storage_class, icon_path
-        FROM s.wares WHERE ware_id = :id
+        f"""
+        SELECT w.ware_id, w.name, w.shortname, w.description, w.group_id,
+               ({_CAT_SQL}) AS category, w.transport, w.volume,
+               {price_sql}, w.storage_class,
+               w.tags, w.restriction_licence, w.use_threshold, w.icon_path,
+               w.sortorder, w.dismantlefactor, w.research_time,
+               {_FLAGS_SQL}, w.tier
+        FROM s.wares w
+        LEFT JOIN s.ware_groups g ON w.group_id = g.group_id
+        {join_clause}
+        WHERE w.ware_id = :id
         """,
         {"id": ware_id},
     ).fetchone()
     if row is None:
         raise HTTPException(status_code=404, detail=f"Unknown ware_id: {ware_id}")
 
+    owner_rows = conn.execute(
+        "SELECT faction_id FROM s.ware_owners WHERE ware_id = :id ORDER BY faction_id",
+        {"id": ware_id},
+    ).fetchall()
+
+    unique_races = conn.execute(
+        "SELECT DISTINCT makerrace FROM s.modules WHERE produces_ware_id = :id AND kind IN ('production', 'processingmodule') AND makerrace IS NOT NULL",
+        {"id": ware_id},
+    ).fetchall()
+    exclusive_race = unique_races[0]["makerrace"] if len(unique_races) == 1 else None
+
+    illegal_rows = conn.execute(
+        "SELECT faction_id FROM s.ware_illegal WHERE ware_id = :id ORDER BY faction_id",
+        {"id": ware_id},
+    ).fetchall()
     prod_rows = conn.execute(
         "SELECT method, time_sec, amount, workforce FROM s.ware_production WHERE ware_id = :id",
         {"id": ware_id},
@@ -116,6 +269,24 @@ def get_ware(
         "SELECT method, input_ware_id, amount FROM s.ware_inputs WHERE ware_id = :id",
         {"id": ware_id},
     ).fetchall()
+    used_for_rows = conn.execute(
+        '''
+        SELECT u.use_type, u.use_value, w.name, w.icon_path, w.tags
+        FROM s.ware_uses u
+        LEFT JOIN s.wares w ON u.use_type = 'ware' AND u.use_value = w.ware_id
+        WHERE u.ware_id = :id
+        ORDER BY u.use_type ASC, u.use_value ASC
+        ''',
+        {"id": ware_id},
+    ).fetchall()
+
+    used_for_list = []
+    for r in used_for_rows:
+        if r["use_type"] == "category":
+            used_for_list.append(WareUse(type="category", id=r["use_value"], name=r["use_value"]))
+        else:
+            icon = get_ware_icon_url(r["use_value"], r["icon_path"], r["tags"]) if r["icon_path"] else None
+            used_for_list.append(WareUse(type="ware", id=r["use_value"], name=r["name"], icon_url=icon))
 
     inputs_by_method: dict[str, list[ProductionInput]] = {}
     for ir in input_rows:
@@ -126,14 +297,36 @@ def get_ware(
     return WareDetail(
         ware_id=row["ware_id"],
         name=row["name"],
+        shortname=row["shortname"],
+        description=row["description"],
         group_id=row["group_id"],
+        category=row["category"],
         transport=row["transport"],
         volume=row["volume"],
         price_min=row["price_min"],
         price_avg=row["price_avg"],
         price_max=row["price_max"],
+        market_min=row["market_min"],
+        market_avg=row["market_avg"],
+        market_max=row["market_max"],
+        sell_qty=row["sell_qty"],
+        buy_qty=row["buy_qty"],
+        net_demand=row["net_demand"],
         storage_class=row["storage_class"],
-        icon_url=_icon_url(row["icon_path"]),
+        tags=row["tags"],
+        restriction_licence=row["restriction_licence"],
+        use_threshold=row["use_threshold"],
+        owners=[r["faction_id"] for r in owner_rows],
+        illegal_factions=[r["faction_id"] for r in illegal_rows],
+        used_for=used_for_list,
+        icon_url=get_ware_icon_url(row["ware_id"], row["icon_path"], row["tags"]),
+        sortorder=row["sortorder"],
+        dismantlefactor=row["dismantlefactor"],
+        research_time=row["research_time"],
+        has_production=bool(row["has_production"]),
+        has_drops=bool(row["has_drops"]),
+        tier=row["tier"],
+        exclusive_race=exclusive_race,
         production=[
             ProductionMethod(
                 method=pr["method"],
@@ -147,5 +340,4 @@ def get_ware(
     )
 
 
-def _icon_url(icon_path: str | None) -> str | None:
-    return f"{ICON_BASE}/{icon_path}.png" if icon_path else None
+

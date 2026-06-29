@@ -18,7 +18,7 @@ from x4_api import __version__
 app = typer.Typer(add_completion=False, help="X4: Foundations companion CLI.")
 
 
-def _load_settings() -> "Settings":  # noqa: F821 — forward ref to deferred import
+def _load_settings() -> Settings:  # noqa: F821 — forward ref to deferred import
     from x4_api.config import Settings
 
     try:
@@ -42,7 +42,7 @@ def version() -> None:
 @app.command()
 def doctor() -> None:
     """Verify install + save paths and report what was found."""
-    from x4_api.config import latest_save, resolve_save_path
+    from x4_extract.config import latest_save, resolve_save_path
 
     settings = _load_settings()
     typer.echo(f"x4-api v{__version__}")
@@ -80,15 +80,23 @@ def doctor() -> None:
 @app.command("rebuild-static")
 def rebuild_static() -> None:
     """Extract game XML → static.db. No-op if game files unchanged."""
-    from x4_api.ingest.static_pipeline import run as run_static
+    from x4_extract.static.pipeline import run as run_static
 
     run_static(_load_settings())
+
+
+@app.command("rebuild-datalake")
+def rebuild_datalake() -> None:
+    """Extract raw metadata XMLs into raw_files table in raw.db."""
+    from x4_extract.static.crawler import run_crawler
+
+    run_crawler(_load_settings())
 
 
 @app.command("rebuild-icons")
 def rebuild_icons() -> None:
     """Extract icon DDS files → PNGs under data/icons/."""
-    from x4_api.extract.icons import run as run_icons
+    from x4_extract.static.icons import run as run_icons
 
     run_icons(_load_settings())
 
@@ -96,12 +104,58 @@ def rebuild_icons() -> None:
 @app.command("ingest-save")
 def ingest_save(path: Path | None = typer.Argument(None)) -> None:
     """Parse a save file into dynamic.db. Defaults to the newest in the save folder."""
-    from x4_api.config import latest_save, resolve_save_path
-    from x4_api.ingest.dynamic_pipeline import run as run_dynamic
+    from x4_extract.config import latest_save, resolve_save_path
+    from x4_extract.dynamic.pipeline import run as run_dynamic
 
     settings = _load_settings()
     save = path or latest_save(resolve_save_path(settings.save_path))
     run_dynamic(settings, save)
+
+
+@app.command("profile-save")
+def profile_save(path: Path | None = typer.Argument(None)) -> None:
+    """Time each ingest stage on a save to find where the 5-10s goes.
+
+    Defaults to the newest save in the save folder. Breaks the cost into decompress,
+    iterparse, visitor dispatch, and flush, with a cProfile breakdown of the dispatch.
+    """
+    from x4_extract.config import latest_save, resolve_save_path
+    from x4_extract.dynamic.profile import format_report
+    from x4_extract.dynamic.profile import profile_save as run_profile
+
+    settings = _load_settings()
+    save = path or latest_save(resolve_save_path(settings.save_path))
+    typer.echo(f"Profiling {save} ... (streams the full save several times)")
+    typer.echo(format_report(run_profile(settings, save)))
+
+
+@app.command()
+def watch() -> None:
+    """Poll the active save folder and keep its dynamic DB fresh until interrupted."""
+    from datetime import datetime
+
+    from x4_extract.dynamic import poller
+    from x4_extract.dynamic.poller import PollResult
+
+    settings = _load_settings()
+
+    def on_tick(r: PollResult) -> None:
+        ts = datetime.now().strftime("%H:%M:%S")
+        if r.save_path is None:
+            typer.echo(f"[{ts}] no saves found")
+        elif r.ingested:
+            typer.secho(f"[{ts}] ingested {r.save_path.name}", fg="green")
+        else:
+            typer.echo(f"[{ts}] {r.save_path.name} unchanged")
+
+    typer.echo(
+        f"Watching for save changes (event-driven, {settings.poll_interval_sec}s safety poll). "
+        "Ctrl-C to stop."
+    )
+    try:
+        poller.watch_realtime(settings, on_tick)
+    except KeyboardInterrupt:
+        typer.echo("stopped")
 
 
 @app.command()

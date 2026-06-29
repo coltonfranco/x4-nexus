@@ -1,0 +1,8 @@
+# Staging area for `tauri build` bundle resources, populated by the release pipeline
+# (PyInstaller sidecar → server/, dashboard dist → dashboard/). Build output is not
+# committed; keep the directory structure so the bundler's resource paths resolve.
+*
+!.gitignore
+!server/
+!dashboard/
+!**/.gitkeep

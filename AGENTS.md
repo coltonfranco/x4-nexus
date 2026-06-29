@@ -51,6 +51,7 @@ x4-companion/
 ├── docs/
 │   ├── architecture.md                    ← pointer to the build plan
 │   ├── data-tiers.md                      ← V1 MUST / NICE / SKIP
+│   ├── save-refresh-lifecycle.md          ← when save data is stat'd / diffed / rebuilt
 │   └── openapi.yaml                       ← generated public contract
 ├── packages/
 │   ├── x4-api/
@@ -80,6 +81,12 @@ pnpm dev                                   # vite on :5173
 Required env vars (see `.env.example`): `X4C_INSTALL_PATH` and `X4C_SAVE_PATH`.
 The dev's actual save path is non-default (`C:\Users\colto\sss\Documents\Egosoft\X4\59308344`);
 **never** assume the Egosoft default in code — always resolve via `config.resolve_save_path`.
+
+### Temporary files
+
+All scratch scripts, debug dumps, one-off utilities, and generated artifacts go in
+`./tmp/`. This directory is gitignored. Do NOT create temp files at the repo root or
+inside `packages/`. Before committing, clean up anything outside `tmp/`.
 
 ## 4. Code standards
 
@@ -113,6 +120,12 @@ The dev's actual save path is non-default (`C:\Users\colto\sss\Documents\Egosoft
 - **API client is GENERATED** from `docs/openapi.yaml`. Do not hand-edit `src/lib/apiClient.ts`.
 - **CSS-in-JS not adopted.** Inline `style={}` is fine for v1; revisit when complexity
   warrants a styling layer.
+- **Dropdown items match column style.** Every `<SelectItem>` inside a filter
+  dropdown must render the same visual element used in the corresponding table
+  column. Examples: size filter items use `<SizeBadge>`, kind filter items use
+  the same colored border badge as the Kind column, faction items use
+  `<FactionBadge>`. Never use plain text in a filter dropdown when the table
+  column renders a styled component.
 
 ### 4.3 SQL
 
@@ -424,8 +437,9 @@ From the build plan, mapped to verifiable checks:
 | Milestone | Done means |
 |---|---|
 | M0 Skeleton | `uv run x4c doctor` returns 0; `/api/v1/health` returns OK; `pytest` green; CI scaffold runs |
-| M1 Static extraction | `uv run x4c rebuild-static` produces `static.db` with ~500 wares + modules + ships + factions + map; second run is no-op in <1s |
-| M1.5 Icons | `uv run x4c rebuild-icons` produces ~990 PNGs; `GET /api/v1/wares/energycells` includes a working `icon_url` |
+| M1.A Datalake Extraction | `uv run x4c rebuild-datalake` produces `raw.db` with ~7,000 merged XMLs |
+| M1.B Static Transformation | `uv run x4c rebuild-static` transforms `raw.db` into `static.db` (wares, ships, equipment) |
+| M1.C Icons | `uv run x4c rebuild-icons` produces ~990 PNGs |
 | M2 Save streaming | `uv run x4c ingest-save` on a 200 MB+ save completes in <60s, peak RSS <500 MB |
 | M3 API + routes | `/api/v1/routes?ship_cargo=8000&ship_speed=420` returns ≤50 ranked routes in <2 s wall-clock |
 | M4 Dashboard | Opening `localhost:8765` shows live routes/stations/chains; updates after a save tick |
@@ -472,3 +486,8 @@ When implementing a new module:
 4. If you added a public endpoint, regenerate `docs/openapi.yaml`.
 5. Stop. Ask the human if anything is unclear; do not silently make architectural
    decisions.
+
+
+### 4.4 Shared Components
+
+- **Currency/Credits**: Whenever displaying credit amounts, base prices, or any monetary value in the dashboard, ALWAYS use the standard <Currency> component (src/components/Currency.tsx). Do not manually format numbers with .toLocaleString() and suffix with Cr, and do not use plain text colors. The <Currency> component handles standard formatting and coloring.

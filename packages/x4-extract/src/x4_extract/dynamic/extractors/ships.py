@@ -1,0 +1,226 @@
+"""Extract live ship instances (the fleet) from a streamed save.
+
+Probed structure (autosave_02.xml.gz): ships are `<component class="ship_*">` carrying
+id/code/macro/owner/level/state + a rich combat/AI tail. Unlike stations they nest at
+*variable* depth — 9763 sit directly under a `<connection>` (flying / docked at a
+station) and 996 under a `<ship>` (a carrier's squadron), so we match by class at ANY
+depth (depth=None) rather than a fixed one.
+
+The enclosing sector/zone is found by walking ancestors (a docked ship inherits its
+host's sector). Cargo and trade orders live deep under each ship's `<connections>`
+subtree and are a deliberate fast-follow — this collector captures the roster + state.
+
+Tier: VOLATILE — positions and combat state change every tick.
+"""
+
+from __future__ import annotations
+
+import dataclasses
+import json
+import sqlite3
+from dataclasses import dataclass, field
+
+from lxml import etree
+
+from x4_extract.dynamic.collector import Tier, hash_rows
+from x4_extract.dynamic.extractors.positions import (
+    position_cache,
+    register_offset_handler,
+    register_position_handler,
+)
+from x4_extract.savefile.dispatch import Registration, Target
+
+_SHIP_CLASSES = ("ship_xs", "ship_s", "ship_m", "ship_l", "ship_xl")
+_MAPPED_SHIP_ATTRS = frozenset({"id", "code", "name", "macro", "owner", "class", "state", "level", "thruster"})
+_ANCESTOR_WALK_LIMIT = 40  # docked/subordinate ships nest deeply
+
+
+@dataclass(slots=True)
+class ShipRow:
+    ship_id: str
+    code: str | None
+    name: str | None
+    macro: str | None
+    owner_faction: str | None
+    class_id: str | None
+    sector_id: str | None
+    zone_id: str | None
+    x: float | None
+    y: float | None
+    z: float | None
+    commander_id: str | None
+    state: str | None
+    level: float | None
+    thruster: str | None
+    is_player_owned: int
+    extra_json: str | None
+
+
+@dataclass(slots=True)
+class ShipsCollector:
+    rows: list[ShipRow] = field(default_factory=list)
+    _ship_orders: dict[str, str] = field(default_factory=dict)
+
+    def register(self) -> list[Registration]:
+        return [
+            Registration(
+                target=Target(tag="component", depth=None, class_attr=cls),
+                visitor=self._on_ship,
+            )
+            for cls in _SHIP_CLASSES
+        ] + [
+            Registration(
+                target=Target(tag="order", depth=None, parent_tag="orders"),
+                visitor=self._on_order,
+            ),
+            register_position_handler(),
+            register_offset_handler(),
+        ]
+
+    def _on_order(self, elem: etree._Element) -> None:
+        parent = elem.getparent()
+        if parent is None: return
+        ship = parent.getparent()
+        if ship is None or not ship.get("class", "").startswith("ship_"):
+            return
+        ship_id = ship.get("id")
+        if not ship_id: return
+        
+        # Only keep the first order encountered per ship (usually the active one)
+        if ship_id not in self._ship_orders:
+            order_val = elem.get("order")
+            if order_val:
+                self._ship_orders[ship_id] = order_val
+
+    def _resolve_position(
+        self, elem: etree._Element, ship_id: str
+    ) -> tuple[float | None, float | None, float | None]:
+        """Find the ship's position: own <offset><position> first (docked ships),
+        then walk ancestors looking for the nearest component with a stored offset
+        (flying ships inherit the zone/sector position)."""
+        own = position_cache.get(ship_id)
+        if own is not None:
+            return own
+
+        # Walk ancestors: the first component with a stored offset is the ship's
+        # position in space (the enclosing zone or sector).
+        ancestor: etree._Element | None = elem.getparent()
+        for _ in range(_ANCESTOR_WALK_LIMIT):
+            if ancestor is None:
+                break
+            if ancestor.tag == "component":
+                aid = ancestor.get("id")
+                if aid:
+                    pos = position_cache.get(aid)
+                    if pos is not None:
+                        return pos
+            ancestor = ancestor.getparent()
+        return (None, None, None)
+
+    def _on_ship(self, elem: etree._Element) -> None:
+        ship_id = elem.get("id")
+        if not ship_id:
+            return
+
+        name = elem.get("name")
+        macro = elem.get("macro")
+
+        sector_id, zone_id = self._enclosing_sector_zone(elem)
+        owner = elem.get("owner")
+        ox, oy, oz = self._resolve_position(elem, ship_id)
+        extra = {k: v for k, v in elem.attrib.items() if k not in _MAPPED_SHIP_ATTRS}
+        
+        current_order = self._ship_orders.pop(ship_id, None)
+        if current_order:
+            extra["current_order"] = current_order
+
+        self.rows.append(
+            ShipRow(
+                ship_id=ship_id,
+                code=elem.get("code"),
+                name=elem.get("name"),
+                macro=elem.get("macro"),
+                owner_faction=owner,
+                class_id=elem.get("class"),
+                sector_id=sector_id,
+                zone_id=zone_id,
+                x=ox,
+                y=oy,
+                z=oz,
+                commander_id=None,
+                state=elem.get("state"),
+                level=_float(elem.get("level")),
+                thruster=elem.get("thruster"),
+                is_player_owned=int(owner == "player"),
+                extra_json=json.dumps(extra, sort_keys=True) if extra else None,
+            )
+        )
+
+    @staticmethod
+    def _enclosing_sector_zone(elem: etree._Element) -> tuple[str | None, str | None]:
+        sector_id: str | None = None
+        zone_id: str | None = None
+        ancestor: etree._Element | None = elem.getparent()
+        for _ in range(_ANCESTOR_WALK_LIMIT):
+            if ancestor is None:
+                break
+            cls = ancestor.get("class", "")
+            if cls == "zone" and zone_id is None:
+                zone_id = ancestor.get("macro")
+            elif cls == "sector":
+                sector_id = ancestor.get("macro")
+                break  # sector is the deepest containment we need
+            ancestor = ancestor.getparent()
+        return sector_id, zone_id
+
+    # --- delta source ----------------------------------------------------------
+    def keyed_rows(self, tier: Tier):
+        """Keyed by ship_id. Content is the identity + state/location subset (not the
+        noisy 3D fields) so a destroyed/sold ship surfaces as 'removed', a new ship as
+        'added', and a state/sector move as 'changed'. Add hull here later to alert on
+        damage — the delta engine needs no changes for that."""
+        if tier is not Tier.VOLATILE:
+            return
+        for r in self.rows:
+            yield "ship", r.ship_id, {
+                "ship_id": r.ship_id,
+                "name": r.name,
+                "owner_faction": r.owner_faction,
+                "class_id": r.class_id,
+                "sector_id": r.sector_id,
+                "state": r.state,
+                "is_player_owned": r.is_player_owned,
+            }
+
+    # --- tiered contract -------------------------------------------------------
+    def tables(self, tier: Tier) -> tuple[str, ...]:
+        return ("ships",) if tier is Tier.VOLATILE else ()
+
+    def fingerprint(self, tier: Tier) -> str:
+        if tier is not Tier.VOLATILE:
+            return ""
+        return hash_rows(dataclasses.asdict(r) for r in self.rows)
+
+    def flush(self, conn: sqlite3.Connection, tier: Tier | None = None) -> None:
+        if tier not in (None, Tier.VOLATILE) or not self.rows:
+            return
+        conn.executemany(
+            """
+            INSERT OR REPLACE INTO ships
+                (ship_id, code, name, macro, owner_faction, class_id, sector_id, zone_id,
+                 x, y, z, commander_id, state, level, thruster, is_player_owned, extra_json)
+            VALUES
+                (:ship_id, :code, :name, :macro, :owner_faction, :class_id, :sector_id, :zone_id,
+                 :x, :y, :z, :commander_id, :state, :level, :thruster, :is_player_owned, :extra_json)
+            """,
+            [dataclasses.asdict(r) for r in self.rows],
+        )
+
+
+def _float(v: str | None) -> float | None:
+    if v is None:
+        return None
+    try:
+        return float(v)
+    except ValueError:
+        return None

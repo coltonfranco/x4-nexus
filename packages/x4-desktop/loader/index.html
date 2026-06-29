@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>X4 Nexus</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+      }
+      body {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 1.5rem;
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        background: radial-gradient(120% 120% at 50% 0%, #0e1726 0%, #060a12 60%);
+        color: #cbd5e1;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+      .title {
+        font-size: 1.6rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        color: #e2e8f0;
+      }
+      .spinner {
+        width: 38px;
+        height: 38px;
+        border: 3px solid rgba(148, 163, 184, 0.25);
+        border-top-color: #38bdf8;
+        border-radius: 50%;
+        animation: spin 0.9s linear infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .status {
+        font-size: 0.9rem;
+        color: #94a3b8;
+        min-height: 1.2em;
+      }
+      .error {
+        color: #f87171;
+        max-width: 28rem;
+        text-align: center;
+        line-height: 1.5;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="title">X4 Nexus</div>
+    <div class="spinner" id="spinner"></div>
+    <div class="status" id="status">Starting the local server…</div>
+
+    <script>
+      // The desktop shell spawns the bundled `x4c-server` sidecar, which takes a moment to
+      // bind 127.0.0.1:8765. This page (the Tauri frontendDist) waits for the server's
+      // health endpoint, then hands the webview over to the server-served SPA so every
+      // relative /api and /static URL is same-origin. See packaging plan / main.rs.
+      const SERVER = "http://127.0.0.1:8765";
+      const HEALTH = SERVER + "/api/v1/health";
+      const statusEl = document.getElementById("status");
+      const spinnerEl = document.getElementById("spinner");
+
+      const started = Date.now();
+      const SLOW_AFTER_MS = 20000;
+
+      async function attempt() {
+        try {
+          const res = await fetch(HEALTH, { cache: "no-store" });
+          if (res.ok) {
+            window.location.replace(SERVER + "/");
+            return;
+          }
+        } catch (_) {
+          // Server not listening yet — keep polling.
+        }
+        if (Date.now() - started > SLOW_AFTER_MS) {
+          statusEl.textContent =
+            "Still starting… the first launch can take a little longer.";
+        }
+        setTimeout(attempt, 400);
+      }
+
+      attempt();
+    </script>
+  </body>
+</html>

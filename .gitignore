@@ -12,6 +12,7 @@ venv/
 .uv/
 
 # Data artifacts (extracted XML, SQLite DBs, icons, save cache)
+data/
 packages/x4-api/data/
 *.db
 *.db-journal
@@ -38,5 +39,26 @@ packages/x4-dashboard/.vite/
 Thumbs.db
 desktop.ini
 
+# Design handoff (theme reference)
+design_handoff_x4_theme/
+
 # Logs
 *.log
+
+# Temp files
+tmp/
+
+# Extracted game assets (copyrighted)
+icons/
+
+# Reasonix tool artifacts
+.reasonix/
+
+# Dev scratch / artifacts
+scratch/
+nul
+
+# Updater signing keys — the PRIVATE key must never be committed (GitHub Secrets only).
+x4nexus.key
+*.key.pub
+TAURI_SIGNING_PRIVATE_KEY*
