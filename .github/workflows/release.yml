@@ -52,7 +52,8 @@ jobs:
             libfuse2
 
       - name: Install uv (+ Python 3.12 from .python-version)
-        uses: astral-sh/setup-uv@v8
+        # setup-uv has no moving `v8` major tag — pin the exact latest release.
+        uses: astral-sh/setup-uv@v8.2.0
         with:
           enable-cache: true
 
