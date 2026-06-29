@@ -69,6 +69,9 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: packages/x4-desktop/src-tauri
+          # Persist the compiled dependency cache even when the build fails, so
+          # iterating on the pipeline doesn't recompile the whole crate graph each run.
+          cache-on-failure: true
 
       # --- Build the standalone Python server sidecar ------------------------------
       - name: Build x4c-server sidecar (PyInstaller, onedir)

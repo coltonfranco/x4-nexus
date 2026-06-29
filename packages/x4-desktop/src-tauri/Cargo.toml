@@ -9,6 +9,10 @@ rust-version = "1.77"
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
+# serde/serde_json are referenced by tauri::generate_context! (capability/ACL codegen);
+# kept explicit to match the Tauri app template and resolve across tauri 2.x patches.
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
 # Over-the-air updates: checks GitHub Releases for a newer signed bundle and installs it.
