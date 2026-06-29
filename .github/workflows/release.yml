@@ -31,7 +31,7 @@ jobs:
             name: linux
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # --- Linux WebView + Tauri build dependencies --------------------------------
       # libwebkit2gtk is the system WebView Tauri uses on Linux; the .deb declares it as
@@ -52,11 +52,11 @@ jobs:
             libfuse2
 
       - name: Install uv (+ Python 3.12 from .python-version)
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v8
         with:
           enable-cache: true
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 24
           cache: npm
@@ -132,7 +132,7 @@ jobs:
       # for inspecting updater files). Cross-platform globs — ignore the ones absent on
       # the current OS.
       - name: Upload installers as artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: x4-nexus-${{ matrix.name }}
           path: |
