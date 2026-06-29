@@ -58,7 +58,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
           cache-dependency-path: |
             packages/x4-dashboard/package-lock.json
@@ -93,6 +93,12 @@ jobs:
           mkdir -p "$res/server" "$res/dashboard"
           cp -r dist/x4c-server "$res/server/x4c-server"
           cp -r packages/x4-dashboard/dist/. "$res/dashboard/"
+
+      # Install the desktop shell's deps so `@tauri-apps/cli` (the `tauri` binary) is on
+      # node_modules/.bin — tauri-action runs `npm run tauri build` but does not install
+      # projectPath deps itself.
+      - name: Install desktop shell deps
+        run: npm --prefix packages/x4-desktop ci
 
       # --- Build, sign, and publish the desktop installers -------------------------
       # tauri-action runs `tauri build` (emitting only targets valid for the host OS:
