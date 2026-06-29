@@ -32,6 +32,26 @@ def apply_schema(data_dir: Path, name: SchemaName, *, db_path: Path | None = Non
 
     with sqlite3.connect(target) as conn:
         conn.executescript(sql)
+        if name == "dynamic":
+            _migrate_dynamic(conn)
+
+
+def _migrate_dynamic(conn: sqlite3.Connection) -> None:
+    """Add columns that were added to the schema after the DB was first created.
+
+    SQLite's ALTER TABLE ADD COLUMN IF NOT EXISTS is not universally available
+    (it requires a compile-time flag on some platforms), so migrations run here
+    via PRAGMA table_info checks + plain ALTER TABLE.  Each migration is
+    idempotent — duplicate-column errors are ignored.
+    """
+    # station_overview: account_min / account_max (2026-01)
+    cols = {r[1] for r in conn.execute("PRAGMA table_info('station_overview')").fetchall()}
+    for col in ("account_min", "account_max"):
+        if col not in cols:
+            try:
+                conn.execute(f"ALTER TABLE station_overview ADD COLUMN {col} INTEGER")
+            except sqlite3.OperationalError:
+                pass  # column already exists (race with another connection)
 
 
 def migrate_all(data_dir: Path) -> None:

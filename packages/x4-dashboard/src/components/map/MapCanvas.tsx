@@ -429,29 +429,179 @@ export function MapCanvas({
         </div>
       )}
 
-      {/* Sector hover tooltip (screen-space, conflict or forces). */}
+      {/* Unified Sector Hover Tooltip */}
       {hoveredSectorId &&
         (overlay.sectorConflicts?.has(hoveredSectorId.toLowerCase()) ||
-          overlay.sectorForces?.has(hoveredSectorId.toLowerCase())) &&
+          overlay.sectorForces?.has(hoveredSectorId.toLowerCase()) ||
+          overlay.sectorResources?.has(hoveredSectorId.toLowerCase()) ||
+          overlay.sectorWarePrices?.has(hoveredSectorId.toLowerCase())) &&
         (() => {
           const hid = hoveredSectorId.toLowerCase();
           const conflict = overlay.sectorConflicts?.get(hid);
           const forces = overlay.sectorForces?.get(hid);
+          const sr = overlay.sectorResources?.get(hid);
+          const wp = overlay.sectorWarePrices?.get(hid);
           const pos = layout.sectorCoords.get(hoveredSectorId);
           if (!pos) return null;
 
-          const sectorObj = data.sectors.find(
-            (s: Sector) => s.sector_id.toLowerCase() === hid,
-          );
+          const forceKey = overlay.displayForcesMode === "miners" ? "miner_count" : overlay.displayForcesMode === "traders" ? "trader_count" : "fighter_count";
+          const forceLabel = overlay.displayForcesMode === "miners" ? "Miners" : overlay.displayForcesMode === "traders" ? "Traders" : "Fighters";
+          const totalCount = forces ? (forces as any)[forceKey] : 0;
+
+          if (!conflict && !sr && !wp && totalCount === 0) return null;
+
+          const sectorObj = data.sectors.find((s: Sector) => s.sector_id.toLowerCase() === hid);
           let owner = sectorObj?.owner_faction;
           if (!owner && sectorObj?.cluster_id) {
-            owner =
-              layout.clusterMap.get(sectorObj.cluster_id)?.owner_faction ??
-              null;
+            owner = layout.clusterMap.get(sectorObj.cluster_id)?.owner_faction ?? null;
           }
-          const ownerHex = owner
-            ? layout.factionMap.get(owner)?.color_hex
-            : undefined;
+          const ownerHex = owner ? layout.factionMap.get(owner)?.color_hex : undefined;
+          
+          const sections = [];
+          
+          if (sr) {
+            sections.push(
+              <div className="flex flex-col gap-1.5" key="resources">
+                {sr.all.map((res: any) => {
+                  const color = RESOURCE_COLORS[res.ware] ?? "var(--muted-foreground)";
+                  return (
+                    <div key={res.ware} className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-3.5 h-3.5 shrink-0"
+                          style={{
+                            backgroundColor: color,
+                            WebkitMaskImage: `url(/static/icons/wares/ware_${res.ware === "rawscrap" ? "scrapmetal" : res.ware}.png)`,
+                            WebkitMaskSize: "contain",
+                            WebkitMaskRepeat: "no-repeat",
+                            WebkitMaskPosition: "center",
+                          }}
+                        />
+                        <span className="capitalize">{res.ware.replace(/_/g, " ")}</span>
+                      </div>
+                      <span className="tabular-nums font-medium text-muted-foreground">{res.label}</span>
+                    </div>
+                  );
+                })}
+                {overlay.sectorSunlight?.get(hid) && (
+                  <div className="flex items-center justify-between gap-4 border-t border-border/30 pt-1.5 mt-0.5">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2.5 h-2.5 rounded-full mx-[2px]" style={{ backgroundColor: RESOURCE_COLORS.sunlight }} />
+                      <span className="capitalize">Sunlight</span>
+                    </div>
+                    <span className="tabular-nums font-medium text-muted-foreground">{overlay.sectorSunlight.get(hid)}</span>
+                  </div>
+                )}
+              </div>
+            );
+          }
+          
+          if (wp) {
+            const net = wp.supply - wp.demand;
+            sections.push(
+              <div className="flex flex-col gap-1.5" key="warePrices">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: "var(--success)" }} />
+                    <span>Supply</span>
+                  </div>
+                  <span className="tabular-nums font-medium">{wp.supply.toLocaleString()}</span>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: "var(--danger)" }} />
+                    <span>Demand</span>
+                  </div>
+                  <span className="tabular-nums font-medium">{wp.demand.toLocaleString()}</span>
+                </div>
+                <div className="border-t border-border/30 pt-1.5 mt-0.5 flex items-center justify-between gap-4">
+                  <span className="text-muted-foreground">Net</span>
+                  <span className={`tabular-nums font-bold ${net > 0 ? "text-success" : net < 0 ? "text-danger" : "text-muted-foreground"}`}>
+                    {net >= 0 ? "+" : ""}{net.toLocaleString()}
+                  </span>
+                </div>
+                {wp.bestBuyPrice != null && (
+                  <div className="border-t border-border/30 pt-1.5 mt-0.5 flex items-center justify-between gap-4">
+                    <span className="text-muted-foreground">Best buy</span>
+                    <Currency value={wp.bestBuyPrice} icon={false} />
+                  </div>
+                )}
+                {wp.bestSellPrice != null && (
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-muted-foreground">Best sell</span>
+                    <Currency value={wp.bestSellPrice} icon={false} />
+                  </div>
+                )}
+              </div>
+            );
+          }
+          
+          if (conflict?.type === "invasion" && overlay.displayForcesMode === "fighters") {
+            sections.push(
+              <p className="text-[11px] text-muted-foreground leading-snug" key="conflictText">
+                {conflict.invader_name} has launched an assault against {conflict.sector_owner_name || "the local sector owner"}.
+              </p>
+            );
+          }
+          
+          if (totalCount > 0) {
+            sections.push(
+              <div className="flex flex-col gap-3" key="forces">
+                {forces?.sides && overlay.displayForcesMode === "fighters" ? (
+                  forces.sides.map((side: any, i: number) => {
+                    const sideFactions = side.factions.filter((f: any) => f[forceKey] > 0);
+                    if (sideFactions.length === 0) return null;
+                    return (
+                      <div key={i} className="flex flex-col gap-1.5 border-b border-border/30 pb-2.5 last:border-0 last:pb-0 relative">
+                        {i > 0 && (
+                          <div className="absolute -top-[17px] left-1/2 -translate-x-1/2 bg-popover/95 px-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                            VS
+                          </div>
+                        )}
+                        {sideFactions.map((f: any) => {
+                          const faction = layout.factionMap.get(f.faction_id);
+                          return (
+                            <div key={f.faction_id} className="flex items-center justify-between gap-4">
+                              <div className="flex items-center gap-2">
+                                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: faction?.color_hex ?? "#888" }} />
+                                <span>{faction?.name ?? f.faction_name}</span>
+                              </div>
+                              <span className="tabular-nums font-medium">{f[forceKey]}</span>
+                            </div>
+                          );
+                        })}
+                        {sideFactions.length > 1 && (
+                          <div className="flex justify-between text-[11px] text-muted-foreground mt-0.5">
+                            <span className="pl-4">Alliance Total</span>
+                            <span className="tabular-nums">{side[forceKey]}</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="flex flex-col gap-1.5 pb-1">
+                    {forces?.factions.filter((f: any) => f[forceKey] > 0).map((f: any) => {
+                      const faction = layout.factionMap.get(f.faction_id);
+                      return (
+                        <div key={f.faction_id} className="flex items-center justify-between gap-4">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: faction?.color_hex ?? "#888" }} />
+                            <span>{faction?.name ?? f.faction_name}</span>
+                          </div>
+                          <span className="tabular-nums font-medium">{f[forceKey]}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                <div className="mt-1 pt-2 border-t border-border/50 flex justify-between text-xs font-semibold text-muted-foreground">
+                  <span>Total {forceLabel}</span>
+                  <span className="tabular-nums">{totalCount}</span>
+                </div>
+              </div>
+            );
+          }
 
           return (
             <div
@@ -461,6 +611,7 @@ export function MapCanvas({
                 top: pos[1] * transform.scale + transform.y + 12,
                 pointerEvents: "none",
                 zIndex: 22,
+                minWidth: 180,
                 maxWidth: 260,
               }}
               className="rounded-md border border-border bg-popover/95 px-3 py-2.5 shadow-lg backdrop-blur text-sm"
@@ -471,92 +622,20 @@ export function MapCanvas({
                 </span>
                 {conflict && (
                   <span className="text-muted-foreground font-normal ml-1 capitalize">
-                    {conflict.type === "invasion"
-                      ? `${conflict.invader_name} Invasion`
-                      : conflict.type}
+                    {conflict.type === "invasion" ? `${conflict.invader_name} Invasion` : conflict.type}
                   </span>
                 )}
+                {!conflict && sr && <span className="text-muted-foreground font-normal ml-1">Resources</span>}
+                {!conflict && !sr && wp && <span className="text-muted-foreground font-normal ml-1">Trade</span>}
               </p>
-              {conflict?.type === "invasion" && (
-                <p className="text-[11px] text-muted-foreground mb-3 leading-snug">
-                  {conflict.invader_name} has launched an assault against{" "}
-                  {conflict.sector_owner_name || "the local sector owner"}.
-                </p>
-              )}
+              
               <div className="flex flex-col gap-3">
-                {forces?.sides ? (
-                  forces.sides.map((side, i) => (
-                    <div
-                      key={i}
-                      className="flex flex-col gap-1.5 border-b border-border/30 pb-2.5 last:border-0 last:pb-0 relative"
-                    >
-                      {i > 0 && (
-                        <div className="absolute -top-[17px] left-1/2 -translate-x-1/2 bg-popover/95 px-2 text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                          VS
-                        </div>
-                      )}
-                      {side.factions.map((f) => {
-                        const faction = factionMap.get(f.faction_id);
-                        return (
-                          <div
-                            key={f.faction_id}
-                            className="flex items-center justify-between gap-4"
-                          >
-                            <div className="flex items-center gap-2">
-                              <div
-                                className="w-2.5 h-2.5 rounded-full"
-                                style={{
-                                  backgroundColor: faction?.color_hex ?? "#888",
-                                }}
-                              />
-                              <span>{faction?.name ?? f.faction_name}</span>
-                            </div>
-                            <span className="tabular-nums font-medium">
-                              {f.fighter_count}
-                            </span>
-                          </div>
-                        );
-                      })}
-                      {side.factions.length > 1 && (
-                        <div className="flex justify-between text-[11px] text-muted-foreground mt-0.5">
-                          <span className="pl-4">Alliance Total</span>
-                          <span className="tabular-nums">
-                            {side.fighter_count}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  ))
-                ) : (
-                  <div className="flex flex-col gap-1.5 pb-1">
-                    {forces?.factions.map((f) => {
-                      const faction = factionMap.get(f.faction_id);
-                      return (
-                        <div
-                          key={f.faction_id}
-                          className="flex items-center justify-between gap-4"
-                        >
-                          <div className="flex items-center gap-2">
-                            <div
-                              className="w-2.5 h-2.5 rounded-full"
-                              style={{
-                                backgroundColor: faction?.color_hex ?? "#888",
-                              }}
-                            />
-                            <span>{faction?.name ?? f.faction_name}</span>
-                          </div>
-                          <span className="tabular-nums font-medium">
-                            {f.fighter_count}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-              <div className="mt-2 pt-2 border-t border-border/50 flex justify-between text-xs font-semibold text-muted-foreground">
-                <span>Total Fighters</span>
-                <span className="tabular-nums">{forces?.fighter_count}</span>
+                {sections.map((sec, i) => (
+                  <Fragment key={i}>
+                    {i > 0 && <div className="border-t border-border/30" />}
+                    {sec}
+                  </Fragment>
+                ))}
               </div>
             </div>
           );
@@ -812,164 +891,9 @@ export function MapCanvas({
           );
         })()}
 
-      {/* Sector hover tooltip (screen-space, resources). */}
-      {hoveredSectorId &&
-        overlay.sectorResources?.has(hoveredSectorId.toLowerCase()) &&
-        (() => {
-          const sr = overlay.sectorResources.get(
-            hoveredSectorId.toLowerCase(),
-          )!;
-          const pos = layout.sectorCoords.get(hoveredSectorId);
-          if (!pos) return null;
-          return (
-            <div
-              style={{
-                position: "absolute",
-                left: pos[0] * transform.scale + transform.x + 12,
-                top: pos[1] * transform.scale + transform.y + 12,
-                pointerEvents: "none",
-                zIndex: 22,
-                minWidth: 180,
-                maxWidth: 260,
-              }}
-              className="rounded-md border border-border bg-popover/95 px-3 py-2.5 shadow-lg backdrop-blur text-sm"
-            >
-              <p className="font-semibold border-b border-border/50 pb-1.5 mb-2">
-                {sectorName(hoveredSectorId)}{" "}
-                <span className="text-muted-foreground font-normal ml-1">
-                  Resources
-                </span>
-              </p>
-              <div className="flex flex-col gap-1.5">
-                {sr.all.map((res) => {
-                  const color =
-                    RESOURCE_COLORS[res.ware] ?? "var(--muted-foreground)";
-                  return (
-                    <div
-                      key={res.ware}
-                      className="flex items-center justify-between gap-4"
-                    >
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="w-3.5 h-3.5 shrink-0"
-                          style={{
-                            backgroundColor: color,
-                            WebkitMaskImage: `url(/static/icons/wares/ware_${res.ware === "rawscrap" ? "scrapmetal" : res.ware}.png)`,
-                            WebkitMaskSize: "contain",
-                            WebkitMaskRepeat: "no-repeat",
-                            WebkitMaskPosition: "center",
-                          }}
-                        />
-                        <span className="capitalize">
-                          {res.ware.replace(/_/g, " ")}
-                        </span>
-                      </div>
-                      <span className="tabular-nums font-medium text-muted-foreground">
-                        {res.label}
-                      </span>
-                    </div>
-                  );
-                })}
-                {overlay.sectorSunlight?.get(hoveredSectorId.toLowerCase()) && (
-                  <div className="flex items-center justify-between gap-4 border-t border-border/30 pt-1.5 mt-0.5">
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="w-2.5 h-2.5 rounded-full mx-[2px]"
-                        style={{ backgroundColor: RESOURCE_COLORS.sunlight }}
-                      />
-                      <span className="capitalize">Sunlight</span>
-                    </div>
-                    <span className="tabular-nums font-medium text-muted-foreground">
-                      {overlay.sectorSunlight.get(
-                        hoveredSectorId.toLowerCase(),
-                      )}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })()}
+      
 
-      {/* Sector hover tooltip (screen-space, ware prices). */}
-      {hoveredSectorId &&
-        overlay.sectorWarePrices?.has(hoveredSectorId.toLowerCase()) &&
-        (() => {
-          const wp = overlay.sectorWarePrices.get(
-            hoveredSectorId.toLowerCase(),
-          )!;
-          const pos = layout.sectorCoords.get(hoveredSectorId);
-          if (!pos) return null;
-          const net = wp.supply - wp.demand;
-          return (
-            <div
-              style={{
-                position: "absolute",
-                left: pos[0] * transform.scale + transform.x + 12,
-                top: pos[1] * transform.scale + transform.y + 12,
-                pointerEvents: "none",
-                zIndex: 22,
-                minWidth: 200,
-                maxWidth: 260,
-              }}
-              className="rounded-md border border-border bg-popover/95 px-3 py-2.5 shadow-lg backdrop-blur text-sm"
-            >
-              <p className="font-semibold border-b border-border/50 pb-1.5 mb-2">
-                {sectorName(hoveredSectorId)}{" "}
-                <span className="text-muted-foreground font-normal ml-1">
-                  Trade
-                </span>
-              </p>
-              <div className="flex flex-col gap-1.5">
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="w-2.5 h-2.5 rounded-full"
-                      style={{ backgroundColor: "var(--success)" }}
-                    />
-                    <span>Supply</span>
-                  </div>
-                  <span className="tabular-nums font-medium">
-                    {wp.supply.toLocaleString()}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="w-2.5 h-2.5 rounded-full"
-                      style={{ backgroundColor: "var(--danger)" }}
-                    />
-                    <span>Demand</span>
-                  </div>
-                  <span className="tabular-nums font-medium">
-                    {wp.demand.toLocaleString()}
-                  </span>
-                </div>
-                <div className="border-t border-border/30 pt-1.5 mt-0.5 flex items-center justify-between gap-4">
-                  <span className="text-muted-foreground">Net</span>
-                  <span
-                    className={`tabular-nums font-bold ${net > 0 ? "text-success" : net < 0 ? "text-danger" : "text-muted-foreground"}`}
-                  >
-                    {net >= 0 ? "+" : ""}
-                    {net.toLocaleString()}
-                  </span>
-                </div>
-                {wp.bestBuyPrice != null && (
-                  <div className="border-t border-border/30 pt-1.5 mt-0.5 flex items-center justify-between gap-4">
-                    <span className="text-muted-foreground">Best buy</span>
-                    <Currency value={wp.bestBuyPrice} icon={false} />
-                  </div>
-                )}
-                {wp.bestSellPrice != null && (
-                  <div className="flex items-center justify-between gap-4">
-                    <span className="text-muted-foreground">Best sell</span>
-                    <Currency value={wp.bestSellPrice} icon={false} />
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })()}
+      
 
       {/* Station info popover (screen-space, anchored to the selected station). */}
       {selectedStation && stationScreenPos.get(selectedStation.station_id) && (

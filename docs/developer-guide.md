@@ -114,7 +114,7 @@ machine*.
 
 |  | Your build machine | Your end users |
 |---|---|---|
-| uv / Python | ✅ (until PyInstaller packaging) | ❌ never |
+| uv / Python | ✅ | ❌ never (bundled as the `x4c-server` sidecar) |
 | Node / npm | ✅ | ❌ never |
 | Rust + MSVC tools | ✅ (Windows) | ❌ never |
 | The app + WebView2 | — | ✅ only this |
@@ -247,12 +247,74 @@ wizard choices persist in app-data.
 
 ## 9. Building for distribution
 
-- **Desktop app:** `npm --prefix packages/x4-desktop run build` (`tauri build`) compiles the
-  shell and bundles the dashboard `dist/`, producing an installer under
-  `packages/x4-desktop/src-tauri/target/release/bundle/`.
-- **Server sidecar (follow-up):** the release shell prefers a bundled **`x4c-server[.exe]`**
-  sidecar next to the executable so end users need no Python. Producing that with PyInstaller
-  is the next packaging task; until then the release build falls back to `uv run x4c serve`.
+The released app is fully self-contained — no Python, Node, Rust, or uv on the user's
+machine. It ships three things in the Tauri installer:
+
+1. The **desktop shell** (`x4-desktop`, Rust/Tauri).
+2. A **standalone Python server** — `x4c-server`, a PyInstaller *onedir* bundle of the
+   FastAPI/uvicorn API plus all `x4_api`/`x4_extract` code and native deps (lxml, Pillow,
+   texture2ddecoder). Spec: `packages/x4-api/x4c-server.spec`; entry point
+   `x4_api/server_entry.py` (serves on `127.0.0.1:8765` with no args).
+3. The **dashboard SPA** (`x4-dashboard/dist`).
+
+The sidecar and dashboard are staged into `packages/x4-desktop/src-tauri/resources/`
+(`server/` and `dashboard/`) and shipped as Tauri `bundle.resources`. At launch the shell
+spawns the sidecar with `X4C_DASHBOARD_DIST` pointed at the dashboard resource; the server
+serves the SPA, and the Tauri window's loader page (`packages/x4-desktop/loader/`) waits for
+`/api/v1/health`, then redirects to `http://127.0.0.1:8765/` so every relative `/api` and
+`/static` URL is same-origin (no Vite proxy in production).
+
+**CI (recommended):** push a `v*` tag — `.github/workflows/release.yml` builds the sidecar,
+dashboard, and installers on Windows + Ubuntu and attaches them to a **draft** GitHub Release
+(Windows `.msi` + NSIS `.exe`, Linux `.deb` + `.AppImage`) along with the signed updater
+artifacts and a generated `latest.json`. `workflow_dispatch` builds artifacts only.
+
+**Local build** (Windows example; needs the `packaging` group for PyInstaller):
+
+```powershell
+uv sync --group packaging
+uv run pyinstaller packages/x4-api/x4c-server.spec --noconfirm   # → dist/x4c-server/
+npm --prefix packages/x4-dashboard ci; npm --prefix packages/x4-dashboard run build
+# stage resources the bundler expects:
+Copy-Item -Recurse -Force dist/x4c-server packages/x4-desktop/src-tauri/resources/server/x4c-server
+Copy-Item -Recurse -Force packages/x4-dashboard/dist/* packages/x4-desktop/src-tauri/resources/dashboard/
+npm --prefix packages/x4-desktop run build   # → src-tauri/target/release/bundle/
+```
+
+A source build with no staged sidecar still works in dev: the shell falls back to
+`uv run x4c serve` (so `tauri dev` is unaffected).
+
+### 9.1 Over-the-air updates
+
+The desktop app self-updates via Tauri's updater plugin, distributed through **GitHub
+Releases**. On launch the shell checks
+`https://github.com/coltonfranco/x4-companion/releases/latest/download/latest.json`; if a
+newer signed version exists, a prompt appears at the bottom of the sidebar
+(`UpdateNotifier` → `lib/updater.ts`) with **Update & restart**, which downloads, installs,
+and relaunches.
+
+**Updater-capable bundles:** Windows **NSIS** and Linux **AppImage** only. A `.deb` install
+**cannot** self-update in place (that's why we ship the AppImage too); deb users reinstall
+from the Release or update via their package manager.
+
+**Signing keys (required — updates won't install unsigned):** a minisign keypair signs every
+updater bundle. The **public** key is committed in `tauri.conf.json` (`plugins.updater.pubkey`);
+the **private** key must live only in GitHub Secrets, never in git. Add two repo secrets
+(Settings → Secrets and variables → Actions):
+
+| Secret | Value |
+|---|---|
+| `TAURI_SIGNING_PRIVATE_KEY` | full contents of the generated `*.key` private key file |
+| `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | the key's password (empty if generated without one) |
+
+Regenerate a keypair with `npx --prefix packages/x4-desktop tauri signer generate -w x4nexus.key`
+(then update the `pubkey` in `tauri.conf.json` and the secret). **If the private key is lost,
+existing installs can no longer be updated** — they'd need a manual reinstall.
+
+**Release flow:** push a `v*` tag → CI builds + signs + creates a **draft** Release with
+`latest.json`. Review it, then **publish** the draft. The updater endpoint resolves to the
+latest *published* release, so publishing is the switch that ships the update to users; bump
+`version` in `tauri.conf.json` for each release so clients see it as newer.
 
 ---
 

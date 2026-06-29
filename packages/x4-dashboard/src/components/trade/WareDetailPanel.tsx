@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { EntityIcon } from "../EntityIcon";
 import { FactionBadge } from "../FactionBadge";
-import { Badge } from "../ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Currency } from "../Currency";
@@ -9,7 +8,7 @@ import { cn } from "../../lib/utils";
 import { ProductionChain } from "./ProductionChain";
 import { WareDropSources } from "./WareDropSources";
 import { WareTradeOffers } from "./WareTradeOffers";
-import { getWareGroupColor } from "../../lib/constants";
+import { getWareGroupColor, RACE_COLORS, methodLabel } from "../../lib/constants";
 import { ArrowUp, ArrowDown } from "lucide-react";
 import type { FactionSummary } from "../../lib/map/types";
 
@@ -48,7 +47,9 @@ type WareDetail = {
   description?: string | null;
   owners: string[];
   illegal_factions: string[];
+  used_for: string[];
   production: ProductionMethod[];
+  exclusive_race: string | null;
 };
 
 export function WareDetailPanel({ wareId }: { wareId: string }) {
@@ -95,6 +96,16 @@ export function WareDetailPanel({ wareId }: { wareId: string }) {
                 {data.group_id.replace("_", " ")}
               </span>
             )}
+            {(() => {
+              const exclusiveRace = data.exclusive_race ? RACE_COLORS[data.exclusive_race] : null;
+              return exclusiveRace ? (
+                <span
+                  className={cn("inline-flex items-center px-2 py-0.5 rounded text-sm font-medium uppercase font-mono", exclusiveRace.bg, exclusiveRace.color)}
+                >
+                  {methodLabel(data.exclusive_race!)} Exclusive
+                </span>
+              ) : null;
+            })()}
             {data.illegal_factions.length > 0 && (
               <TooltipProvider>
                 <Tooltip delayDuration={150}>

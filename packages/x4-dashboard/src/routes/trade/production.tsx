@@ -5,9 +5,9 @@ import { cn } from "../../lib/utils";
 import { PageLoaderPreset } from "../../components/PageLoader";
 import { Currency } from "../../components/Currency";
 import { FactionBadge } from "../../components/FactionBadge";
-import { getWareGroupColor } from "../../lib/constants";
+import { getWareGroupColor, RACE_COLORS, methodLabel } from "../../lib/constants";
 import type { FactionSummary } from "../../lib/map/types";
-import { MapPin, Info } from "lucide-react";
+import { MapPin, Info, Recycle } from "lucide-react";
 import { ModuleDetailPanel } from "../stations/modules";
 import { WareDetailPanel } from "../../components/trade/WareDetailPanel";
 import {
@@ -72,6 +72,7 @@ const GROUP_HEX: Record<string, string> = {
   hightech: "#3b82f6",
   shiptech: "#6366f1",
 };
+
 const groupHex = (g: string | null) => (g && GROUP_HEX[g]) || "#8b93ad";
 
 const hexA = (hex: string, a: number) => {
@@ -87,10 +88,8 @@ const fmt = (n: number) => {
   return "" + r;
 };
 
-const methodLabel = (m: string) => m.charAt(0).toUpperCase() + m.slice(1);
-
 // Layout constants (px). Mirrors the mockup's column ladder.
-const LAY = { HEAD: 56, ROWH: 36, NODEH: 30, COLW: 258, GAP: 94, PADX: 16, PADY: 12 };
+const LAY = { HEAD: 56, ROWH: 36, NODEH: 30, COLW: 300, GAP: 94, PADX: 16, PADY: 12 };
 const DEPTH_LABEL = ["Tier 1", "Tier 2", "Tier 3", "Tier 4", "Tier 5", "Tier 6"];
 // Per-tier accent (column index = tier - 1). Matches getTierColor() on the catalog page.
 const TIER_HEX = ["#cbd5e1", "#4ade80", "#60a5fa", "#c084fc", "#fb923c", "#facc15"];
@@ -125,10 +124,10 @@ export default function ProductionChainsPage() {
     staleTime: 5 * 60_000,
   });
 
-  const [method, setMethod] = useState("default");
   const [overlay, setOverlay] = useState<Overlay>("price");
   const [hover, setHover] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
+  const [nodeMethods, setNodeMethods] = useState<Record<string, string>>({});
 
   // Default the overlay to the richest available signal once data loads.
   const effectiveOverlay: Overlay =
@@ -137,20 +136,6 @@ export default function ProductionChainsPage() {
       : overlay === "empire" && !data?.has_empire
       ? "price"
       : overlay;
-
-  // Recipe methods, "default" first then by how many wares carry the method. The count
-  // makes clear most methods are rare per-ware variants, not a global recipe swap.
-  const methodInfo = useMemo(() => {
-    const count = new Map<string, number>();
-    (data?.nodes ?? []).forEach((n) =>
-      Object.keys(n.recipes).forEach((m) => count.set(m, (count.get(m) ?? 0) + 1))
-    );
-    return [...count.entries()]
-      .sort(([a, ca], [b, cb]) =>
-        a === "default" ? -1 : b === "default" ? 1 : cb - ca || a.localeCompare(b)
-      )
-      .map(([method, c]) => ({ method, count: c }));
-  }, [data]);
 
   const layout = useMemo(() => {
     const nodes = data?.nodes ?? [];
@@ -193,8 +178,14 @@ export default function ProductionChainsPage() {
       [...consumerCount].filter(([, c]) => c >= UTILITY_THRESHOLD).map(([w]) => w)
     );
 
-    // Edges for the active method (fallback to default per ware).
-    const recipeFor = (n: ChainNode) => n.recipes[method] ?? n.recipes["default"] ?? null;
+    // Edges for the selected method (the graph defaults to "default").
+    const recipeFor = (n: ChainNode) => {
+      const explicit = nodeMethods[n.ware_id];
+      if (explicit && n.recipes[explicit]) return n.recipes[explicit];
+      if (n.recipes["default"]) return n.recipes["default"];
+      const methods = Object.keys(n.recipes);
+      return methods.length > 0 ? n.recipes[methods[0]] : null;
+    };
     const edges: {
       d: string;
       stroke: string;
@@ -212,7 +203,17 @@ export default function ProductionChainsPage() {
     // sidebar can list them; the graph traversal filters utilities out separately.
     const inputsOf = new Map<string, string[]>();
     const consumersOf = new Map<string, string[]>();
+    const allConsumersOf = new Map<string, string[]>();
+    
     nodes.forEach((n) => {
+      // Track ALL potential consumers regardless of active recipe for the sidebar
+      Object.values(n.recipes).forEach((r) => {
+        r.inputs.forEach((inp) => {
+          const arr = allConsumersOf.get(inp.ware_id) ?? allConsumersOf.set(inp.ware_id, []).get(inp.ware_id)!;
+          if (!arr.includes(n.ware_id)) arr.push(n.ware_id);
+        });
+      });
+
       const r = recipeFor(n);
       if (!r) return;
       const pb = pos.get(n.ware_id)!;
@@ -270,8 +271,8 @@ export default function ProductionChainsPage() {
       });
     });
 
-    return { cols, pos, edges, chartW, chartH, inputsOf, consumersOf, utility, recipeFor, byId };
-  }, [data, method]);
+    return { cols, pos, edges, chartW, chartH, inputsOf, consumersOf, allConsumersOf, utility, recipeFor, byId };
+  }, [data, nodeMethods]);
 
   // The active highlight set + whether it's a locked selection.
   //  • locked selection → the node's full upstream (what makes it) + downstream
@@ -350,7 +351,7 @@ export default function ProductionChainsPage() {
   return (
     <div className="flex h-full flex-col">
       {/* header */}
-      <div className="flex items-end justify-between gap-4 px-6 py-4">
+      <div className="flex items-center justify-between gap-4 px-6 py-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Production Chains</h1>
           <p className="mt-1 font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
@@ -358,77 +359,47 @@ export default function ProductionChainsPage() {
             complexity left → right
           </p>
         </div>
-      </div>
-
-      {/* toolbar */}
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 px-6 pb-3">
-        <div className="flex items-center gap-2">
-          <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-            Recipe
-          </span>
-          <div className="flex flex-wrap gap-1 rounded-lg border border-border bg-card p-1">
-            {methodInfo.map(({ method: m, count }) => (
-              <button
-                key={m}
-                onClick={() => setMethod(m)}
-                title={
-                  m === "default"
-                    ? "Standard recipe — used by every ware"
-                    : `${count} ware${count !== 1 ? "s" : ""} have a ${methodLabel(m)}-specific recipe`
-                }
-                className={cn(
-                  "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
-                  method === m
-                    ? "bg-primary/15 text-primary"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                {methodLabel(m)}
-                {m !== "default" && (
-                  <span className="font-mono text-[10px] opacity-60">{count}</span>
-                )}
-              </button>
-            ))}
+        
+        <div className="flex items-center gap-4">
+          {effectiveOverlay !== "price" && (
+            <div className="flex items-center gap-3 text-[11px] text-muted-foreground mr-2">
+              <span className="flex items-center gap-1.5">
+                <span className="h-2.5 w-2.5 rounded-sm" style={{ background: "var(--success)" }} />Surplus
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="h-2.5 w-2.5 rounded-sm" style={{ background: "var(--warning)" }} />Balanced
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="h-2.5 w-2.5 rounded-sm" style={{ background: "var(--danger)" }} />Deficit
+              </span>
+            </div>
+          )}
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+              Overlay
+            </span>
+            <div className="flex gap-1 rounded-lg border border-border bg-card p-1">
+              {overlayChips.map((c) => (
+                <button
+                  key={c.k}
+                  disabled={c.disabled}
+                  title={c.disabled ? c.reason : undefined}
+                  onClick={() => setOverlay(c.k)}
+                  className={cn(
+                    "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                    c.disabled
+                      ? "cursor-not-allowed text-muted-foreground/40"
+                      : effectiveOverlay === c.k
+                      ? "bg-primary/15 text-primary"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {c.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-            Overlay
-          </span>
-          <div className="flex gap-1 rounded-lg border border-border bg-card p-1">
-            {overlayChips.map((c) => (
-              <button
-                key={c.k}
-                disabled={c.disabled}
-                title={c.disabled ? c.reason : undefined}
-                onClick={() => setOverlay(c.k)}
-                className={cn(
-                  "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
-                  c.disabled
-                    ? "cursor-not-allowed text-muted-foreground/40"
-                    : effectiveOverlay === c.k
-                    ? "bg-primary/15 text-primary"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                {c.label}
-              </button>
-            ))}
-          </div>
-        </div>
-        {effectiveOverlay !== "price" && (
-          <div className="ml-auto flex items-center gap-4 text-[11px] text-muted-foreground">
-            <span className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-sm" style={{ background: "var(--success)" }} />Surplus
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-sm" style={{ background: "var(--warning)" }} />Balanced
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-sm" style={{ background: "var(--danger)" }} />Deficit
-            </span>
-          </div>
-        )}
       </div>
 
       {/* deficit banner */}
@@ -568,10 +539,18 @@ export default function ProductionChainsPage() {
                   ? fmt(v)
                   : (v >= 0 ? "+" : "") + fmt(v);
               const alts = Object.keys(n.recipes).filter((m) => m !== "default");
-              // When a non-default method is selected globally, flag the wares that actually
-              // have it (the only ones the choice affects) — the rest stay on default.
-              const hasActiveMethod = method !== "default" && !!n.recipes[method];
-              const isUtil = layout.utility.has(n.ware_id);
+              const displayAlts = alts.filter((m) => !m.toLowerCase().includes("recycling"));
+
+              const isRecyclable = Object.keys(n.recipes).some(m => m.toLowerCase().includes("recycling"));
+              const hasProducer = n.producer_modules.length > 0;
+              const uniqueRaces = new Set(n.producer_modules.map((m) => m.makerrace));
+              const exclusiveRaceName = hasProducer && uniqueRaces.size === 1 ? [...uniqueRaces][0] : null;
+              const exclusiveRace = exclusiveRaceName ? RACE_COLORS[exclusiveRaceName] : null;
+              const borderColor = isSel
+                ? hexA(gh, 0.9)
+                : active || hover === n.ware_id
+                ? hexA(gh, 0.55)
+                : "var(--border)";
               return (
                 <div
                   key={n.ware_id}
@@ -591,12 +570,11 @@ export default function ProductionChainsPage() {
                       : active || hover === n.ware_id
                       ? hexA(gh, 0.12)
                       : "var(--surface-2)",
-                    borderColor: isSel
-                      ? hexA(gh, 0.9)
-                      : active || hover === n.ware_id
-                      ? hexA(gh, 0.55)
-                      : "var(--border)",
-                    borderLeft: `3px solid ${gh}`,
+                    borderTopColor: borderColor,
+                    borderRightColor: borderColor,
+                    borderBottomColor: borderColor,
+                    borderLeftColor: gh,
+                    borderLeftWidth: "3px",
                     opacity: dim ? 0.28 : 1,
                     boxShadow: isSel ? `0 0 0 1px ${hexA(gh, 0.5)}` : undefined,
                   }}
@@ -614,43 +592,46 @@ export default function ProductionChainsPage() {
                     <span className="h-2 w-2 shrink-0 rounded-sm" style={{ background: gh }} />
                   )}
                   <span className="truncate text-[13.5px] text-foreground">{n.name}</span>
-                  {isUtil && (
-                    <span
-                      className="shrink-0 text-[11px] text-muted-foreground"
-                      title="Utility input — used across many recipes; its edges are hidden to reduce clutter (select it to see them)."
-                    >
-                      ⚡
-                    </span>
-                  )}
                   <span className="flex-1" />
-                  {hasActiveMethod ? (
-                    <span
-                      className="shrink-0 rounded bg-primary/20 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-primary"
-                      title={`Has a ${methodLabel(method)}-specific recipe`}
-                    >
-                      {methodLabel(method)}
-                    </span>
-                  ) : (
-                    alts.length > 0 && (
+                  
+                  <div className="flex shrink-0 items-center gap-1.5 mr-1">
+
+                    {isRecyclable && (
+                      <span title="Can be produced via recycling">
+                        <Recycle className="shrink-0 w-3.5 h-3.5 text-muted-foreground" />
+                      </span>
+                    )}
+                    {exclusiveRace && (
+                      <span
+                        className={cn("shrink-0 rounded px-1.5 py-0.5 font-mono text-[9px] font-semibold uppercase", exclusiveRace.bg, exclusiveRace.color)}
+                        title={`${methodLabel(exclusiveRaceName!)} Exclusive`}
+                      >
+                        {exclusiveRace.abbr}
+                      </span>
+                    )}
+                    {displayAlts.length > 0 && (
                       <span
                         className="shrink-0 rounded px-1 py-0.5 font-mono text-[9px] font-semibold uppercase text-muted-foreground"
                         style={{ background: hexA(gh, 0.16) }}
-                        title={`Alternate recipes: ${alts.map(methodLabel).join(", ")}`}
+                        title={`Alternate recipes: ${displayAlts.map(methodLabel).join(", ")}`}
                       >
-                        {alts.length} alt
+                        {displayAlts.length} alt
                       </span>
-                    )
-                  )}
-                  {effectiveOverlay === "price" && v != null ? (
-                    <Currency value={v} className="text-[12px]" />
-                  ) : (
-                    <span
-                      className="shrink-0 font-mono text-[12px] font-semibold"
-                      style={{ color: valColor }}
-                    >
-                      {valText}
-                    </span>
-                  )}
+                    )}
+                  </div>
+                  
+                  <div className="min-w-[2.5rem] shrink-0 flex justify-end">
+                    {effectiveOverlay === "price" && v != null ? (
+                      <Currency value={v} className="text-[12px]" abbreviate />
+                    ) : (
+                      <span
+                        className="shrink-0 font-mono text-[12px] font-semibold text-right"
+                        style={{ color: valColor }}
+                      >
+                        {valText}
+                      </span>
+                    )}
+                  </div>
                 </div>
               );
             })}
@@ -661,16 +642,16 @@ export default function ProductionChainsPage() {
         {selectedNode && (
           <ProductionDetailSidebar
             node={selectedNode}
-            method={method}
-            onMethod={setMethod}
-            consumers={(layout.consumersOf.get(selectedNode.ware_id) ?? [])
+            consumers={(layout.allConsumersOf.get(selectedNode.ware_id) ?? [])
               .map((id) => byId.get(id))
               .filter((x): x is ChainNode => !!x)}
             byId={byId}
             overlay={effectiveOverlay}
             scale={scale}
             hasMarket={data.has_market}
-            hasEmpire={data.has_empire}
+            hasEmpire={data?.has_empire ?? false}
+            activeMethod={nodeMethods[selectedNode.ware_id] ?? "default"}
+            onMethodChange={(m) => setNodeMethods((prev) => ({ ...prev, [selectedNode.ware_id]: m }))}
             onSelect={setSelected}
             onClose={() => setSelected(null)}
           />
@@ -778,41 +759,59 @@ const SectionTitle = ({ children }: { children: ReactNode }) => (
 
 function ProductionDetailSidebar({
   node,
-  method,
-  onMethod,
   consumers,
   byId,
   overlay,
   scale,
   hasMarket,
   hasEmpire,
+  activeMethod,
+  onMethodChange,
   onSelect,
   onClose,
 }: {
   node: ChainNode;
-  method: string;
-  onMethod: (m: string) => void;
   consumers: ChainNode[];
   byId: Map<string, ChainNode>;
   overlay: Overlay;
   scale: number;
   hasMarket: boolean;
   hasEmpire: boolean;
+  activeMethod: string;
+  onMethodChange: (m: string) => void;
   onSelect: (id: string) => void;
   onClose: () => void;
 }) {
-  // The method actually used to make THIS ware: the global pick if it has it, else its
-  // own default, else whatever single method it defines. Keeps the panel honest — a ware
-  // with only a default recipe never reads as "Terran" just because the toggle says so.
   const ownMethods = Object.keys(node.recipes).sort((a, b) =>
     a === "default" ? -1 : b === "default" ? 1 : a.localeCompare(b)
   );
-  const activeMethod = node.recipes[method]
-    ? method
+  
+  const getModuleMethod = (mod: typeof node.producer_modules[0]) => {
+    const isRecycler = 
+      mod.name?.toLowerCase().includes("recycl") || 
+      mod.name?.toLowerCase().includes("scrap") || 
+      mod.module_id.toLowerCase().includes("recycl") || 
+      mod.module_id.toLowerCase().includes("scrap");
+      
+    if (isRecycler && node.recipes["terranrecycling"]) return "terranrecycling";
+    if (isRecycler && node.recipes["recycling"]) return "recycling";
+    if (isRecycler && node.recipes["processing"]) return "processing";
+    
+    const modMethod = mod.production_method || "default";
+    if (node.recipes[modMethod]) return modMethod;
+    if (modMethod.includes("recycling") && node.recipes["recycling"]) return "recycling";
+    
+    if (!node.recipes["default"] && ownMethods.length > 0) return ownMethods[0];
+    return "default";
+  };
+
+  const methodToUse = node.recipes[activeMethod]
+    ? activeMethod
     : node.recipes["default"]
     ? "default"
     : ownMethods[0] ?? "default";
-  const recipe = node.recipes[activeMethod] ?? null;
+  
+  const recipe = node.recipes[methodToUse] ?? null;
   const [selectedModule, setSelectedModule] = useState<{ id: string; name: string } | null>(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const { data: offers = [] } = useQuery<WareOfferRow[]>({
@@ -920,6 +919,19 @@ function ProductionDetailSidebar({
                   {node.group_id.replace("_", " ")}
                 </span>
               )}
+              {(() => {
+                const hasProducer = node.producer_modules.length > 0;
+                const uniqueRaces = new Set(node.producer_modules.map((m) => m.makerrace));
+                const exclusiveRaceName = hasProducer && uniqueRaces.size === 1 ? [...uniqueRaces][0] : null;
+                const exclusiveRace = exclusiveRaceName ? RACE_COLORS[exclusiveRaceName] : null;
+                return exclusiveRace ? (
+                  <span
+                    className={cn("inline-flex items-center rounded px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase", exclusiveRace.bg, exclusiveRace.color)}
+                  >
+                    {methodLabel(exclusiveRaceName!)} Exclusive
+                  </span>
+                ) : null;
+              })()}
             </div>
           </div>
           <button
@@ -991,24 +1003,34 @@ function ProductionDetailSidebar({
         <SectionTitle>Recipe</SectionTitle>
         {ownMethods.length > 1 ? (
           <div className="mb-2 flex flex-wrap gap-1">
-            {ownMethods.map((m) => (
-              <button
-                key={m}
-                onClick={() => onMethod(m)}
-                className={cn(
-                  "rounded-md border px-2 py-0.5 text-[11px] font-medium transition-colors",
-                  m === activeMethod
-                    ? "border-primary/40 bg-primary/15 text-primary"
-                    : "border-border text-muted-foreground hover:text-foreground"
-                )}
-              >
-                {methodLabel(m)}
-              </button>
-            ))}
+            {ownMethods.map((m) => {
+              const modulesForMethod = node.producer_modules.filter(mod => getModuleMethod(mod) === m);
+              
+              const methodUniqueRaces = new Set(modulesForMethod.map((mod) => mod.makerrace));
+              const methodExclusiveRace = modulesForMethod.length > 0 && methodUniqueRaces.size === 1 && modulesForMethod[0].makerrace ? [...methodUniqueRaces][0] : null;
+              const labelStr = m === "default" ? (methodExclusiveRace || "Generic") : m;
+
+              return (
+                <button
+                  key={m}
+                  onClick={() => onMethodChange(m)}
+                  className={cn(
+                    "rounded-md border px-2 py-0.5 text-[11px] font-medium transition-colors",
+                    m === methodToUse
+                      ? "border-primary/40 bg-primary/15 text-primary"
+                      : "border-border text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {methodLabel(labelStr)}
+                </button>
+              );
+            })}
           </div>
         ) : (
           <div className="mb-2 text-[11px] text-muted-foreground">
-            Single recipe — no faction variants.
+            {node.producer_modules.length > 0 && new Set(node.producer_modules.map((m) => m.makerrace)).size === 1 && node.producer_modules[0].makerrace
+              ? `${methodLabel(node.producer_modules[0].makerrace)} Exclusive Blueprint`
+              : "Universal Blueprint"}
           </div>
         )}
         {recipe ? (
@@ -1046,10 +1068,7 @@ function ProductionDetailSidebar({
 
         {/* production modules */}
         {node.producer_modules.length > 0 && (() => {
-          const filteredModules = node.producer_modules.filter(m => {
-            const mMethod = m.production_method || "default";
-            return mMethod === activeMethod || (activeMethod === "default" && mMethod === "default");
-          });
+          const filteredModules = node.producer_modules.filter(m => getModuleMethod(m) === methodToUse);
           
           if (filteredModules.length === 0) return null;
           

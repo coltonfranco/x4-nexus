@@ -1,12 +1,14 @@
 import { Link, Outlet, useRouterState } from "@tanstack/react-router";
-import { BookOpen, Network, TrendingUp } from "lucide-react";
+import { ArrowLeftRight, BookOpen, Network, TrendingUp, LineChart } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { useHasSave } from "../../lib/useHasSave";
 
 const TABS = [
-  { to: "/trade", label: "Catalog", icon: BookOpen, exact: true, requiresSave: false },
+  { to: "/trade/overview", label: "Overview", icon: LineChart, exact: false, requiresSave: false },
+  { to: "/trade/catalog", label: "Catalog", icon: BookOpen, exact: false, requiresSave: false },
   { to: "/trade/production", label: "Production Chains", icon: Network, exact: false, requiresSave: false },
   { to: "/trade/routes", label: "Routes", icon: TrendingUp, exact: false, requiresSave: true },
+  { to: "/trade/transactions", label: "Transactions", icon: ArrowLeftRight, exact: false, requiresSave: true },
 ] as const;
 
 /** Trade hub: a slim tab strip over the commodity catalog, live supply radar, and

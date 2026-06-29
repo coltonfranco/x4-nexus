@@ -57,3 +57,8 @@ icons/
 # Dev scratch / artifacts
 scratch/
 nul
+
+# Updater signing keys — the PRIVATE key must never be committed (GitHub Secrets only).
+x4nexus.key
+*.key.pub
+TAURI_SIGNING_PRIVATE_KEY*

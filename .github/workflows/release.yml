@@ -1,0 +1,134 @@
+name: release
+
+# Build self-contained X4 Nexus installers for Windows and Linux.
+#
+# The desktop app ships the Python API as a bundled PyInstaller sidecar (`x4c-server`)
+# plus the built dashboard, both staged into the Tauri bundle's `resources/`. End users
+# need no Python, Node, Rust, or uv — see packages/x4-desktop and the packaging plan.
+#
+# Tag a release (`git tag v0.0.1 && git push --tags`) to build + attach installers to a
+# draft GitHub Release. `workflow_dispatch` builds the installers as artifacts only.
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            name: windows
+          # Build on 22.04 for glibc forward-compat: the .deb runs on Ubuntu 24.04 too.
+          - os: ubuntu-22.04
+            name: linux
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # --- Linux WebView + Tauri build dependencies --------------------------------
+      # libwebkit2gtk is the system WebView Tauri uses on Linux; the .deb declares it as
+      # a runtime dependency (see tauri.conf.json bundle.linux.deb.depends) so apt pulls
+      # it on the user's machine. Here we need the -dev package to compile against it.
+      - name: Install Linux build dependencies
+        if: matrix.name == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            librsvg2-dev \
+            libayatana-appindicator3-dev \
+            build-essential \
+            file \
+            patchelf \
+            libfuse2
+
+      - name: Install uv (+ Python 3.12 from .python-version)
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: |
+            packages/x4-dashboard/package-lock.json
+            packages/x4-desktop/package-lock.json
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: packages/x4-desktop/src-tauri
+
+      # --- Build the standalone Python server sidecar ------------------------------
+      - name: Build x4c-server sidecar (PyInstaller, onedir)
+        run: |
+          uv sync --group packaging
+          uv run pyinstaller packages/x4-api/x4c-server.spec --noconfirm
+
+      # --- Build the dashboard SPA -------------------------------------------------
+      - name: Build dashboard
+        run: |
+          npm --prefix packages/x4-dashboard ci
+          npm --prefix packages/x4-dashboard run build
+
+      # --- Stage both into the Tauri bundle resources ------------------------------
+      # main.rs resolves <resource_dir>/server/x4c-server/x4c-server[.exe] and points the
+      # server at <resource_dir>/dashboard via X4C_DASHBOARD_DIST.
+      - name: Stage bundle resources
+        shell: bash
+        run: |
+          res=packages/x4-desktop/src-tauri/resources
+          rm -rf "$res/server/x4c-server" "$res/dashboard"
+          mkdir -p "$res/server" "$res/dashboard"
+          cp -r dist/x4c-server "$res/server/x4c-server"
+          cp -r packages/x4-dashboard/dist/. "$res/dashboard/"
+
+      # --- Build, sign, and publish the desktop installers -------------------------
+      # tauri-action runs `tauri build` (emitting only targets valid for the host OS:
+      # Windows → nsis + msi, Linux → deb + appimage), signs the updater bundles with
+      # the secret key, and — on a v* tag — creates a DRAFT GitHub Release with the
+      # installers plus a generated `latest.json` the updater reads. Publishing the
+      # draft is a manual gate (the updater's endpoint resolves to the latest
+      # *published* release, so drafts don't auto-ship to users).
+      - name: Tauri build + release
+        id: tauri
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Updater signing — set these as repository secrets (see developer-guide §9).
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # Avoid FUSE requirements when bundling the AppImage on CI runners.
+          APPIMAGE_EXTRACT_AND_RUN: 1
+        with:
+          projectPath: packages/x4-desktop
+          # Only create a release on tag pushes; manual runs just build + upload artifacts.
+          tagName: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '' }}
+          releaseName: X4 Nexus ${{ github.ref_name }}
+          releaseDraft: true
+          prerelease: false
+
+      # Always keep the built bundles as workflow artifacts (handy for dispatch runs and
+      # for inspecting updater files). Cross-platform globs — ignore the ones absent on
+      # the current OS.
+      - name: Upload installers as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: x4-nexus-${{ matrix.name }}
+          path: |
+            packages/x4-desktop/src-tauri/target/release/bundle/nsis/*
+            packages/x4-desktop/src-tauri/target/release/bundle/msi/*
+            packages/x4-desktop/src-tauri/target/release/bundle/deb/*.deb
+            packages/x4-desktop/src-tauri/target/release/bundle/appimage/*.AppImage*
+          if-no-files-found: ignore

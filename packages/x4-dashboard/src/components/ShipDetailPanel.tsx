@@ -6,12 +6,15 @@ import { FactionBadge } from "./FactionBadge";
 import { ShipClassBadge, ShipTypeBadge } from "./ShipBadges";
 import { ShipImage } from "./ShipImage";
 import { DropListContent, buildDropGroups } from "./DropListContent";
+import { ProductionChain } from "./trade/ProductionChain";
+import { Currency } from "./Currency";
 
 import { Button } from "./ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { StatBar } from "./StatBar";
 import { PageLoaderPreset } from "./PageLoader";
-import { classShort } from "../lib/formatters";
+import { classShort, formatLicence } from "../lib/formatters";
+import { cn } from "../lib/utils";
 import type { FactionSummary } from '../lib/map/types';
 import {
   SHIP_HULL_MAX, SHIP_SHIELD_MAX, SHIP_REGEN_MAX,
@@ -75,6 +78,7 @@ export function ShipDetailPanel({ shipId, factions }: { shipId: string; factions
     staleTime: 5 * 60_000,
   });
 
+
   const cid = data ? classShort(data.class_id).toLowerCase() : "m";
   const { data: classMax } = useQuery<ClassMax>({
     queryKey: ["classMax", data?.class_id],
@@ -83,11 +87,23 @@ export function ShipDetailPanel({ shipId, factions }: { shipId: string; factions
     enabled: !!data,
   });
 
+  const { data: playerLicences = [] } = useQuery<{ licence_type: string; faction_id: string }[]>({
+    queryKey: ["player-licences"],
+    queryFn: () => fetch("/api/v1/player/licences").then((r) => r.json()),
+    staleTime: 60_000,
+  });
+
   if (isLoading) return <div className="p-6 text-muted-foreground text-sm"><PageLoaderPreset preset="ships" className="py-12" /></div>;
   if (!data) return null;
 
   const slotSizes = ["s", "m", "l", "xl"] as const;
   const faction = data.faction_id ? factions.find((f: FactionSummary) => f.faction_id === data.faction_id) : undefined;
+
+  const licenceSet = new Set(playerLicences.map((l) => `${l.faction_id}:${l.licence_type}`));
+  const licenceTypeSet = new Set(playerLicences.map((l) => l.licence_type));
+  const lic = data.restriction_licence;
+  const hasRestriction = lic && lic !== "generaluseship" && lic !== "generaluseequipment";
+  const hasLicence = !hasRestriction || licenceTypeSet.has(lic) || (data.faction_id && licenceSet.has(`${data.faction_id}:${lic}`));
 
   const cm = classMax;
   const maxHull = cm?.hull ?? SHIP_HULL_MAX[cid] ?? 800_000;
@@ -115,6 +131,12 @@ export function ShipDetailPanel({ shipId, factions }: { shipId: string; factions
               <ShipClassBadge class_id={data.class_id} className="text-sm px-2.5 py-0.5" />
               <ShipTypeBadge role={data.role} subtype={data.ship_type} className="text-sm" />
               {faction && <FactionBadge name={faction.name} color_hex={faction.color_hex} icon_url={faction.icon_url} faction_id={faction.faction_id} size="md" className="text-sm" />}
+              {data.price_avg != null && (
+                <span className="text-sm ml-2 flex items-center gap-1.5 text-muted-foreground">
+                  <span>Base Chassis:</span>
+                  <Currency value={data.price_avg} />
+                </span>
+              )}
             </div>
             <div className="mt-4">
               <Button variant="default" size="sm" asChild className="h-9 px-4 shadow-sm">
@@ -131,6 +153,7 @@ export function ShipDetailPanel({ shipId, factions }: { shipId: string; factions
         <div className="border-b border-border/40 pb-px mt-2 px-6">
           <TabsList className="bg-transparent border-none p-0 h-auto space-x-6 w-full justify-start">
             <TabsTrigger value="stats" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-1 pb-3 pt-2 font-medium text-muted-foreground data-[state=active]:text-foreground transition-colors hover:text-foreground">Stats</TabsTrigger>
+            <TabsTrigger value="build" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-1 pb-3 pt-2 font-medium text-muted-foreground data-[state=active]:text-foreground transition-colors hover:text-foreground">Build</TabsTrigger>
             {data.drop_list_id && <TabsTrigger value="drops" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-1 pb-3 pt-2 font-medium text-muted-foreground data-[state=active]:text-foreground transition-colors hover:text-foreground">Drops</TabsTrigger>}
             {data.description && <TabsTrigger value="description" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-1 pb-3 pt-2 font-medium text-muted-foreground data-[state=active]:text-foreground transition-colors hover:text-foreground">Description</TabsTrigger>}
           </TabsList>
@@ -226,6 +249,46 @@ export function ShipDetailPanel({ shipId, factions }: { shipId: string; factions
               <div className="flex justify-between w-48"><span className="text-muted-foreground uppercase">Flares</span><span className="font-semibold text-foreground">{data.countermeasure_storage ?? 0}</span></div>
               {data.launch_tubes > 0 && <div className="flex justify-between w-48"><span className="text-muted-foreground uppercase">Launch Tubes</span><span className="font-semibold text-foreground">{data.launch_tubes}</span></div>}
             </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="build" className="pt-5 px-6 pb-6 outline-none space-y-6 flex-1 overflow-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="rounded-lg border border-border/50 bg-muted/5 px-4 py-3 flex flex-col justify-center">
+              <span className="text-xs text-muted-foreground uppercase tracking-wider mb-2">Blueprint Status</span>
+              {data.has_blueprint ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-emerald-400">✓</span>
+                  <span className="text-sm text-muted-foreground">Blueprint Owned</span>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {hasRestriction ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground w-16">Licence:</span>
+                      <span
+                        className={cn(
+                          "text-xs px-2 py-0.5 rounded border inline-flex",
+                          hasLicence
+                            ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                            : "bg-red-500/10 text-red-400 border-red-500/20"
+                        )}
+                        title={hasLicence ? "Licence owned" : "Licence locked"}
+                      >
+                        {formatLicence(lic)}
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-sm text-muted-foreground">No licence required</span>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <div>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Required Resources</p>
+            <ProductionChain wareId={data.ship_id.replace('_macro', '')} mode="recipe" />
           </div>
         </TabsContent>
 

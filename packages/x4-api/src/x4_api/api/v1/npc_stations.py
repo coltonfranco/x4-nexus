@@ -43,4 +43,4 @@ def get_npc_station(
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
 ) -> NpcStationDetail:
     """Deprecated: seed database removed. Use /map/stations for live station data."""
-    raise HTTPException(status_code=404, detail=f"Seed database removed — use /map/stations")
+    raise HTTPException(status_code=404, detail="Seed database removed — use /map/stations")

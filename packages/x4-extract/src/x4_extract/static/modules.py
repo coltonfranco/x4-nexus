@@ -103,6 +103,11 @@ def _parse_module(
     autoaim_el = macro_el.find("properties/autoaim")
 
     produces_ware_id = prod_el.get("ware") if prod_el is not None else None
+    if produces_ware_id is None:
+        if macro_name == "proc_gen_scrapworks_macro":
+            produces_ware_id = "scrapmetal"
+        elif macro_name == "proc_gen_scrapworkskhaak_macro":
+            produces_ware_id = "khaakscrapmetal"
 
     # Cargo (for storage modules)
     storage_capacity = None

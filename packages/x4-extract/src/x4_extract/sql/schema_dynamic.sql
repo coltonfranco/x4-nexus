@@ -132,15 +132,22 @@ CREATE TABLE IF NOT EXISTS station_build_plan (
 -- Scalars derived during extraction; the per-module detail lives in station_modules /
 -- station_build_plan. `workforce_*` are live (current headcount + productivity bonus);
 -- `account_amount` is the station's own credits (player stations only).
+-- `account_min`/`account_max` are the station manager's operating budget thresholds
+-- (from <account min=… max=…>); NULL when the station has no account element.
 CREATE TABLE IF NOT EXISTS station_overview (
     station_id           TEXT PRIMARY KEY,
     module_count         INTEGER,   -- realized/in-progress modules (station_modules)
     planned_module_count INTEGER,   -- full plan from in-progress build task (NULL if not building)
     account_amount       INTEGER,   -- station's own credits
+    account_min          INTEGER,   -- operating budget lower threshold
+    account_max          INTEGER,   -- operating budget upper threshold (manager target)
     workforce_current    INTEGER,   -- live workforce headcount (summed across races)
     workforce_bonus      REAL,      -- workforce productivity bonus (~0..1)
     production_product    TEXT       -- current production originalproduct
 );
+-- Migration for DBs created before account_min/account_max were added
+-- is handled in Python (db.py, after the schema script runs) because
+-- ALTER TABLE ADD COLUMN IF NOT EXISTS is not universally available.
 
 CREATE TABLE IF NOT EXISTS station_offers (
     station_id     TEXT NOT NULL,
@@ -244,6 +251,11 @@ CREATE TABLE IF NOT EXISTS player_licences (
     licence_type TEXT NOT NULL,
     faction_id   TEXT NOT NULL,
     PRIMARY KEY (licence_type, faction_id)
+);
+
+CREATE TABLE IF NOT EXISTS player_inventory (
+    ware_id TEXT PRIMARY KEY,
+    amount  INTEGER NOT NULL
 );
 
 -- Player + NPC ship instances (the live fleet). `macro` joins s.ships for catalog stats.
@@ -441,3 +453,53 @@ CREATE TABLE IF NOT EXISTS ship_cargo (
     amount  INTEGER NOT NULL,
     PRIMARY KEY (ship_id, ware_id)
 );
+
+-- Player P&L from <savegame>/<economylog>. Each <log> is one economic *event* under an
+-- <entries type=...> group; we keep only the small, player-relevant `money` and `trade`
+-- groups (the `cargo`/`tradeoffer` firehose — ~2.1M rows / ~200 MB — is out of scope).
+--
+-- APPEND-ONLY: unlike every other dynamic table these are never DELETEd on a tier rewrite.
+-- The owning EconomyLogCollector returns () from tables() and flushes with INSERT OR IGNORE,
+-- so re-ingesting the same save (or a rotated successor) accumulates rather than clobbers.
+-- Owner/buyer/seller are `[0x..]` component ids that join to stations.station_id /
+-- ships.ship_id; ids that resolve to neither are empire/faction-level accounts (e.g. the
+-- player faction's aggregate net worth).
+
+-- Matched transactions: who bought what from whom, at what price/quantity.
+CREATE TABLE IF NOT EXISTS economy_trade (
+    time   REAL NOT NULL,   -- in-game seconds (high precision ⇒ effectively unique per trade)
+    ware   TEXT,
+    buyer  TEXT,            -- component id of the buying entity
+    seller TEXT,            -- component id of the selling entity
+    price  INTEGER,         -- unit price in credits
+    v      INTEGER,         -- quantity traded
+    b INTEGER, bmax INTEGER, s INTEGER, smax INTEGER,  -- buyer/seller cargo context at trade
+    extra_json TEXT
+);
+-- Dedup key for the append-only INSERT OR IGNORE. COALESCE is required: SQLite treats NULLs
+-- as DISTINCT in a UNIQUE index, so a bare unique would let rows with a NULL key column
+-- (e.g. seller) re-insert on every overlapping rolling-window re-ingest.
+CREATE UNIQUE INDEX IF NOT EXISTS ux_economy_trade ON economy_trade(
+    time, COALESCE(buyer,''), COALESCE(seller,''), COALESCE(ware,''),
+    COALESCE(price,-1), COALESCE(v,-1)
+);
+CREATE INDEX IF NOT EXISTS idx_economy_trade_ware   ON economy_trade(ware);
+CREATE INDEX IF NOT EXISTS idx_economy_trade_buyer  ON economy_trade(buyer);
+CREATE INDEX IF NOT EXISTS idx_economy_trade_seller ON economy_trade(seller);
+
+-- Per-account money events: balance/net-worth trajectory per player station/ship/empire.
+-- `type` is the reason (trade/transfer/orderqueue_*/NULL baseline); v/v2 are money values
+-- (interpretation — running balance vs delta — resolved in the API layer).
+CREATE TABLE IF NOT EXISTS economy_money (
+    owner   TEXT NOT NULL,  -- component id whose account this is
+    time    REAL NOT NULL,  -- in-game seconds
+    type    TEXT,           -- event reason; NULL for bucket baseline rows
+    v       INTEGER,
+    v2      INTEGER,
+    partner TEXT,           -- counterparty component id (for trade/transfer events)
+    extra_json TEXT
+);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_economy_money ON economy_money(
+    owner, time, COALESCE(type,''), COALESCE(v,-1), COALESCE(v2,-1), COALESCE(partner,'')
+);
+CREATE INDEX IF NOT EXISTS idx_economy_money_owner ON economy_money(owner);

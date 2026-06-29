@@ -120,7 +120,8 @@ def profile_save(path: Path | None = typer.Argument(None)) -> None:
     iterparse, visitor dispatch, and flush, with a cProfile breakdown of the dispatch.
     """
     from x4_extract.config import latest_save, resolve_save_path
-    from x4_extract.dynamic.profile import format_report, profile_save as run_profile
+    from x4_extract.dynamic.profile import format_report
+    from x4_extract.dynamic.profile import profile_save as run_profile
 
     settings = _load_settings()
     save = path or latest_save(resolve_save_path(settings.save_path))

@@ -3,7 +3,7 @@ import { Boxes, PackageOpen } from "lucide-react";
 import { cn } from "../../lib/utils";
 
 const TABS = [
-  { to: "/inventory", label: "Catalog", icon: Boxes, exact: true },
+  { to: "/inventory/catalog", label: "Catalog", icon: Boxes, exact: false },
   { to: "/inventory/drops", label: "Drop Tables", icon: PackageOpen, exact: false },
 ] as const;
 

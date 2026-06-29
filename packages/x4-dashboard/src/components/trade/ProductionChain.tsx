@@ -1,8 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, Rocket, Shield, Crosshair, Box, Activity, Wind, Radio, Sparkles, Bomb, Bot, Wrench } from "lucide-react";
 import { useState } from "react";
 import { fmtSeconds, prettyId } from "../../lib/wareFormat";
-import { Badge } from "../ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { EntityIcon } from "../EntityIcon";
 
@@ -16,15 +15,40 @@ type ProductionMethod = {
   inputs: ProductionInput[];
 };
 
+type WareUse = {
+  type: string;
+  id: string;
+  name: string;
+  icon_url: string | null;
+};
+
 type WareDetail = {
   owners: string[];
   illegal_factions: string[];
   restriction_licence: string | null;
   production: ProductionMethod[];
   icon_url: string | null;
+  used_for: WareUse[];
 };
 
-function ProductionInputLine({ input, depth, parentTimeSec }: { input: ProductionInput; depth: number; parentTimeSec: number | null }) {
+function CategoryIcon({ id, className }: { id: string, className?: string }) {
+  switch (id) {
+    case "Ships": return <Rocket className={className} />;
+    case "Station Modules": return <Box className={className} />;
+    case "Shields": return <Shield className={className} />;
+    case "Engines": return <Activity className={className} />;
+    case "Thrusters": return <Wind className={className} />;
+    case "Ship Weapons": return <Crosshair className={className} />;
+    case "Deployables": return <Radio className={className} />;
+    case "Countermeasures": return <Sparkles className={className} />;
+    case "Missiles": return <Bomb className={className} />;
+    case "Drones": return <Bot className={className} />;
+    case "Equipment Mods": return <Wrench className={className} />;
+    default: return <Box className={className} />;
+  }
+}
+
+function ProductionInputLine({ input, depth, parentTimeSec, parentAmount, mode = "throughput" }: { input: ProductionInput; depth: number; parentTimeSec: number | null; parentAmount: number | null; mode?: "throughput" | "recipe" }) {
   const [expanded, setExpanded] = useState(false);
   const { data: detail, isLoading } = useQuery<WareDetail>({
     queryKey: ["wares", input.ware_id],
@@ -56,10 +80,14 @@ function ProductionInputLine({ input, depth, parentTimeSec }: { input: Productio
           )}
           <div>
             <div className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">{prettyId(input.ware_id)}</div>
-            <div className="text-xs text-muted-foreground">{input.amount.toLocaleString()} × per cycle</div>
+            {mode === "throughput" ? (
+              <div className="text-xs text-muted-foreground">{input.amount.toLocaleString()} × per cycle</div>
+            ) : (
+              <div className="text-xs text-muted-foreground">Qty: {parentAmount ? (input.amount / parentAmount).toLocaleString(undefined, { maximumFractionDigits: 2 }) : input.amount.toLocaleString()}</div>
+            )}
           </div>
         </div>
-        {parentTimeSec != null && (
+        {parentTimeSec != null && mode === "throughput" && (
           <div className="text-right shrink-0">
             <div className="text-sm font-mono font-semibold text-foreground">
               {Math.round((input.amount / parentTimeSec) * 3600).toLocaleString()} / hr
@@ -71,7 +99,7 @@ function ProductionInputLine({ input, depth, parentTimeSec }: { input: Productio
         detail?.production?.slice(0, 1).map((method) => (
           <div key={method.method} className="ml-3 mt-2 border-l border-border/50 pl-3">
             {method.inputs.map((inp) => (
-              <ProductionInputLine key={inp.ware_id} input={inp} depth={depth + 1} parentTimeSec={method.time_sec} />
+              <ProductionInputLine key={inp.ware_id} input={inp} depth={depth + 1} parentTimeSec={method.time_sec} parentAmount={method.amount} mode={mode} />
             ))}
           </div>
         ))}
@@ -81,7 +109,7 @@ function ProductionInputLine({ input, depth, parentTimeSec }: { input: Productio
 
 /** Production-method explorer for a ware: cycle time, output, workforce, and a
  *  recursively expandable input tree. Shared by the trade and inventory pages. */
-export function ProductionChain({ wareId, filterMethod }: { wareId: string; filterMethod?: string }) {
+export function ProductionChain({ wareId, filterMethod, mode = "throughput" }: { wareId: string; filterMethod?: string; mode?: "throughput" | "recipe" }) {
   const { data, isLoading } = useQuery<WareDetail>({
     queryKey: ["wares", wareId],
     queryFn: () => fetch(`/api/v1/wares/${wareId}`).then((r) => r.json()),
@@ -107,7 +135,7 @@ export function ProductionChain({ wareId, filterMethod }: { wareId: string; filt
           {method.inputs.length > 0 ? (
             <div className="space-y-1">
               {method.inputs.map((inp) => (
-                <ProductionInputLine key={inp.ware_id} input={inp} depth={0} parentTimeSec={method.time_sec} />
+                <ProductionInputLine key={inp.ware_id} input={inp} depth={0} parentTimeSec={method.time_sec} parentAmount={method.amount} mode={mode} />
               ))}
             </div>
           ) : (
@@ -129,18 +157,24 @@ export function ProductionChain({ wareId, filterMethod }: { wareId: string; filt
                 {data.icon_url && <EntityIcon src={data.icon_url} alt={wareId} size={24} className="shrink-0" />}
                 <div className="text-sm font-semibold">{prettyId(wareId)}</div>
               </div>
-              {method.time_sec != null && method.amount != null ? (
-                <div className="mt-1 text-xs text-muted-foreground">
-                  {method.amount.toLocaleString()} × per cycle <span className="opacity-60">({fmtSeconds(method.time_sec)})</span>
-                </div>
+              {mode === "throughput" ? (
+                method.time_sec != null && method.amount != null ? (
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {method.amount.toLocaleString()} × per cycle <span className="opacity-60">({fmtSeconds(method.time_sec)})</span>
+                  </div>
+                ) : (
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {method.amount != null ? `${method.amount.toLocaleString()} × per cycle` : "Unknown amount"} 
+                    {method.time_sec != null ? ` (${fmtSeconds(method.time_sec)})` : ""}
+                  </div>
+                )
               ) : (
                 <div className="mt-1 text-xs text-muted-foreground">
-                  {method.amount != null ? `${method.amount.toLocaleString()} × per cycle` : "Unknown amount"} 
-                  {method.time_sec != null ? ` (${fmtSeconds(method.time_sec)})` : ""}
+                  Qty: 1
                 </div>
               )}
             </div>
-            {method.time_sec != null && method.amount != null && (
+            {mode === "throughput" && method.time_sec != null && method.amount != null && (
               <div className="text-right shrink-0">
                 <div className="text-sm font-mono font-semibold">
                   {Math.round((method.amount / method.time_sec) * 3600).toLocaleString()} / hr
@@ -155,6 +189,26 @@ export function ProductionChain({ wareId, filterMethod }: { wareId: string; filt
           )}
         </div>
       </div>
+
+      {data.used_for && data.used_for.length > 0 && (
+        <div className="rounded-lg border border-border/50 bg-muted/5 p-4 mt-4">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Used For</p>
+          <div className="flex flex-wrap gap-2">
+            {data.used_for.map((use) => (
+              <span key={`${use.type}-${use.id}`} className="inline-flex items-center gap-1.5 px-2 py-1 rounded text-sm font-medium border bg-background border-border/50 text-foreground">
+                {use.type === "category" ? (
+                  <CategoryIcon id={use.id} className="w-4 h-4 text-muted-foreground" />
+                ) : use.icon_url ? (
+                  <EntityIcon src={use.icon_url} alt={use.name} size={16} className="opacity-80 shrink-0" />
+                ) : (
+                  <div className="w-4 h-4 shrink-0" />
+                )}
+                {use.name}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 

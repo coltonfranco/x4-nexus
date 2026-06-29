@@ -454,10 +454,13 @@ export default function MapPage() {
               connections={connectionsBySector.get(sid) ?? []}
               zoneCount={zoneCountBySector.get(sid) ?? 0}
               stationCategories={catList}
-              forces={forceEntry?.factions.map((f) => ({
+              forces={forceEntry?.factions.map((f: any) => ({
                 factionId: f.faction_id,
                 factionName: f.faction_name,
                 fighterCount: f.fighter_count,
+                minerCount: f.miner_count,
+                traderCount: f.trader_count,
+                otherCount: f.other_count,
               })) ?? null}
               conflict={conflictEntry ? {
                 type: conflictEntry.type,

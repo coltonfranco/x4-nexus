@@ -159,6 +159,8 @@ class StationsCollector:
     workforce_bonus: dict[str, float] = field(default_factory=dict)
     production_product: dict[str, str] = field(default_factory=dict)
     account_amount: dict[str, int] = field(default_factory=dict)
+    account_min: dict[str, int] = field(default_factory=dict)
+    account_max: dict[str, int] = field(default_factory=dict)
 
     def register(self) -> list[Registration]:
         return [
@@ -335,9 +337,17 @@ class StationsCollector:
 
     def _on_account(self, elem: etree._Element) -> None:
         sid = self._station_id_via_parent(elem, "component")
+        if not sid:
+            return
         amount = _i(elem.get("amount"))
-        if sid and amount is not None:
+        if amount is not None:
             self.account_amount[sid] = amount
+        amin = _i(elem.get("min"))
+        if amin is not None:
+            self.account_min[sid] = amin
+        amax = _i(elem.get("max"))
+        if amax is not None:
+            self.account_max[sid] = amax
 
     def _on_buildtasks(self, elem: etree._Element) -> None:
         sid = self._station_id_via_parent(elem, "component")
@@ -501,6 +511,8 @@ class StationsCollector:
                     "module_count": sum(current.values()),
                     "planned_module_count": sum(planned.values()) if planned else None,
                     "account_amount": self.account_amount.get(sid),
+                    "account_min": self.account_min.get(sid),
+                    "account_max": self.account_max.get(sid),
                     "workforce_current": self.workforce_current.get(sid),
                     "workforce_bonus": self.workforce_bonus.get(sid),
                     "production_product": self.production_product.get(sid),
@@ -615,9 +627,9 @@ class StationsCollector:
             conn.executemany(
                 "INSERT OR REPLACE INTO station_overview "
                 "(station_id, module_count, planned_module_count, account_amount, "
-                " workforce_current, workforce_bonus, production_product) "
+                " account_min, account_max, workforce_current, workforce_bonus, production_product) "
                 "VALUES (:station_id, :module_count, :planned_module_count, :account_amount, "
-                " :workforce_current, :workforce_bonus, :production_product)",
+                " :account_min, :account_max, :workforce_current, :workforce_bonus, :production_product)",
                 self._overview_rows(),
             )
             conn.executemany(

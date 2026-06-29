@@ -52,6 +52,7 @@ export type AnalysisOverlay = {
   navDest: [number, number] | null;
   resourceSource: ResourceSource | null;
   isLoading: boolean;
+  displayForcesMode: "fighters" | "miners" | "traders" | null;
 };
 
 function alpha(o: number): string {
@@ -109,7 +110,7 @@ export function useAnalysisOverlay({
   const relations = usePlayerRelations(relationsOn || fillMode === "conflict");
   const conflicts = useConflictData(true); // always pre-warm
   const tensions = useTensionData(fillMode === "conflict");
-  const forces = useSectorForces(fillMode === "conflict");
+  const forces = useSectorForces(fillMode === "conflict" || fillMode === "resources" || fillMode === "trade" || wareOn);
   const offers = useWareOffers(wareOn ? wareId : null);
   const routes = useTopRoutes(tradeRoutesOn);
 
@@ -153,6 +154,18 @@ export function useAnalysisOverlay({
 
   // ── Fill overlay ──
   const fill = useMemo(() => {
+    const sectorForces = new Map<string, SectorForceEntry>();
+    if (fillMode === "conflict" || fillMode === "resources" || fillMode === "trade" || wareOn) {
+      (forces.data ?? []).forEach((f) => {
+        sectorForces.set(f.sector_id.toLowerCase(), f);
+      });
+    }
+    
+    let displayForcesMode: "fighters" | "miners" | "traders" | null = null;
+    if (fillMode === "conflict") displayForcesMode = "fighters";
+    else if (fillMode === "resources") displayForcesMode = "miners";
+    else if (fillMode === "trade" || wareOn) displayForcesMode = "traders";
+
     const empty = {
       tint: null as Map<string, SectorTint> | null,
       badges: new Map<string, string>(),
@@ -164,11 +177,12 @@ export function useAnalysisOverlay({
       sectorTooltips: new Map(),
       sectorConflicts: new Map(),
       borderTensions: new Map(),
-      sectorForces: new Map(),
+      sectorForces,
       sectorResources: new Map(),
       sectorSunlight: new Map(),
       sectorWarePrices: new Map(),
       alternateDots: new Map(),
+      displayForcesMode,
     };
 
     if (fillMode === "relations") {
@@ -210,7 +224,6 @@ export function useAnalysisOverlay({
       const tint = new Map<string, SectorTint>();
       const sectorConflicts = new Map<string, ConflictEntry>();
       const borderTensions = new Map<string, BorderTensionEntry>();
-      const sectorForces = new Map<string, SectorForceEntry>();
       const dots = new Map<string, string[]>();
 
       const toggles = conflictToggles ?? { showConflicts: true, showTensions: true, showDanger: true, showPlayer: true };
@@ -218,8 +231,6 @@ export function useAnalysisOverlay({
       const forceData = forces.data ?? [];
       forceData.forEach((f) => {
         const sid = f.sector_id.toLowerCase();
-        sectorForces.set(sid, f);
-
         if (toggles.showPlayer) {
           const playerForce = f.factions.find((fac) => fac.faction_id === "player");
           if (playerForce && playerForce.fighter_count > 0) {
@@ -328,7 +339,7 @@ export function useAnalysisOverlay({
         });
       }
 
-      return { ...empty, tint, sectorConflicts, borderTensions, sectorForces, dots, dim: true, loading: false };
+      return { ...empty, tint, sectorConflicts, borderTensions, dots, dim: true, loading: false };
     }
 
 
@@ -535,5 +546,6 @@ export function useAnalysisOverlay({
     navDest: nav.navDest,
     resourceSource: fill.source,
     isLoading: fill.loading || (tradeRoutesOn && routes.isLoading),
+    displayForcesMode: fill.displayForcesMode,
   }), [fill, routeData, routeMarkers, nav, tradeRoutesOn, routes.isLoading]);
 }

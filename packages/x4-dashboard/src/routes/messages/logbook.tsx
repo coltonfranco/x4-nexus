@@ -1,9 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { BookOpen, Search, X, MessageCircle, Info, Star, Newspaper, Wrench, ChevronDown } from "lucide-react";
-import { PageLoaderPreset } from "../components/PageLoader";
-import { Currency } from "../components/Currency";
-import { cn } from "../lib/utils";
+import { PageLoaderPreset } from "../../components/PageLoader";
+import { Currency } from "../../components/Currency";
+import { cn } from "../../lib/utils";
 
 type LogEntry = {
   id: number;

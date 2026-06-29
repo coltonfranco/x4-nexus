@@ -37,6 +37,7 @@ class PlayerCollector:
     _current_ship: str | None = None
     blueprints: set[str] = field(default_factory=set)
     licences: set[tuple[str, str]] = field(default_factory=set)  # (licence_type, granting faction)
+    inventory: dict[str, int] = field(default_factory=dict)
 
     def register(self) -> list[Registration]:
         return [
@@ -44,6 +45,7 @@ class PlayerCollector:
             Registration(Target(tag="account", depth=_ACCOUNT_DEPTH, parent_tag="faction"), self._on_account),
             Registration(Target(tag="blueprint", depth=None, parent_tag="blueprints"), self._on_blueprint),
             Registration(Target(tag="licence", depth=_LICENCE_DEPTH, parent_tag="licences"), self._on_licence),
+            Registration(Target(tag="ware", depth=None, parent_tag="inventory"), self._on_inventory_ware),
         ]
 
     def _on_player(self, elem: etree._Element) -> None:
@@ -85,6 +87,17 @@ class PlayerCollector:
         for granter in (elem.get("factions") or "").split():
             self.licences.add((licence_type, granter))
 
+    def _on_inventory_ware(self, elem: etree._Element) -> None:
+        ware_id = elem.get("ware")
+        if not ware_id:
+            return
+        inv = elem.getparent()
+        comp = inv.getparent() if inv is not None else None
+        if comp is None or comp.get("class") != "player":
+            return
+        amount = elem.get("amount")
+        self.inventory[ware_id] = int(amount) if amount else 1
+
     def _player_row(self) -> dict[str, object] | None:
         if not self._char and self._credits is None and self._current_ship is None:
             return None
@@ -117,7 +130,7 @@ class PlayerCollector:
     # --- tiered contract -------------------------------------------------------
     def tables(self, tier: Tier) -> tuple[str, ...]:
         if tier is Tier.VOLATILE:
-            return ("player", "player_blueprints", "player_licences")
+            return ("player", "player_blueprints", "player_licences", "player_inventory")
         return ()
 
     def fingerprint(self, tier: Tier) -> str:
@@ -128,6 +141,7 @@ class PlayerCollector:
                 {"player": self._player_row()},
                 {"blueprints": sorted(self.blueprints)},
                 {"licences": sorted(self.licences)},
+                {"inventory": sorted(self.inventory.items())},
             ]
         )
 
@@ -153,4 +167,8 @@ class PlayerCollector:
         conn.executemany(
             "INSERT OR REPLACE INTO player_licences (licence_type, faction_id) VALUES (?, ?)",
             sorted(self.licences),
+        )
+        conn.executemany(
+            "INSERT OR REPLACE INTO player_inventory (ware_id, amount) VALUES (?, ?)",
+            [(w, a) for w, a in self.inventory.items()],
         )

@@ -21,6 +21,12 @@ dev = [
     "httpx2",
     "lxml-stubs>=0.5.1",
 ]
+# Sidecar packaging — kept out of the default dev install (heavy, only needed for
+# release builds). Use it via:  uv sync --group packaging  then
+#   uv run pyinstaller packages/x4-api/x4c-server.spec
+packaging = [
+    "pyinstaller>=6.11",
+]
 
 [tool.ruff]
 line-length = 100

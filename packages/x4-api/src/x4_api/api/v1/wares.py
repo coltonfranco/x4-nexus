@@ -18,7 +18,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from x4_api.api.deps import get_db
-from x4_api.api.icons import get_icon_url, get_ware_icon_url
+from x4_api.api.icons import get_ware_icon_url
 from x4_api.api.schemas import PublicModel
 from x4_api.domain.ware_class import CATEGORIES, CATEGORY_SQL
 
@@ -79,13 +79,22 @@ class ProductionMethod(PublicModel):
     inputs: list[ProductionInput]
 
 
+class WareUse(PublicModel):
+    type: str
+    id: str
+    name: str
+    icon_url: str | None = None
+
+
 class WareDetail(WareSummary):
     storage_class: str | None
     restriction_licence: str | None = None
     use_threshold: float | None = None
     owners: list[str]
     illegal_factions: list[str]
+    used_for: list[WareUse]
     production: list[ProductionMethod]
+    exclusive_race: str | None = None
 
 
 # ── Live price enrichment (from dynamic station_offers, when available) ─────────
@@ -241,6 +250,13 @@ def get_ware(
         "SELECT faction_id FROM s.ware_owners WHERE ware_id = :id ORDER BY faction_id",
         {"id": ware_id},
     ).fetchall()
+
+    unique_races = conn.execute(
+        "SELECT DISTINCT makerrace FROM s.modules WHERE produces_ware_id = :id AND kind IN ('production', 'processingmodule') AND makerrace IS NOT NULL",
+        {"id": ware_id},
+    ).fetchall()
+    exclusive_race = unique_races[0]["makerrace"] if len(unique_races) == 1 else None
+
     illegal_rows = conn.execute(
         "SELECT faction_id FROM s.ware_illegal WHERE ware_id = :id ORDER BY faction_id",
         {"id": ware_id},
@@ -253,6 +269,24 @@ def get_ware(
         "SELECT method, input_ware_id, amount FROM s.ware_inputs WHERE ware_id = :id",
         {"id": ware_id},
     ).fetchall()
+    used_for_rows = conn.execute(
+        '''
+        SELECT u.use_type, u.use_value, w.name, w.icon_path, w.tags
+        FROM s.ware_uses u
+        LEFT JOIN s.wares w ON u.use_type = 'ware' AND u.use_value = w.ware_id
+        WHERE u.ware_id = :id
+        ORDER BY u.use_type ASC, u.use_value ASC
+        ''',
+        {"id": ware_id},
+    ).fetchall()
+
+    used_for_list = []
+    for r in used_for_rows:
+        if r["use_type"] == "category":
+            used_for_list.append(WareUse(type="category", id=r["use_value"], name=r["use_value"]))
+        else:
+            icon = get_ware_icon_url(r["use_value"], r["icon_path"], r["tags"]) if r["icon_path"] else None
+            used_for_list.append(WareUse(type="ware", id=r["use_value"], name=r["name"], icon_url=icon))
 
     inputs_by_method: dict[str, list[ProductionInput]] = {}
     for ir in input_rows:
@@ -284,6 +318,7 @@ def get_ware(
         use_threshold=row["use_threshold"],
         owners=[r["faction_id"] for r in owner_rows],
         illegal_factions=[r["faction_id"] for r in illegal_rows],
+        used_for=used_for_list,
         icon_url=get_ware_icon_url(row["ware_id"], row["icon_path"], row["tags"]),
         sortorder=row["sortorder"],
         dismantlefactor=row["dismantlefactor"],
@@ -291,6 +326,7 @@ def get_ware(
         has_production=bool(row["has_production"]),
         has_drops=bool(row["has_drops"]),
         tier=row["tier"],
+        exclusive_race=exclusive_race,
         production=[
             ProductionMethod(
                 method=pr["method"],

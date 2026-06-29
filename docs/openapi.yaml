@@ -3127,6 +3127,188 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/economy/accounts:
+    get:
+      tags:
+      - economy
+      summary: List Accounts
+      description: "Tracked money accounts with their latest net worth \u2014 feeds\
+        \ the net-worth picker."
+      operationId: list_accounts_api_v1_economy_accounts_get
+      parameters:
+      - name: player_only
+        in: query
+        required: false
+        schema:
+          type: boolean
+          description: Only accounts resolving to player assets
+          default: false
+          title: Player Only
+        description: Only accounts resolving to player assets
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AccountRow'
+                title: Response List Accounts Api V1 Economy Accounts Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/economy/networth:
+    get:
+      tags:
+      - economy
+      summary: Net Worth Series
+      description: Net-worth-over-time samples for charting (the in-game player overview
+        curve).
+      operationId: net_worth_series_api_v1_economy_networth_get
+      parameters:
+      - name: owner
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Pin one account; omit for all player accounts
+          title: Owner
+        description: Pin one account; omit for all player accounts
+      - name: player_only
+        in: query
+        required: false
+        schema:
+          type: boolean
+          description: Restrict to player accounts (ignored when owner set)
+          default: true
+          title: Player Only
+        description: Restrict to player accounts (ignored when owner set)
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/NetWorthPointRow'
+                title: Response Net Worth Series Api V1 Economy Networth Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/v1/economy/networth/current:
+    get:
+      tags:
+      - economy
+      summary: Net Worth Breakdown
+      description: Exact breakdown of the player's current net worth matching the
+        game UI.
+      operationId: net_worth_breakdown_api_v1_economy_networth_current_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NetWorthBreakdownRow'
+  /api/v1/economy/pnl:
+    get:
+      tags:
+      - economy
+      summary: Ware Pnl
+      description: Per-commodity profit/loss from the player's transactions, most
+        profitable first.
+      operationId: ware_pnl_api_v1_economy_pnl_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/WarePnlRow'
+                type: array
+                title: Response Ware Pnl Api V1 Economy Pnl Get
+  /api/v1/economy/trades:
+    get:
+      tags:
+      - economy
+      summary: List Trades
+      description: "Transaction ledger, most recent first \u2014 where credits are\
+        \ earned and spent."
+      operationId: list_trades_api_v1_economy_trades_get
+      parameters:
+      - name: ware
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filter to one ware_id
+          title: Ware
+        description: Filter to one ware_id
+      - name: owner
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Trades where this id is buyer or seller
+          title: Owner
+        description: Trades where this id is buyer or seller
+      - name: player_only
+        in: query
+        required: false
+        schema:
+          type: boolean
+          description: Only trades a player asset is party to
+          default: false
+          title: Player Only
+        description: Only trades a player asset is party to
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 2000
+          minimum: 1
+          default: 500
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TradeRow'
+                title: Response List Trades Api V1 Economy Trades Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/v1/economy/production-chain:
     get:
       tags:
@@ -3296,6 +3478,82 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
+    AccountRow:
+      properties:
+        owner:
+          type: string
+          title: Owner
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+        kind:
+          type: string
+          title: Kind
+        faction:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Faction
+        is_player:
+          type: boolean
+          title: Is Player
+        net_worth:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Net Worth
+        net_worth_assets:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Net Worth Assets
+        live_cash:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Live Cash
+        account_amount:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Account Amount
+        account_min:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Account Min
+        account_max:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Account Max
+        latest_time:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Latest Time
+        event_count:
+          type: integer
+          title: Event Count
+      additionalProperties: false
+      type: object
+      required:
+      - owner
+      - name
+      - kind
+      - faction
+      - is_player
+      - net_worth
+      - net_worth_assets
+      - live_cash
+      - account_amount
+      - account_min
+      - account_max
+      - latest_time
+      - event_count
+      title: AccountRow
     AgentRank:
       properties:
         min_value:
@@ -3916,6 +4174,18 @@ components:
         fighter_count:
           type: integer
           title: Fighter Count
+        miner_count:
+          type: integer
+          title: Miner Count
+          default: 0
+        trader_count:
+          type: integer
+          title: Trader Count
+          default: 0
+        other_count:
+          type: integer
+          title: Other Count
+          default: 0
       additionalProperties: false
       type: object
       required:
@@ -3933,6 +4203,18 @@ components:
         fighter_count:
           type: integer
           title: Fighter Count
+        miner_count:
+          type: integer
+          title: Miner Count
+          default: 0
+        trader_count:
+          type: integer
+          title: Trader Count
+          default: 0
+        other_count:
+          type: integer
+          title: Other Count
+          default: 0
       additionalProperties: false
       type: object
       required:
@@ -6666,6 +6948,122 @@ components:
       - location_ship_id
       - location_station_id
       title: NPCEntry
+    NetWorthBreakdownRow:
+      properties:
+        cash:
+          type: integer
+          title: Cash
+        station_accounts:
+          type: integer
+          title: Station Accounts
+        ship_hulls:
+          type: integer
+          title: Ship Hulls
+        ship_equipment:
+          type: integer
+          title: Ship Equipment
+        station_modules:
+          type: integer
+          title: Station Modules
+        inventory:
+          type: integer
+          title: Inventory
+        total:
+          type: integer
+          title: Total
+      additionalProperties: false
+      type: object
+      required:
+      - cash
+      - station_accounts
+      - ship_hulls
+      - ship_equipment
+      - station_modules
+      - inventory
+      - total
+      title: NetWorthBreakdownRow
+    NetWorthPointRow:
+      properties:
+        owner:
+          type: string
+          title: Owner
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+        is_player:
+          type: boolean
+          title: Is Player
+        time:
+          type: number
+          title: Time
+        v:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: V
+        v2:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: V2
+        type:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Type
+        delta:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Delta
+        partner:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Partner
+        partner_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Partner Name
+        partner_faction:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Partner Faction
+        partner_faction_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Partner Faction Name
+        partner_kind:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Partner Kind
+        partner_is_player:
+          type: boolean
+          title: Partner Is Player
+      additionalProperties: false
+      type: object
+      required:
+      - owner
+      - name
+      - is_player
+      - time
+      - v
+      - v2
+      - type
+      - delta
+      - partner
+      - partner_name
+      - partner_faction
+      - partner_faction_name
+      - partner_kind
+      - partner_is_player
+      title: NetWorthPointRow
     NpcStationDetail:
       properties:
         station_id:
@@ -7735,6 +8133,18 @@ components:
         fighter_count:
           type: integer
           title: Fighter Count
+        miner_count:
+          type: integer
+          title: Miner Count
+          default: 0
+        trader_count:
+          type: integer
+          title: Trader Count
+          default: 0
+        other_count:
+          type: integer
+          title: Other Count
+          default: 0
         factions:
           items:
             $ref: '#/components/schemas/ConflictFaction'
@@ -9221,6 +9631,72 @@ components:
       - icon
       - default_val
       title: TerraformStat
+    TradeRow:
+      properties:
+        time:
+          type: number
+          title: Time
+        ware:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Ware
+        ware_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Ware Name
+        price:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Price
+        quantity:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Quantity
+        buyer:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Buyer
+        buyer_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Buyer Name
+        buyer_is_player:
+          type: boolean
+          title: Buyer Is Player
+        seller:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Seller
+        seller_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Seller Name
+        seller_is_player:
+          type: boolean
+          title: Seller Is Player
+      additionalProperties: false
+      type: object
+      required:
+      - time
+      - ware
+      - ware_name
+      - price
+      - quantity
+      - buyer
+      - buyer_name
+      - buyer_is_player
+      - seller
+      - seller_name
+      - seller_is_player
+      title: TradeRow
     ValidatePathRequest:
       properties:
         kind:
@@ -9403,11 +9879,21 @@ components:
             type: string
           type: array
           title: Illegal Factions
+        used_for:
+          items:
+            $ref: '#/components/schemas/WareUse'
+          type: array
+          title: Used For
         production:
           items:
             $ref: '#/components/schemas/ProductionMethod'
           type: array
           title: Production
+        exclusive_race:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Exclusive Race
       additionalProperties: false
       type: object
       required:
@@ -9427,6 +9913,7 @@ components:
       - storage_class
       - owners
       - illegal_factions
+      - used_for
       - production
       title: WareDetail
     WareGroup:
@@ -9607,6 +10094,50 @@ components:
       - price
       - quantity
       title: WareOfferRow
+    WarePnlRow:
+      properties:
+        ware:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Ware
+        ware_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Ware Name
+        icon_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon Url
+        income:
+          type: integer
+          title: Income
+        spend:
+          type: integer
+          title: Spend
+        net:
+          type: integer
+          title: Net
+        sell_count:
+          type: integer
+          title: Sell Count
+        buy_count:
+          type: integer
+          title: Buy Count
+      additionalProperties: false
+      type: object
+      required:
+      - ware
+      - ware_name
+      - icon_url
+      - income
+      - spend
+      - net
+      - sell_count
+      - buy_count
+      title: WarePnlRow
     WareSummary:
       properties:
         ware_id:
@@ -9739,6 +10270,29 @@ components:
       - has_production
       - has_drops
       title: WareSummary
+    WareUse:
+      properties:
+        type:
+          type: string
+          title: Type
+        id:
+          type: string
+          title: Id
+        name:
+          type: string
+          title: Name
+        icon_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon Url
+      additionalProperties: false
+      type: object
+      required:
+      - type
+      - id
+      - name
+      title: WareUse
     WeaponStats:
       properties:
         class_id:

@@ -1,21 +1,21 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Users, Ship, Building2, X } from "lucide-react";
-import { PageLoaderPreset } from "../components/PageLoader";
-import { HUDCard } from "../components/HUDCard";
-import { FilterBar } from "../components/FilterBar";
-import { SearchInput } from "../components/ui/search-input";
-import { DataTable } from "../components/DataTable";
-import type { ColumnDef } from "../components/DataTable";
-import type { FactionSummary } from "../lib/map/types";
-import { useSort } from "../lib/useSort";
-import { cn } from "../lib/utils";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
-import { useColumnVisibility } from "../lib/useColumnVisibility";
-import { MultiSelect } from "../components/ui/multi-select";
-import { EntityIcon } from "../components/EntityIcon";
-import { ShipDetailPanel } from "../components/ShipDetailPanel";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
+import { PageLoaderPreset } from "../../components/PageLoader";
+import { HUDCard } from "../../components/HUDCard";
+import { FilterBar } from "../../components/FilterBar";
+import { SearchInput } from "../../components/ui/search-input";
+import { DataTable } from "../../components/DataTable";
+import type { ColumnDef } from "../../components/DataTable";
+import type { FactionSummary } from "../../lib/map/types";
+import { useSort } from "../../lib/useSort";
+import { cn } from "../../lib/utils";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select";
+import { useColumnVisibility } from "../../lib/useColumnVisibility";
+import { MultiSelect } from "../../components/ui/multi-select";
+import { EntityIcon } from "../../components/EntityIcon";
+import { ShipDetailPanel } from "../../components/ShipDetailPanel";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../components/ui/dialog";
 
 type RoleSkillWeight = {
   skill_ref: string;

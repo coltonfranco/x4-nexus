@@ -79,6 +79,13 @@ CREATE TABLE IF NOT EXISTS ware_inputs (
 );
 CREATE INDEX IF NOT EXISTS idx_ware_inputs_input ON ware_inputs(input_ware_id);
 
+CREATE TABLE IF NOT EXISTS ware_uses (
+    ware_id        TEXT NOT NULL,
+    use_type       TEXT NOT NULL,
+    use_value      TEXT NOT NULL,
+    PRIMARY KEY (ware_id, use_type, use_value)
+);
+
 CREATE TABLE IF NOT EXISTS modules (
     module_id          TEXT PRIMARY KEY,
     name               TEXT NOT NULL,

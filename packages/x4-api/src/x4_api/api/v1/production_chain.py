@@ -134,18 +134,33 @@ def production_chain(
         )
 
     # Production modules that make each ware (which station modules you'd build).
+    # Note: Some modules (like recyclers) use `wares="..."` instead of `ware="..."` in the XML,
+    # so the extractor missed them. We inject them here until the DB is rebuilt.
+    RECYCLER_MODULES = {
+        "prod_gen_scrap_recycler_macro": ["hullparts", "claytronics"],
+        "prod_ter_scrap_recycler_macro": ["computronicsubstrate", "siliconcarbide"],
+        "prod_gen_scrap_recyclerkhaak_macro": ["khaakalloy"],
+    }
+    
     modules_by_ware: dict[str, list[ProducerModule]] = {}
     for r in conn.execute(
         "SELECT module_id, name, makerrace, produces_ware_id, production_method FROM s.modules"
-        " WHERE produces_ware_id IS NOT NULL AND kind = 'production'"
+        " WHERE kind IN ('production', 'processingmodule')"
         " ORDER BY makerrace IS NOT NULL, name"
     ):
-        if r["produces_ware_id"] in node_ids:
-            modules_by_ware.setdefault(r["produces_ware_id"], []).append(
-                ProducerModule(
-                    module_id=r["module_id"], name=r["name"], makerrace=r["makerrace"], production_method=r["production_method"]
+        wares = []
+        if r["produces_ware_id"]:
+            wares.append(r["produces_ware_id"])
+        if r["module_id"] in RECYCLER_MODULES:
+            wares.extend(RECYCLER_MODULES[r["module_id"]])
+            
+        for w in wares:
+            if w in node_ids:
+                modules_by_ware.setdefault(w, []).append(
+                    ProducerModule(
+                        module_id=r["module_id"], name=r["name"], makerrace=r["makerrace"], production_method=r["production_method"]
+                    )
                 )
-            )
 
     # Live overlays.
     market = {m.ware_id: m for m in ware_market(conn)}

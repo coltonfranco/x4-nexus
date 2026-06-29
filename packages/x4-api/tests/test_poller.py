@@ -9,8 +9,8 @@ from pathlib import Path
 
 from x4_extract.config import ExtractSettings
 from x4_extract.dynamic import poller
-from x4_extract.dynamic.poller import PollResult
 from x4_extract.dynamic.pipeline import dynamic_db_path
+from x4_extract.dynamic.poller import PollResult
 
 
 def _settings(data_dir: Path, tmp_path: Path, fixtures_dir: Path) -> ExtractSettings:

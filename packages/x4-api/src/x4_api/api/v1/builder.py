@@ -9,7 +9,7 @@ on the client, so only references and layout are stored here.
 
 import sqlite3
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -79,7 +79,7 @@ class BuilderStationDetail(PublicModel):
 # --- Helpers ----------------------------------------------------------------------
 
 def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _write_children(conn: sqlite3.Connection, station_id: str, body: BuilderStationInput) -> None:

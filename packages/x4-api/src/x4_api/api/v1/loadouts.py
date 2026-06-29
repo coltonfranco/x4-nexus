@@ -5,6 +5,7 @@ import sqlite3
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
+
 from x4_api.api.deps import get_db
 from x4_api.api.schemas import PublicModel
 

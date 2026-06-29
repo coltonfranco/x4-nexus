@@ -4,7 +4,7 @@
   "version": "0.0.1",
   "identifier": "com.x4nexus.desktop",
   "build": {
-    "frontendDist": "../../x4-dashboard/dist",
+    "frontendDist": "../loader",
     "devUrl": "http://localhost:5173",
     "beforeDevCommand": "npm --prefix ../x4-dashboard run dev",
     "beforeBuildCommand": "npm --prefix ../x4-dashboard run build"
@@ -30,12 +30,30 @@
   "bundle": {
     "active": true,
     "targets": ["nsis", "msi", "deb", "appimage"],
+    "createUpdaterArtifacts": true,
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.ico",
       "icons/icon.png"
-    ]
+    ],
+    "resources": {
+      "resources/server": "server",
+      "resources/dashboard": "dashboard"
+    },
+    "linux": {
+      "deb": {
+        "depends": ["libwebkit2gtk-4.1-0", "libgtk-3-0"]
+      }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDk1OEJGRUM4MUZBRTM4MzMKUldRek9LNGZ5UDZMbGZFOGNIdG5WSkpZNG5qOEdmQ2JMMnJtMVpYcFBnU3VRNXZyLzYxeDV5cUkK",
+      "endpoints": [
+        "https://github.com/coltonfranco/x4-companion/releases/latest/download/latest.json"
+      ]
+    }
   }
 }

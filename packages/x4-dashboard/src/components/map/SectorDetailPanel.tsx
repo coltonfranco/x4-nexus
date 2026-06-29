@@ -15,7 +15,7 @@ export function SectorDetailPanel({ sector, cluster, resources, factionMap, onCl
   connections: { sectorId: string; name: string; kind: string }[];
   zoneCount: number;
   stationCategories: { category: string; count: number }[];
-  forces: { factionId: string; factionName: string; fighterCount: number }[] | null;
+  forces: { factionId: string; factionName: string; fighterCount: number; minerCount?: number; traderCount?: number; otherCount?: number }[] | null;
   conflict: { type: string; intensity: number; invaderName?: string; sectorOwnerName?: string } | null;
   playerCurrentSector: string | null;
   liveResources: { ware: string; current: number; max: number }[] | null;
@@ -53,9 +53,19 @@ export function SectorDetailPanel({ sector, cluster, resources, factionMap, onCl
     }
   }
 
-  // Forces sorted by count desc.
-  const sortedForces = forces ? [...forces].sort((a, b) => b.fighterCount - a.fighterCount) : null;
-  const totalFighters = sortedForces?.reduce((sum, f) => sum + f.fighterCount, 0) ?? 0;
+  // Forces filtered by those with at least 1 ship total.
+  const allForces = forces?.filter((f) => {
+    const total = (f.fighterCount || 0) + (f.minerCount || 0) + (f.traderCount || 0) + (f.otherCount || 0);
+    return total > 0;
+  }) ?? [];
+  const totalForces = allForces.reduce((s, f) => s + (f.fighterCount || 0) + (f.minerCount || 0) + (f.traderCount || 0) + (f.otherCount || 0), 0);
+  
+  // Sort by total ships descending
+  const sortedForces = [...allForces].sort((a, b) => {
+    const totalA = (a.fighterCount || 0) + (a.minerCount || 0) + (a.traderCount || 0) + (a.otherCount || 0);
+    const totalB = (b.fighterCount || 0) + (b.minerCount || 0) + (b.traderCount || 0) + (b.otherCount || 0);
+    return totalB - totalA;
+  });
 
   // Connections sorted by kind (gates first) then name.
   const sortedConns = [...connections].sort((a, b) => {
@@ -221,24 +231,52 @@ export function SectorDetailPanel({ sector, cluster, resources, factionMap, onCl
           </div>
         )}
 
-        {/* Forces */}
-        {sortedForces && sortedForces.length > 0 && (
+        {/* Forces Table */}
+        {sortedForces.length > 0 && totalForces > 0 && (
           <div>
             <p className="text-[10px] tracking-[1.2px] text-[#6b7890] uppercase mb-[6px]">
-              Forces ({totalFighters} fighters)
+              Ships ({totalForces})
             </p>
-            <div className="flex flex-wrap gap-[6px]">
-              {sortedForces.map((f) => {
-                const fc = factionMap.get(f.factionId);
-                const fColor = fc?.color_hex ?? "#6b7890";
-                return (
-                  <span key={f.factionId} className="px-[8px] py-[3px] rounded-[6px] text-[10px] bg-white/[0.04] border border-white/[0.06] flex items-center gap-[5px]">
-                    <span className="w-[7px] h-[7px] rounded-sm shrink-0" style={{ background: fColor }} />
-                    <span className="text-[#c4ccda]">{f.factionName}</span>
-                    <span className="tabular-nums text-[#eef3fa] font-medium">{f.fighterCount}</span>
-                  </span>
-                );
-              })}
+            <div className="w-full text-[10px] border border-white/[0.06] rounded-[6px] overflow-hidden bg-white/[0.02]">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-white/[0.06] bg-white/[0.02] text-[#6b7890]">
+                    <th className="font-medium p-[6px] pl-[8px] uppercase tracking-wider">Faction</th>
+                    <th className="font-medium p-[6px] text-center w-[40px] uppercase tracking-wider">Fig</th>
+                    <th className="font-medium p-[6px] text-center w-[40px] uppercase tracking-wider">Min</th>
+                    <th className="font-medium p-[6px] text-center w-[40px] uppercase tracking-wider">Trd</th>
+                    <th className="font-medium p-[6px] text-center w-[40px] uppercase tracking-wider">Oth</th>
+                  </tr>
+                </thead>
+                <tbody className="text-[#aeb7c8]">
+                  {sortedForces.map((f) => {
+                    const fc = factionMap.get(f.factionId);
+                    const fColor = fc?.color_hex ?? "#6b7890";
+                    return (
+                      <tr key={f.factionId} className="border-b border-white/[0.03] last:border-0 hover:bg-white/[0.04]">
+                        <td className="p-[6px] pl-[8px]">
+                          <div className="flex items-center gap-[5px]">
+                            <span className="w-[6px] h-[6px] rounded-sm shrink-0" style={{ background: fColor }} />
+                            <span className="truncate max-w-[90px]">{f.factionName}</span>
+                          </div>
+                        </td>
+                        <td className="p-[6px] text-center font-medium tabular-nums text-[#eef3fa]">
+                          {f.fighterCount > 0 ? f.fighterCount : <span className="text-[#6b7890]/50">-</span>}
+                        </td>
+                        <td className="p-[6px] text-center font-medium tabular-nums text-[#eef3fa]">
+                          {(f.minerCount ?? 0) > 0 ? f.minerCount : <span className="text-[#6b7890]/50">-</span>}
+                        </td>
+                        <td className="p-[6px] text-center font-medium tabular-nums text-[#eef3fa]">
+                          {(f.traderCount ?? 0) > 0 ? f.traderCount : <span className="text-[#6b7890]/50">-</span>}
+                        </td>
+                        <td className="p-[6px] text-center font-medium tabular-nums text-[#eef3fa]">
+                          {(f.otherCount ?? 0) > 0 ? f.otherCount : <span className="text-[#6b7890]/50">-</span>}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           </div>
         )}

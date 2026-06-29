@@ -374,9 +374,47 @@ def run(settings: ExtractSettings) -> None:
                         )
                         total_orders += len(o_result.orders)
                 _log(f"  -> {total_orders} orders ({_elapsed(t0)})")
+
+            t0 = time.monotonic()
+            _log("Computing: ware uses")
+            conn.execute("DELETE FROM ware_uses")
+            conn.execute('''
+                INSERT INTO ware_uses (ware_id, use_type, use_value)
+                SELECT DISTINCT wi.input_ware_id, 'category' AS use_type,
+                    CASE
+                        WHEN w.group_id IN ('weapons', 'turrets') THEN 'Ship Weapons'
+                        WHEN w.group_id = 'shields' THEN 'Shields'
+                        WHEN w.group_id = 'engines' THEN 'Engines'
+                        WHEN w.group_id = 'thrusters' THEN 'Thrusters'
+                        WHEN w.group_id = 'drones' THEN 'Drones'
+                        WHEN w.group_id = 'missiles' THEN 'Missiles'
+                        WHEN w.group_id = 'countermeasures' THEN 'Countermeasures'
+                        WHEN w.group_id IN ('equipmod', 'paintmod') THEN 'Equipment Mods'
+                        WHEN s.ship_id IS NOT NULL THEN 'Ships'
+                        WHEN m.module_id IS NOT NULL THEN 'Station Modules'
+                        WHEN ed.deployable_id IS NOT NULL THEN 'Deployables'
+                    END AS use_value
+                FROM ware_inputs wi
+                JOIN wares w ON wi.ware_id = w.ware_id
+                LEFT JOIN ships s ON w.component_ref = s.ship_id
+                LEFT JOIN modules m ON w.component_ref = m.module_id
+                LEFT JOIN equip_deployables ed ON w.component_ref = ed.deployable_id
+                WHERE use_value IS NOT NULL
+                
+                UNION
+                
+                SELECT DISTINCT wi.input_ware_id, 'ware' AS use_type, w.ware_id AS use_value
+                FROM ware_inputs wi
+                JOIN wares w ON wi.ware_id = w.ware_id
+                LEFT JOIN ships s ON w.component_ref = s.ship_id
+                LEFT JOIN modules m ON w.component_ref = m.module_id
+                LEFT JOIN equip_deployables ed ON w.component_ref = ed.deployable_id
+                WHERE s.ship_id IS NULL AND m.module_id IS NULL AND ed.deployable_id IS NULL
+                  AND w.group_id NOT IN ('weapons', 'turrets', 'shields', 'engines', 'thrusters', 'drones', 'missiles', 'countermeasures', 'equipmod', 'paintmod')
+            ''')
+            _log(f"  done ({_elapsed(t0)})")
     finally:
         conn.close()
-
     # --- Build icons: DDS -> PNG under data/icons/ ---
     t0 = time.monotonic()
     _log("Building: icons")

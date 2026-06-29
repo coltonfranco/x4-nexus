@@ -351,7 +351,7 @@ function assignHandles(
   const edgeHandles = rawEdges.map(() => ({ source: null as string | null, target: null as string | null }));
   const handlesByNode = new Map<string, Record<string, HandleSpec>>();
 
-  const preferredSide = nodeAlignment === 'right' ? 'right' : nodeAlignment === 'bottom' ? 'bottom' : null;
+  const preferredSide = (nodeAlignment === 'right' ? 'right' : nodeAlignment === 'bottom' ? 'bottom' : null) as "right" | "bottom" | "left" | "top" | null;
 
   for (const [nodeId, ends] of endsByNode) {
     const cap = snapPointsByModule.get(moduleOf.get(nodeId) ?? "") ?? 0;
@@ -359,7 +359,7 @@ function assignHandles(
     let nextId = 0;
 
     if (preferredSide) {
-      const oppSide = preferredSide === 'right' ? 'left' : 'top';
+      const oppSide = (preferredSide === 'right' ? 'left' : 'top') as "left" | "top" | "right" | "bottom";
       const oppGroup = ends.filter((en) => en.side === oppSide).sort((a, b) => a.order - b.order);
       const prefGroup = ends.filter((en) => en.side === preferredSide).sort((a, b) => a.order - b.order);
       
@@ -494,7 +494,7 @@ export function useBuilderStationMutations() {
   return { create, update, remove };
 }
 
-import type { Node, Edge } from "reactflow";
+import type { Node, Edge } from "@xyflow/react";
 
 /**
  * Re-run the Dagre layout on the current graph and update positions & handles.
@@ -533,7 +533,7 @@ export function autoLayoutGraph(
     }
   }
 
-  const { edgeHandles, handlesByNode } = assignHandles(rawEdges, centre, snapPointsByModule, placed, nodeAlignment);
+  const { edgeHandles, handlesByNode } = assignHandles(rawEdges, centre, snapPointsByModule, placed as unknown as StationLayoutEntry[], nodeAlignment);
 
   const snap = (v: number) => Math.round(v / GRID_PX) * GRID_PX;
   const nextNodes = nodes.map((n) => {
@@ -579,7 +579,7 @@ export function autoRouteHandles(
     }
   }
 
-  const { edgeHandles, handlesByNode } = assignHandles(rawEdges, centre, snapPointsByModule, placed, nodeAlignment);
+  const { edgeHandles, handlesByNode } = assignHandles(rawEdges, centre, snapPointsByModule, placed as unknown as StationLayoutEntry[], nodeAlignment);
 
   const nextNodes = nodes.map((n) => {
     const hp = handlesByNode.get(n.id);

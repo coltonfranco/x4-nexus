@@ -69,6 +69,7 @@ class ShipSummary(PublicModel):
     price_avg: int | None
     is_owned: bool = False
     restriction_licence: str | None = None
+    has_blueprint: bool = False
     is_obtainable: bool = False
     can_be_captured: bool = True   # False = never capturable (Xenon capitals, Kha'ak, etc.)
 
@@ -106,11 +107,9 @@ class ShipDetail(ShipSummary):
     explosion_damage: float | None
     explosion_shield_damage: float | None
     explosion_shield_disruption: float | None
-    travel_stability: float | None
     gatherrate_gas: float | None
     gatherrate_ore: float | None
     gatherrate_silicon: float | None
-    can_be_captured: int | None
     radar_range_direct: float | None
     boost_recharge_delay: float | None
     rotation_speed_max: float | None
@@ -163,6 +162,7 @@ _DETAIL_COLS = (
     "shields_s, shields_m, shields_l, shields_xl, "
     "engines_s, engines_m, engines_l, engines_xl, "
     "w.price_avg, w.restriction_licence, "
+    "EXISTS(SELECT 1 FROM player_blueprints pb WHERE pb.ware_id = w.ware_id) AS has_blueprint, "
     "EXISTS(SELECT 1 FROM ships dyn WHERE dyn.macro = s.ship_id AND dyn.is_player_owned = 1) AS is_owned, "
     "(s.can_be_captured IS NULL AND s.class_id != 'xs') AS is_obtainable"
 )
@@ -180,6 +180,7 @@ def list_ships(
     """List all ships in the game catalog."""
     sql = [
         "SELECT s.ship_id, s.name, s.dlc, s.class_id, s.ship_type, s.role, s.faction_id, s.hull, s.shield_capacity_max, s.cargo_volume, s.dps_max, s.speed_min, s.speed_max, s.travel_max, s.boost_max, s.accel_max, s.shield_recharge_max, s.radar_range, s.range_max, s.people_capacity, s.missile_storage, s.drone_storage, s.countermeasure_storage, s.deployable_storage, s.dock_s, s.dock_m, s.dock_l, s.dock_xl, s.storage_s, s.storage_m, s.storage_l, s.storage_xl, s.weapons_s, s.weapons_m, s.weapons_l, s.weapons_xl, s.turrets_s, s.turrets_m, s.turrets_l, s.turrets_xl, s.shields_s, s.shields_m, s.shields_l, s.shields_xl, s.engines_s, s.engines_m, s.engines_l, s.engines_xl, s.icon_path, w.price_avg, w.restriction_licence, s.can_be_captured,",
+        "EXISTS(SELECT 1 FROM player_blueprints pb WHERE pb.ware_id = w.ware_id) AS has_blueprint,",
         "EXISTS(SELECT 1 FROM ships dyn WHERE dyn.macro = s.ship_id AND dyn.is_player_owned = 1) AS is_owned,",
         "(s.can_be_captured IS NULL AND s.class_id != 'xs') AS is_obtainable",
         "FROM s.ships s",
@@ -255,6 +256,7 @@ def list_ships(
             price_avg=r["price_avg"],
             is_owned=bool(r["is_owned"]),
             restriction_licence=r["restriction_licence"],
+            has_blueprint=bool(r["has_blueprint"]),
             is_obtainable=bool(r["is_obtainable"]),
             can_be_captured=r["can_be_captured"] is None or bool(r["can_be_captured"]),
         )
@@ -317,7 +319,9 @@ def get_ship(
     r["icon_url"] = get_icon_url(r.pop("icon_path"))
     r["image_url"] = get_icon_url(f"ship_{r['ship_id']}")
     r["is_owned"] = bool(r["is_owned"])
+    r["has_blueprint"] = bool(r["has_blueprint"])
     r["is_obtainable"] = bool(r["is_obtainable"])
+    r["can_be_captured"] = r["can_be_captured"] is None or bool(r["can_be_captured"])
     r["software"] = [ShipSoftware(**dict(s)) for s in sw_rows]
     r["drop_list_id"] = _resolve_drop_list(conn, r["ship_id"], r["class_id"], r["faction_id"], r["role"])
     return ShipDetail(**r)

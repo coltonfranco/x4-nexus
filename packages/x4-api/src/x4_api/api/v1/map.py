@@ -125,7 +125,16 @@ def list_clusters(
         "SELECT sec.cluster_id, st.owner_faction, COUNT(*) AS cnt "
         "FROM stations st "
         "JOIN s.sectors sec ON LOWER(sec.sector_id) = LOWER(st.sector_id) "
+        "LEFT JOIN s.station_types stype ON stype.station_id = st.macro "
         "WHERE st.owner_faction IS NOT NULL "
+        "  AND ( "
+        "      stype.ownership_claim = 1 "
+        "      OR EXISTS ( "
+        "          SELECT 1 FROM station_modules sm "
+        "          JOIN s.modules m ON m.module_id = sm.module_id "
+        "          WHERE sm.station_id = st.station_id AND m.ownership_claim = 1 "
+        "      ) "
+        "  ) "
         "GROUP BY sec.cluster_id, st.owner_faction "
         "ORDER BY cnt DESC"
     ).fetchall()
@@ -168,7 +177,16 @@ def list_sectors(
     owner_rows = conn.execute(
         "SELECT LOWER(st.sector_id) AS sector_id, st.owner_faction, COUNT(*) AS cnt "
         "FROM stations st "
+        "LEFT JOIN s.station_types stype ON stype.station_id = st.macro "
         "WHERE st.owner_faction IS NOT NULL AND st.sector_id IS NOT NULL "
+        "  AND ( "
+        "      stype.ownership_claim = 1 "
+        "      OR EXISTS ( "
+        "          SELECT 1 FROM station_modules sm "
+        "          JOIN s.modules m ON m.module_id = sm.module_id "
+        "          WHERE sm.station_id = st.station_id AND m.ownership_claim = 1 "
+        "      ) "
+        "  ) "
         "GROUP BY LOWER(st.sector_id), st.owner_faction "
         "ORDER BY cnt DESC"
     ).fetchall()
@@ -227,9 +245,18 @@ def get_sector(
         raise HTTPException(status_code=404, detail=f"Unknown sector_id: {sector_id}")
     d = dict(row)
     owner_row = conn.execute(
-        "SELECT owner_faction, COUNT(*) AS cnt FROM stations "
-        "WHERE LOWER(sector_id) = LOWER(:sid) AND owner_faction IS NOT NULL "
-        "GROUP BY owner_faction ORDER BY cnt DESC LIMIT 1",
+        "SELECT st.owner_faction, COUNT(*) AS cnt FROM stations st "
+        "LEFT JOIN s.station_types stype ON stype.station_id = st.macro "
+        "WHERE LOWER(st.sector_id) = LOWER(:sid) AND st.owner_faction IS NOT NULL "
+        "  AND ( "
+        "      stype.ownership_claim = 1 "
+        "      OR EXISTS ( "
+        "          SELECT 1 FROM station_modules sm "
+        "          JOIN s.modules m ON m.module_id = sm.module_id "
+        "          WHERE sm.station_id = st.station_id AND m.ownership_claim = 1 "
+        "      ) "
+        "  ) "
+        "GROUP BY st.owner_faction ORDER BY cnt DESC LIMIT 1",
         {"sid": sector_id},
     ).fetchone()
     d["owner_faction"] = owner_row["owner_faction"] if owner_row else None
@@ -597,10 +624,16 @@ class ConflictFaction(PublicModel):
     faction_id: str
     faction_name: str
     fighter_count: int
+    miner_count: int = 0
+    trader_count: int = 0
+    other_count: int = 0
 
 class ConflictSide(PublicModel):
     factions: list[ConflictFaction]
     fighter_count: int
+    miner_count: int = 0
+    trader_count: int = 0
+    other_count: int = 0
 
 class ConflictEntry(PublicModel):
     sector_id: str
@@ -624,7 +657,16 @@ def _live_sector_owners(conn: sqlite3.Connection) -> dict[str, tuple[str | None,
         "SELECT LOWER(st.sector_id) AS sid, st.owner_faction, f.name AS owner_name, COUNT(*) AS cnt "
         "FROM stations st "
         "LEFT JOIN s.factions f ON f.faction_id = st.owner_faction "
+        "LEFT JOIN s.station_types stype ON stype.station_id = st.macro "
         "WHERE st.owner_faction IS NOT NULL AND st.sector_id IS NOT NULL "
+        "  AND ( "
+        "      stype.ownership_claim = 1 "
+        "      OR EXISTS ( "
+        "          SELECT 1 FROM station_modules sm "
+        "          JOIN s.modules m ON m.module_id = sm.module_id "
+        "          WHERE sm.station_id = st.station_id AND m.ownership_claim = 1 "
+        "      ) "
+        "  ) "
         "GROUP BY LOWER(st.sector_id), st.owner_faction "
         "ORDER BY cnt DESC"
     ).fetchall()
@@ -654,6 +696,9 @@ class BorderTensionEntry(PublicModel):
 class SectorForceEntry(PublicModel):
     sector_id: str
     fighter_count: int
+    miner_count: int = 0
+    trader_count: int = 0
+    other_count: int = 0
     factions: list[ConflictFaction]
     sides: list[ConflictSide] | None = None
 
@@ -693,31 +738,42 @@ def list_forces(
         return []
 
     breakdown_rows = conn.execute("""
-        SELECT sh.sector_id, sh.owner_faction, COUNT(*) AS cnt, f.name AS faction_name
+        SELECT sh.sector_id, sh.owner_faction, c.role, COUNT(*) AS cnt, f.name AS faction_name
         FROM ships sh
         JOIN s.ships c ON c.ship_id = sh.macro
         LEFT JOIN s.factions f ON f.faction_id = sh.owner_faction
-        WHERE c.role = 'fight'
-          AND sh.owner_faction IS NOT NULL
+        WHERE sh.owner_faction IS NOT NULL
           AND sh.sector_id IS NOT NULL
           AND (sh.state IS NULL OR sh.state = '')
-        GROUP BY sh.sector_id, sh.owner_faction
+        GROUP BY sh.sector_id, sh.owner_faction, c.role
         ORDER BY sh.sector_id, cnt DESC
     """).fetchall()
 
-    from collections import defaultdict
     conflict_name_map = _faction_name_map(conn)
-    by_sector: dict[str, list[ConflictFaction]] = defaultdict(list)
-    totals: dict[str, int] = defaultdict(int)
+    by_sector: dict[str, dict[str, dict[str, int]]] = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
+    totals_fighter: dict[str, int] = defaultdict(int)
+    totals_miner: dict[str, int] = defaultdict(int)
+    totals_trader: dict[str, int] = defaultdict(int)
+    totals_other: dict[str, int] = defaultdict(int)
 
-    for sector, faction, cnt, fname in breakdown_rows:
+    for sector, faction, role, cnt, fname in breakdown_rows:
         sector_id = sector.lower()
-        totals[sector_id] += cnt
-        by_sector[sector_id].append(ConflictFaction(
-            faction_id=faction, 
-            faction_name=conflict_name_map.get(faction, fname or faction), 
-            fighter_count=cnt
-        ))
+        by_sector[sector_id][faction]["_seen"] = 1
+        if fname and faction not in conflict_name_map:
+            conflict_name_map[faction] = fname
+            
+        if role == 'fight':
+            totals_fighter[sector_id] += cnt
+            by_sector[sector_id][faction]['fight'] += cnt
+        elif role == 'mine':
+            totals_miner[sector_id] += cnt
+            by_sector[sector_id][faction]['mine'] += cnt
+        elif role == 'trade':
+            totals_trader[sector_id] += cnt
+            by_sector[sector_id][faction]['trade'] += cnt
+        else:
+            totals_other[sector_id] += cnt
+            by_sector[sector_id][faction]['other'] += cnt
 
     hostile_rows = conn.execute("SELECT faction_id, other_faction_id FROM faction_relations_current WHERE relation < -0.1").fetchall()
     hostile_set = set()
@@ -726,8 +782,22 @@ def list_forces(
         hostile_set.add((row[1], row[0]))
 
     results = []
-    for sector_id, f_count in totals.items():
-        factions = by_sector[sector_id]
+    # Collect all sectors that have ANY forces (fighters, miners, or traders)
+    all_sectors = set(totals_fighter.keys()) | set(totals_miner.keys()) | set(totals_trader.keys()) | set(totals_other.keys())
+    for sector_id in all_sectors:
+        factions = []
+        for faction_id, counts in by_sector[sector_id].items():
+            factions.append(ConflictFaction(
+                faction_id=faction_id,
+                faction_name=conflict_name_map.get(faction_id, faction_id),
+                fighter_count=counts.get('fight', 0),
+                miner_count=counts.get('mine', 0),
+                trader_count=counts.get('trade', 0),
+                other_count=counts.get('other', 0),
+            ))
+        f_count = totals_fighter.get(sector_id, 0)
+        m_count = totals_miner.get(sector_id, 0)
+        t_count = totals_trader.get(sector_id, 0)
         
         # group into sides
         sides: list[list[ConflictFaction]] = []
@@ -749,14 +819,21 @@ def list_forces(
         conflict_sides = []
         for side_factions in sides:
             side_fcnt = sum(f.fighter_count for f in side_factions)
-            conflict_sides.append(ConflictSide(factions=side_factions, fighter_count=side_fcnt))
+            side_mcnt = sum(f.miner_count for f in side_factions)
+            side_tcnt = sum(f.trader_count for f in side_factions)
+            side_ocnt = sum(f.other_count for f in side_factions)
+            conflict_sides.append(ConflictSide(factions=side_factions, fighter_count=side_fcnt, miner_count=side_mcnt, trader_count=side_tcnt, other_count=side_ocnt))
         conflict_sides.sort(key=lambda s: -s.fighter_count)
-
+        o_count = totals_other.get(sector_id, 0)
+        
         results.append(SectorForceEntry(
             sector_id=sector_id,
             fighter_count=f_count,
+            miner_count=m_count,
+            trader_count=t_count,
+            other_count=o_count,
             factions=factions,
-            sides=conflict_sides
+            sides=conflict_sides if conflict_sides else None,
         ))
     
     return results
@@ -838,7 +915,6 @@ def list_conflicts(
     if not breakdown_rows:
         return []
 
-    from collections import defaultdict
     by_sector: dict[str, dict[str, tuple[int, str]]] = defaultdict(dict)
     totals: dict[str, int] = defaultdict(int)
     sector_owners_map: dict[str, tuple[str | None, str | None]] = {}
@@ -1010,7 +1086,6 @@ def list_tensions(
         LEFT JOIN s.factions f ON f.faction_id = mf.owner_faction
     """).fetchall()
 
-    from collections import defaultdict
     forces_name_map = _faction_name_map(conn)
     sector_forces: dict[str, list[dict]] = defaultdict(list)
     sector_owners_map: dict[str, str | None] = {}

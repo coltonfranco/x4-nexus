@@ -93,6 +93,7 @@ type ShipSummary = {
   price_avg: number | null;
   is_owned: boolean;
   restriction_licence: string | null;
+  has_blueprint: boolean;
   is_obtainable: boolean;
   can_be_captured: boolean;
 };
@@ -126,7 +127,8 @@ const ALL_COLUMNS: ColumnMeta[] = [
   { key: "type",    label: "Type",    sortKey: "role",               groupId: "classification", defaultVisible: true,  align: "left" },
   { key: "class",   label: "Class",   sortKey: "class_id",           groupId: "classification", defaultVisible: true,  align: "left" },
   { key: "faction", label: "Faction", sortKey: "faction_id",         groupId: "classification", defaultVisible: true,  align: "left" },
-  { key: "licence", label: "Licence", sortKey: "restriction_licence", groupId: "classification", defaultVisible: false, align: "left" },
+  { key: "licence", label: "Licence", sortKey: "restriction_licence", groupId: "classification", defaultVisible: true, align: "left" },
+  { key: "price",  label: "Blueprint",  sortKey: "price_avg", groupId: "classification", defaultVisible: true  },
   // Flight
   { key: "speed",  label: "Speed",  sortKey: "speed_max",  groupId: "flight",  defaultVisible: true  },
   { key: "travel", label: "Travel", sortKey: "travel_max", groupId: "flight",  defaultVisible: true  },
@@ -152,8 +154,7 @@ const ALL_COLUMNS: ColumnMeta[] = [
   { key: "dock_m", label: "M Dock",     sortKey: "dock_m",    groupId: "capacity", defaultVisible: false },
   { key: "bay_s",  label: "S Ship Cap", sortKey: "storage_s", groupId: "capacity", defaultVisible: false },
   { key: "bay_m",  label: "M Ship Cap", sortKey: "storage_m", groupId: "capacity", defaultVisible: false },
-  // Value
-  { key: "price",  label: "Price",  sortKey: "price_avg", groupId: "value", defaultVisible: true  },
+  // Value (Removed old price since it's now blueprint)
   // Slot groups
   { key: "wpn_s",  label: "Wpn S",  sortKey: "weapons_s",  groupId: "slots-weapons", defaultVisible: false },
   { key: "wpn_m",  label: "Wpn M",  sortKey: "weapons_m",  groupId: "slots-weapons", defaultVisible: false },
@@ -187,7 +188,6 @@ const COLUMN_GROUPS: ColumnGroup[] = [
   { id: "logi",           label: "Logi" },
   { id: "offense",        label: "Offense" },
   { id: "capacity",       label: "Capacity" },
-  { id: "value",          label: "Value" },
   { id: "slots-weapons",  label: "Wpn Slots" },
   { id: "slots-turrets",  label: "Tur Slots" },
   { id: "slots-shields",  label: "Shd Slots" },
@@ -578,15 +578,60 @@ export default function ShipsPage() {
             <span
               className={cn(
                 "text-xs cursor-default",
-                hasLicence ? "text-success" : "text-destructive"
+                hasLicence ? "text-emerald-400" : "text-red-400/80"
               )}
               title={
                 hasLicence
-                  ? `You have the ${formatLicence(lic)} licence.`
-                  : `Requires ${formatLicence(lic)} licence — you do not have it.`
+                  ? `Licence owned (${formatLicence(lic)})`
+                  : `Licence locked (requires ${formatLicence(lic)})`
               }
             >
               {formatLicence(lic)}
+            </span>
+          );
+        },
+      },
+      {
+        key: "price",
+        label: "Blueprint",
+        sortKey: "price_avg",
+        groupId: "classification",
+        align: "right",
+        render: (ship) => {
+          if (ship.has_blueprint) {
+            return (
+              <span className="inline-flex items-center gap-1.5 text-xs">
+                <span className="text-emerald-400" title={ship.price_avg ? `Blueprint owned · ${ship.price_avg.toLocaleString()} Cr` : "Blueprint owned"}>✓</span>
+              </span>
+            );
+          }
+          const lic = ship.restriction_licence;
+          const hasRestriction = lic && lic !== "generaluseship" && lic !== "generaluseequipment";
+          const hasLicence = !hasRestriction || (globalLicences.has(lic) ? licenceTypeSet.has(lic) : ship.faction_id ? licenceSet.has(`${ship.faction_id}:${lic}`) : false);
+          const licenceLocked = !hasLicence;
+          
+          if (ship.price_avg && !licenceLocked) {
+            return (
+              <span className="inline-flex items-center gap-1.5 text-xs">
+                <span className="text-amber-400/80" title="Blueprint available for purchase">⊕</span>
+                <Currency value={ship.price_avg} />
+              </span>
+            );
+          }
+          
+          const isFreeDefault = !ship.price_avg && !licenceLocked && ship.is_obtainable;
+          if (isFreeDefault) {
+            return (
+              <span className="inline-flex items-center gap-1.5 text-xs">
+                <span className="text-emerald-400/60" title="No blueprint required">—</span>
+              </span>
+            );
+          }
+          const reason = !ship.price_avg ? "Blueprint unobtainable" : "Blueprint locked behind licence";
+          return (
+            <span className="inline-flex items-center gap-1.5 text-xs">
+              <span className="text-red-400/80" title={reason}>✗</span>
+              {ship.price_avg ? <Currency value={ship.price_avg} /> : <span className="text-muted-foreground">—</span>}
             </span>
           );
         },
@@ -791,20 +836,6 @@ export default function ShipsPage() {
         groupId: "capacity",
         align: "right",
         render: (ship) => numCell(ship.storage_m),
-      },
-      // ── Value ──
-      {
-        key: "price",
-        label: "Price",
-        sortKey: "price_avg",
-        groupId: "value",
-        align: "right",
-        render: (ship) =>
-          ship.price_avg != null ? (
-            <Currency value={ship.price_avg} abbreviate icon={false} />
-          ) : (
-            <span className="text-muted-foreground text-xs">—</span>
-          ),
       },
       // ── Slot columns ──
       ...([

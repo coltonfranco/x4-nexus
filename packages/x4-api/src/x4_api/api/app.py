@@ -8,10 +8,12 @@ bundle (when built) is mounted at `/`; the icon PNG directory is mounted at
 from __future__ import annotations
 
 import contextlib
+import os
 from collections.abc import AsyncIterator
 from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -78,6 +80,24 @@ def app() -> FastAPI:
         openapi_url="/api/openapi.json",
         lifespan=_lifespan,
         separate_input_output_schemas=False,
+    )
+
+    fast.add_middleware(
+        CORSMiddleware,
+        # Vite dev server (5173) plus the Tauri webview origins. In a packaged build the
+        # shell's loader page lives at the asset origin (tauri://localhost on Linux,
+        # http://tauri.localhost on Windows) and cross-origin polls /api/v1/health before
+        # redirecting to the same-origin server; allow those origins so the poll succeeds.
+        allow_origins=[
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+            "tauri://localhost",
+            "http://tauri.localhost",
+            "https://tauri.localhost",
+        ],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
 
     fast.include_router(health.router, prefix="/api/v1", tags=["health"])
@@ -148,5 +168,16 @@ def app() -> FastAPI:
 
 
 def _dashboard_dist() -> Path | None:
+    """Locate the built dashboard `dist/`.
+
+    In a packaged build (`x4c-server` sidecar) the source tree isn't present, so the
+    Tauri shell points `X4C_DASHBOARD_DIST` at the dashboard folder it ships as a bundle
+    resource. That override wins; otherwise fall back to the source-checkout layout.
+    """
+    override = os.environ.get("X4C_DASHBOARD_DIST")
+    if override:
+        candidate = Path(override).expanduser()
+        return candidate if candidate.is_dir() else None
+
     candidate = Path(__file__).resolve().parents[4] / "x4-dashboard" / "dist"
     return candidate if candidate.is_dir() else None

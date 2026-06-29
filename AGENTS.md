@@ -486,3 +486,8 @@ When implementing a new module:
 4. If you added a public endpoint, regenerate `docs/openapi.yaml`.
 5. Stop. Ask the human if anything is unclear; do not silently make architectural
    decisions.
+
+
+### 4.4 Shared Components
+
+- **Currency/Credits**: Whenever displaying credit amounts, base prices, or any monetary value in the dashboard, ALWAYS use the standard <Currency> component (src/components/Currency.tsx). Do not manually format numbers with .toLocaleString() and suffix with Cr, and do not use plain text colors. The <Currency> component handles standard formatting and coloring.

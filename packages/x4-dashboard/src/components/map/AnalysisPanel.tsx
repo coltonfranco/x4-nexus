@@ -4,7 +4,6 @@
 
 import { useState } from "react";
 import { ChevronDown, Search } from "lucide-react";
-import { EntityIcon } from "../../components/EntityIcon";
 
 import { RESOURCE_COLORS, RESOURCE_ORDER } from "../../lib/map/constants";
 import type { FillMode } from "../../lib/map/overlays/types";

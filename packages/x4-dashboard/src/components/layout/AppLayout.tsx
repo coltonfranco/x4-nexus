@@ -2,17 +2,13 @@ import { useEffect, useState } from "react";
 import { Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { useIsMutating } from "@tanstack/react-query";
 import {
-  BookOpen,
   Boxes,
   Crown,
-  Home,
   Map,
   MessageSquare,
   Rocket,
   Shield,
   TrendingUp,
-  Users,
-  Activity,
   Target,
   Factory,
 } from "lucide-react";
@@ -22,22 +18,19 @@ import { SaveSelector } from "../SaveSelector";
 import { PlayerSummary } from "../PlayerSummary";
 import { RefreshIndicator } from "../RefreshIndicator";
 import { SettingsModal } from "../SettingsModal";
+import { UpdateNotifier } from "../UpdateNotifier";
 // ThemeToggle hidden per design — dark-only, infrastructure preserved for future light theme
 
 const navItems = [
-  { to: "/", label: "Home", icon: Home, requiresSave: false },
   { to: "/empire", label: "Empire", icon: Crown, requiresSave: true },
+  { to: "/map", label: "Map", icon: Map, requiresSave: false },
   { to: "/trade", label: "Trade", icon: TrendingUp, requiresSave: false },
   { to: "/inventory", label: "Inventory", icon: Boxes, requiresSave: false },
-  { to: "/map", label: "Map", icon: Map, requiresSave: false },
   { to: "/ships", label: "Ships", icon: Rocket, requiresSave: false },
   { to: "/stations", label: "Stations", icon: Factory, requiresSave: false },
   { to: "/missions", label: "Missions", icon: Target, requiresSave: true },
   { to: "/messages", label: "Messages", icon: MessageSquare, requiresSave: true },
-  { to: "/logbook", label: "Logbook", icon: BookOpen, requiresSave: true },
-  { to: "/crew", label: "Crew", icon: Users, requiresSave: true },
   { to: "/factions", label: "Factions", icon: Shield, requiresSave: false },
-  { to: "/stats", label: "Stats", icon: Activity, requiresSave: true },
 ] as const;
 
 export function AppLayout() {
@@ -97,8 +90,7 @@ export function AppLayout() {
           {/* Nav */}
           <nav className="flex flex-col gap-1 p-2 flex-1 overflow-y-auto">
             {navItems.filter(item => !item.requiresSave || hasSave).map(({ to, label, icon: Icon }) => {
-              const active =
-                to === "/" ? location.pathname === "/" : location.pathname.startsWith(to);
+              const active = location.pathname.startsWith(to);
               return (
                 <Link
                   key={to}
@@ -120,6 +112,7 @@ export function AppLayout() {
           {/* Bottom */}
           <SaveSelector />
           <RefreshIndicator />
+          <UpdateNotifier />
         </aside>
       )}
 

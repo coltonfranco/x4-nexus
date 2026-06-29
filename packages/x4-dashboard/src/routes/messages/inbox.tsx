@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Mail, MailOpen, Star, ArrowLeft, Clock, User, MapPin } from "lucide-react";
-import { PageLoaderPreset } from "../components/PageLoader";
-import { cn } from "../lib/utils";
+import { PageLoaderPreset } from "../../components/PageLoader";
+import { cn } from "../../lib/utils";
 
 type PlayerMessage = {
   id: number;

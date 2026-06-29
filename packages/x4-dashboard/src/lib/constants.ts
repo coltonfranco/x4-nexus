@@ -38,6 +38,18 @@ export const CATEGORY_COLORS: Record<EntityCategory, {
   }
 };
 
+export const RACE_COLORS: Record<string, { abbr: string; color: string; bg: string }> = {
+  terran: { abbr: "TER", color: "text-blue-400", bg: "bg-blue-500/15" },
+  teladi: { abbr: "TEL", color: "text-green-400", bg: "bg-green-500/15" },
+  argon: { abbr: "ARG", color: "text-sky-400", bg: "bg-sky-500/15" },
+  split: { abbr: "SPL", color: "text-red-400", bg: "bg-red-500/15" },
+  paranid: { abbr: "PAR", color: "text-purple-400", bg: "bg-purple-500/15" },
+  boron: { abbr: "BOR", color: "text-teal-400", bg: "bg-teal-500/15" },
+  yaki: { abbr: "YAK", color: "text-rose-400", bg: "bg-rose-500/15" },
+};
+
+export const methodLabel = (m: string | null | undefined) => m ? m.charAt(0).toUpperCase() + m.slice(1) : "";
+
 export function getEntityCategory(tag: string | null | undefined): EntityCategory {
   if (!tag) return 'default';
   const t = tag.toLowerCase();

@@ -26,6 +26,7 @@ from x4_extract.dynamic import delta
 from x4_extract.dynamic.collector import TIERS, Collector, Tier, combined_fingerprint
 from x4_extract.dynamic.distance import build_sector_distance
 from x4_extract.dynamic.extractors.deployables import DeployablesCollector
+from x4_extract.dynamic.extractors.economy import EconomyLogCollector
 from x4_extract.dynamic.extractors.factions import FactionsCollector
 from x4_extract.dynamic.extractors.loadouts import ShipLoadoutCollector
 from x4_extract.dynamic.extractors.logbook import LogbookCollector
@@ -34,9 +35,9 @@ from x4_extract.dynamic.extractors.meta import MetaCollector, StatsCollector
 from x4_extract.dynamic.extractors.missions import MissionsCollector
 from x4_extract.dynamic.extractors.npcs import NPCsCollector
 from x4_extract.dynamic.extractors.player import PlayerCollector
+from x4_extract.dynamic.extractors.positions import load_static_zones
 from x4_extract.dynamic.extractors.resources import ResourceAreasCollector
 from x4_extract.dynamic.extractors.sectors import SectorsCollector
-from x4_extract.dynamic.extractors.positions import load_static_zones
 from x4_extract.dynamic.extractors.ships import ShipsCollector
 from x4_extract.dynamic.extractors.stations import StationsCollector
 from x4_extract.dynamic.materialize import compute_top_routes
@@ -50,7 +51,7 @@ _FINGERPRINT_BLOCK = 1 << 16  # 64 KiB head+tail sample is enough to detect a re
 # that differs forces a full re-ingest even when the save file itself is unchanged —
 # otherwise a newly-added table (e.g. sector_resources) would never be populated for
 # saves already ingested under the old pipeline.
-_PIPELINE_VERSION = "17"
+_PIPELINE_VERSION = "18"
 
 # Delta entity types tracked in row_state but kept out of the events feed — high-churn,
 # low-signal data (player stats tick constantly and aren't worth alerting on).
@@ -88,6 +89,7 @@ def build_collectors(settings: ExtractSettings, save_path: Path) -> list[Collect
         SectorsCollector(),
         ShipsCollector(),
         ResourceAreasCollector(),
+        EconomyLogCollector(),
     ]
 
 

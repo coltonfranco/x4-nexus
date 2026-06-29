@@ -125,14 +125,14 @@ def _assign_production_tiers(out: ExtractResult) -> None:
 
     Single source of truth for the dashboard's tier columns (production chains) and the
     catalog tier badge — computed once here so both read the same value. Depth is the
-    longest chain of `default`-method inputs back to a ware with none (a raw resource).
-    `default` only + a `visiting` guard keeps it acyclic (recycling methods can loop).
+    longest chain of inputs back to a ware with none (a raw resource). It prefers the
+    `default` method, but falls back to `processing`, `recycling`, or any available method.
+    The `visiting` guard keeps it acyclic (recycling methods can loop).
     """
     node_ids = {w["ware_id"] for w in out.wares}
-    default_inputs: dict[str, list[str]] = {}
+    inputs_by_method: dict[str, dict[str, list[str]]] = {}
     for inp in out.inputs:
-        if inp["method"] == "default":
-            default_inputs.setdefault(inp["ware_id"], []).append(inp["input_ware_id"])
+        inputs_by_method.setdefault(inp["ware_id"], {}).setdefault(inp["method"], []).append(inp["input_ware_id"])
 
     memo: dict[str, int] = {}
 
@@ -141,7 +141,19 @@ def _assign_production_tiers(out: ExtractResult) -> None:
             return memo[ware_id]
         if ware_id in visiting:
             return 0  # cycle — treat as raw
-        ins = [i for i in default_inputs.get(ware_id, ()) if i in node_ids]
+            
+        ware_methods = inputs_by_method.get(ware_id, {})
+        ins_raw = []
+        if "default" in ware_methods:
+            ins_raw = ware_methods["default"]
+        elif "processing" in ware_methods:
+            ins_raw = ware_methods["processing"]
+        elif "recycling" in ware_methods:
+            ins_raw = ware_methods["recycling"]
+        elif ware_methods:
+            ins_raw = next(iter(ware_methods.values()))
+            
+        ins = [i for i in ins_raw if i in node_ids]
         if not ins:
             memo[ware_id] = 0
             return 0

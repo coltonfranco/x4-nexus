@@ -3,7 +3,7 @@ import { Handshake, Shield } from "lucide-react";
 import { cn } from "../../lib/utils";
 
 const TABS = [
-  { to: "/factions", label: "Registry", icon: Shield, exact: true },
+  { to: "/factions/list", label: "Registry", icon: Shield, exact: false },
   { to: "/factions/diplomacy", label: "Diplomacy", icon: Handshake, exact: false },
 ] as const;
 
