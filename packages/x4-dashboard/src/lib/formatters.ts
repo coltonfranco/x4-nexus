@@ -111,3 +111,24 @@ export function formatAge(seconds: number): string {
   const d = Math.floor(h / 24);
   return `${d}d`;
 }
+
+export function formatTimeAgo(timeSec: number, currentTimeSec: number): string {
+  if (!timeSec) return "";
+  const diff = Math.max(0, currentTimeSec - timeSec);
+  if (diff < 60) return `${Math.floor(diff)}s ago`;
+  const mins = Math.floor(diff / 60);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d ago`;
+}
+
+export function cleanText(text: string): string {
+  return text
+    .replace(/\[\\?\d+\]#[A-Fa-f0-9]{6,8}#/g, "")
+    .replace(/\[\\?\d+\]X?/g, (m: string) => (m.includes("033") ? "" : "\n"))
+    .replace(/#[A-Fa-f0-9]{6,8}#/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}

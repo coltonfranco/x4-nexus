@@ -14,6 +14,8 @@ venv/
 # Data artifacts (extracted XML, SQLite DBs, icons, save cache)
 data/
 packages/x4-api/data/
+# Classification rules are source, not artifacts
+!packages/x4-extract/src/x4_extract/data/
 *.db
 *.db-journal
 *.db-wal

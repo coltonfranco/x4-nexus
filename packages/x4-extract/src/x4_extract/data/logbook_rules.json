@@ -1,0 +1,326 @@
+{
+  "_doc": "Logbook classification rules.  Patterns are matched against lowercased entry titles in priority order — first match wins.  When no pattern matches, native_fallback maps the game's category attribute to a resolved category/subcategory.  See docs/logbook-categories.md for the template reference.",
+  "native_fallback": {
+    "tips":    ["tips", "tip"],
+    "news":    ["news", "news"],
+    "missions": ["missions", "update"],
+    "alerts":  ["alerts", "warning"]
+  },
+  "categories": {
+    "combat": {
+      "label": "Combat",
+      "subcategories": {
+        "destroyed": {
+          "label": "Destroyed",
+          "patterns": ["was destroyed", "has been destroyed", "were destroyed", "have been destroyed"]
+        },
+        "attack": {
+          "label": "Under Attack",
+          "patterns": ["is under attack", "are under attack", "forced to flee after being attacked", "under attack"]
+        },
+        "hostile": {
+          "label": "Hostile Detected",
+          "patterns": ["hostile object", "hostile ship", "hostile station", "hostile objects", "hostile ships", "hostile stations", "early warning system"]
+        },
+        "ammo": {
+          "label": "Out of Ammo",
+          "patterns": ["out of ammo", "ran out of ammunition"]
+        }
+      }
+    },
+    "personnel": {
+      "label": "Personnel",
+      "subcategories": {
+        "assigned": {
+          "label": "Assigned",
+          "patterns": ["assigned"],
+          "native_exclude": ["missions"]
+        },
+        "hired": {
+          "label": "Hired",
+          "patterns": ["hired"],
+          "native_exclude": ["missions"]
+        },
+        "fired": {
+          "label": "Fired",
+          "patterns": ["fired"]
+        },
+        "transferred": {
+          "label": "Transferred",
+          "patterns": ["transferred"]
+        },
+        "promoted": {
+          "label": "Promoted",
+          "patterns": ["marine was promoted", "marines were promoted"],
+          "native_exclude": ["missions"]
+        },
+        "crew_lost": {
+          "label": "Crew Lost",
+          "patterns": ["crew due to attack"]
+        },
+        "arrived": {
+          "label": "Crew Arrived",
+          "patterns": ["crew members arrived", "crew arrived"]
+        }
+      }
+    },
+    "economy": {
+      "label": "Economy",
+      "subcategories": {
+        "trade": {
+          "label": "Trade",
+          "patterns": ["trade successful", "trade failed", "trade operations", "bought", "sold", "buying", "selling", "ready to trade", "trade subscription", "trade update"]
+        },
+        "transaction": {
+          "label": "Transaction",
+          "patterns": ["debit withdrawal", "payment received", "transferred", "cr to", "cr from", "received surplus", "surplus of", "spent", "received", "budget exceeded"]
+        },
+        "account": {
+          "label": "Account Warning",
+          "patterns": ["account for", "has dropped to"]
+        },
+        "mining": {
+          "label": "Mining",
+          "patterns": ["finished mining", "mining stopped", "gas mining", "mineral mining"]
+        },
+        "refuel": {
+          "label": "Refueling",
+          "patterns": ["refuel", "jump fuel", "fuel cells", "insufficient fuel"]
+        }
+      }
+    },
+    "reputation": {
+      "label": "Reputation",
+      "subcategories": {
+        "gained": {
+          "label": "Gained",
+          "patterns": ["reputation gained"]
+        },
+        "lost": {
+          "label": "Lost",
+          "patterns": ["reputation lost", "lost reputation"]
+        },
+        "promotion": {
+          "label": "Rank Promotion",
+          "patterns": ["promotion to"]
+        },
+        "relations": {
+          "label": "Relations Changed",
+          "patterns": ["relations improved", "relations worsened"]
+        }
+      }
+    },
+    "missions": {
+      "label": "Missions",
+      "subcategories": {
+        "accepted": {
+          "label": "Accepted",
+          "patterns": ["mission accepted"]
+        },
+        "completed": {
+          "label": "Completed",
+          "patterns": ["mission completed", "task complete"]
+        },
+        "failed": {
+          "label": "Failed",
+          "patterns": ["mission failed", "guild mission failed"]
+        },
+        "update": {
+          "label": "Update",
+          "patterns": ["mission update"]
+        },
+        "aborted": {
+          "label": "Aborted",
+          "patterns": ["mission aborted", "mission cancelled", "tutorial aborted", "subscription aborted", "out of time"]
+        }
+      }
+    },
+    "alerts": {
+      "label": "Alerts",
+      "subcategories": {
+        "police": {
+          "label": "Police",
+          "patterns": ["police interdiction", "inspected by police", "police update", "scanned and forced", "illegal cargo", "illegal station plot"]
+        },
+        "pirate": {
+          "label": "Pirate",
+          "patterns": ["pirate harassment", "harassed by pirates", "pirate update"]
+        },
+        "abandoned": {
+          "label": "Abandoned Ship",
+          "patterns": ["found abandoned ship", "found an abandoned ship"]
+        },
+        "lockbox": {
+          "label": "Lockbox",
+          "patterns": ["found lockbox", "found a lockbox"]
+        },
+        "contraband": {
+          "label": "Contraband",
+          "patterns": ["found contraband", "dropped contraband"]
+        },
+        "warning": {
+          "label": "Warning",
+          "patterns": ["warning:", "about to leave"]
+        }
+      }
+    },
+    "boarding": {
+      "label": "Boarding",
+      "subcategories": {
+        "operation": {
+          "label": "Operation",
+          "patterns": ["successfully boarded", "failed to board", "boarding report", "boarding pod", "breaching"]
+        },
+        "casualties": {
+          "label": "Casualties",
+          "patterns": ["marines lost", "marines remaining", "marines were", "marine was", "casualties", "casualty", "marines report", "marines are"]
+        },
+        "captured": {
+          "label": "Captured / Claimed",
+          "patterns": ["captured", "claimed"]
+        },
+        "forced_pilot": {
+          "label": "Forced Pilot",
+          "patterns": ["forced pilot to leave"]
+        }
+      }
+    },
+    "construction": {
+      "label": "Construction",
+      "subcategories": {
+        "built": {
+          "label": "Built",
+          "patterns": ["construction of", "construction completed", "ship constructed", "finished construction"]
+        },
+        "repaired": {
+          "label": "Repaired",
+          "patterns": ["finished repairing", "ship repaired", "repaired at station"]
+        },
+        "resupplied": {
+          "label": "Resupplied",
+          "patterns": ["finished resupplying", "ship resupplied", "resupplied at station"]
+        },
+        "plot": {
+          "label": "Station Plot",
+          "patterns": ["station plot", "illegal station"]
+        }
+      }
+    },
+    "looting": {
+      "label": "Looting",
+      "subcategories": {
+        "container": {
+          "label": "Container / Cargo",
+          "patterns": ["picked up", "container collected", "dropped container", "cannot collect container", "cargo storage full"]
+        },
+        "ammo": {
+          "label": "Ammo / Materials",
+          "patterns": ["ammo collected", "ammo received", "materials collected", "cannot collect materials"]
+        },
+        "inventory": {
+          "label": "Inventory Item",
+          "patterns": ["inventory item collected", "inventory items collected", "inventory item already", "handed you"]
+        },
+        "lockbox_loot": {
+          "label": "Lockbox Loot",
+          "patterns": ["opened lockbox", "locks"]
+        }
+      }
+    },
+    "hacking": {
+      "label": "Hacking",
+      "subcategories": {
+        "success": {
+          "label": "Success",
+          "patterns": ["hack successful", "successfully hacked", "success!", "decrypted", "communication established"]
+        },
+        "failure": {
+          "label": "Failed",
+          "patterns": ["hacking attempt failed", "decryption failed", "signal lost"]
+        },
+        "discount": {
+          "label": "Discounts / Commissions",
+          "patterns": ["discount unlocked", "commission unlocked", "trade partner added"]
+        },
+        "sabotage": {
+          "label": "Sabotage",
+          "patterns": ["turrets disabled", "force fields disabled", "drone launchers disabled", "ware containers ejected"]
+        }
+      }
+    },
+    "research": {
+      "label": "Research",
+      "subcategories": {
+        "blueprint": {
+          "label": "Blueprint",
+          "patterns": ["unlocked blueprint", "blueprints for", "blueprints available", "can now be constructed"]
+        },
+        "research": {
+          "label": "Research",
+          "patterns": ["research available", "research completed"]
+        },
+        "signal": {
+          "label": "Signal Scanning",
+          "patterns": ["unidentified data signal", "unidentified audio signal", "decrypting data", "weak broadcast", "modulating audio"]
+        }
+      }
+    },
+    "rewards": {
+      "label": "Rewards",
+      "subcategories": {
+        "reward": {
+          "label": "Reward",
+          "patterns": ["rewarded", "reward received", "rewards received"]
+        },
+        "bounty": {
+          "label": "Bounty",
+          "patterns": ["bounty awarded", "bounty update"]
+        }
+      }
+    },
+    "news": {
+      "label": "News",
+      "subcategories": {
+        "emergency": {
+          "label": "Emergency Alert",
+          "patterns": ["emergency alert"]
+        },
+        "news": {
+          "label": "News",
+          "patterns": ["news update", "breaking news", "live from", "timeline entry"]
+        },
+        "war": {
+          "label": "War",
+          "patterns": ["war update"]
+        }
+      }
+    },
+    "tips": {
+      "label": "Tips",
+      "subcategories": {
+        "tip": {
+          "label": "Tip",
+          "patterns": []
+        }
+      }
+    },
+    "ventures": {
+      "label": "Ventures",
+      "subcategories": {
+        "venture": {
+          "label": "Venture",
+          "patterns": ["returned from", "venture"]
+        }
+      }
+    },
+    "other": {
+      "label": "Other",
+      "subcategories": {
+        "other": {
+          "label": "Uncategorized",
+          "patterns": []
+        }
+      }
+    }
+  }
+}

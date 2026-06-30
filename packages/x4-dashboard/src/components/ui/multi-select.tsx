@@ -14,6 +14,7 @@ interface MultiSelectProps {
   className?: string;
   searchable?: boolean;
   hideClear?: boolean;
+  closeOnSelect?: boolean;
 }
 
 export function MultiSelect({
@@ -24,6 +25,7 @@ export function MultiSelect({
   className,
   searchable,
   hideClear,
+  closeOnSelect = true,
 }: MultiSelectProps) {
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
@@ -51,6 +53,7 @@ export function MultiSelect({
       next.add(value);
     }
     onChange(next);
+    if (closeOnSelect) setOpen(false);
   };
 
   const selectedCount = selected.size;
