@@ -48,6 +48,8 @@ jobs:
           sed -i "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" packages/x4-desktop/package.json
           sed -i "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" packages/x4-desktop/src-tauri/tauri.conf.json
           sed -i "s/^version = \".*\"/version = \"$VERSION\"/" packages/x4-desktop/src-tauri/Cargo.toml
+          sed -i "s/^__version__ = \".*\"/__version__ = \"$VERSION\"/" packages/x4-api/src/x4_api/__init__.py
+          sed -i "s/^__version__ = \".*\"/__version__ = \"$VERSION\"/" packages/x4-extract/src/x4_extract/__init__.py
 
       # --- Linux WebView + Tauri build dependencies --------------------------------
       # libwebkit2gtk is the system WebView Tauri uses on Linux; the .deb declares it as

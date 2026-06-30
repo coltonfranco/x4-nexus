@@ -60,12 +60,28 @@ export function useAppUpdate(): AppUpdateState {
           setNewVersion(found.version);
           setStatus("available");
         } else {
+          // No update, or running an unsigned build where check() no-ops.
+          console.log("update check: no update available");
           setStatus("idle");
         }
       } catch (e) {
-        // Offline, no release yet, or not a signed/updatable build — stay quiet.
-        if (!cancelled) setStatus("idle");
-        console.warn("update check failed:", e);
+        // The updater throws when no published release exists yet — that's normal,
+        // not an error.  Only surface genuine failures (network down, DNS, etc.).
+        if (!cancelled) {
+          const msg = e instanceof Error ? e.message : String(e);
+          // "could not fetch a valid release" = no published release with updater
+          // metadata.  Expected on a fresh repo or when the latest release is still
+          // a draft.
+          const isMissingRelease =
+            msg.includes("could not fetch") || msg.includes("valid release");
+          if (isMissingRelease) {
+            console.log("update check: no published release yet");
+            setStatus("idle");
+          } else {
+            setError(msg);
+            setStatus("error");
+          }
+        }
       }
     })();
 
