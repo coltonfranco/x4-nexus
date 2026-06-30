@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" style="background:#060a12">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -77,6 +77,7 @@
 
       const started = Date.now();
       const SLOW_AFTER_MS = 20000;
+      const GIVE_UP_MS = 120000;
 
       async function attempt() {
         try {
@@ -88,7 +89,21 @@
         } catch (_) {
           // Server not listening yet — keep polling.
         }
-        if (Date.now() - started > SLOW_AFTER_MS) {
+        const elapsed = Date.now() - started;
+        if (elapsed > GIVE_UP_MS) {
+          spinnerEl.style.display = "none";
+          statusEl.textContent = "The local server didn't start.";
+          const errEl = document.createElement("div");
+          errEl.className = "error";
+          errEl.innerHTML =
+            "Try running the server manually to see the error:<br>" +
+            "<code>%LOCALAPPDATA%\\X4 Nexus\\resources\\server\\x4c-server\\x4c-server.exe</code><br><br>" +
+            "Common causes: antivirus blocking the sidecar, missing VC++ redistributables, " +
+            "or the install folder is incomplete.";
+          document.body.appendChild(errEl);
+          return;
+        }
+        if (elapsed > SLOW_AFTER_MS) {
           statusEl.textContent =
             "Still starting… the first launch can take a little longer.";
         }

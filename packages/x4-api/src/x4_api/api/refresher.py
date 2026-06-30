@@ -116,11 +116,27 @@ class BackgroundRefresher:
         log.info("background save refresher started")
 
     def _run(self) -> None:
+        import time
+        from x4_api.config import static_db_ready
+        from x4_api.init_job import job
+
         try:
+            # Wait for static DB to be fully built before the poller tries to ATTACH to it.
+            # Without this, a server startup during first-run setup will cause the poller
+            # to crash on `no such table` when trying to resolve dynamic zones.
+            while not self._stop.is_set():
+                if static_db_ready(self._settings) and not job.state().running:
+                    break
+                time.sleep(1.0)
+
+            if self._stop.is_set():
+                return
+
             poller.watch_realtime(
                 self._settings,
                 self._on_tick,
                 interval_provider=self._interval,
+                pause_provider=lambda: job.state().running,
                 stop=self._stop,
                 wake=self._wake,
             )

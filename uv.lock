@@ -1203,7 +1203,7 @@ wheels = [
 
 [[package]]
 name = "x4-api"
-version = "0.0.1"
+version = "0.0.0"
 source = { editable = "packages/x4-api" }
 dependencies = [
     { name = "fastapi" },
@@ -1259,7 +1259,7 @@ packaging = [{ name = "pyinstaller", specifier = ">=6.11" }]
 
 [[package]]
 name = "x4-extract"
-version = "0.0.1"
+version = "0.0.0"
 source = { editable = "packages/x4-extract" }
 dependencies = [
     { name = "lxml" },

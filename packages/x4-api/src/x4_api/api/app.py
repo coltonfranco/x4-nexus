@@ -154,17 +154,32 @@ def app() -> FastAPI:
             png = dashboard_dist / "logo.png"
             if png.is_file():
                 return FileResponse(png, media_type="image/png")
-            return FileResponse(dashboard_dist / "index.html")
+            return _index_response(dashboard_dist)
 
         @fast.get("/{full_path:path}")
         async def _spa_fallback(full_path: str) -> FileResponse:
             """Serve a static file from the dist root, or index.html for SPA routes."""
             candidate = dashboard_dist / full_path
-            if candidate.is_file():
+            if candidate.is_file() and candidate.name != "index.html":
                 return FileResponse(candidate)
-            return FileResponse(dashboard_dist / "index.html")
+            return _index_response(dashboard_dist)
 
     return fast
+
+
+def _index_response(dashboard_dist: Path) -> FileResponse:
+    """Serve the SPA entry point with caching disabled.
+
+    Vite emits content-hashed bundle names (`index-<hash>.js`), so the JS/CSS under
+    `/assets` are safe to cache forever — but `index.html` references them by name and
+    must never be cached, or the embedded webview keeps loading the *previous* build's
+    bundles after an auto-update (the "need Ctrl+Shift+R to see new features" symptom).
+    `no-cache` forces the webview to revalidate it on every launch.
+    """
+    return FileResponse(
+        dashboard_dist / "index.html",
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
+    )
 
 
 def _dashboard_dist() -> Path | None:

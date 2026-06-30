@@ -122,11 +122,12 @@ def watch_realtime(
     settings: ExtractSettings,
     on_tick: Callable[[PollResult], None],
     *,
-    fallback_interval: int | None = None,
     interval_provider: Callable[[], float | None] | None = None,
+    pause_provider: Callable[[], bool] | None = None,
+    fallback_interval: float | None = None,
+    settle_sec: float | None = None,
     stop: threading.Event | None = None,
     wake: threading.Event | None = None,
-    settle_sec: float | None = None,
 ) -> None:
     """Event-driven watch: react to save-file writes within ~1s via the OS, with a
     periodic safety poll as a backstop.
@@ -185,8 +186,12 @@ def watch_realtime(
         observer = None  # interval-only: `wake` simply times out every `every` seconds
 
     try:
-        result = poll_once(settings, min_quiet_sec=settle)  # ingest current state on startup
-        on_tick(result)
+        if pause_provider is None or not pause_provider():
+            result = poll_once(settings, min_quiet_sec=settle)  # ingest current state on startup
+            on_tick(result)
+        else:
+            result = PollResult(False, False, None)
+
         while not stop.is_set():
             # `None` waits indefinitely (watchdog-only); else poll when the interval elapses.
             # A deferred result (save mid-write) shortens the wait to the settle window.
@@ -194,6 +199,10 @@ def watch_realtime(
             wake.clear()
             if stop.is_set():
                 break
+            
+            if pause_provider is not None and pause_provider():
+                continue
+                
             result = poll_once(settings, min_quiet_sec=settle)
             on_tick(result)
     finally:

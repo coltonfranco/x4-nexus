@@ -33,6 +33,24 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # --- Inject version from tag into all manifests ------------------------------
+      # Only the tag needs to be correct — CI patches every package manifest so the
+      # built binaries + installer filenames + updater metadata all agree.
+      - name: Set version from tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "Injecting version $VERSION"
+          sed -i "s/^version = \".*\"/version = \"$VERSION\"/" packages/x4-api/pyproject.toml
+          sed -i "s/^version = \".*\"/version = \"$VERSION\"/" packages/x4-extract/pyproject.toml
+          sed -i "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" packages/x4-dashboard/package.json
+          sed -i "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" packages/x4-desktop/package.json
+          sed -i "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" packages/x4-desktop/src-tauri/tauri.conf.json
+          sed -i "s/^version = \".*\"/version = \"$VERSION\"/" packages/x4-desktop/src-tauri/Cargo.toml
+          sed -i "s/^__version__ = \".*\"/__version__ = \"$VERSION\"/" packages/x4-api/src/x4_api/__init__.py
+          sed -i "s/^__version__ = \".*\"/__version__ = \"$VERSION\"/" packages/x4-extract/src/x4_extract/__init__.py
+
       # --- Linux WebView + Tauri build dependencies --------------------------------
       # libwebkit2gtk is the system WebView Tauri uses on Linux; the .deb declares it as
       # a runtime dependency (see tauri.conf.json bundle.linux.deb.depends) so apt pulls
@@ -48,8 +66,7 @@ jobs:
             libayatana-appindicator3-dev \
             build-essential \
             file \
-            patchelf \
-            libfuse2
+            patchelf
 
       - name: Install uv (+ Python 3.12 from .python-version)
         # setup-uv has no moving `v8` major tag — pin the exact latest release.
@@ -77,7 +94,7 @@ jobs:
       # --- Build the standalone Python server sidecar ------------------------------
       - name: Build x4c-server sidecar (PyInstaller, onedir)
         run: |
-          uv sync --group packaging
+          uv sync --all-packages --group packaging
           uv run pyinstaller packages/x4-api/x4c-server.spec --noconfirm
 
       # --- Build the dashboard SPA -------------------------------------------------
@@ -106,7 +123,7 @@ jobs:
 
       # --- Build, sign, and publish the desktop installers -------------------------
       # tauri-action runs `tauri build` (emitting only targets valid for the host OS:
-      # Windows → nsis + msi, Linux → deb + appimage), signs the updater bundles with
+      # Windows → nsis + msi, Linux → deb), signs the updater bundles with
       # the secret key, and — on a v* tag — creates a DRAFT GitHub Release with the
       # installers plus a generated `latest.json` the updater reads. Publishing the
       # draft is a manual gate (the updater's endpoint resolves to the latest
@@ -119,8 +136,6 @@ jobs:
           # Updater signing — set these as repository secrets (see developer-guide §9).
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          # Avoid FUSE requirements when bundling the AppImage on CI runners.
-          APPIMAGE_EXTRACT_AND_RUN: 1
         with:
           projectPath: packages/x4-desktop
           # Only create a release on tag pushes; manual runs just build + upload artifacts.
@@ -140,5 +155,4 @@ jobs:
             packages/x4-desktop/src-tauri/target/release/bundle/nsis/*
             packages/x4-desktop/src-tauri/target/release/bundle/msi/*
             packages/x4-desktop/src-tauri/target/release/bundle/deb/*.deb
-            packages/x4-desktop/src-tauri/target/release/bundle/appimage/*.AppImage*
           if-no-files-found: ignore

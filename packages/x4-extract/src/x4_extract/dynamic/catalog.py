@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import gzip
 import sqlite3
+import threading
 import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -24,7 +25,7 @@ from pathlib import Path
 from lxml import etree
 
 from x4_extract.config import ExtractSettings, resolve_save_path, save_key
-from x4_extract.db import apply_schema
+from x4_extract.db import SCHEMA_LOCK, apply_schema, is_dynamic_initialized
 from x4_extract.dynamic.pipeline import dynamic_db_path, source_fingerprint
 
 _FALLBACK_DB = "_empty.db"  # ATTACH target when no save exists yet
@@ -389,8 +390,13 @@ def ensure_active_dynamic_db(settings: ExtractSettings) -> Path:
     except FileNotFoundError:
         save = None
     db = dynamic_db_path(settings, save) if save is not None else settings.dynamic_dir / _FALLBACK_DB
-    if not db.exists():
-        apply_schema(settings.data_dir, "dynamic", db_path=db)
+    
+    if is_dynamic_initialized(db):
+        return db
+
+    with SCHEMA_LOCK:
+        if not is_dynamic_initialized(db):
+            apply_schema(settings.data_dir, "dynamic", db_path=db)
     return db
 
 

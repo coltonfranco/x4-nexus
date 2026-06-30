@@ -37,6 +37,7 @@ router = APIRouter()
 class InitStatus(PublicModel):
     stage: str
     label: str
+    detail: str | None = None
     progress: float  # 0..1
     running: bool
     error: str | None
@@ -76,21 +77,29 @@ class SetupConfigRequest(BaseModel):
 def _init_status() -> InitStatus:
     s = job.state()
     return InitStatus(
-        stage=s.stage, label=s.label, progress=s.progress, running=s.running, error=s.error
+        stage=s.stage, label=s.label, detail=s.detail, progress=s.progress, running=s.running, error=s.error
     )
 
 
 def _status(settings: Settings) -> SetupStatus:
     ready = static_db_ready(settings)
+    init_stat = _init_status()
+
+    paths_valid = False
+    if settings.install_path and settings.save_path:
+        install_valid = settings.install_path.is_dir() and _count_cats(settings.install_path) > 0
+        save_valid = settings.save_path.is_dir() and next(settings.save_path.glob("*.xml.gz"), None) is not None
+        paths_valid = install_valid and save_valid
+
     return SetupStatus(
         configured=settings.install_path is not None,
         install_path=str(settings.install_path) if settings.install_path else None,
         save_path=str(settings.save_path) if settings.save_path else None,
         static_ready=ready,
-        # The wizard is needed until the static DB exists. A configured-but-not-built
-        # state (e.g. mid-init, or a failed build) still wants the wizard's progress UI.
-        needs_setup=not ready,
-        init=_init_status(),
+        # The wizard is needed until the static DB exists AND the configured paths are still valid
+        # AND there isn't a setup job currently running (like building icons) or failed.
+        needs_setup=not ready or not paths_valid or init_stat.running or init_stat.error is not None,
+        init=init_stat,
     )
 
 

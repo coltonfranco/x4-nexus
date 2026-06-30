@@ -16,6 +16,19 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HealthResponse'
+  /api/v1/setup/discover:
+    get:
+      tags:
+      - setup
+      summary: Discover Paths
+      operationId: discover_paths_api_v1_setup_discover_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiscoverPathsResponse'
   /api/v1/setup/status:
     get:
       tags:
@@ -4375,6 +4388,24 @@ components:
       - ware_id
       - faction_id
       title: DiploGift
+    DiscoverPathsResponse:
+      properties:
+        install_path:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Install Path
+        save_path:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Save Path
+      additionalProperties: false
+      type: object
+      required:
+      - install_path
+      - save_path
+      title: DiscoverPathsResponse
     DropEntry:
       properties:
         ware_id:
@@ -5202,6 +5233,11 @@ components:
           - type: string
           - type: 'null'
           title: Error
+        detail:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Detail
       additionalProperties: false
       type: object
       required:
@@ -5210,6 +5246,7 @@ components:
       - progress
       - running
       - error
+      - detail
       title: InitStatus
     LicenceItem:
       properties:
@@ -8276,13 +8313,12 @@ components:
           type: string
           title: Install Path
         save_path:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Save Path
       type: object
       required:
       - install_path
+      - save_path
       title: SetupConfigRequest
     SetupStatus:
       properties:
@@ -8585,15 +8621,18 @@ components:
           - type: string
           - type: 'null'
           title: Restriction Licence
+        has_blueprint:
+          type: boolean
+          title: Has Blueprint
+          default: false
         is_obtainable:
           type: boolean
           title: Is Obtainable
           default: false
         can_be_captured:
-          anyOf:
-          - type: integer
-          - type: 'null'
+          type: boolean
           title: Can Be Captured
+          default: true
         description:
           anyOf:
           - type: string
@@ -8872,7 +8911,6 @@ components:
       - icon_url
       - image_url
       - price_avg
-      - can_be_captured
       - description
       - basename
       - variation
@@ -9181,6 +9219,10 @@ components:
           - type: string
           - type: 'null'
           title: Restriction Licence
+        has_blueprint:
+          type: boolean
+          title: Has Blueprint
+          default: false
         is_obtainable:
           type: boolean
           title: Is Obtainable

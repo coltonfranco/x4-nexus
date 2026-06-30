@@ -3,22 +3,45 @@
 from __future__ import annotations
 
 import json
-from functools import lru_cache
 
 from x4_api.config import settings
 
 ICON_BASE = "/static/icons"
 
-@lru_cache(maxsize=1)
+# mtime-based cache so icon rebuilds (e.g. during first-run setup) are picked up
+# without a restart.  A permanent lru_cache would poison itself with {} when the
+# manifest file doesn't exist yet, and never recover.
+_manifest_mtime: float | None = None
+_manifest_cache: dict[str, dict[str, str]] | None = None
+
+
 def _load_manifest() -> dict[str, dict[str, str]]:
+    global _manifest_mtime, _manifest_cache
+
     manifest_path = settings.data_dir / "icons" / "manifest.json"
     if not manifest_path.exists():
         return {}
+
+    try:
+        mtime = manifest_path.stat().st_mtime
+    except OSError:
+        return _manifest_cache if _manifest_cache is not None else {}
+
+    # Return cached data when the file hasn't changed since the last read.
+    if _manifest_mtime == mtime and _manifest_cache is not None:
+        return _manifest_cache
+
     try:
         with manifest_path.open("r", encoding="utf-8") as f:
-            return json.load(f)
+            data: dict[str, dict[str, str]] = json.load(f)
     except Exception:
-        return {}
+        # Partial / corrupt write (e.g. icon rebuild in progress) — keep the
+        # previous good cache when available, otherwise fall back to empty.
+        return _manifest_cache if _manifest_cache is not None else {}
+
+    _manifest_mtime = mtime
+    _manifest_cache = data
+    return data
 
 
 def get_icon_url(logical_id: str | None) -> str | None:

@@ -7,6 +7,20 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from "./ui/input";
 import { Switch } from "./ui/switch";
 
+/** Shows the running app version from the API health endpoint. */
+function AppVersion() {
+  const { data } = useQuery<{ api_version: string }>({
+    queryKey: ["health-version"],
+    queryFn: () => fetch("/api/v1/health").then((r) => r.json()),
+    staleTime: Infinity,
+  });
+  return (
+    <p className="text-xs text-muted-foreground/40 text-center pt-4">
+      X4 Nexus v{data?.api_version ?? "..."}
+    </p>
+  );
+}
+
 type RefreshConfig = {
   background_refresh: boolean;
   interval_enabled: boolean;
@@ -152,6 +166,8 @@ export function SettingsModal() {
           <div className="flex justify-end">
             <Button onClick={() => setOpen(false)}>Done</Button>
           </div>
+
+          <AppVersion />
         </DialogContent>
       </Dialog>
     </>

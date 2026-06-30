@@ -93,7 +93,13 @@ def build_collectors(settings: ExtractSettings, save_path: Path) -> list[Collect
     ]
 
 
-def run(settings: ExtractSettings, save_path: Path, *, force: bool = False) -> Path:
+def run(
+    settings: ExtractSettings,
+    save_path: Path,
+    *,
+    force: bool = False,
+    on_progress: Callable[[str, float], None] | None = None,
+) -> Path:
     """Ingest `save_path` into its per-save dynamic DB. Returns the DB path.
 
     No-op (returns early) when the save's source fingerprint matches the last run,
@@ -127,7 +133,12 @@ def run(settings: ExtractSettings, save_path: Path, *, force: bool = False) -> P
         collectors = build_collectors(settings, save_path)
         registrations = [r for c in collectors for r in c.register()]
         load_static_zones(str(settings.data_dir / "static.db"))
-        stream_save(save_path, registrations)
+        
+        def _stream_progress(frac: float) -> None:
+            if on_progress:
+                on_progress(f"Reading save data ({frac*100:.0f}%)...", frac * 0.7)
+                
+        stream_save(save_path, registrations, on_progress=_stream_progress)
 
         game_time = _game_time_sec(collectors)
         rewritten = 0
@@ -143,7 +154,11 @@ def run(settings: ExtractSettings, save_path: Path, *, force: bool = False) -> P
                 )
                 if seeded:
                     log.info("seeded %d row_state entries from predecessor save", seeded)
-            for tier in TIERS:
+            total_tiers = len(TIERS)
+            for idx, tier in enumerate(TIERS):
+                if on_progress:
+                    # Scale from 0.7 to 1.0 for the tiers
+                    on_progress(f"Ingesting {tier}...", 0.7 + (idx / total_tiers) * 0.3)
                 new_fp = combined_fingerprint(collectors, tier)
                 if version_ok and new_fp == state.get(tier):
                     continue  # this tier's content is unchanged — keep existing rows
@@ -156,6 +171,8 @@ def run(settings: ExtractSettings, save_path: Path, *, force: bool = False) -> P
                     conn, collectors, tier, game_time=game_time, silent_types=_SILENT_DELTA_TYPES
                 )
                 _write_ingest_state(conn, tier, new_fp)
+            if on_progress:
+                on_progress("Finalizing ingest...", 0.95)
             elapsed_ms = round((time.perf_counter() - start) * 1000)
             _write_ingest_state(conn, "source", source_fp)
             _write_stat(conn, st)

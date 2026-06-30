@@ -6,6 +6,9 @@ use std::sync::Mutex;
 
 use tauri::{Manager, RunEvent, WindowEvent};
 
+#[cfg(windows)]
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
 /// Holds the spawned API server process so we can terminate it when the window closes.
 /// Without this the uvicorn process would outlive the desktop shell.
 struct ServerProcess(Mutex<Option<Child>>);
@@ -16,11 +19,13 @@ struct ServerProcess(Mutex<Option<Child>>);
 /// (`<resource_dir>/server/x4c-server/x4c-server[.exe]`), telling it where the dashboard
 /// `dist/` resource lives via `X4C_DASHBOARD_DIST` so it can serve the SPA. The webview's
 /// loader page then redirects to the server, making every relative /api and /static URL
-/// same-origin.
+/// same-origin.  On Windows the sidecar's console window is hidden with CREATE_NO_WINDOW.
 ///
 /// Dev: fall back to `uv run x4c serve` at the repo root so a source checkout still works
 /// with live reload (no sidecar staged).
 fn spawn_server(app: &tauri::AppHandle) -> Option<Child> {
+    #[cfg(windows)]
+    use std::os::windows::process::CommandExt;
     // env!("CARGO_MANIFEST_DIR") is packages/x4-desktop/src-tauri at compile time;
     // three levels up is the repository root.
     let repo_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../..");
@@ -35,10 +40,13 @@ fn spawn_server(app: &tauri::AppHandle) -> Option<Child> {
             });
             let dashboard_dist = resource_dir.join("dashboard");
             if sidecar.exists() {
-                return Command::new(sidecar)
-                    .env("X4C_DASHBOARD_DIST", dashboard_dist)
-                    .spawn()
-                    .ok();
+                let mut cmd = Command::new(sidecar);
+                cmd.env("X4C_DASHBOARD_DIST", dashboard_dist);
+                #[cfg(windows)]
+                {
+                    cmd.creation_flags(CREATE_NO_WINDOW);
+                }
+                return cmd.spawn().ok();
             }
         }
     }
@@ -60,7 +68,6 @@ fn kill_server_tree(mut child: Child) {
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
-        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
         let _ = Command::new("taskkill")
             .args(["/F", "/T", "/PID", &child.id().to_string()])
             .creation_flags(CREATE_NO_WINDOW)

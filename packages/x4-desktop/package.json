@@ -1,7 +1,7 @@
 {
   "name": "x4-desktop",
   "private": true,
-  "version": "0.0.1",
+  "version": "0.0.0",
   "description": "Tauri desktop shell for X4 Nexus — spawns the local API server and hosts the dashboard.",
   "scripts": {
     "dev": "tauri dev",
