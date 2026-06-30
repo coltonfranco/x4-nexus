@@ -1,6 +1,6 @@
 [package]
 name = "x4-desktop"
-version = "0.0.1"
+version = "0.0.2"
 description = "X4 Nexus desktop shell"
 edition = "2021"
 rust-version = "1.77"
