@@ -314,7 +314,7 @@ function Shell({
   children,
 }: {
   title: string;
-  subtitle: string;
+  subtitle: React.ReactNode;
   icon?: React.ReactNode;
   children: React.ReactNode;
 }) {
