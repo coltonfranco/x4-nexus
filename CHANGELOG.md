@@ -5,6 +5,64 @@ All notable changes to X4 Nexus are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.2] - 2026-07-01
+
+Second pre-release. Focuses on first-run setup reliability, progress feedback,
+and packaging robustness for testing the auto-update pipeline.
+
+### Added
+
+- **Two-level setup stepper** replacing the single predictive progress bar.
+  The wizard now shows all four build stages (datalake → static → icons →
+  dynamic) with a determinate within-stage bar. No more fake overall
+  percentage — progress is always honest within the active stage.
+- **`detail` field on `InitStatus`** surfaced through `/api/v1/setup/status`
+  so the wizard can show what the current stage is doing (e.g. "Reading base
+  catalog: 01.cat").
+- **Icon manifest mtime-based cache** replacing a permanent `lru_cache` that
+  would poison itself with `{}` when `manifest.json` didn't exist yet. The
+  cache now re-reads the manifest automatically when the file changes, so
+  icons resolve correctly after first-run extraction without a server restart.
+- **Background refresher startup gate**: waits for `static_db_ready()` and init
+  job completion before attaching to the static DB, preventing crashes during
+  first-run setup.
+- **Save poller pause gate**: skips polling while an init job is running so
+  the refresher doesn't contend with the setup pipeline.
+- **Byte-position save-stream progress**: the dynamic ingest now reports
+  real progress based on bytes read from the gzipped save file (every 200ms).
+  The extraction pipeline (crawler, static, icons, dynamic) all accept
+  `on_progress` callbacks.
+- **Dark flash prevention**: inline `<style>` and `<script>` in `index.html`
+  apply the dark theme (`#04060c` background) before the first paint.
+- **Maximized window** on launch via Tauri config (`"maximized": true`).
+- **Loader timeout & diagnostics**: after 120s the loader gives up and shows
+  troubleshooting instructions (antivirus, missing VC++ redistributables).
+- **Schema initialization check** (`is_dynamic_initialized`): guards against
+  a race where sqlite3 creates an empty file before `executescript` completes.
+- **Mutex-protected schema application** (`SCHEMA_LOCK`) to prevent concurrent
+  schema-init races between the API and the refresher.
+- **Setup `needs_setup` path validity**: the wizard now stays open if the
+  configured folders are missing or invalid, not just when `static.db` is
+  absent.
+- **`docs/setup-flow.md`**: detailed walkthrough of the full setup process
+  from Initialize click to dashboard render.
+
+### Fixed
+
+- **Windows sidecar console hidden** via `CREATE_NO_WINDOW` flag — the
+  PyInstaller uvicorn process no longer flashes a terminal window.
+- **Ware extraction deduplication**: owner factions, illegal factions, and
+  production methods are now de-duplicated at extraction time.
+- **PyInstaller packaging**: added explicit hidden imports for `uvicorn`,
+  `x4_api`, and `x4_extract` submodules so the frozen binary finds them at
+  runtime.
+
+### Changed
+
+- CI release workflow uses `uv sync --all-packages` to include workspace
+  members.
+- AGENTS.md frontend instructions updated from pnpm to npm.
+
 ## [0.0.1] - 2026-06-29
 
 First packaged pre-release. X4 Nexus is a second-monitor companion for

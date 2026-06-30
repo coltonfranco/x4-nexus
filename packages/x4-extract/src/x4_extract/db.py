@@ -7,10 +7,12 @@ as `s`. The poller writes while the API reads, so connections use WAL.
 from __future__ import annotations
 
 import sqlite3
+import threading
 from pathlib import Path
 from typing import Literal
 
 _SQL_DIR = Path(__file__).parent / "sql"
+SCHEMA_LOCK = threading.Lock()
 
 SchemaName = Literal["raw", "static", "dynamic", "appdata"]
 
@@ -30,10 +32,11 @@ def apply_schema(data_dir: Path, name: SchemaName, *, db_path: Path | None = Non
     target = db_path if db_path is not None else data_dir / f"{name}.db"
     target.parent.mkdir(parents=True, exist_ok=True)
 
-    with sqlite3.connect(target) as conn:
-        conn.executescript(sql)
-        if name == "dynamic":
-            _migrate_dynamic(conn)
+    with SCHEMA_LOCK:
+        with sqlite3.connect(target) as conn:
+            conn.executescript(sql)
+            if name == "dynamic":
+                _migrate_dynamic(conn)
 
 
 def _migrate_dynamic(conn: sqlite3.Connection) -> None:
@@ -60,6 +63,23 @@ def migrate_all(data_dir: Path) -> None:
     apply_schema(data_dir, "raw")
     apply_schema(data_dir, "dynamic")
     apply_schema(data_dir, "appdata")
+
+
+def is_dynamic_initialized(db_path: Path) -> bool:
+    """Check if the dynamic schema has actually been applied (tables exist).
+    
+    A bare `Path.exists()` check is vulnerable to race conditions because
+    sqlite3 creates an empty file before `conn.executescript()` completes.
+    """
+    if not db_path.exists():
+        return False
+    try:
+        with sqlite3.connect(f"file:{db_path}?mode=ro", uri=True) as conn:
+            # Pick a table at the bottom of schema_dynamic.sql
+            row = conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='player'").fetchone()
+            return row is not None
+    except sqlite3.OperationalError:
+        return False
 
 
 def open_db(

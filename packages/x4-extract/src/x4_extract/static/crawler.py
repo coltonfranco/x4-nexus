@@ -21,6 +21,7 @@ import sqlite3
 import time
 
 from lxml import etree
+from typing import Callable
 
 from x4_extract.config import ExtractSettings
 from x4_extract.db import apply_schema
@@ -48,7 +49,7 @@ def _elapsed(start: float) -> str:
     return f"\033[{c}m{dt:.1f}s\033[0m"
 
 
-def run_crawler(settings: ExtractSettings) -> None:
+def run_crawler(settings: ExtractSettings, on_progress: Callable[[str, float], None] | None = None) -> None:
     """Crawl catalogs and dump patched/merged XMLs to the datalake."""
     cats = catdat.discover_cats(settings.install_path)
     if not cats:
@@ -63,7 +64,10 @@ def run_crawler(settings: ExtractSettings) -> None:
     # Phase 1: Base game — last cat wins (update cats override earlier ones)
     # ------------------------------------------------------------------
     base_entries: dict[str, catdat.CatEntry] = {}
-    for cat in base_cats:
+    total_base_cats = len(base_cats)
+    for i, cat in enumerate(base_cats):
+        if on_progress:
+            on_progress(f"Reading base catalog: {cat.name}", 0.0 + (i / max(total_base_cats, 1)) * 0.1)
         count = 0
         for entry in catdat.iter_cat(cat):
             if _keep(entry.path):
@@ -82,7 +86,10 @@ def run_crawler(settings: ExtractSettings) -> None:
     dlc_patched = 0
     dlc_new = 0
 
-    for cat in dlc_cats:
+    total_dlc_cats = len(dlc_cats)
+    for i, cat in enumerate(dlc_cats):
+        if on_progress:
+            on_progress(f"Merging DLC catalog: {cat.parent.name if cat.parent else cat.stem}", 0.1 + (i / max(total_dlc_cats, 1)) * 0.15)
         dlc_name = cat.parent.name if cat.parent else cat.stem
         cat_patched = 0
         cat_new = 0
@@ -132,8 +139,12 @@ def run_crawler(settings: ExtractSettings) -> None:
 
     all_paths = list(base_entries) + [p for p in resolved if p not in base_entries]
     rows_to_insert: list[dict] = []
+    total_paths = len(all_paths)
 
-    for path in all_paths:
+    for i, path in enumerate(all_paths):
+        if i % 100 == 0 and on_progress:
+            on_progress(f"Writing to database: {i}/{total_paths} files", 0.25 + (i / max(total_paths, 1)) * 0.15)
+            
         if path in resolved:
             content_bytes = resolved[path]
         else:

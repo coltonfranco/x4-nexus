@@ -75,18 +75,27 @@ def extract(xml_bytes: bytes) -> ExtractResult:
             }
         )
 
+        seen_owner_factions: set[str] = set()
         for owner_el in ware_el.iterfind("owner"):
             faction = owner_el.get("faction")
-            if faction:
+            if faction and faction not in seen_owner_factions:
+                seen_owner_factions.add(faction)
                 out.owners.append({"ware_id": ware_id, "faction_id": faction})
 
+        seen_illegal_factions: set[str] = set()
         for illegal_el in ware_el.iterfind("illegal"):
             factions_str = illegal_el.get("factions", "").strip()
             for faction in factions_str.split():
-                out.illegal.append({"ware_id": ware_id, "faction_id": faction})
+                if faction not in seen_illegal_factions:
+                    seen_illegal_factions.add(faction)
+                    out.illegal.append({"ware_id": ware_id, "faction_id": faction})
 
+        seen_methods: set[str] = set()
         for prod_el in ware_el.iterfind("production"):
             method = prod_el.get("method", "default")
+            if method in seen_methods:
+                continue  # duplicate production element (e.g. Venture extension)
+            seen_methods.add(method)
             dismantle = prod_el.get("dismantlefactor")
             if dismantle:
                 out.wares[-1]["dismantlefactor"] = float(dismantle)

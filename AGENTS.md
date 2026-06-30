@@ -72,10 +72,10 @@ uv run ruff check                          # lint
 uv run mypy                                # type-check
 uv run x4c doctor                          # verify env
 
-# Frontend — pnpm preferred (npm/yarn also work)
+# Frontend
 cd packages/x4-dashboard
-pnpm install
-pnpm dev                                   # vite on :5173
+npm install
+npm run dev                                # vite on :5173
 ```
 
 Required env vars (see `.env.example`): `X4C_INSTALL_PATH` and `X4C_SAVE_PATH`.

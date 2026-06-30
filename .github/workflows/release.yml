@@ -77,7 +77,7 @@ jobs:
       # --- Build the standalone Python server sidecar ------------------------------
       - name: Build x4c-server sidecar (PyInstaller, onedir)
         run: |
-          uv sync --group packaging
+          uv sync --all-packages --group packaging
           uv run pyinstaller packages/x4-api/x4c-server.spec --noconfirm
 
       # --- Build the dashboard SPA -------------------------------------------------

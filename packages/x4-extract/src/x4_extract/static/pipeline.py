@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import sqlite3
 import time
-from typing import Any
+from typing import Any, Callable
 
 from x4_extract.config import ExtractSettings
 from x4_extract.db import apply_schema
@@ -56,13 +56,23 @@ def _elapsed(start: float) -> str:
     return f"\033[{c}m{dt:.1f}s\033[0m"
 
 
-def run(settings: ExtractSettings) -> None:
+def run(settings: ExtractSettings, on_progress: Callable[[str, float], None] | None = None) -> None:
+    _step = [0]
+    _total_steps = 26
+    def _progress_log(msg: str) -> None:
+        _log(msg)
+        if on_progress:
+            _step[0] += 1
+            # Scale from 0.0 to 1.0 (since icons are now moved out)
+            frac = (min(_step[0], _total_steps) / _total_steps)
+            on_progress(msg.replace("Extracting: ", "").replace("Computing: ", "").capitalize(), frac)
+
     settings.data_dir.mkdir(parents=True, exist_ok=True)
     db_path = settings.data_dir / "static.db"
     raw_db_path = settings.data_dir / "raw.db"
 
     if not raw_db_path.exists():
-        _log("raw.db not found — run rebuild-datalake first")
+        _progress_log("raw.db not found — run rebuild-datalake first")
         return
 
     # Always start with a fresh static.db — rebuild-static is a full replace, not a migration.
@@ -108,7 +118,7 @@ def run(settings: ExtractSettings) -> None:
     # Captured during the static pass.
     factions_result: Any | None = None
 
-    _log("Starting static rebuild")
+    _progress_log("Starting static rebuild")
 
     try:
         with conn:
@@ -133,57 +143,57 @@ def run(settings: ExtractSettings) -> None:
                 raise KeyError(name)
 
             t0 = time.monotonic()
-            _log("Extracting: ware groups")
+            _progress_log("Extracting: ware groups")
             waregroups_xml = get_raw_file("libraries/waregroups.xml")
             if waregroups_xml:
                 waregroups.write(conn, _localize_result(waregroups.extract(waregroups_xml)))
-                _log(f"  -> {len(waregroups.extract(waregroups_xml).groups)} groups ({_elapsed(t0)})")
+                _progress_log(f"  -> {len(waregroups.extract(waregroups_xml).groups)} groups ({_elapsed(t0)})")
 
             t0 = time.monotonic()
-            _log("Extracting: mission groups")
+            _progress_log("Extracting: mission groups")
             missiongroups_xml = get_raw_file("libraries/missiongroups.xml")
             if missiongroups_xml:
                 missiongroups.write(conn, _localize_result(missiongroups.extract(missiongroups_xml)))
-                _log(f"  -> {len(missiongroups.extract(missiongroups_xml).groups)} groups ({_elapsed(t0)})")
+                _progress_log(f"  -> {len(missiongroups.extract(missiongroups_xml).groups)} groups ({_elapsed(t0)})")
 
             t0 = time.monotonic()
-            _log("Extracting: wares")
+            _progress_log("Extracting: wares")
             wares_xml = get_raw_file("libraries/wares.xml")
             if wares_xml:
                 result = wares.extract(wares_xml)  # extract() fills each ware's production tier
                 wares.write(conn, _localize_result(result))
-                _log(f"  -> {len(result.wares)} wares ({_elapsed(t0)})")
+                _progress_log(f"  -> {len(result.wares)} wares ({_elapsed(t0)})")
                 mods_xml = get_raw_file("libraries/equipmentmods.xml")
                 if mods_xml:
                     t0 = time.monotonic()
-                    _log("Extracting: equipment mods")
+                    _progress_log("Extracting: equipment mods")
                     mods_result = equip_mods.extract(mods_xml, wares_xml)
                     equip_mods.write(conn, _localize_result(mods_result))
-                    _log(f"  -> {len(mods_result.mods)} mods ({_elapsed(t0)})")
+                    _progress_log(f"  -> {len(mods_result.mods)} mods ({_elapsed(t0)})")
                 drops_xml = get_raw_file("libraries/drops.xml")
                 if drops_xml:
                     t0 = time.monotonic()
-                    _log("Extracting: drops")
+                    _progress_log("Extracting: drops")
                     drops_result = drops.extract(drops_xml)
                     drops.write(conn, _localize_result(drops_result))
-                    _log(f"  -> {len(drops_result.lists)} lists ({_elapsed(t0)})")
+                    _progress_log(f"  -> {len(drops_result.lists)} lists ({_elapsed(t0)})")
 
             t0 = time.monotonic()
-            _log("Extracting: factions")
+            _progress_log("Extracting: factions")
             factions_xml = get_raw_file("libraries/factions.xml")
             if factions_xml:
                 colors_xml = get_raw_file("libraries/colors.xml")
                 factions_result = _localize_result(factions.extract(factions_xml, colors_xml))
                 factions.write(conn, factions_result)  # definitions only; relations -> seed.db
-                _log(f"  -> {len(factions_result.factions)} factions ({_elapsed(t0)})")
+                _progress_log(f"  -> {len(factions_result.factions)} factions ({_elapsed(t0)})")
 
             t0 = time.monotonic()
-            _log("Extracting: races")
+            _progress_log("Extracting: races")
             races_xml = get_raw_file("libraries/races.xml")
             if races_xml:
                 races_result = _localize_result(races.extract(races_xml))
                 races.write(conn, races_result)
-                _log(f"  -> {len(races_result.races)} races ({_elapsed(t0)})")
+                _progress_log(f"  -> {len(races_result.races)} races ({_elapsed(t0)})")
 
             macros_xml = get_raw_file("index/macros.xml")
             if macros_xml:
@@ -227,44 +237,44 @@ def run(settings: ExtractSettings) -> None:
                     raise KeyError(name)
 
                 t0 = time.monotonic()
-                _log("Extracting: ships")
+                _progress_log("Extracting: ships")
                 s_result = ships.extract(macros_xml, cached_resolver, cached_resolve_name)
                 ships.write(conn, _localize_result(s_result))
-                _log(f"  -> {len(s_result.ships)} ships ({_elapsed(t0)})")
+                _progress_log(f"  -> {len(s_result.ships)} ships ({_elapsed(t0)})")
 
                 t0 = time.monotonic()
-                _log("Extracting: equipment")
+                _progress_log("Extracting: equipment")
                 e_result = equipment.extract(macros_xml, cached_resolver, cached_resolve_name)
                 equipment.write(conn, _localize_result(e_result))
-                _log(f"  -> {len(e_result.engines)} engines, {len(e_result.shields)} shields, {len(e_result.weapons)} weapons ({_elapsed(t0)})")
+                _progress_log(f"  -> {len(e_result.engines)} engines, {len(e_result.shields)} shields, {len(e_result.weapons)} weapons ({_elapsed(t0)})")
 
                 t0 = time.monotonic()
-                _log("Extracting: modules")
+                _progress_log("Extracting: modules")
                 m_result = modules.extract(macros_xml, cached_resolver, cached_resolve_name)
                 modules.write(conn, _localize_result(m_result))
-                _log(f"  -> {len(m_result.modules)} modules ({_elapsed(t0)})")
+                _progress_log(f"  -> {len(m_result.modules)} modules ({_elapsed(t0)})")
 
                 t0 = time.monotonic()
-                _log("Extracting: station types")
+                _progress_log("Extracting: station types")
                 st_result = station_types.extract(macros_xml, cached_resolver)
                 station_types.write(conn, _localize_result(st_result))
-                _log(f"  -> {len(st_result.stations)} types ({_elapsed(t0)})")
+                _progress_log(f"  -> {len(st_result.stations)} types ({_elapsed(t0)})")
 
                 t0 = time.monotonic()
-                _log("Computing: derived ship stats")
+                _progress_log("Computing: derived ship stats")
                 ships.update_derived_stats(conn)
-                _log(f"  done ({_elapsed(t0)})")
+                _progress_log(f"  done ({_elapsed(t0)})")
 
             t0 = time.monotonic()
-            _log("Extracting: loadouts")
+            _progress_log("Extracting: loadouts")
             loadouts_xml = get_raw_file("libraries/loadouts.xml")
             if loadouts_xml:
                 lo_result = loadouts.extract(loadouts_xml)
                 loadouts.write(conn, _localize_result(lo_result))
-                _log(f"  -> {len(lo_result.loadouts)} loadouts ({_elapsed(t0)})")
+                _progress_log(f"  -> {len(lo_result.loadouts)} loadouts ({_elapsed(t0)})")
 
             t0 = time.monotonic()
-            _log("Extracting: map")
+            _progress_log("Extracting: map")
             # Collect all map files — base game + per-DLC cluster/sector/zone files.
             # Must be fetched before regions so the sector mapping can be built.
             map_rows = conn.execute(
@@ -289,26 +299,26 @@ def run(settings: ExtractSettings) -> None:
                     map_xmls["mapdefaults.xml"] = mapdefaults_xml
                 map_result = map.extract(map_xmls)
                 map.write(conn, _localize_result(map_result))
-                _log(f"  -> {len(map_result.clusters)} clusters, {len(map_result.sectors)} sectors ({_elapsed(t0)})")
+                _progress_log(f"  -> {len(map_result.clusters)} clusters, {len(map_result.sectors)} sectors ({_elapsed(t0)})")
 
             t0 = time.monotonic()
-            _log("Extracting: terraforming")
+            _progress_log("Extracting: terraforming")
             terraform_xml = get_raw_file("libraries/terraforming.xml")
             if terraform_xml:
                 tf_result = terraforming.extract(terraform_xml)
                 terraforming.write(conn, _localize_result(tf_result))
-                _log(f"  -> {len(tf_result.projects)} projects ({_elapsed(t0)})")
+                _progress_log(f"  -> {len(tf_result.projects)} projects ({_elapsed(t0)})")
 
             t0 = time.monotonic()
-            _log("Extracting: diplomacy")
+            _progress_log("Extracting: diplomacy")
             diplo_xml = get_raw_file("libraries/diplomacy.xml")
             if diplo_xml:
                 d_result = diplomacy.extract(diplo_xml)
                 diplomacy.write(conn, _localize_result(d_result))
-                _log(f"  -> {len(d_result.actions)} actions ({_elapsed(t0)})")
+                _progress_log(f"  -> {len(d_result.actions)} actions ({_elapsed(t0)})")
 
             t0 = time.monotonic()
-            _log("Extracting: gamestart stories")
+            _progress_log("Extracting: gamestart stories")
             gamestarts_xml = get_raw_file("libraries/gamestarts.xml")
             if gamestarts_xml:
                 gs_result = gamestarts.extract(gamestarts_xml)
@@ -319,43 +329,43 @@ def run(settings: ExtractSettings) -> None:
                         "VALUES (:gamestart_id, :story_ref, :story_group, :story_index)",
                         gs_result.stories,
                     )
-                _log(f"  -> {len(gs_result.stories)} stories ({_elapsed(t0)})")
+                _progress_log(f"  -> {len(gs_result.stories)} stories ({_elapsed(t0)})")
 
             t0 = time.monotonic()
-            _log("Extracting: assignments")
+            _progress_log("Extracting: assignments")
             assign_xml = get_raw_file("libraries/assignments.xml")
             if assign_xml:
                 a_result = assignments.extract(assign_xml)
                 assignments.write(conn, _localize_result(a_result))
-                _log(f"  -> {len(a_result.assignments)} assignments ({_elapsed(t0)})")
+                _progress_log(f"  -> {len(a_result.assignments)} assignments ({_elapsed(t0)})")
 
             t0 = time.monotonic()
-            _log("Extracting: behaviours")
+            _progress_log("Extracting: behaviours")
             behav_xml = get_raw_file("libraries/behaviours.xml")
             if behav_xml:
                 b_result = behaviours.extract(behav_xml)
                 behaviours.write(conn, _localize_result(b_result))
-                _log(f"  -> {len(b_result.behaviours)} behaviours ({_elapsed(t0)})")
+                _progress_log(f"  -> {len(b_result.behaviours)} behaviours ({_elapsed(t0)})")
 
             t0 = time.monotonic()
-            _log("Extracting: roles")
+            _progress_log("Extracting: roles")
             roles_xml = get_raw_file("libraries/roles.xml")
             posts_xml = get_raw_file("libraries/posts.xml")
             if roles_xml:
                 r_result = roles.extract(roles_xml, posts_xml)
                 roles.write(conn, _localize_result(r_result))
-                _log(f"  -> {len(r_result.roles)} roles ({_elapsed(t0)})")
+                _progress_log(f"  -> {len(r_result.roles)} roles ({_elapsed(t0)})")
 
             t0 = time.monotonic()
-            _log("Extracting: texts")
+            _progress_log("Extracting: texts")
             texts_xml = get_raw_file("t/0001-l044.xml")
             if texts_xml:
                 t_result = texts.extract(texts_xml)
                 texts.write(conn, t_result)
-                _log(f"  -> {len(t_result.texts)} texts ({_elapsed(t0)})")
+                _progress_log(f"  -> {len(t_result.texts)} texts ({_elapsed(t0)})")
 
             t0 = time.monotonic()
-            _log("Extracting: orders (aiscripts)")
+            _progress_log("Extracting: orders (aiscripts)")
             # Get all aiscript files
             ai_rows = conn.execute(
                 "SELECT content FROM raw.raw_files WHERE directory = 'aiscripts'"
@@ -373,10 +383,10 @@ def run(settings: ExtractSettings) -> None:
                             o_result.orders,
                         )
                         total_orders += len(o_result.orders)
-                _log(f"  -> {total_orders} orders ({_elapsed(t0)})")
+                _progress_log(f"  -> {total_orders} orders ({_elapsed(t0)})")
 
             t0 = time.monotonic()
-            _log("Computing: ware uses")
+            _progress_log("Computing: ware uses")
             conn.execute("DELETE FROM ware_uses")
             conn.execute('''
                 INSERT INTO ware_uses (ware_id, use_type, use_value)
@@ -412,13 +422,8 @@ def run(settings: ExtractSettings) -> None:
                 WHERE s.ship_id IS NULL AND m.module_id IS NULL AND ed.deployable_id IS NULL
                   AND w.group_id NOT IN ('weapons', 'turrets', 'shields', 'engines', 'thrusters', 'drones', 'missiles', 'countermeasures', 'equipmod', 'paintmod')
             ''')
-            _log(f"  done ({_elapsed(t0)})")
+            _progress_log(f"  done ({_elapsed(t0)})")
     finally:
         conn.close()
-    # --- Build icons: DDS -> PNG under data/icons/ ---
-    t0 = time.monotonic()
-    _log("Building: icons")
-    icons.run(settings)
-    _log(f"icons done ({_elapsed(t0)})")
 
-    _log("All done.")
+    _progress_log("All done.")

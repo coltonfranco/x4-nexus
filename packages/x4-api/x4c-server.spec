@@ -39,8 +39,14 @@ hiddenimports = [
     "texture2ddecoder",
     "networkx",
     "typer",
+    "uvicorn",  # imported inside a function in server_entry.py
     # uvicorn loads its protocol/lifespan/loop implementations dynamically.
     *collect_submodules("uvicorn"),
+    # x4_api + x4_extract are workspace packages installed in editable mode;
+    # uvicorn loads "x4_api.api.app:app" from a string so PyInstaller can't
+    # trace it.
+    *collect_submodules("x4_api"),
+    *collect_submodules("x4_extract"),
 ]
 
 a = Analysis(

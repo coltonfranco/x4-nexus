@@ -43,10 +43,16 @@ def _log(msg: str) -> None:
     print(f"\033[90m{ts}\033[0m  {msg}", flush=True)
 
 
-def run(settings: ExtractSettings) -> None:
+from typing import Callable
+
+def run(settings: ExtractSettings, on_progress: Callable[[str, float], None] | None = None) -> None:
     """Extract all icons from game data to PNG files."""
+    t0 = time.monotonic()
+    _log("Starting icon generation...")
+    
     cat_paths = discover_cats(settings.install_path)
     if not cat_paths:
+        _log("No catalogs found for icons.")
         return
 
     index = build_index(cat_paths)
@@ -117,7 +123,10 @@ def run(settings: ExtractSettings) -> None:
             else:
                 icon_map[logical_id] = texture_path
 
-    for logical_id, texture_path in icon_map.items():
+    total = len(icon_map)
+    for i, (logical_id, texture_path) in enumerate(icon_map.items()):
+        if i % 10 == 0 and on_progress:
+            on_progress(f"Building icons ({i}/{total})...", i / max(total, 1))
 
         # Convert backslashes and strip prefix if needed
         # Often texture path looks like: extensions\ego_dlc_terran\assets\textures\ui\wares\ware_energycells.tga
@@ -195,7 +204,10 @@ def run(settings: ExtractSettings) -> None:
     with manifest_path.open("w", encoding="utf-8") as f:
         json.dump(new_manifest, f, indent=2)
 
-    _log(f"  extracted: {processed_count} (skipped {skipped_count} unchanged)")
+    if on_progress:
+        on_progress(f"Building icons ({total}/{total})...", 1.0)
+    
+    _log(f"Icon generation complete: {processed_count} extracted (skipped {skipped_count} unchanged) in {time.monotonic() - t0:.1f}s")
 
 
 def _decode_dds_to_png(dds_data: bytes, output_path: Path) -> bool:

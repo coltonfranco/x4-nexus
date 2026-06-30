@@ -1,6 +1,6 @@
 [project]
 name = "x4-api"
-version = "0.0.1"
+version = "0.0.2"
 description = "Extraction and REST API layer for X4: Foundations game and save data"
 readme = "README.md"
 requires-python = ">=3.12"

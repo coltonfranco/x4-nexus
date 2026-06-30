@@ -1,6 +1,6 @@
 [project]
 name = "x4-extract"
-version = "0.0.1"
+version = "0.0.2"
 description = "Static game data extraction pipeline for X4: Foundations"
 requires-python = ">=3.12"
 license = { text = "MIT" }

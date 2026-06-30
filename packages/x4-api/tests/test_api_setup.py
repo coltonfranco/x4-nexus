@@ -58,7 +58,20 @@ def test_status_needs_setup_when_unconfigured_and_empty(client: TestClient) -> N
     assert body["init"]["stage"] == "idle"
 
 
-def test_status_ready_once_static_populated(client: TestClient, data_dir: Path) -> None:
+def test_status_ready_once_static_populated(
+    client: TestClient, data_dir: Path, settings: Settings, tmp_path: Path
+) -> None:
+    # Make the paths valid so `needs_setup` doesn't stay True due to missing files.
+    install = tmp_path / "x4"
+    install.mkdir()
+    (install / "01.cat").touch()
+    saves = tmp_path / "save"
+    saves.mkdir()
+    (saves / "quicksave.xml.gz").touch()
+    
+    settings.install_path = install
+    settings.save_path = saves
+
     _populate_static(data_dir)
     body = client.get("/api/v1/setup/status").json()
     assert body["static_ready"] is True

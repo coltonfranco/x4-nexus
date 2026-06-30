@@ -61,7 +61,36 @@ class Registration:
     visitor: Visitor
 
 
-def stream_save(path: Path, registrations: Iterable[Registration]) -> None:
+import time
+from typing import BinaryIO
+
+class _ProgressReader:
+    def __init__(self, f: BinaryIO, total: int, on_progress: Callable[[float], None] | None):
+        self._f = f
+        self._total = max(total, 1)
+        self._on_progress = on_progress
+        self._last_report_time = time.monotonic()
+        
+    def read(self, size: int = -1) -> bytes:
+        data = self._f.read(size)
+        if self._on_progress:
+            now = time.monotonic()
+            if now - self._last_report_time > 0.2:  # Report every 200ms
+                try:
+                    pos = self._f.tell()
+                    self._on_progress(min(pos / self._total, 1.0))
+                except Exception:
+                    pass
+                self._last_report_time = now
+        return data
+        
+    def tell(self) -> int: return self._f.tell()
+    def seek(self, offset: int, whence: int = 0) -> int: return self._f.seek(offset, whence)
+    def close(self) -> None: self._f.close()
+    def readable(self) -> bool: return True
+    def seekable(self) -> bool: return True
+
+def stream_save(path: Path, registrations: Iterable[Registration], on_progress: Callable[[float], None] | None = None) -> None:
     """Open a gzipped save file and dispatch its elements to registered visitors.
 
     Memory note: peak working set is bounded by the largest subtree any visitor
@@ -69,9 +98,12 @@ def stream_save(path: Path, registrations: Iterable[Registration]) -> None:
     elements past visitor return; they will be cleared.
     """
     regs = list(registrations)
-    with gzip.open(path, "rb") as gz:
-        # GzipFile satisfies the IO[bytes] protocol structurally; mypy uses nominal typing.
-        _dispatch(cast("IO[bytes]", gz), regs)
+    file_size = path.stat().st_size
+    with open(path, "rb") as raw_f:
+        wrapped_f = _ProgressReader(raw_f, file_size, on_progress)
+        with gzip.open(wrapped_f, "rb") as gz:
+            # GzipFile satisfies the IO[bytes] protocol structurally; mypy uses nominal typing.
+            _dispatch(cast("IO[bytes]", gz), regs)
 
 
 def _dispatch(stream: IO[bytes], regs: list[Registration]) -> None:
