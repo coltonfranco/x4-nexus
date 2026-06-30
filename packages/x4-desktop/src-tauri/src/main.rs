@@ -96,6 +96,21 @@ fn main() {
         .plugin(tauri_plugin_process::init())
         .manage(ServerProcess(Mutex::new(None)))
         .setup(|app| {
+            // Prevent the white flash by painting the webview background dark before
+            // the loader HTML (or any content) renders.  The HTML inline styles cover
+            // the gap between "HTML parsed" and "CSS loaded"; this covers the gap
+            // between "window created" and "HTML parsed".
+            #[cfg(any(
+                target_os = "windows",
+                target_os = "linux",
+                target_os = "macos"
+            ))]
+            if let Some(window) = app.get_webview_window("main") {
+                window.with_webview(|webview| {
+                    let _ = webview.set_background_color((6, 10, 18, 255));
+                });
+            }
+
             let child = spawn_server(app.handle());
             if child.is_none() {
                 eprintln!(
