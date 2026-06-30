@@ -95,6 +95,13 @@ export async function startInitialize(): Promise<SetupStatus> {
   return r.json();
 }
 
+/** Wipe game-derived data and rebuild from scratch (preserves saved station designs). */
+export async function resetGameData(): Promise<SetupStatus> {
+  const r = await fetch("/api/v1/setup/reset", { method: "POST" });
+  if (!r.ok) throw new Error(`reset ${r.status}`);
+  return r.json();
+}
+
 // ── Native folder picker (Tauri) with a browser fallback ─────────────────────────
 
 declare global {

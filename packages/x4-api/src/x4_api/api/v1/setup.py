@@ -160,3 +160,14 @@ def initialize(settings: Annotated[Settings, Depends(get_settings)]) -> SetupSta
     """Start the static build in the background. Idempotent while one is running."""
     job.start(settings)  # no-op if already running; status reflects the running stage
     return _status(settings)
+
+
+@router.post("/setup/reset", response_model=SetupStatus)
+def reset(settings: Annotated[Settings, Depends(get_settings)]) -> SetupStatus:
+    """Wipe game-derived data and rebuild from scratch. Idempotent while running.
+
+    Used after a game patch, mod change, or folder relocation. Preserves user-authored
+    Station Builder designs (appdata.db); only game-derived data is cleared.
+    """
+    job.start(settings, reset=True)  # no-op if already running
+    return _status(settings)

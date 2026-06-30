@@ -158,3 +158,34 @@ def test_persisted_config_is_lowest_priority_source(
     monkeypatch.setenv("X4C_INSTALL_PATH", "D:/other/x4")
     from_env = Settings(_env_file=None, data_dir=isolated_appdata)
     assert from_env.install_path == Path("D:/other/x4").resolve()
+
+
+def test_wipe_game_data_clears_derived_keeps_user_content(data_dir: Path, settings: Settings) -> None:
+    """The reset wipe removes game-derived DBs/dirs but preserves user-authored content."""
+    from x4_api.init_job import wipe_game_data
+
+    # Game-derived data (must be removed).
+    for name in ("raw.db", "static.db", "catalog.db"):
+        (data_dir / name).write_bytes(b"db")
+        (data_dir / f"{name}-wal").write_bytes(b"wal")
+    (data_dir / "active_save.txt").write_text("save_001")
+    (data_dir / "dynamic").mkdir()
+    (data_dir / "dynamic" / "save_001.db").write_bytes(b"dyn")
+    (data_dir / "icons").mkdir()
+    (data_dir / "icons" / "energycells.png").write_bytes(b"png")
+
+    # User-authored content (must survive).
+    (data_dir / "appdata.db").write_bytes(b"designs")
+    (data_dir / "refresh_config.json").write_text("{}")
+
+    wipe_game_data(settings)
+
+    for name in ("raw.db", "static.db", "catalog.db"):
+        assert not (data_dir / name).exists()
+        assert not (data_dir / f"{name}-wal").exists()
+    assert not (data_dir / "active_save.txt").exists()
+    assert not (data_dir / "dynamic").exists()
+    assert not (data_dir / "icons").exists()
+
+    assert (data_dir / "appdata.db").read_bytes() == b"designs"
+    assert (data_dir / "refresh_config.json").exists()
