@@ -8,11 +8,14 @@ from __future__ import annotations
 
 import sqlite3
 import threading
+from contextlib import closing
 from pathlib import Path
 from typing import Literal
 
 _SQL_DIR = Path(__file__).parent / "sql"
-SCHEMA_LOCK = threading.Lock()
+# Reentrant: callers like ensure_active_dynamic_db hold this around a check-then-create
+# and then call apply_schema, which re-acquires it. A plain Lock would self-deadlock.
+SCHEMA_LOCK = threading.RLock()
 
 SchemaName = Literal["raw", "static", "dynamic", "appdata"]
 
@@ -33,7 +36,10 @@ def apply_schema(data_dir: Path, name: SchemaName, *, db_path: Path | None = Non
     target.parent.mkdir(parents=True, exist_ok=True)
 
     with SCHEMA_LOCK:
-        with sqlite3.connect(target) as conn:
+        # `with sqlite3.connect(...)` only commits/rolls back — it does NOT close the
+        # connection, so the handle (and on Windows its file lock) lingers until GC.
+        # Wrap in closing() so the DB file can be deleted/overwritten right after.
+        with closing(sqlite3.connect(target)) as conn, conn:
             conn.executescript(sql)
             if name == "dynamic":
                 _migrate_dynamic(conn)

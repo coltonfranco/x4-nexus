@@ -1,7 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Eye, EyeOff, Settings as SettingsIcon } from "lucide-react";
+import { AlertTriangle, Eye, EyeOff, Loader2, RotateCcw, Settings as SettingsIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useSettings } from "../lib/settingsStore";
+import { FolderField } from "./setup/FolderField";
+import {
+  type PathValidation,
+  type SetupStatus,
+  getSetupStatus,
+  resetGameData,
+  saveConfig,
+} from "../lib/setup";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Input } from "./ui/input";
@@ -113,6 +121,113 @@ function LiveSyncSection() {
   );
 }
 
+/** Folder reconfiguration + a destructive full rebuild of the game-derived databases.
+ *  Used after a game patch, mod change, or moving the install/save folder. Saved Station
+ *  Builder designs (appdata.db) are preserved — only game-derived data is wiped. */
+function AdvancedSection({ onReloadStarted }: { onReloadStarted: () => void }) {
+  const qc = useQueryClient();
+  const { data: status } = useQuery<SetupStatus>({
+    queryKey: ["setup-status"],
+    queryFn: getSetupStatus,
+  });
+
+  const [install, setInstall] = useState("");
+  const [save, setSave] = useState("");
+  const [installVal, setInstallVal] = useState<PathValidation | null>(null);
+  const [saveVal, setSaveVal] = useState<PathValidation | null>(null);
+  const [confirming, setConfirming] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Seed the fields from the persisted config once it loads.
+  useEffect(() => {
+    if (status?.install_path) setInstall(status.install_path);
+    if (status?.save_path) setSave(status.save_path);
+  }, [status?.install_path, status?.save_path]);
+
+  const foldersChanged =
+    install.trim() !== (status?.install_path ?? "") || save.trim() !== (status?.save_path ?? "");
+  // Edited folders must validate; untouched folders are assumed fine (already in use).
+  const installOk = install.trim() === (status?.install_path ?? "") || installVal?.ok === true;
+  const saveOk = save.trim() === (status?.save_path ?? "") || saveVal?.ok === true;
+  const canReload = installOk && saveOk && !submitting;
+
+  async function reload() {
+    setSubmitting(true);
+    setError(null);
+    try {
+      if (foldersChanged) await saveConfig(install.trim(), save.trim());
+      await resetGameData();
+      // Flip the setup gate into its full-screen progress view; the modal can close.
+      await qc.invalidateQueries({ queryKey: ["setup-status"] });
+      onReloadStarted();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      setSubmitting(false);
+      setConfirming(false);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <FolderField
+        label="Game install folder"
+        hint="The folder containing X4.exe and the .cat archives."
+        value={install}
+        onChange={setInstall}
+        onValidated={setInstallVal}
+        kind="install"
+      />
+      <FolderField
+        label="Save folder"
+        hint="The folder with your *.xml.gz saves (…/Egosoft/X4/<id>/save)."
+        value={save}
+        onChange={setSave}
+        onValidated={setSaveVal}
+        kind="save"
+      />
+
+      <div className="rounded-md border border-border p-3 space-y-2">
+        <p className="text-sm text-muted-foreground">
+          Rebuilds the game databases from your install files. Run this after a game patch, adding
+          or removing mods, or changing the folders above. It takes a few minutes. Your saved
+          Station Builder designs are kept.
+        </p>
+        {error && (
+          <p className="flex items-center gap-2 text-sm text-destructive">
+            <AlertTriangle className="w-4 h-4 shrink-0" /> {error}
+          </p>
+        )}
+        {confirming ? (
+          <div className="flex gap-2">
+            <Button
+              variant="destructive"
+              className="gap-2"
+              disabled={!canReload}
+              onClick={reload}
+            >
+              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <AlertTriangle className="w-4 h-4" />}
+              Yes, reload game data
+            </Button>
+            <Button variant="outline" disabled={submitting} onClick={() => setConfirming(false)}>
+              Cancel
+            </Button>
+          </div>
+        ) : (
+          <Button
+            variant="outline"
+            className="gap-2"
+            disabled={!canReload}
+            onClick={() => setConfirming(true)}
+          >
+            <RotateCcw className="w-4 h-4" /> Reload game data
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function SettingsModal() {
   const [open, setOpen] = useState(false);
   const { settings, updateSettings } = useSettings();
@@ -160,6 +275,13 @@ export function SettingsModal() {
                 Live sync
               </h3>
               <LiveSyncSection />
+            </div>
+
+            <div className="border-t border-border pt-6">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-4">
+                Advanced
+              </h3>
+              <AdvancedSection onReloadStarted={() => setOpen(false)} />
             </div>
           </div>
 

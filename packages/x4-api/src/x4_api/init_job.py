@@ -11,8 +11,12 @@ is exactly one app and one data directory.
 
 from __future__ import annotations
 
+import gc
+import shutil
 import threading
+import time
 from dataclasses import dataclass, replace
+from pathlib import Path
 from typing import Literal
 
 from x4_api.config import Settings
@@ -34,6 +38,51 @@ _STAGE_LABEL: dict[Stage, str] = {
 
 # Ordered list of the four build stages — frontend uses this for the stepper.
 BUILD_STAGES: list[Stage] = ["datalake", "static", "icons", "dynamic"]
+
+
+def _remove_path(path: Path) -> None:
+    """Best-effort delete tolerant of transient Windows file locks.
+
+    On Windows a sqlite handle that has gone out of scope but not yet been collected
+    still holds a lock, so an immediate ``unlink`` can raise ``PermissionError``. Retry
+    a few times, forcing a GC pass between attempts to release such handles; if the
+    path is still stubborn, give up rather than aborting the whole rebuild (the crawler
+    overwrites the DBs anyway).
+    """
+    for _ in range(5):
+        try:
+            if path.is_dir():
+                shutil.rmtree(path)
+            else:
+                path.unlink(missing_ok=True)
+            return
+        except OSError:
+            gc.collect()
+            time.sleep(0.2)
+    if path.is_dir():
+        shutil.rmtree(path, ignore_errors=True)
+
+
+def wipe_game_data(settings: Settings) -> None:
+    """Delete all game-derived data so a reset rebuilds from scratch.
+
+    Schemas apply non-destructively (``CREATE … IF NOT EXISTS``), so re-running init
+    alone would leave stale rows from an old patch. This selectively removes the
+    derived DBs and asset dirs while preserving user-authored content: ``appdata.db``
+    (Station Builder designs), ``refresh_config.json``, and the separate
+    ``config.json`` in the app-data dir are never touched.
+    """
+    data_dir = settings.data_dir
+
+    for subdir in ("dynamic", "icons"):
+        _remove_path(data_dir / subdir)
+
+    # Each SQLite DB plus its -wal/-shm sidecars.
+    for db in ("raw.db", "static.db", "catalog.db"):
+        for suffix in ("", "-wal", "-shm"):
+            _remove_path(data_dir / f"{db}{suffix}")
+
+    _remove_path(data_dir / "active_save.txt")
 
 
 
@@ -72,19 +121,23 @@ class InitJob:
         with self._lock:
             self._state = replace(self._state, **kw)  # type: ignore[arg-type]
 
-    def start(self, settings: Settings) -> bool:
-        """Begin a rebuild in a daemon thread. Returns False if one is already running."""
+    def start(self, settings: Settings, *, reset: bool = False) -> bool:
+        """Begin a rebuild in a daemon thread. Returns False if one is already running.
+
+        When ``reset`` is true the existing game-derived data is wiped before the
+        rebuild (see :func:`wipe_game_data`) so a stale patch/mod state is cleared.
+        """
         with self._lock:
             if self._state.running:
                 return False
             self._state = InitState(stage="datalake")
             self._thread = threading.Thread(
-                target=self._run, args=(settings,), name="x4-init", daemon=True
+                target=self._run, args=(settings, reset), name="x4-init", daemon=True
             )
             self._thread.start()
             return True
 
-    def _run(self, settings: Settings) -> None:
+    def _run(self, settings: Settings, reset: bool = False) -> None:
         # Imported lazily — these pull in lxml/Pillow and are only needed during a build.
         from x4_extract.static.crawler import run_crawler
         from x4_extract.static.pipeline import run as run_static
@@ -97,6 +150,15 @@ class InitJob:
             self._set(detail=detail, progress=prog)
 
         try:
+            if reset:
+                # The job is already marked running, so the background refresher's
+                # pause_provider has stopped the poller and the dashboard has unmounted
+                # behind the full-screen progress gate. Settle briefly to let any
+                # in-flight DB handle close, then clear the stale game-derived data.
+                self._set(detail="Clearing existing game data...", progress=0.0)
+                time.sleep(0.5)
+                wipe_game_data(settings)
+
             # Crawler reports 0.0 → 0.4 internally (three sub-phases totalling 0.4).
             # Scale to 0.0 → 1.0 so the within-stage bar fills proportionally.
             run_crawler(
