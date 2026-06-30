@@ -66,8 +66,7 @@ jobs:
             libayatana-appindicator3-dev \
             build-essential \
             file \
-            patchelf \
-            libfuse2
+            patchelf
 
       - name: Install uv (+ Python 3.12 from .python-version)
         # setup-uv has no moving `v8` major tag — pin the exact latest release.
@@ -124,7 +123,7 @@ jobs:
 
       # --- Build, sign, and publish the desktop installers -------------------------
       # tauri-action runs `tauri build` (emitting only targets valid for the host OS:
-      # Windows → nsis + msi, Linux → deb + appimage), signs the updater bundles with
+      # Windows → nsis + msi, Linux → deb), signs the updater bundles with
       # the secret key, and — on a v* tag — creates a DRAFT GitHub Release with the
       # installers plus a generated `latest.json` the updater reads. Publishing the
       # draft is a manual gate (the updater's endpoint resolves to the latest
@@ -137,10 +136,6 @@ jobs:
           # Updater signing — set these as repository secrets (see developer-guide §9).
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          # Avoid FUSE requirements when bundling the AppImage on CI runners.
-          APPIMAGE_EXTRACT_AND_RUN: 1
-          # linuxdeploy can fail when stripping already-stripped PyInstaller binaries.
-          NO_STRIP: true
         with:
           projectPath: packages/x4-desktop
           # Only create a release on tag pushes; manual runs just build + upload artifacts.
@@ -160,5 +155,4 @@ jobs:
             packages/x4-desktop/src-tauri/target/release/bundle/nsis/*
             packages/x4-desktop/src-tauri/target/release/bundle/msi/*
             packages/x4-desktop/src-tauri/target/release/bundle/deb/*.deb
-            packages/x4-desktop/src-tauri/target/release/bundle/appimage/*.AppImage*
           if-no-files-found: ignore
