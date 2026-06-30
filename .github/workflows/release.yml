@@ -137,6 +137,8 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           # Avoid FUSE requirements when bundling the AppImage on CI runners.
           APPIMAGE_EXTRACT_AND_RUN: 1
+          # linuxdeploy can fail when stripping already-stripped PyInstaller binaries.
+          NO_STRIP: true
         with:
           projectPath: packages/x4-desktop
           # Only create a release on tag pushes; manual runs just build + upload artifacts.
