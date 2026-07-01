@@ -62,6 +62,47 @@ def _migrate_dynamic(conn: sqlite3.Connection) -> None:
             except sqlite3.OperationalError:
                 pass  # column already exists (race with another connection)
 
+    # logbook: subcategory (2026-07)
+    cols = {r[1] for r in conn.execute("PRAGMA table_info('logbook')").fetchall()}
+    if "subcategory" not in cols:
+        try:
+            conn.execute("ALTER TABLE logbook ADD COLUMN subcategory TEXT")
+        except sqlite3.OperationalError:
+            pass
+    try:
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_logbook_subcategory ON logbook(subcategory)")
+    except sqlite3.OperationalError:
+        pass
+
+    # Reclassify existing logbook entries that haven't been classified yet.
+    # Keeps the game's original category as a hint for the fallback logic
+    # (entries extracted before the classifier was added won't have
+    # game_category in extra_json).
+    from x4_extract.dynamic.extractors.logbook import classify_entry
+
+    rows = conn.execute(
+        "SELECT id, title, category, extra_json FROM logbook WHERE subcategory IS NULL"
+    ).fetchall()
+    if rows:
+        import json
+        updates = []
+        for row in rows:
+            # Prefer game_category from extra_json (set by new extractor),
+            # fall back to the column value (set by old extractor).
+            native = row[2]  # category column
+            if row[3]:
+                try:
+                    ej = json.loads(row[3])
+                    native = ej.get("game_category", native)
+                except Exception:
+                    pass
+            cat, sub = classify_entry(row[1], native)  # title, native_category
+            updates.append((cat, sub, row[0]))  # id
+        conn.executemany(
+            "UPDATE logbook SET category = ?, subcategory = ? WHERE id = ?",
+            updates,
+        )
+
 
 def migrate_all(data_dir: Path) -> None:
     """Apply every schema into `data_dir`. Used by tests for a fresh data directory."""

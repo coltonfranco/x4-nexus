@@ -355,13 +355,14 @@ CREATE TABLE IF NOT EXISTS player_stats (
 -- Player logbook entries from <savegame>/<log>/<entry>. Attributes vary by event type;
 -- common fields get explicit columns, everything else lands in extra_json.
 CREATE TABLE IF NOT EXISTS logbook (
-    id        INTEGER PRIMARY KEY AUTOINCREMENT,
-    time      REAL NOT NULL,
-    title     TEXT NOT NULL,
-    text      TEXT NOT NULL,
-    category  TEXT,
-    faction   TEXT,
-    extra_json TEXT
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    time        REAL NOT NULL,
+    title       TEXT NOT NULL,
+    text        TEXT NOT NULL,
+    category    TEXT,
+    subcategory TEXT,
+    faction     TEXT,
+    extra_json  TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_logbook_time ON logbook(time DESC);
 CREATE INDEX IF NOT EXISTS idx_logbook_category ON logbook(category);
