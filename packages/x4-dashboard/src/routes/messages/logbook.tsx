@@ -6,9 +6,10 @@ import { Currency } from "../../components/Currency";
 import { MultiSelect } from "../../components/ui/multi-select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../components/ui/dialog";
 import { cn } from "../../lib/utils";
-import type { SaveSummary } from "../../components/SaveSelector";
 import { getReputationColor, formatTimeAgo, cleanText } from "../../lib/formatters";
+import { useSaveTime } from "../../lib/useSaveTime";
 import { useSettings, type EventPriority } from "../../lib/settingsStore";
+import { apiGet } from "../../lib/api";
 
 type LogEntry = {
   id: number;
@@ -239,7 +240,7 @@ export default function LogbookPage() {
 
   const { data: catInfos = [] } = useQuery<CategoryInfo[]>({
     queryKey: ["logbook-categories"],
-    queryFn: () => fetch("/api/v1/logbook/categories").then((r) => r.json()),
+    queryFn: () => apiGet<CategoryInfo[]>("/api/v1/logbook/categories"),
     staleTime: Infinity,
   });
 
@@ -289,9 +290,7 @@ export default function LogbookPage() {
     return parts.length > 0 ? parts : null;
   }, [categoryKeys, subcategoryKeys]);
 
-  const { data: saves = [] } = useQuery<SaveSummary[]>({ queryKey: ["saves"] });
-  const activeSave = saves.find(s => s.is_active);
-  const currentTime = activeSave?.in_game_time_sec ?? 0;
+  const currentTime = useSaveTime();
 
   // Min time for API — relative to save's in-game time, not wall clock
   const minTime = timePreset != null && currentTime > 0 ? currentTime - timePreset : undefined;
@@ -308,7 +307,7 @@ export default function LogbookPage() {
       if (minTime != null) params.set("min_time", String(minTime));
       params.set("limit", String(visibleCount));
       params.set("offset", "0");
-      return fetch(`/api/v1/logbook?${params}`).then((r) => r.json());
+      return apiGet<{ entries: LogEntry[]; total: number }>(`/api/v1/logbook?${params}`);
     },
   });
 

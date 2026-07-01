@@ -10,6 +10,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import dagre from "@dagrejs/dagre";
 import { ModuleSummary, isModuleLicenceLocked } from "./modules";
+import { apiGet, apiPost, apiPut, apiDelete } from "../../lib/api";
 
 export type NodeAlignment = 'distributed' | 'right' | 'bottom';
 
@@ -161,36 +162,27 @@ export function computeLockReason(
 
 const LIST_KEY = ["builder-stations"] as const;
 
-async function json<T>(res: Response): Promise<T> {
-  if (!res.ok) {
-    const detail = await res.json().catch(() => null);
-    throw new Error(detail?.detail ?? `Request failed (${res.status})`);
-  }
-  return res.json() as Promise<T>;
-}
-
 export function useBuilderStationList() {
   return useQuery<BuilderStationSummary[]>({
     queryKey: LIST_KEY,
-    queryFn: () => fetch("/api/v1/builder/stations").then((r) => json<BuilderStationSummary[]>(r)),
+    queryFn: () => apiGet<BuilderStationSummary[]>("/api/v1/builder/stations"),
   });
 }
 
 export function fetchBuilderStation(id: string): Promise<BuilderStationDetail> {
-  return fetch(`/api/v1/builder/stations/${id}`).then((r) => json<BuilderStationDetail>(r));
+  return apiGet<BuilderStationDetail>(`/api/v1/builder/stations/${id}`);
 }
 
 export function usePlayerStations() {
   return useQuery<LiveStationLite[]>({
     queryKey: ["player-stations"],
-    queryFn: () =>
-      fetch("/api/v1/stations?player_only=true&limit=2000").then((r) => json<LiveStationLite[]>(r)),
+    queryFn: () => apiGet<LiveStationLite[]>("/api/v1/stations?player_only=true&limit=2000"),
     staleTime: 60_000,
   });
 }
 
 export function fetchStationLayout(stationId: string): Promise<StationLayoutEntry[]> {
-  return fetch(`/api/v1/stations/${stationId}/layout`).then((r) => json<StationLayoutEntry[]>(r));
+  return apiGet<StationLayoutEntry[]>(`/api/v1/stations/${stationId}/layout`);
 }
 
 // Import layout uses the connection graph, not the save's 3D coordinates: the builder is a
@@ -465,29 +457,18 @@ export function useBuilderStationMutations() {
 
   const create = useMutation({
     mutationFn: (body: BuilderStationInput) =>
-      fetch("/api/v1/builder/stations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      }).then((r) => json<BuilderStationDetail>(r)),
+      apiPost<BuilderStationDetail>("/api/v1/builder/stations", body),
     onSuccess: invalidate,
   });
 
   const update = useMutation({
     mutationFn: ({ id, body }: { id: string; body: BuilderStationInput }) =>
-      fetch(`/api/v1/builder/stations/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      }).then((r) => json<BuilderStationDetail>(r)),
+      apiPut<BuilderStationDetail>(`/api/v1/builder/stations/${id}`, body),
     onSuccess: invalidate,
   });
 
   const remove = useMutation({
-    mutationFn: (id: string) =>
-      fetch(`/api/v1/builder/stations/${id}`, { method: "DELETE" }).then((r) => {
-        if (!r.ok && r.status !== 204) throw new Error(`Delete failed (${r.status})`);
-      }),
+    mutationFn: (id: string) => apiDelete(`/api/v1/builder/stations/${id}`),
     onSuccess: invalidate,
   });
 

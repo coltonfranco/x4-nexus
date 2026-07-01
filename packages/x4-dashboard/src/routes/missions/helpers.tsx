@@ -6,6 +6,8 @@ import {
   Swords,
   RefreshCw,
 } from "lucide-react";
+import { formatTimeAgo, formatCompactNumber } from "../../lib/formatters";
+import { Pill } from "../../components/ui/pill";
 import {
   DIFFICULTY_LABEL,
   LEVEL_COLORS,
@@ -65,13 +67,8 @@ export function fmtTime(
 ): string | null {
   if (!missionTime || nowSec == null) return null;
   const t = parseFloat(missionTime);
-  if (isNaN(t)) return null;
-  const deltaSec = nowSec - t;
-  if (deltaSec < 0) return null;
-  const hrs = Math.floor(deltaSec / 3600);
-  const mins = Math.floor((deltaSec % 3600) / 60);
-  if (hrs > 0) return `${hrs}h ${mins}m ago`;
-  return `${mins}m ago`;
+  if (isNaN(t) || nowSec <= t) return null;
+  return formatTimeAgo(t, nowSec) || null;
 }
 
 export function fmtItemRef(
@@ -88,9 +85,13 @@ export function fmtItemRef(
 }
 
 export function fmtCredits(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2).replace(/\.?0+$/, "")}M Cr`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1).replace(/\.0$/, "")}k Cr`;
-  return `${n.toLocaleString()} Cr`;
+  const compact = formatCompactNumber(n, {
+    mDecimals: 2,
+    decimals: 1,
+    trim: true,
+    base: (v) => v.toLocaleString(),
+  });
+  return `${compact} Cr`;
 }
 
 // ── Tag / badge components ────────────────────────────────────────────────────
@@ -99,62 +100,21 @@ export function LevelBadge({ level }: { level: string | null }) {
   const label = levelLabel(level);
   if (!label) return null;
   const color = LEVEL_COLORS[level as Difficulty] ?? "var(--text-muted)";
-  return (
-    <span
-      style={{
-        padding: "2px 8px",
-        fontWeight: 700,
-        fontSize: "9px",
-        textTransform: "uppercase",
-        letterSpacing: "0.3px",
-        background: `${color}18`,
-        color,
-        borderRadius: "5px",
-      }}
-    >
-      {label}
-    </span>
-  );
+  return <Pill label={label} color={color} bg={`${color}18`} />;
 }
 
 export function StoryTag() {
-  return (
-    <span
-      style={{
-        padding: "2px 8px",
-        fontWeight: 700,
-        fontSize: "9px",
-        textTransform: "uppercase",
-        letterSpacing: "0.3px",
-        background: "rgba(200,121,224,0.14)",
-        color: "#d79be8",
-        borderRadius: "5px",
-      }}
-    >
-      ✦ STORY
-    </span>
-  );
+  return <Pill label="✦ STORY" color="#d79be8" bg="rgba(200,121,224,0.14)" />;
 }
 
 export function RepeatableTag() {
   return (
-    <span
-      className="flex items-center gap-1"
-      style={{
-        padding: "2px 8px",
-        fontWeight: 700,
-        fontSize: "9px",
-        textTransform: "uppercase",
-        letterSpacing: "0.3px",
-        background: "transparent",
-        color: "#7dd3fc",
-        border: "1px solid rgba(125,211,252,0.35)",
-        borderRadius: "5px",
-      }}
-    >
-      <RefreshCw className="w-3 h-3" />
-      Repeatable
-    </span>
+    <Pill
+      label="Repeatable"
+      color="#7dd3fc"
+      border="1px solid rgba(125,211,252,0.35)"
+      icon={<RefreshCw className="w-3 h-3" />}
+    />
   );
 }
 

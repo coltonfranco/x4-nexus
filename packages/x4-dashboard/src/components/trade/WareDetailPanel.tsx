@@ -11,6 +11,7 @@ import { WareTradeOffers } from "./WareTradeOffers";
 import { getWareGroupColor, RACE_COLORS, methodLabel } from "../../lib/constants";
 import { ArrowUp, ArrowDown } from "lucide-react";
 import type { FactionSummary } from "../../lib/map/types";
+import { apiGet } from "../../lib/api";
 
 type ProductionInput = { ware_id: string; amount: number };
 type ProductionMethod = {
@@ -55,12 +56,12 @@ type WareDetail = {
 export function WareDetailPanel({ wareId }: { wareId: string }) {
   const { data, isLoading } = useQuery<WareDetail>({
     queryKey: ["wares", wareId],
-    queryFn: () => fetch(`/api/v1/wares/${wareId}`).then((r) => r.json()),
+    queryFn: () => apiGet<WareDetail>(`/api/v1/wares/${wareId}`),
   });
 
   const { data: factions = [] } = useQuery<FactionSummary[]>({
     queryKey: ["factions"],
-    queryFn: () => fetch("/api/v1/factions").then((r) => r.json()),
+    queryFn: () => apiGet<FactionSummary[]>("/api/v1/factions"),
     staleTime: Infinity,
   });
 

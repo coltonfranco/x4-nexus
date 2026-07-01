@@ -8,7 +8,7 @@ import { Currency } from "../../components/Currency";
 import { EntityIcon } from "../../components/EntityIcon";
 
 import { StatBar } from "../../components/StatBar";
-import { classShort, getMkGradientClass, getClassColor, getTypeColor } from "../../lib/formatters";
+import { classShort, getMkGradientClass, getClassColor, getTypeColor, formatCompactNumber, formatStatValue } from "../../lib/formatters";
 import type { FactionSummary } from "../../lib/map/types";
 import { cn } from "../../lib/utils";
 import { Card, CardContent } from "../../components/ui/card";
@@ -18,6 +18,7 @@ import { ShipClassBadge, SizeBadge, ShipTypeBadge, EquipmentMkBadge } from "../.
 import { FactionCombobox } from "../../components/FactionCombobox";
 import { ShipImage } from "../../components/ShipImage";
 import { Switch } from "../../components/ui/switch";
+import { apiGet } from "../../lib/api";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -125,8 +126,7 @@ const dps = (w: WeaponStats | null): number | null =>
 
 function fmtStat(n: number | null | undefined): string {
   if (n == null) return "—";
-  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
-  return n.toFixed(0);
+  return formatCompactNumber(n, { base: (v) => v.toFixed(0) });
 }
 
 const THRUST_MAX: Record<string, number> = { xs: 500, s: 1000, m: 2500, l: 6000, xl: 15000 };
@@ -677,7 +677,7 @@ function StatRow({ label, value, max, shipMax, unit, locked }: {
       
       <div className="w-16 shrink-0 flex justify-end items-baseline gap-1">
         <span className="font-mono text-xs text-foreground font-semibold">
-          {value >= 1000 ? (value/1000).toFixed(1) + "k" : value.toFixed(value < 10 && value % 1 !== 0 ? 1 : 0)}
+          {formatStatValue(value)}
         </span>
         {unit && <span className="text-xs text-muted-foreground">{unit}</span>}
       </div>
@@ -737,7 +737,7 @@ function StatsFooter({ ship, cart, slots }: {
 
   const { data: cm } = useQuery<ClassMax>({
     queryKey: ["classMax", ship.class_id],
-    queryFn: () => fetch(`/api/v1/ships/class-max?class_id=${ship.class_id}`).then((r) => r.json()),
+    queryFn: () => apiGet<ClassMax>(`/api/v1/ships/class-max?class_id=${ship.class_id}`),
     staleTime: 5 * 60_000,
   });
 
@@ -850,13 +850,13 @@ export default function BuilderPage() {
 
   const { data: knownFactions = {} } = useQuery<Record<string, boolean>>({
     queryKey: ["factions-known"],
-    queryFn: () => fetch("/api/v1/factions/known").then((r) => r.json()),
+    queryFn: () => apiGet<Record<string, boolean>>("/api/v1/factions/known"),
     staleTime: 60_000,
   });
 
   const { data: playerLicences = [] } = useQuery<{ faction_id: string; licence_type: string }[]>({
     queryKey: ["player-licences"],
-    queryFn: () => fetch("/api/v1/player/licences").then(r => r.json()),
+    queryFn: () => apiGet<{ faction_id: string; licence_type: string }[]>("/api/v1/player/licences"),
   });
 
   const playerLicenceSet = useMemo(() => {
@@ -866,7 +866,7 @@ export default function BuilderPage() {
   }, [playerLicences]);
 
   const { data: allShips = [] } = useQuery<ShipSummary[]>({
-    queryKey: ["ships"], queryFn: () => fetch("/api/v1/ships?limit=2000").then(r => r.json()),
+    queryKey: ["ships"], queryFn: () => apiGet<ShipSummary[]>("/api/v1/ships?limit=2000"),
   });
 
   // Filter ships by known factions when fog of war is on
@@ -876,12 +876,12 @@ export default function BuilderPage() {
   }, [allShips, knownFactions, settings.fogOfWar]);
   const { data: shipDetail, isLoading: isShipLoading } = useQuery<ShipDetail>({
     queryKey: ["ship", selectedShipId],
-    queryFn: () => fetch(`/api/v1/ships/${selectedShipId}`).then(r => r.json()),
+    queryFn: () => apiGet<ShipDetail>(`/api/v1/ships/${selectedShipId}`),
     enabled: !!selectedShipId,
   });
   const { data: equipment = [] } = useQuery<EquipmentItem[]>({
     queryKey: ["equipment"],
-    queryFn: () => fetch("/api/v1/equipment?limit=2000").then(r => r.json()).then(d => {
+    queryFn: () => apiGet<any>("/api/v1/equipment?limit=2000").then(d => {
       if (!Array.isArray(d)) return [];
       const items = d.filter((e: any) => {
         const id = e.ware_id.toLowerCase();
@@ -907,7 +907,7 @@ export default function BuilderPage() {
     staleTime: 5 * 60_000,
   });
   const { data: factions = [] } = useQuery<FactionSummary[]>({
-    queryKey: ["factions"], queryFn: () => fetch("/api/v1/factions").then(r => r.json()),
+    queryKey: ["factions"], queryFn: () => apiGet<FactionSummary[]>("/api/v1/factions"),
   });
 
   const factionMap = new Map(factions.map(f => [f.faction_id, f]));

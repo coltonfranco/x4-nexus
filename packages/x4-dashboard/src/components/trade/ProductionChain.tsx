@@ -4,6 +4,7 @@ import { useState } from "react";
 import { fmtSeconds, prettyId } from "../../lib/wareFormat";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { EntityIcon } from "../EntityIcon";
+import { apiGet } from "../../lib/api";
 
 type ProductionInput = { ware_id: string; amount: number };
 
@@ -52,7 +53,7 @@ function ProductionInputLine({ input, depth, parentTimeSec, parentAmount, mode =
   const [expanded, setExpanded] = useState(false);
   const { data: detail, isLoading } = useQuery<WareDetail>({
     queryKey: ["wares", input.ware_id],
-    queryFn: () => fetch(`/api/v1/wares/${input.ware_id}`).then((r) => r.json()),
+    queryFn: () => apiGet<WareDetail>(`/api/v1/wares/${input.ware_id}`),
   });
 
   const hasInputs = detail?.production?.some((m) => m.inputs.length > 0) ?? false;
@@ -112,7 +113,7 @@ function ProductionInputLine({ input, depth, parentTimeSec, parentAmount, mode =
 export function ProductionChain({ wareId, filterMethod, mode = "throughput" }: { wareId: string; filterMethod?: string; mode?: "throughput" | "recipe" }) {
   const { data, isLoading } = useQuery<WareDetail>({
     queryKey: ["wares", wareId],
-    queryFn: () => fetch(`/api/v1/wares/${wareId}`).then((r) => r.json()),
+    queryFn: () => apiGet<WareDetail>(`/api/v1/wares/${wareId}`),
   });
 
   if (isLoading) return <p className="py-2 text-xs text-muted-foreground">Loading…</p>;

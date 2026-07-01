@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Eye, EyeOff, Loader2, RotateCcw, Settings as SettingsIcon } from "lucide-react";
 import { useEffect, useState } from "react";
+import { apiGet, apiPut } from "../lib/api";
 import { useSettings } from "../lib/settingsStore";
 import { FolderField } from "./setup/FolderField";
 import {
@@ -19,7 +20,7 @@ import { Switch } from "./ui/switch";
 function AppVersion() {
   const { data } = useQuery<{ api_version: string }>({
     queryKey: ["health-version"],
-    queryFn: () => fetch("/api/v1/health").then((r) => r.json()),
+    queryFn: () => apiGet<{ api_version: string }>("/api/v1/health"),
     staleTime: Infinity,
   });
   return (
@@ -43,19 +44,12 @@ function LiveSyncSection() {
   const qc = useQueryClient();
   const { data } = useQuery<RefreshConfig>({
     queryKey: ["refresh-config"],
-    queryFn: () => fetch("/api/v1/refresh-config").then((r) => r.json()),
+    queryFn: () => apiGet<RefreshConfig>("/api/v1/refresh-config"),
   });
 
   const update = useMutation({
-    mutationFn: async (body: Partial<Pick<RefreshConfig, "interval_enabled" | "interval_sec">>) => {
-      const r = await fetch("/api/v1/refresh-config", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      if (!r.ok) throw new Error(`refresh-config ${r.status}`);
-      return r.json() as Promise<RefreshConfig>;
-    },
+    mutationFn: (body: Partial<Pick<RefreshConfig, "interval_enabled" | "interval_sec">>) =>
+      apiPut<RefreshConfig>("/api/v1/refresh-config", body),
     onSuccess: (cfg) => qc.setQueryData(["refresh-config"], cfg),
   });
 

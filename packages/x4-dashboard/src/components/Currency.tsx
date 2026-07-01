@@ -1,4 +1,5 @@
 import { Coins } from "lucide-react";
+import { formatCompactNumber } from "../lib/formatters";
 
 type CurrencyProps = {
   value?: number | null;
@@ -29,12 +30,7 @@ export function Currency({
   }
 
   const formatVal = (v: number) => {
-    if (abbreviate) {
-      const abs = Math.abs(v);
-      if (abs >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
-      if (abs >= 1_000) return `${Math.round(v / 1_000)}k`;
-      return `${v}`;
-    }
+    if (abbreviate) return formatCompactNumber(v, { decimals: 0 });
     return v.toLocaleString();
   };
 

@@ -1,5 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Loader2, RefreshCw, Save } from "lucide-react";
+import { apiGet, apiPost } from "../lib/api";
+import { formatDuration } from "../lib/formatters";
+import type { RefreshStatus } from "../lib/useBackgroundRefresh";
 
 export type SaveSummary = {
   key: string;
@@ -13,7 +16,7 @@ export type SaveSummary = {
   is_active: boolean;
 };
 
-type RefreshStatus = { active_key: string; following_latest: boolean };
+type PinStatus = Pick<RefreshStatus, "active_key" | "following_latest">;
 
 // Sentinel option value: "track whatever save X4 writes next" (no pin).
 const LATEST = "__latest__";
@@ -27,9 +30,7 @@ function formatSaveName(s: SaveSummary) {
 
 function formatPlayTime(seconds: number | null) {
   if (seconds == null) return "";
-  const hrs = Math.floor(seconds / 3600);
-  const mins = Math.floor((seconds % 3600) / 60);
-  return `${hrs}h ${mins}m`;
+  return formatDuration(seconds);
 }
 
 // Re-point the cached catalog at `updated` so the dropdown reflects the new active save
@@ -51,25 +52,22 @@ export function SaveSelector() {
 
   const { data: saves = [] } = useQuery<SaveSummary[]>({
     queryKey: ["saves"],
-    queryFn: async () => {
-      const r = await fetch("/api/v1/saves");
-      if (!r.ok) throw new Error(`saves ${r.status}`); // keep previous data on a transient error
-      return r.json();
-    },
+    // keep previous data on a transient error
+    queryFn: () => apiGet<SaveSummary[]>("/api/v1/saves"),
     refetchInterval: 30_000,
   });
 
   // Pinned vs follow-latest comes from the cheap refresh-status poll (deduped app-wide).
-  const { data: status } = useQuery<RefreshStatus>({
+  const { data: status } = useQuery<PinStatus>({
     queryKey: ["refresh-status"],
-    queryFn: () => fetch("/api/v1/refresh-status").then((r) => r.json()),
+    queryFn: () => apiGet<PinStatus>("/api/v1/refresh-status"),
     refetchInterval: 7000,
   });
   const following = status?.following_latest ?? false;
 
   const afterIngest = (updated: SaveSummary, followLatest: boolean) => {
     qc.setQueryData<SaveSummary[]>(["saves"], (prev) => withActive(prev, updated));
-    qc.setQueryData<RefreshStatus>(["refresh-status"], (prev) =>
+    qc.setQueryData<PinStatus>(["refresh-status"], (prev) =>
       prev ? { ...prev, following_latest: followLatest, active_key: updated.key } : prev
     );
     // Full rebuild → refresh every dataset, but not the catalog/status (handled above).
@@ -80,27 +78,13 @@ export function SaveSelector() {
 
   const activate = useMutation({
     mutationKey: ["activate-save"],
-    mutationFn: async (key: string) => {
-      const r = await fetch(`/api/v1/saves/${key}/activate`, { method: "POST" });
-      if (!r.ok) {
-        const detail = await r.json().catch(() => null);
-        throw new Error(detail?.detail ?? `Rebuild failed (HTTP ${r.status}).`);
-      }
-      return r.json() as Promise<SaveSummary>;
-    },
+    mutationFn: (key: string) => apiPost<SaveSummary>(`/api/v1/saves/${key}/activate`),
     onSuccess: (updated) => afterIngest(updated, false),
   });
 
   const followLatest = useMutation({
     mutationKey: ["activate-save"],
-    mutationFn: async () => {
-      const r = await fetch("/api/v1/saves/follow-latest", { method: "POST" });
-      if (!r.ok) {
-        const detail = await r.json().catch(() => null);
-        throw new Error(detail?.detail ?? `Failed to follow latest (HTTP ${r.status}).`);
-      }
-      return r.json() as Promise<SaveSummary>;
-    },
+    mutationFn: () => apiPost<SaveSummary>("/api/v1/saves/follow-latest"),
     onSuccess: (updated) => afterIngest(updated, true),
   });
 

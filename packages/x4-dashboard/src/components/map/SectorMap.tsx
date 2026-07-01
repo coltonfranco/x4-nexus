@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { apiGet } from "../../lib/api";
 import { useSectorPanZoom, type SectorBounds } from "../../lib/map/useSectorPanZoom";
 import type { MapStation, Sector, FactionSummary, Zone, Gate, Highway } from "../../lib/map/types";
 import { sectorDisplayName } from "../../lib/map/names";
@@ -17,54 +18,42 @@ const hexPatternPath = `M 0 0 L ${HEX_R/2} ${HEX_H/2} L ${1.5*HEX_R} ${HEX_H/2} 
 export function SectorMap({ sectorId }: { sectorId: string }) {
   const { data: sector, isLoading: sectorLoading } = useQuery<Sector>({
     queryKey: ["map", "sectors", sectorId],
-    queryFn: async () => {
-      const res = await fetch(`/api/v1/map/sectors/${sectorId}`);
-      if (!res.ok) throw new Error("Failed to fetch sector");
-      return res.json();
-    },
+    queryFn: () => apiGet<Sector>(`/api/v1/map/sectors/${sectorId}`),
   });
 
   const { data: stations, isLoading: stationsLoading } = useQuery<MapStation[]>({
     queryKey: ["map", "stations", { sectorId }],
-    queryFn: async () => {
-      const res = await fetch(`/api/v1/map/stations?sector_id=${sectorId.toLowerCase()}`);
-      if (!res.ok) throw new Error("Failed to fetch stations");
-      return res.json();
-    },
+    queryFn: () => apiGet<MapStation[]>(`/api/v1/map/stations?sector_id=${sectorId.toLowerCase()}`),
   });
 
   const { data: allSectors } = useQuery<Sector[]>({
     queryKey: ["map-sectors"],
-    queryFn: () => fetch("/api/v1/map/sectors?limit=2000").then(r => r.json()),
+    queryFn: () => apiGet<Sector[]>("/api/v1/map/sectors?limit=2000"),
   });
 
   const { data: allZones } = useQuery<Zone[]>({
     queryKey: ["map-zones"],
-    queryFn: () => fetch("/api/v1/map/zones?limit=5000").then(r => r.json()),
+    queryFn: () => apiGet<Zone[]>("/api/v1/map/zones?limit=5000"),
   });
 
   const { data: zones } = useQuery<Zone[]>({
     queryKey: ["map", "zones", { sectorId }],
-    queryFn: async () => {
-      const res = await fetch(`/api/v1/map/sectors/${sectorId}/zones`);
-      if (!res.ok) throw new Error("Failed to fetch zones");
-      return res.json();
-    },
+    queryFn: () => apiGet<Zone[]>(`/api/v1/map/sectors/${sectorId}/zones`),
   });
 
   const { data: gates } = useQuery<Gate[]>({
     queryKey: ["map", "gates"],
-    queryFn: () => fetch("/api/v1/map/gates?limit=5000").then((r) => r.json()),
+    queryFn: () => apiGet<Gate[]>("/api/v1/map/gates?limit=5000"),
   });
 
   const { data: highways } = useQuery<Highway[]>({
     queryKey: ["map", "superhighways"],
-    queryFn: () => fetch("/api/v1/map/superhighways?limit=5000").then((r) => r.json()),
+    queryFn: () => apiGet<Highway[]>("/api/v1/map/superhighways?limit=5000"),
   });
 
   const { data: factions } = useQuery<FactionSummary[]>({
     queryKey: ["factions"],
-    queryFn: () => fetch("/api/v1/factions").then((r) => r.json()),
+    queryFn: () => apiGet<FactionSummary[]>("/api/v1/factions"),
   });
 
   const factionMap = useMemo(() => {

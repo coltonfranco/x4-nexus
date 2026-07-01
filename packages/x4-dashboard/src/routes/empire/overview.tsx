@@ -1,11 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { type ReactNode, useMemo, useState } from "react";
-import { AlertTriangle, Bell, Building2, ChevronDown, Coins, FileText, Handshake, Rocket, ScrollText, Ship, Trophy, User, Upload, Hexagon, Target, Flag } from "lucide-react";
+import { AlertTriangle, Building2, ChevronDown, Coins, FileText, Handshake, Rocket, ScrollText, Ship, Trophy, User, Upload, Hexagon, Target, Flag } from "lucide-react";
 import { Reputation } from "../../components/GameValues";
 import { Currency } from "../../components/Currency";
 import { FactionBadge } from "../../components/FactionBadge";
 import { getReputationScore, formatTimeAgo, cleanText } from "../../lib/formatters";
+import { useSaveTime } from "../../lib/useSaveTime";
 import { prettyId } from "../../lib/wareFormat";
 import { ShipDetailPanel } from "../../components/ShipDetailPanel";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../../components/ui/dialog";
@@ -13,6 +14,7 @@ import { PageLoaderPreset } from "../../components/PageLoader";
 import { HUDCard } from "../../components/HUDCard";
 import { useSettings } from "../../lib/settingsStore";
 import { useHasSave } from "../../lib/useHasSave";
+import { apiGet, apiGetOrNull } from "../../lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../components/ui/tooltip";
 import { STATUS_COLORS } from "../../lib/map/constants";
@@ -77,44 +79,34 @@ export default function EmpireOverviewPage() {
 
   const { data: health, isLoading: isHealthLoading, error: healthError } = useQuery<Health>({
     queryKey: ["health"],
-    queryFn: async () => {
-      const r = await fetch("/api/v1/health");
-      if (!r.ok) throw new Error(`Health check failed: ${r.status}`);
-      return r.json();
-    },
+    queryFn: () => apiGet<Health>("/api/v1/health"),
   });
 
   const { data: player, isLoading: isPlayerLoading } = useQuery<Player | null>({
     queryKey: ["player"],
-    queryFn: async () => { const r = await fetch("/api/v1/player"); return r.ok ? r.json() : null; },
+    queryFn: () => apiGetOrNull<Player>("/api/v1/player"),
   });
   const { data: blueprints = [] } = useQuery<{ ware_id: string }[]>({
-    queryKey: ["player-blueprints"], queryFn: () => fetch("/api/v1/player/blueprints").then((r) => r.json()),
+    queryKey: ["player-blueprints"], queryFn: () => apiGet<{ ware_id: string }[]>("/api/v1/player/blueprints"),
   });
   const { data: licences = [] } = useQuery<Licence[]>({
-    queryKey: ["player-licences"], queryFn: () => fetch("/api/v1/player/licences").then((r) => r.json()),
+    queryKey: ["player-licences"], queryFn: () => apiGet<Licence[]>("/api/v1/player/licences"),
   });
   const { data: fleet = [] } = useQuery<FleetShip[]>({
-    queryKey: ["fleet-player"], queryFn: () => fetch("/api/v1/fleet?player_only=true&limit=2000").then((r) => r.json()),
+    queryKey: ["fleet-player"], queryFn: () => apiGet<FleetShip[]>("/api/v1/fleet?player_only=true&limit=2000"),
   });
   const { data: stations = [] } = useQuery<Station[]>({
-    queryKey: ["stations-player"], queryFn: () => fetch("/api/v1/stations?player_only=true&limit=2000").then((r) => r.json()),
+    queryKey: ["stations-player"], queryFn: () => apiGet<Station[]>("/api/v1/stations?player_only=true&limit=2000"),
   });
   const { data: factions = [] } = useQuery<Faction[]>({
-    queryKey: ["factions"], queryFn: () => fetch("/api/v1/factions").then((r) => r.json()),
+    queryKey: ["factions"], queryFn: () => apiGet<Faction[]>("/api/v1/factions"),
   });
   const { data: reputation = [] } = useQuery<PlayerRelation[]>({
-    queryKey: ["player-reputation"], queryFn: () => fetch("/api/v1/player/reputation").then((r) => r.json()),
+    queryKey: ["player-reputation"], queryFn: () => apiGet<PlayerRelation[]>("/api/v1/player/reputation"),
   });
   const { data: strength = [] } = useQuery<FactionStrength[]>({
-    queryKey: ["factions-strength"], queryFn: () => fetch("/api/v1/factions/strength").then((r) => r.json()), staleTime: 30_000,
+    queryKey: ["factions-strength"], queryFn: () => apiGet<FactionStrength[]>("/api/v1/factions/strength"), staleTime: 30_000,
   });
-  const { data: saves = [] } = useQuery<{ is_active: boolean; in_game_time_sec: number }[]>({
-    queryKey: ["saves"], queryFn: () => fetch("/api/v1/saves").then((r) => r.json()),
-  });
-  const activeSave = saves.find((s) => s.is_active);
-  const playerTime = activeSave?.in_game_time_sec ?? 0;
-
   const factionMap = useMemo(() => {
     const m = new Map(factions.map(f => [f.faction_id, f]));
     return m;
@@ -131,7 +123,7 @@ export default function EmpireOverviewPage() {
     [strength]
   );
   const { data: sectors = [] } = useQuery<Sector[]>({
-    queryKey: ["map-sectors"], queryFn: () => fetch("/api/v1/map/sectors?limit=2000").then((r) => r.json()), staleTime: 600_000,
+    queryKey: ["map-sectors"], queryFn: () => apiGet<Sector[]>("/api/v1/map/sectors?limit=2000"), staleTime: 600_000,
   });
 
   const sectorName = useMemo(() => {
@@ -346,7 +338,7 @@ export default function EmpireOverviewPage() {
               <div className="space-y-6 flex flex-col">
                 {player && (
                   <>
-                    <CriticalAlertsWidget currentTime={playerTime} />
+                    <CriticalAlertsWidget />
 
                     {strength.length > 0 && (
                       <Panel title="Standing among factions" icon={Trophy}>
@@ -430,8 +422,9 @@ const ALERT_CATEGORIES: Record<string, { icon: any; borderClass: string; iconCla
   default: { icon: AlertTriangle, borderClass: "bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.5)]", iconClass: "text-red-500" }
 };
 
-function CriticalAlertsWidget({ currentTime }: { currentTime: number }) {
+function CriticalAlertsWidget() {
   const { settings } = useSettings();
+  const currentTime = useSaveTime();
   const minTime = currentTime > 0 ? currentTime - 3600 : undefined;
 
   const { data } = useQuery<{ entries: { id: number; title: string; text: string; category: string; subcategory: string; faction: string | null; faction_name: string | null; faction_color: string | null; time: number; extra_json: string | null }[] }>({
@@ -440,7 +433,7 @@ function CriticalAlertsWidget({ currentTime }: { currentTime: number }) {
       const p = new URLSearchParams();
       if (minTime != null) p.set("min_time", String(minTime));
       p.set("limit", "200");
-      return fetch(`/api/v1/logbook?${p}`).then((r) => r.json());
+      return apiGet(`/api/v1/logbook?${p}`);
     },
     enabled: currentTime > 0,
     refetchInterval: 30_000,

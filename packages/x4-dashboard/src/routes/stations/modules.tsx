@@ -16,6 +16,7 @@ import { SearchInput } from "../../components/ui/search-input";
 import { DataTable } from "../../components/DataTable";
 import type { ColumnDef, ColumnGroup, RowGroup } from "../../components/DataTable";
 import { useColumnVisibility } from "../../lib/useColumnVisibility";
+import { apiGet } from "../../lib/api";
 import {
   Select,
   SelectContent,
@@ -276,15 +277,15 @@ export default function ModulesPage() {
   const { data: modules = [], isLoading } = useQuery<ModuleSummary[]>({
     queryKey: ["modules"],
     queryFn: () =>
-      fetch("/api/v1/modules?limit=2000")
-        .then((r) => r.json())
-        .then((d) => (Array.isArray(d) ? d : [])),
+      apiGet<any>("/api/v1/modules?limit=2000").then((d) =>
+        Array.isArray(d) ? d : []
+      ),
     staleTime: 10 * 60_000,
   });
 
   const { data: factions = [] } = useQuery<FactionSummary[]>({
     queryKey: ["factions"],
-    queryFn: () => fetch("/api/v1/factions").then((r) => r.json()),
+    queryFn: () => apiGet<FactionSummary[]>("/api/v1/factions"),
     staleTime: Infinity,
   });
 
@@ -292,7 +293,7 @@ export default function ModulesPage() {
     { licence_type: string; faction_id: string }[]
   >({
     queryKey: ["player-licences"],
-    queryFn: () => fetch("/api/v1/player/licences").then((r) => r.json()),
+    queryFn: () => apiGet<{ licence_type: string; faction_id: string }[]>("/api/v1/player/licences"),
     staleTime: 60_000,
   });
 
@@ -954,7 +955,7 @@ function UnlockGuide({ d, faction, licenceLocked }: {
 export function ModuleDetailPanel({ moduleId, summary, factions, licenceSet, anyLicenceSet }: { moduleId: string; summary: ModuleSummary; factions: FactionSummary[]; licenceSet: Set<string>; anyLicenceSet: Set<string> }) {
   const { data: m } = useQuery<ModuleDetail>({
     queryKey: ["module", moduleId],
-    queryFn: () => fetch(`/api/v1/modules/${moduleId}`).then((r) => r.json()),
+    queryFn: () => apiGet<ModuleDetail>(`/api/v1/modules/${moduleId}`),
     staleTime: 5 * 60_000,
     placeholderData: summary as ModuleDetail,
   });

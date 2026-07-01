@@ -16,6 +16,7 @@ import { MultiSelect } from "../../components/ui/multi-select";
 import { EntityIcon } from "../../components/EntityIcon";
 import { ShipDetailPanel } from "../../components/ShipDetailPanel";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../components/ui/dialog";
+import { apiGet } from "../../lib/api";
 
 type RoleSkillWeight = {
   skill_ref: string;
@@ -276,14 +277,14 @@ export default function CrewPage() {
       const params = new URLSearchParams();
       params.set("owner", "player");
       params.set("limit", "2000");
-      return fetch(`/api/v1/npcs?${params}`).then((r) => r.json());
+      return apiGet<NPCEntry[]>(`/api/v1/npcs?${params}`);
     },
   });
 
   // Static lookup tables — fetched once, cached indefinitely.
   const { data: factions = [] } = useQuery<FactionSummary[]>({
     queryKey: ["factions"],
-    queryFn: () => fetch("/api/v1/factions").then((r) => r.json()),
+    queryFn: () => apiGet<FactionSummary[]>("/api/v1/factions"),
     staleTime: Infinity,
   });
 
@@ -300,7 +301,7 @@ export default function CrewPage() {
 
   const { data: rolesList = [] } = useQuery<RoleMeta[]>({
     queryKey: ["roles"],
-    queryFn: () => fetch("/api/v1/roles").then((r) => r.json()),
+    queryFn: () => apiGet<RoleMeta[]>("/api/v1/roles"),
     staleTime: Infinity,
   });
 

@@ -1,5 +1,6 @@
 import { MapPin, User } from "lucide-react";
 import { FactionBadge } from "../../components/FactionBadge";
+import { MissionListCard } from "./CardShell";
 import type { FactionSummary } from "../../lib/map/types";
 import type { MissionOffer } from "./types";
 import {
@@ -31,62 +32,36 @@ export function OfferCard({ o, factionMap, isSelected, isInRun, onClick, onToggl
     : o.rewardtext ?? null;
 
   return (
-    <div
+    <MissionListCard
       onClick={onClick}
-      className="relative mb-2 rounded-[11px] cursor-pointer overflow-hidden select-none transition-colors opacity-80 hover:opacity-100"
-      style={{
-        background: isSelected
-          ? "rgba(92,200,236,0.08)"
-          : "rgba(255,255,255,0.02)",
-        border: `1px solid ${isSelected ? "rgba(92,200,236,0.4)" : "rgba(255,255,255,0.07)"}`,
-      }}
-    >
-      {/* Left edge strip */}
-      <div
-        className="absolute left-0 top-0 bottom-0 w-[3px]"
-        style={{ background: isSelected ? "#5cc8ec" : "transparent" }}
-      />
-
-      <div className="p-3 pl-4">
-        {/* Top row: type dot + title + reward */}
-        <div className="flex items-start gap-2.5">
-          <div className="flex items-center gap-2 min-w-0 flex-1">
-            <span
-              className="w-2 h-2 rounded-[2px] shrink-0 mt-1"
-              style={{ background: mtypeColor ?? "#8a95ab" }}
-            />
-            <div className="min-w-0">
-              <h3 className="text-[13px] font-semibold text-foreground truncate">
-                {o.name}
-              </h3>
-              {o.actor_name && (
-                <p className="text-[10.5px] text-muted-foreground truncate mt-0.5 flex items-center gap-1">
-                  <User className="w-3 h-3" />
-                  {o.actor_name}
-                </p>
-              )}
+      isSelected={isSelected}
+      opacityClassName="opacity-80 hover:opacity-100"
+      dotColor={mtypeColor ?? "#8a95ab"}
+      title={o.name}
+      subtitle={
+        o.actor_name && (
+          <span className="flex items-center gap-1">
+            <User className="w-3 h-3" />
+            {o.actor_name}
+          </span>
+        )
+      }
+      trailing={
+        <>
+          {hasReward && (
+            <div className="font-mono text-[13px] font-semibold tabular-nums" style={{ color: "var(--gold)" }}>
+              {rewardDisplay}
             </div>
-          </div>
-
-          <div className="text-right shrink-0">
-            {hasReward && (
-              <div
-                className="font-mono text-[13px] font-semibold tabular-nums"
-                style={{ color: "var(--gold)" }}
-              >
-                {rewardDisplay}
-              </div>
-            )}
-            {o.distance != null && (
-              <div className="font-mono text-[10px] text-muted-foreground mt-1">
-                ⤳ {o.distance} jump{o.distance !== 1 ? "s" : ""}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Badge row */}
-        <div className="flex items-center gap-1.5 mt-2.5 flex-wrap">
+          )}
+          {o.distance != null && (
+            <div className="font-mono text-[10px] text-muted-foreground mt-1">
+              ⤳ {o.distance} jump{o.distance !== 1 ? "s" : ""}
+            </div>
+          )}
+        </>
+      }
+      badges={
+        <>
           {mtLabel && mtypeColor && (
             <span
               className="text-[9px] font-semibold uppercase tracking-[0.3px] px-2 py-0.5 rounded-[5px]"
@@ -131,10 +106,10 @@ export function OfferCard({ o, factionMap, isSelected, isInRun, onClick, onToggl
               {o.station_name}
             </span>
           )}
-        </div>
-
-        {/* Add to Run button */}
-        {onToggleRun && (
+        </>
+      }
+      trailingButton={
+        onToggleRun && (
           <button
             onClick={(e) => { e.stopPropagation(); onToggleRun(); }}
             className="absolute right-2.5 bottom-2.5 w-6 h-6 rounded-md flex items-center justify-center text-[13px] transition-colors hover:brightness-125"
@@ -149,8 +124,8 @@ export function OfferCard({ o, factionMap, isSelected, isInRun, onClick, onToggl
           >
             {isInRun ? "✓" : "＋"}
           </button>
-        )}
-      </div>
-    </div>
+        )
+      }
+    />
   );
 }

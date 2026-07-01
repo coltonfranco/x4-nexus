@@ -1,11 +1,13 @@
 /**
  * First-run setup client.
  *
- * Plain fetch (not the generated apiClient) so the setup flow has zero coupling to the
- * static schema — it must work before any data exists. Folder pickers use the native
- * Tauri dialog when running inside the desktop shell, and fall back to a typed path
- * input in a plain browser (dev at :5173).
+ * Uses the shared api.ts wrapper (not the generated apiClient) so the setup flow has zero
+ * coupling to the static schema — it must work before any data exists. Folder pickers use
+ * the native Tauri dialog when running inside the desktop shell, and fall back to a typed
+ * path input in a plain browser (dev at :5173).
  */
+
+import { apiGet, apiPost } from "./api";
 
 export type InitStatus = {
   stage: string;
@@ -51,19 +53,17 @@ export type DiscoverPathsResponse = {
 };
 
 
-export async function getSetupStatus(): Promise<SetupStatus> {
-  const r = await fetch("/api/v1/setup/status");
-  if (!r.ok) throw new Error(`setup status ${r.status}`);
-  return r.json();
+export function getSetupStatus(): Promise<SetupStatus> {
+  return apiGet<SetupStatus>("/api/v1/setup/status");
 }
 
-export async function discoverPaths(): Promise<DiscoverPathsResponse> {
-  const r = await fetch("/api/v1/setup/discover");
-  if (!r.ok) throw new Error(`discover paths ${r.status}`);
-  return r.json();
+export function discoverPaths(): Promise<DiscoverPathsResponse> {
+  return apiGet<DiscoverPathsResponse>("/api/v1/setup/discover");
 }
 
 
+// Raw fetch: the endpoint always responds 200 with a { ok, detail } validation result — it
+// never signals failure via HTTP status, so an ok-check (as apiPost does) would be wrong here.
 export async function validatePath(
   kind: "install" | "save",
   path: string
@@ -76,30 +76,23 @@ export async function validatePath(
   return r.json();
 }
 
-export async function saveConfig(
+export function saveConfig(
   installPath: string,
   savePath: string
 ): Promise<SetupStatus> {
-  const r = await fetch("/api/v1/setup/config", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ install_path: installPath, save_path: savePath }),
+  return apiPost<SetupStatus>("/api/v1/setup/config", {
+    install_path: installPath,
+    save_path: savePath,
   });
-  if (!r.ok) throw new Error(`save config ${r.status}`);
-  return r.json();
 }
 
-export async function startInitialize(): Promise<SetupStatus> {
-  const r = await fetch("/api/v1/setup/initialize", { method: "POST" });
-  if (!r.ok) throw new Error(`initialize ${r.status}`);
-  return r.json();
+export function startInitialize(): Promise<SetupStatus> {
+  return apiPost<SetupStatus>("/api/v1/setup/initialize");
 }
 
 /** Wipe game-derived data and rebuild from scratch (preserves saved station designs). */
-export async function resetGameData(): Promise<SetupStatus> {
-  const r = await fetch("/api/v1/setup/reset", { method: "POST" });
-  if (!r.ok) throw new Error(`reset ${r.status}`);
-  return r.json();
+export function resetGameData(): Promise<SetupStatus> {
+  return apiPost<SetupStatus>("/api/v1/setup/reset");
 }
 
 // ── Native folder picker (Tauri) with a browser fallback ─────────────────────────

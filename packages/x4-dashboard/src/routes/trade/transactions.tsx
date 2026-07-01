@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowLeftRight, ArrowUpRight, ArrowDownLeft, ChevronLeft, ChevronRight,
@@ -6,6 +6,8 @@ import {
 } from "lucide-react";
 import { Currency } from "../../components/Currency";
 import { PageLoaderPreset } from "../../components/PageLoader";
+import { formatTimeAgo } from "../../lib/formatters";
+import { useSaveTime } from "../../lib/useSaveTime";
 import { Tooltip as UiTooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../components/ui/tooltip";
 
 // ── Types ───────────────────────────────────────────────────────────────────────
@@ -22,6 +24,8 @@ function useJson<T>(key: string, url: string) {
   const q = useQuery<T>({
     queryKey: [key],
     queryFn: async () => {
+      // Raw fetch (not apiGet): the thrown message embeds the url + status and is rendered
+      // directly in the error banner below — apiGet's generic message would lose that detail.
       const r = await fetch(url);
       if (!r.ok) throw new Error(`${url} → ${r.status}`);
       return r.json() as Promise<T>;
@@ -33,13 +37,6 @@ function useJson<T>(key: string, url: string) {
   return { ...q, isError: q.isError, error: q.error };
 }
 
-function formatAge(seconds: number): string {
-  if (seconds < 60) return `${Math.round(seconds)}s ago`;
-  if (seconds < 3600) return `${Math.round(seconds / 60)}m ago`;
-  if (seconds < 86400) return `${(seconds / 3600).toFixed(1)}h ago`;
-  return `${(seconds / 86400).toFixed(1)}d ago`;
-}
-
 // ── Page ────────────────────────────────────────────────────────────────────────
 
 export default function TransactionsPage() {
@@ -48,10 +45,7 @@ export default function TransactionsPage() {
   const url = `/api/v1/economy/trades?player_only=true&limit=${PAGE_SIZE}&offset=${page * PAGE_SIZE}`;
   const { data: trades = [], isLoading, isError, error, refetch } = useJson<Trade[]>(`trades-page-${page}`, url);
 
-  const currentTime = useMemo(
-    () => (trades.length > 0 ? trades[0].time : 0),
-    [trades],
-  );
+  const currentTime = useSaveTime();
 
   const hasMore = trades.length === PAGE_SIZE;
 
@@ -145,7 +139,7 @@ export default function TransactionsPage() {
                       {counterparty ?? "—"}
                     </td>
                     <td className="px-4 py-1.5 text-right tabular-nums text-xs text-muted-foreground whitespace-nowrap">
-                      {formatAge(Math.max(0, currentTime - t.time))}
+                      {formatTimeAgo(t.time, currentTime)}
                     </td>
                   </tr>
                 );

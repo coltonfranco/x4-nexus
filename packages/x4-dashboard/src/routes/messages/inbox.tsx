@@ -1,8 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { Mail, MailOpen, Star, ArrowLeft, Clock, User, MapPin } from "lucide-react";
+import { Mail, Star, ArrowLeft, Clock, User, MapPin } from "lucide-react";
 import { PageLoaderPreset } from "../../components/PageLoader";
 import { cn } from "../../lib/utils";
+import { useSaveTime } from "../../lib/useSaveTime";
+import { formatTimeAgo } from "../../lib/formatters";
+import { apiGet } from "../../lib/api";
 
 type PlayerMessage = {
   id: number;
@@ -18,14 +21,6 @@ type PlayerMessage = {
   read: number | null;
   extra_json: string | null;
 };
-
-function formatTime(seconds: number): string {
-  const hrs = Math.floor(seconds / 3600);
-  const mins = Math.floor((seconds % 3600) / 60);
-  if (hrs > 0) return `${hrs}h ${String(mins).padStart(2, "0")}m`;
-  if (mins > 0) return `${mins}m`;
-  return `${Math.floor(seconds)}s`;
-}
 
 function formatBody(text: string | null): string {
   if (!text) return "";
@@ -47,14 +42,14 @@ export default function MessagesPage() {
 
   const { data: messages = [], isLoading } = useQuery<PlayerMessage[]>({
     queryKey: ["player-messages"],
-    queryFn: () => fetch("/api/v1/player/messages").then((r) => r.json()),
+    queryFn: () => apiGet<PlayerMessage[]>("/api/v1/player/messages"),
   });
+
+  const currentTime = useSaveTime();
 
   if (isLoading) return <PageLoaderPreset preset="default" />;
 
   const selected = messages.find((m) => m.id === selectedId) ?? null;
-
-  const unreadCount = messages.filter((m) => !m.read).length;
 
   // Mobile: show list OR detail. Desktop: two-pane.
   const showDetail = selectedId !== null;
@@ -78,9 +73,6 @@ export default function MessagesPage() {
           </h1>
           <p className="text-xs uppercase tracking-widest text-muted-foreground mt-1 font-semibold">
             {messages.length} message{messages.length !== 1 ? "s" : ""}
-            {unreadCount > 0 && (
-              <span className="ml-2 text-primary">{unreadCount} unread</span>
-            )}
           </p>
         </div>
       </div>
@@ -103,7 +95,6 @@ export default function MessagesPage() {
             >
               {messages.map((msg) => {
                 const isSelected = msg.id === selectedId;
-                const isUnread = !msg.read;
                 return (
                   <button
                     key={msg.id}
@@ -112,41 +103,28 @@ export default function MessagesPage() {
                       "flex items-start gap-3 px-4 py-3 text-left transition-colors border-b border-border/40 last:border-b-0",
                       isSelected
                         ? "bg-primary/10 border-l-[3px] border-l-primary pl-[13px]"
-                        : "border-l-[3px] border-l-transparent pl-[13px] hover:bg-muted/30",
-                      isUnread && "bg-muted/20"
+                        : "border-l-[3px] border-l-transparent pl-[13px] hover:bg-muted/30"
                     )}
                   >
-                    {/* Priority + read indicator */}
+                    {/* Priority indicator */}
                     <div className="shrink-0 mt-0.5">
                       {msg.highpriority ? (
                         <Star className="h-4 w-4 text-amber-400 fill-amber-400" />
-                      ) : isUnread ? (
-                        <Mail className="h-4 w-4 text-primary" />
                       ) : (
-                        <MailOpen className="h-4 w-4 text-muted-foreground" />
+                        <Mail className="h-4 w-4 text-muted-foreground" />
                       )}
                     </div>
                     {/* Content */}
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
-                        <span
-                          className={cn(
-                            "text-sm font-semibold truncate",
-                            isUnread && "text-foreground"
-                          )}
-                        >
+                        <span className="text-sm font-semibold truncate text-muted-foreground">
                           {msg.source ?? "Unknown"}
                         </span>
                         <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">
-                          {formatTime(msg.time)}
+                          {formatTimeAgo(msg.time, currentTime)}
                         </span>
                       </div>
-                      <p
-                        className={cn(
-                          "text-xs mt-0.5 truncate",
-                          isUnread ? "text-foreground/80 font-medium" : "text-muted-foreground"
-                        )}
-                      >
+                      <p className="text-xs mt-0.5 truncate text-muted-foreground">
                         {msg.title}
                       </p>
                       {msg.text && (
@@ -184,7 +162,7 @@ export default function MessagesPage() {
                       </span>
                       <span className="flex items-center gap-1.5">
                         <Clock className="h-3.5 w-3.5" />
-                        {formatTime(selected.time)}
+                        {formatTimeAgo(selected.time, currentTime)}
                       </span>
                       {selected.highpriority ? (
                         <span className="flex items-center gap-1 text-amber-400">

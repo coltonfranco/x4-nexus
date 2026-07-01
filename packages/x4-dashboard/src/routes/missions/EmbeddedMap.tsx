@@ -13,6 +13,7 @@ import {
   type TravelSegmentKind,
 } from "../../lib/map/overlays/pathfinding";
 import type { Sector } from "../../lib/map/types";
+import { apiGetOrNull } from "../../lib/api";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -49,12 +50,9 @@ export function EmbeddedMap({
   const data = useMapData();
   const layout = useMapLayout(data, null, false);
 
-  const { data: player } = useQuery<{ sector_id: string | null }>({
+  const { data: player } = useQuery<{ sector_id: string | null } | null>({
     queryKey: ["player"],
-    queryFn: async () => {
-      const r = await fetch("/api/v1/player");
-      return r.ok ? r.json() : null;
-    },
+    queryFn: () => apiGetOrNull<{ sector_id: string | null }>("/api/v1/player"),
     staleTime: 30_000,
   });
 

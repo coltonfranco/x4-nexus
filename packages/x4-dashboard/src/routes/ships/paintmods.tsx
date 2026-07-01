@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
+import { apiGet } from "../../lib/api";
 import { PageLoaderPreset } from "../../components/PageLoader";
 import { HUDCard } from "../../components/HUDCard";
 import { FilterBar } from "../../components/FilterBar";
@@ -26,9 +27,9 @@ export default function PaintModsPage() {
   const { data: wares = [], isLoading } = useQuery<Ware[]>({
     queryKey: ["wares", "inventory"],
     queryFn: () =>
-      fetch("/api/v1/wares?category=inventory&limit=2000")
-        .then((r) => r.json())
-        .then((d) => (Array.isArray(d) ? d : [])),
+      apiGet<any>("/api/v1/wares?category=inventory&limit=2000").then((d) =>
+        Array.isArray(d) ? d : []
+      ),
     staleTime: 5 * 60_000,
   });
 

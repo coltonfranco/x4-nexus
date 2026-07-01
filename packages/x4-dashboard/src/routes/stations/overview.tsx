@@ -3,7 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { LayoutGrid, Table2, Search, Hammer, Users, Factory, Boxes } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { prettyId } from "../../lib/wareFormat";
+import { formatCompactNumber } from "../../lib/formatters";
 import { PageLoaderPreset } from "../../components/PageLoader";
+import { apiGet } from "../../lib/api";
 
 // ── Types (mirror /api/v1/stations rollup + sub-endpoints) ──────────────────────
 type Station = {
@@ -60,10 +62,7 @@ const STATUS = {
 const statusOf = (s: Station) => (s.is_under_construction ? STATUS.building : STATUS.operational);
 
 function fmtNum(n: number): string {
-  const a = Math.abs(n);
-  if (a >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
-  if (a >= 1_000) return `${(n / 1_000).toFixed(1).replace(/\.0$/, "")}k`;
-  return `${Math.round(n)}`;
+  return formatCompactNumber(n, { trim: true, base: (v) => String(Math.round(v)) });
 }
 const fmtCr = (n: number) => `${fmtNum(n)} Cr`;
 const pct = (cur: number | null, cap: number | null) =>
@@ -89,17 +88,17 @@ export default function MyStationsPage() {
 
   const { data: stations, isLoading } = useQuery<Station[]>({
     queryKey: ["stations-overview"],
-    queryFn: () => fetch("/api/v1/stations?player_only=true&limit=2000").then((r) => r.json()),
+    queryFn: () => apiGet<Station[]>("/api/v1/stations?player_only=true&limit=2000"),
     staleTime: 15_000,
   });
   const { data: sectors = [] } = useQuery<Sector[]>({
     queryKey: ["map-sectors"],
-    queryFn: () => fetch("/api/v1/map/sectors?limit=2000").then((r) => r.json()),
+    queryFn: () => apiGet<Sector[]>("/api/v1/map/sectors?limit=2000"),
     staleTime: 600_000,
   });
   const { data: wares = [] } = useQuery<Ware[]>({
     queryKey: ["wares-min"],
-    queryFn: () => fetch("/api/v1/wares?limit=2000").then((r) => r.json()),
+    queryFn: () => apiGet<Ware[]>("/api/v1/wares?limit=2000"),
     staleTime: 600_000,
   });
 
@@ -419,7 +418,7 @@ function StationCard({
 function BuildBlock({ s, wareName }: { s: Station; wareName: (id: string) => string }) {
   const { data } = useQuery<Construction>({
     queryKey: ["station-construction", s.station_id],
-    queryFn: () => fetch(`/api/v1/stations/${encodeURIComponent(s.station_id)}/construction`).then((r) => r.json()),
+    queryFn: () => apiGet<Construction>(`/api/v1/stations/${encodeURIComponent(s.station_id)}/construction`),
     staleTime: 30_000,
   });
   const buildPct = s.build_pct ?? 0;
@@ -462,7 +461,7 @@ function BuildBlock({ s, wareName }: { s: Station; wareName: (id: string) => str
 function OffersBlock({ stationId, wareName }: { stationId: string; wareName: (id: string) => string }) {
   const { data: offers, isLoading } = useQuery<Offer[]>({
     queryKey: ["station-offers", stationId],
-    queryFn: () => fetch(`/api/v1/stations/${encodeURIComponent(stationId)}/offers`).then((r) => r.json()),
+    queryFn: () => apiGet<Offer[]>(`/api/v1/stations/${encodeURIComponent(stationId)}/offers`),
     staleTime: 15_000,
   });
   if (isLoading) return <div className="px-4 pb-4 text-[11.5px] text-muted-foreground">Loading…</div>;
@@ -567,7 +566,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 function ConstructionDetail({ stationId, wareName }: { stationId: string; wareName: (id: string) => string }) {
   const { data } = useQuery<Construction>({
     queryKey: ["station-construction", stationId],
-    queryFn: () => fetch(`/api/v1/stations/${encodeURIComponent(stationId)}/construction`).then((r) => r.json()),
+    queryFn: () => apiGet<Construction>(`/api/v1/stations/${encodeURIComponent(stationId)}/construction`),
     staleTime: 30_000,
   });
   if (!data) return null;
@@ -617,7 +616,7 @@ type StationModuleRow = {
 function ModulesList({ stationId }: { stationId: string }) {
   const { data: mods = [] } = useQuery<StationModuleRow[]>({
     queryKey: ["station-modules", stationId],
-    queryFn: () => fetch(`/api/v1/stations/${encodeURIComponent(stationId)}/modules`).then((r) => r.json()),
+    queryFn: () => apiGet<StationModuleRow[]>(`/api/v1/stations/${encodeURIComponent(stationId)}/modules`),
     staleTime: 30_000,
   });
   if (mods.length === 0) return null;

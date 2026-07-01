@@ -4,6 +4,7 @@ import { Currency } from "../components/Currency";
 import { useMemo, useState } from "react";
 import { ArrowRight, Gauge, Map as MapIcon, Package, Rocket, TrendingUp } from "lucide-react";
 import { PageLoaderPreset } from "../components/PageLoader";
+import { apiGet } from "../lib/api";
 
 type TradeRoute = {
   ware_id: string;
@@ -58,14 +59,12 @@ export default function RoutesPage() {
   const { data: routes = [], isLoading } = useQuery<TradeRoute[]>({
     queryKey: ["routes", ship.cargo, ship.speed],
     queryFn: () =>
-      fetch(`/api/v1/routes?ship_cargo=${ship.cargo}&ship_speed=${ship.speed}&limit=40`).then((r) =>
-        r.json()
-      ),
+      apiGet<TradeRoute[]>(`/api/v1/routes?ship_cargo=${ship.cargo}&ship_speed=${ship.speed}&limit=40`),
   });
 
   const { data: sectors = [] } = useQuery<Sector[]>({
     queryKey: ["map-sectors"],
-    queryFn: () => fetch("/api/v1/map/sectors?limit=2000").then((r) => r.json()),
+    queryFn: () => apiGet<Sector[]>("/api/v1/map/sectors?limit=2000"),
     staleTime: 10 * 60_000,
   });
 

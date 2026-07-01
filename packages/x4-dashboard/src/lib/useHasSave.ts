@@ -1,10 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
+import { apiGet } from "./api";
+import type { RefreshStatus } from "./useBackgroundRefresh";
 
-type RefreshStatus = {
-  active_key: string;
-  following_latest: boolean;
-  ingested_at: string | null;
-};
+type HasSaveStatus = Pick<RefreshStatus, "active_key" | "following_latest" | "ingested_at">;
 
 /**
  * True when a save has been ingested and live data is available.
@@ -16,9 +14,9 @@ type RefreshStatus = {
  * of latching onto "no save" until a manual reload.
  */
 export function useHasSave() {
-  const { data, isLoading } = useQuery<RefreshStatus>({
+  const { data, isLoading } = useQuery<HasSaveStatus>({
     queryKey: ["refresh-status"],
-    queryFn: () => fetch("/api/v1/refresh-status").then((r) => r.json()),
+    queryFn: () => apiGet<HasSaveStatus>("/api/v1/refresh-status"),
     refetchInterval: 7000,
   });
   return { hasSave: !!data?.active_key, isLoading };

@@ -13,6 +13,7 @@ import { Input } from "../../components/ui/input";
 import { DropListContent, buildDropGroups, DropEntry } from "../../components/DropListContent";
 import { PageLoaderPreset } from "../../components/PageLoader";
 import { HUDCard } from "../../components/HUDCard";
+import { apiGet } from "../../lib/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -85,7 +86,7 @@ const CATEGORY_ICON_COLOR: Record<string, string> = {
 function DropDetailDialog({ listId, onClose }: { listId: string; onClose: () => void }) {
   const { data, isLoading } = useQuery<DropListDetail>({
     queryKey: ["drops", "list", listId],
-    queryFn: () => fetch(`/api/v1/drops/lists/${listId}`).then((r) => r.json()),
+    queryFn: () => apiGet<DropListDetail>(`/api/v1/drops/lists/${listId}`),
   });
 
   // Group entries by (spawn_chance, source_basket) — each group is one independent drop event
@@ -156,7 +157,7 @@ export default function DropsPage() {
 
   const { data: lists = [], isLoading } = useQuery<DropList[]>({
     queryKey: ["drops", "lists"],
-    queryFn: () => fetch("/api/v1/drops/lists").then((r) => r.json()),
+    queryFn: () => apiGet<DropList[]>("/api/v1/drops/lists"),
   });
 
   const filtered = lists.filter((l) => {

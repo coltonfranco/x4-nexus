@@ -11,7 +11,8 @@ import { PageLoaderPreset } from "../../components/PageLoader";
 import { Tooltip as UiTooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../components/ui/tooltip";
 import { NetWorthChart } from "../../components/NetWorthChart";
 import type { NetWorthPoint } from "../../components/NetWorthChart";
-import { formatAge } from "../../lib/formatters";
+import { formatTimeAgo, formatCompactNumber } from "../../lib/formatters";
+import { useSaveTime } from "../../lib/useSaveTime";
 
 // ── Types (mirror /api/v1/economy/* + /player) ───────────────────────────────────
 
@@ -56,6 +57,8 @@ function useJson<T>(key: string, url: string) {
   const q = useQuery<T>({
     queryKey: [key],
     queryFn: async () => {
+      // Raw fetch (not apiGet): the thrown message embeds the url + status and is rendered
+      // directly in the per-card error banner below — apiGet's generic message would lose that detail.
       const r = await fetch(url);
       if (!r.ok) throw new Error(`${url} → ${r.status}`);
       return r.json() as Promise<T>;
@@ -120,13 +123,7 @@ export default function TradeOverviewPage() {
 
   const maxAbsNet = useMemo(() => Math.max(1, ...pnl.map((p) => Math.abs(p.net))), [pnl]);
 
-  const currentTime = useMemo(() => {
-    return Math.max(
-      0,
-      ...accounts.map((a) => a.latest_time ?? 0),
-      ...trades.map((t) => t.time)
-    );
-  }, [accounts, trades]);
+  const currentTime = useSaveTime();
 
   const shortages = useMemo(() => market.filter((m) => m.classification === "shortage").slice(0, 6), [market]);
   const surpluses = useMemo(
@@ -343,7 +340,7 @@ export default function TradeOverviewPage() {
                     <span className="flex-1 truncate text-muted-foreground text-xs">{asset}</span>
                     <span className="tabular-nums text-muted-foreground text-xs">×{(t.quantity ?? 0).toLocaleString()}</span>
                     <Currency value={internal ? null : sell ? total : -total} dynamicColor icon={false} abbreviate className="w-20 text-right" />
-                    <span className="w-10 text-right tabular-nums text-muted-foreground text-xs" title="Age">{formatAge(Math.max(0, currentTime - t.time))}</span>
+                    <span className="w-10 text-right tabular-nums text-muted-foreground text-xs" title="Age">{formatTimeAgo(t.time, currentTime)}</span>
                   </div>
                 );
               })}
@@ -453,10 +450,7 @@ function MarketColumn({ title, icon: Icon, tone, rows, metric }: {
 }
 
 function fmtShort(v: number): string {
-  const a = Math.abs(v);
-  if (a >= 1e6) return `${(v / 1e6).toFixed(1)}M`;
-  if (a >= 1e3) return `${Math.round(v / 1e3)}k`;
-  return `${Math.round(v)}`;
+  return formatCompactNumber(v, { decimals: 0, base: (n) => String(Math.round(n)) });
 }
 
 const BUDGET_FILL = (current: number, max: number): { pct: number; color: string } => {

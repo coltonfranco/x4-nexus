@@ -8,7 +8,7 @@ import { FactionBadge } from "../../components/FactionBadge";
 import { getWareGroupColor, RACE_COLORS, methodLabel } from "../../lib/constants";
 import type { FactionSummary } from "../../lib/map/types";
 import { MapPin, Info, Recycle } from "lucide-react";
-import { ModuleDetailPanel } from "../stations/modules";
+import { ModuleDetailPanel, type ModuleSummary } from "../stations/modules";
 import { WareDetailPanel } from "../../components/trade/WareDetailPanel";
 import {
   Dialog,
@@ -17,6 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../../components/ui/dialog";
+import { apiGet } from "../../lib/api";
 
 // ── Types mirror /api/v1/economy/production-chain ──────────────────────────────
 type ChainInput = { ware_id: string; amount: number };
@@ -120,7 +121,7 @@ export default function ProductionChainsPage() {
   const { hasSave } = useHasSave();
   const { data, isLoading } = useQuery<ChainResponse>({
     queryKey: ["production-chain"],
-    queryFn: () => fetch("/api/v1/economy/production-chain").then((r) => r.json()),
+    queryFn: () => apiGet<ChainResponse>("/api/v1/economy/production-chain"),
     staleTime: 5 * 60_000,
   });
 
@@ -710,14 +711,14 @@ function ConnectedModuleDetailDialog({
 }) {
   const { data: summary } = useQuery({
     queryKey: ["module", moduleId],
-    queryFn: () => fetch(`/api/v1/modules/${moduleId}`).then(r => r.json()),
+    queryFn: () => apiGet<ModuleSummary>(`/api/v1/modules/${moduleId}`),
     enabled: !!moduleId,
     staleTime: Infinity,
   });
 
   const { data: playerLicences = [] } = useQuery<{ licence_type: string; faction_id: string }[]>({
     queryKey: ["player-licences"],
-    queryFn: () => fetch("/api/v1/player/licences").then((r) => r.json()),
+    queryFn: () => apiGet<{ licence_type: string; faction_id: string }[]>("/api/v1/player/licences"),
     staleTime: 60_000,
   });
 
@@ -816,6 +817,8 @@ function ProductionDetailSidebar({
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const { data: offers = [] } = useQuery<WareOfferRow[]>({
     queryKey: ["economy", "wares", node.ware_id, "stations"],
+    // Raw fetch: normalizes a non-array payload to [] (defensive against a bad/error
+    // response shape), which doesn't fit apiGet/apiGetOrNull's ok-vs-throw/null contract.
     queryFn: () =>
       fetch(`/api/v1/economy/wares/${encodeURIComponent(node.ware_id)}/stations`)
         .then((r) => r.json())
@@ -826,11 +829,12 @@ function ProductionDetailSidebar({
   // Faction + sector lookups resolve the offer rows' ids to display names.
   const { data: factions = [] } = useQuery<FactionSummary[]>({
     queryKey: ["factions"],
-    queryFn: () => fetch("/api/v1/factions").then((r) => r.json()),
+    queryFn: () => apiGet<FactionSummary[]>("/api/v1/factions"),
     staleTime: Infinity,
   });
   const { data: sectors = [] } = useQuery<SectorRow[]>({
     queryKey: ["map-sectors"],
+    // Raw fetch: same defensive array-normalization as `offers` above.
     queryFn: () =>
       fetch("/api/v1/map/sectors?limit=2000")
         .then((r) => r.json())

@@ -5,6 +5,7 @@ import {
 import { TrendingUp } from "lucide-react";
 import { HUDCard } from "./HUDCard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import { formatTimeAgo, formatCompactNumber } from "../lib/formatters";
 
 // ── Shared types ────────────────────────────────────────────────────────────────
 
@@ -107,11 +108,7 @@ function ChartTooltip({ active, payload }: { active?: boolean; payload?: { paylo
 // ── Y-axis formatter ────────────────────────────────────────────────────────────
 
 function fmtShort(v: number): string {
-  const a = Math.abs(v);
-  if (a >= 1e9) return `${(v / 1e9).toFixed(1)}B`;
-  if (a >= 1e6) return `${(v / 1e6).toFixed(1)}M`;
-  if (a >= 1e3) return `${Math.round(v / 1e3)}k`;
-  return `${Math.round(v)}`;
+  return formatCompactNumber(v, { billions: true, decimals: 0, base: (n) => String(Math.round(n)) });
 }
 
 // ── Event type labels ───────────────────────────────────────────────────────────
@@ -197,13 +194,7 @@ export function NetWorthChart({
                 dataKey="time"
                 type="number"
                 domain={["dataMin", "dataMax"]}
-                tickFormatter={(t) => {
-                  const ago = maxTime - t;
-                  if (ago < 60) return `${Math.round(ago)}s ago`;
-                  if (ago < 3600) return `${Math.round(ago / 60)}m ago`;
-                  if (ago < 86400) return `${(ago / 3600).toFixed(1)}h ago`;
-                  return `${(ago / 86400).toFixed(1)}d ago`;
-                }}
+                tickFormatter={(t) => formatTimeAgo(t, maxTime)}
                 stroke="var(--text-muted)"
                 fontSize={11}
               />

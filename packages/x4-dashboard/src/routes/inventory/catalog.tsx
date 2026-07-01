@@ -18,6 +18,7 @@ import { SearchInput } from "../../components/ui/search-input";
 import { DataTable } from "../../components/DataTable";
 import type { ColumnDef } from "../../components/DataTable";
 import { PageTabs, PageTab } from "../../components/ui/page-tabs";
+import { apiGet } from "../../lib/api";
 
 type Ware = {
   ware_id: string;
@@ -159,8 +160,7 @@ export default function InventoryPage() {
   const { data: wares = [], isLoading } = useQuery<Ware[]>({
     queryKey: ["wares", "inventory"],
     queryFn: () =>
-      fetch("/api/v1/wares?category=inventory&limit=2000")
-        .then((r) => r.json())
+      apiGet<Ware[]>("/api/v1/wares?category=inventory&limit=2000")
         .then((d) => (Array.isArray(d) ? d : [])),
     staleTime: 5 * 60_000,
   });
@@ -274,10 +274,7 @@ export default function InventoryPage() {
                 onRowHover={({ ware }) =>
                   qc.prefetchQuery({
                     queryKey: ["wares", ware.ware_id],
-                    queryFn: () =>
-                      fetch(`/api/v1/wares/${ware.ware_id}`).then((r) =>
-                        r.json()
-                      ),
+                    queryFn: () => apiGet(`/api/v1/wares/${ware.ware_id}`),
                     staleTime: 60_000,
                   })
                 }

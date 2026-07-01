@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useIsFetching, useIsMutating, useQuery } from "@tanstack/react-query";
 import { RefreshCw, Wifi, WifiOff } from "lucide-react";
+import { apiGet } from "../lib/api";
+import { bucketSeconds } from "../lib/formatters";
+import type { RefreshStatus } from "../lib/useBackgroundRefresh";
 
 /**
  * Live-data status pill for the sidebar.
@@ -18,11 +21,7 @@ import { RefreshCw, Wifi, WifiOff } from "lucide-react";
  * save time) — React Query shares both with their other observers.
  */
 
-type RefreshStatus = {
-  active_key: string;
-  ingested_at: string | null;
-  last_ingest_ms: number | null;
-};
+type IndicatorStatus = Pick<RefreshStatus, "active_key" | "ingested_at" | "last_ingest_ms">;
 
 type SaveRow = {
   is_active: boolean;
@@ -37,12 +36,8 @@ function relativeTime(epochMs: number | null, now: number): string {
   if (epochMs == null) return "never";
   const secs = Math.max(0, Math.round((now - epochMs) / 1000));
   if (secs < 5) return "just now";
-  if (secs < 60) return `${secs}s ago`;
-  const mins = Math.floor(secs / 60);
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  return `${Math.floor(hrs / 24)}d ago`;
+  const { n, unit } = bucketSeconds(secs);
+  return `${n}${unit} ago`;
 }
 
 function clockTime(epochMs: number): string {
@@ -72,9 +67,9 @@ export function RefreshIndicator() {
   // and don't fall back to "no data" while it's in progress.
   const ingesting = useIsMutating({ mutationKey: ["activate-save"] }) > 0;
 
-  const { data: status, isError, isLoading } = useQuery<RefreshStatus>({
+  const { data: status, isError, isLoading } = useQuery<IndicatorStatus>({
     queryKey: ["refresh-status"],
-    queryFn: () => fetch("/api/v1/refresh-status").then((r) => r.json()),
+    queryFn: () => apiGet<IndicatorStatus>("/api/v1/refresh-status"),
     refetchInterval: 7000,
     refetchIntervalInBackground: true,
   });
@@ -83,7 +78,7 @@ export function RefreshIndicator() {
   // actually written — the real freshness signal.
   const { data: saves } = useQuery<SaveRow[]>({
     queryKey: ["saves"],
-    queryFn: () => fetch("/api/v1/saves").then((r) => r.json()),
+    queryFn: () => apiGet<SaveRow[]>("/api/v1/saves"),
     refetchInterval: 30_000,
   });
 

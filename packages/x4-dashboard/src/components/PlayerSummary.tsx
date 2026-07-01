@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { apiGetOrNull } from "../lib/api";
 import { Currency } from "./Currency";
 
 type PlayerMeta = { name: string | null; credits: number | null };
@@ -16,7 +17,7 @@ type PlayerMeta = { name: string | null; credits: number | null };
 export function PlayerSummary() {
   const { data: player } = useQuery<PlayerMeta | null>({
     queryKey: ["player-meta"],
-    queryFn: () => fetch("/api/v1/player").then((r) => (r.ok ? r.json() : null)),
+    queryFn: () => apiGetOrNull<PlayerMeta>("/api/v1/player"),
     staleTime: 60_000,
   });
 

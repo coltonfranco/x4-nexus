@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { prettyId } from "../../lib/wareFormat";
 import { StatBar } from "../StatBar";
 import { Badge } from "../ui/badge";
+import { apiGet } from "../../lib/api";
 
 type DropSource = {
   list_id: string;
@@ -27,7 +28,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 export function WareDropSources({ wareId }: { wareId: string }) {
   const { data = [], isLoading } = useQuery<DropSource[]>({
     queryKey: ["drops", "wares", wareId],
-    queryFn: () => fetch(`/api/v1/drops/wares/${wareId}`).then((r) => r.json()),
+    queryFn: () => apiGet<DropSource[]>(`/api/v1/drops/wares/${wareId}`),
   });
 
   if (isLoading) return <p className="py-2 text-xs text-muted-foreground">Loading…</p>;

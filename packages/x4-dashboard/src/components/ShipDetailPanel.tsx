@@ -13,7 +13,8 @@ import { Button } from "./ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { StatBar } from "./StatBar";
 import { PageLoaderPreset } from "./PageLoader";
-import { classShort, formatLicence } from "../lib/formatters";
+import { apiGet } from "../lib/api";
+import { classShort, formatLicence, formatStatValue } from "../lib/formatters";
 import { cn } from "../lib/utils";
 import type { FactionSummary } from '../lib/map/types';
 import {
@@ -32,7 +33,7 @@ function ShipDetailStatRow({ label, min, max, maxVal, unit, isLog, format }: {
     min != null && min !== max ? (
       `${format ? format(min) : min.toFixed(0)} - ${format ? format(max) : max.toFixed(0)}`
     ) : (
-      format ? format(max) : (max >= 1000 ? (max/1000).toFixed(1) + 'k' : max.toFixed(max < 10 && max % 1 !== 0 ? 1 : 0))
+      format ? format(max) : formatStatValue(max)
     )
   ) : "—";
   const scaledValue = isLog ? Math.log10((max ?? 0) + 1) : (max ?? 0);
@@ -57,7 +58,7 @@ function ShipDetailStatRow({ label, min, max, maxVal, unit, isLog, format }: {
 function ShipDropTable({ listId }: { listId: string }) {
   const { data, isLoading } = useQuery<{ wares: any[] }>({
     queryKey: ["drops", "list", listId],
-    queryFn: () => fetch(`/api/v1/drops/lists/${listId}`).then((r) => r.json()),
+    queryFn: () => apiGet<{ wares: any[] }>(`/api/v1/drops/lists/${listId}`),
   });
   if (isLoading) return <PageLoaderPreset preset="ships" className="py-12" />;
   if (!data || data.wares.length === 0) return <p className="text-xs text-muted-foreground py-2 italic">No loot data.</p>;
@@ -74,7 +75,7 @@ type ClassMax = {
 export function ShipDetailPanel({ shipId, factions }: { shipId: string; factions: FactionSummary[] }) {
   const { data, isLoading } = useQuery<ShipDetail>({
     queryKey: ["ship", shipId],
-    queryFn: () => fetch(`/api/v1/ships/${shipId}`).then((r) => r.json()),
+    queryFn: () => apiGet<ShipDetail>(`/api/v1/ships/${shipId}`),
     staleTime: 5 * 60_000,
   });
 
@@ -82,14 +83,14 @@ export function ShipDetailPanel({ shipId, factions }: { shipId: string; factions
   const cid = data ? classShort(data.class_id).toLowerCase() : "m";
   const { data: classMax } = useQuery<ClassMax>({
     queryKey: ["classMax", data?.class_id],
-    queryFn: () => fetch(`/api/v1/ships/class-max?class_id=${data!.class_id}`).then((r) => r.json()),
+    queryFn: () => apiGet<ClassMax>(`/api/v1/ships/class-max?class_id=${data!.class_id}`),
     staleTime: 5 * 60_000,
     enabled: !!data,
   });
 
   const { data: playerLicences = [] } = useQuery<{ licence_type: string; faction_id: string }[]>({
     queryKey: ["player-licences"],
-    queryFn: () => fetch("/api/v1/player/licences").then((r) => r.json()),
+    queryFn: () => apiGet<{ licence_type: string; faction_id: string }[]>("/api/v1/player/licences"),
     staleTime: 60_000,
   });
 

@@ -48,6 +48,7 @@ import { AlertCircle, Plus, GripHorizontal, X, Settings, Undo, Redo, Save, Folde
 import { useBlocker } from "@tanstack/react-router";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
+import { apiGet } from "../../lib/api";
 import {
   serializeNodes,
   serializeEdges,
@@ -496,19 +497,19 @@ function StationBuilderContent() {
 
   const { data: modules = [], isLoading } = useQuery<ModuleSummary[]>({
     queryKey: ["modules"],
-    queryFn: () => fetch("/api/v1/modules?limit=2000").then(r => r.json()),
+    queryFn: () => apiGet<ModuleSummary[]>("/api/v1/modules?limit=2000"),
     staleTime: 10 * 60_000,
   });
 
   const { data: factions = [] } = useQuery<FactionSummary[]>({
     queryKey: ["factions"],
-    queryFn: () => fetch("/api/v1/factions").then((r) => r.json()),
+    queryFn: () => apiGet<FactionSummary[]>("/api/v1/factions"),
     staleTime: 10 * 60_000,
   });
 
   const { data: playerLicences = [] } = useQuery<{ licence_type: string; faction_id: string }[]>({
     queryKey: ["player-licences"],
-    queryFn: () => fetch("/api/v1/player/licences").then((r) => r.json()),
+    queryFn: () => apiGet<{ licence_type: string; faction_id: string }[]>("/api/v1/player/licences"),
     staleTime: 60_000,
   });
 
@@ -549,7 +550,7 @@ function StationBuilderContent() {
   const moduleDetailsQueries = useQueries({
     queries: uniqueModuleIds.map(id => ({
       queryKey: ["module", id],
-      queryFn: () => fetch(`/api/v1/modules/${id}`).then(r => r.json()),
+      queryFn: () => apiGet<any>(`/api/v1/modules/${id}`),
       staleTime: 10 * 60_000,
     }))
   });

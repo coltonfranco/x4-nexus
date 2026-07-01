@@ -7,11 +7,11 @@ import { PageLoaderPreset } from "../../components/PageLoader";
 import { MissionMapModal } from "../../components/MissionMapModal";
 import type { MapObjective } from "../../components/MissionMapModal";
 import type { FactionSummary } from "../../lib/map/types";
+import { useSaveTime } from "../../lib/useSaveTime";
 
 import type {
   Mission,
   MissionOffer,
-  PlayerMeta,
   PlayerStat,
   Difficulty,
   MissionType,
@@ -35,6 +35,7 @@ import type { PathOption } from "./ChoiceGroupDetail";
 import { AllRequiredGroupDetail } from "./AllRequiredGroupDetail";
 import type { SubStage } from "./AllRequiredGroupDetail";
 import { RunPlanner } from "./RunPlanner";
+import { apiGet } from "../../lib/api";
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
@@ -66,34 +67,25 @@ export default function MissionsPage() {
 
   const { data: missions, isLoading: missionsLoading } = useQuery<Mission[]>({
     queryKey: ["missions"],
-    queryFn: () => fetch("/api/v1/missions").then((r) => r.json()),
+    queryFn: () => apiGet<Mission[]>("/api/v1/missions"),
     staleTime: 30_000,
   });
 
   const { data: offers, isLoading: offersLoading } = useQuery<MissionOffer[]>({
     queryKey: ["mission-offers"],
-    queryFn: () => fetch("/api/v1/missions/offers?exclude_tutorials=true").then((r) => r.json()),
+    queryFn: () => apiGet<MissionOffer[]>("/api/v1/missions/offers?exclude_tutorials=true"),
     staleTime: 30_000,
   });
 
   const { data: stats } = useQuery<PlayerStat[]>({
     queryKey: ["player-stats"],
-    queryFn: () => fetch("/api/v1/player/stats").then((r) => r.json()),
-    staleTime: 60_000,
-  });
-
-  const { data: playerMeta } = useQuery<PlayerMeta>({
-    queryKey: ["player-meta"],
-    queryFn: () =>
-      fetch("/api/v1/player").then((r) =>
-        r.ok ? r.json() : { in_game_time_sec: null },
-      ),
+    queryFn: () => apiGet<PlayerStat[]>("/api/v1/player/stats"),
     staleTime: 60_000,
   });
 
   const { data: factions } = useQuery<FactionSummary[]>({
     queryKey: ["factions"],
-    queryFn: () => fetch("/api/v1/factions").then((r) => r.json()),
+    queryFn: () => apiGet<FactionSummary[]>("/api/v1/factions"),
     staleTime: 300_000,
   });
 
@@ -103,7 +95,8 @@ export default function MissionsPage() {
     return map;
   }, [factions]);
 
-  const nowSec = playerMeta?.in_game_time_sec ?? null;
+  const saveTime = useSaveTime();
+  const nowSec = saveTime > 0 ? saveTime : null;
 
   // ── Filters ──────────────────────────────────────────────────────────────
 

@@ -4,16 +4,16 @@
 import { useQuery } from "@tanstack/react-query";
 import { X } from "lucide-react";
 
+import { apiGetOrNull } from "../../lib/api";
 import type { FactionSummary, MapStation } from "../../lib/map/types";
 import { stationCategoryLabel, stationDisplayName } from "../../lib/map/stations";
 import { prettyId } from "../../lib/wareFormat";
+import { formatCompactNumber } from "../../lib/formatters";
 
 type Offer = { ware_id: string; side: string; price: number; quantity: number };
 
 function compactCr(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
-  return `${n}`;
+  return formatCompactNumber(n);
 }
 
 function OfferList({ title, offers }: { title: string; offers: Offer[] }) {
@@ -41,9 +41,10 @@ export function StationPopover({
   onClose: () => void;
 }) {
   const isLive = station.source === "live";
-  const offersQuery = useQuery<Offer[]>({
+  const offersQuery = useQuery<Offer[] | null>({
     queryKey: ["station-offers", station.station_id],
-    queryFn: () => fetch(`/api/v1/stations/${station.station_id}/offers`).then((r) => (r.ok ? r.json() : [])),
+    // Falls back to null (not []) on a non-ok response; `offers` below already coalesces to [].
+    queryFn: () => apiGetOrNull<Offer[]>(`/api/v1/stations/${station.station_id}/offers`),
     enabled: isLive,
   });
 

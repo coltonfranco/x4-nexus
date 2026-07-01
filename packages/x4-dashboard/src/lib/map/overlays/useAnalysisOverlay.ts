@@ -6,7 +6,7 @@
 import { useMemo } from "react";
 
 import { RESOURCE_COLORS, STATUS_COLORS } from "../constants";
-import { getReputationScore } from "../../formatters";
+import { getReputationScore, formatCompactNumber } from "../../formatters";
 import { heatColor } from "./heat";
 import { buildAdjacency, findPath, type TravelSegmentKind, type PathResult } from "./pathfinding";
 import type { FillMode } from "./types";
@@ -60,11 +60,7 @@ function alpha(o: number): string {
 }
 
 function compact(n: number): string {
-  const a = Math.abs(n);
-  const s = n < 0 ? "-" : "";
-  if (a >= 1_000_000) return `${s}${(a / 1_000_000).toFixed(1)}M`;
-  if (a >= 1_000) return `${s}${(a / 1_000).toFixed(1)}k`;
-  return `${s}${a}`;
+  return formatCompactNumber(n);
 }
 
 function relationToUI(rel: number): number {

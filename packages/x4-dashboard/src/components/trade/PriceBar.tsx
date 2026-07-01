@@ -2,6 +2,7 @@
 // Every ware in the catalog carries all three, so this renders for all of them.
 
 import { Currency } from "../Currency";
+import { clampPct } from "../ui/progress-track";
 
 export function PriceBar({
   min,
@@ -16,7 +17,7 @@ export function PriceBar({
   if (min == null || max == null || max <= min) {
     return <Currency value={avg} className="text-xs" icon={false} />;
   }
-  const avgPct = Math.max(0, Math.min(100, ((avg - min) / (max - min)) * 100));
+  const avgPct = clampPct(avg, max, min);
   return (
     <div className="flex items-center gap-2">
       <div

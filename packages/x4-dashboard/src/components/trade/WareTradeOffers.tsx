@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Currency } from "../Currency";
 import { StatBar } from "../StatBar";
 import { useMemo } from "react";
+import { apiGet } from "../../lib/api";
 
 type WareOfferRow = {
   station_id: string;
@@ -20,12 +21,12 @@ const pretty = (m: string) =>
 export function WareTradeOffers({ wareId }: { wareId: string }) {
   const { data: offers = [], isLoading } = useQuery<WareOfferRow[]>({
     queryKey: ["economy", "wares", wareId, "stations"],
-    queryFn: () => fetch(`/api/v1/economy/wares/${encodeURIComponent(wareId)}/stations`).then((r) => r.json()),
+    queryFn: () => apiGet<WareOfferRow[]>(`/api/v1/economy/wares/${encodeURIComponent(wareId)}/stations`),
   });
 
   const { data: sectors = [] } = useQuery<Sector[]>({
     queryKey: ["map-sectors"],
-    queryFn: () => fetch("/api/v1/map/sectors?limit=2000").then((r) => r.json()),
+    queryFn: () => apiGet<Sector[]>("/api/v1/map/sectors?limit=2000"),
     staleTime: 10 * 60_000,
   });
 

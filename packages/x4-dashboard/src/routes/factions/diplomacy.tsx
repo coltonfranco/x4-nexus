@@ -29,6 +29,7 @@ import {
   TableRow,
 } from "../../components/ui/table";
 import { PageTabs, PageTab } from "../../components/ui/page-tabs";
+import { apiGet } from "../../lib/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -269,14 +270,12 @@ function ActionsTab() {
   >({
     queryKey: ["diplo-actions"],
     queryFn: () =>
-      fetch("/api/v1/diplomacy/actions?include_hidden=true").then((r) =>
-        r.json(),
-      ),
+      apiGet<DiploAction[]>("/api/v1/diplomacy/actions?include_hidden=true"),
   });
 
   const { data: ranks = [], isLoading: ranksLoading } = useQuery<AgentRank[]>({
     queryKey: ["diplo-ranks"],
-    queryFn: () => fetch("/api/v1/diplomacy/agent-ranks").then((r) => r.json()),
+    queryFn: () => apiGet<AgentRank[]>("/api/v1/diplomacy/agent-ranks"),
   });
 
   const isLoading = actionsLoading || ranksLoading;
@@ -565,17 +564,17 @@ function ActionsTab() {
 function GiftsTab() {
   const { data: gifts = [], isLoading: giftsLoading } = useQuery<DiploGift[]>({
     queryKey: ["diplo-gifts"],
-    queryFn: () => fetch("/api/v1/diplomacy/gifts").then((r) => r.json()),
+    queryFn: () => apiGet<DiploGift[]>("/api/v1/diplomacy/gifts"),
   });
 
   const { data: factions = [] } = useQuery<FactionSummary[]>({
     queryKey: ["factions"],
-    queryFn: () => fetch("/api/v1/factions").then((r) => r.json()),
+    queryFn: () => apiGet<FactionSummary[]>("/api/v1/factions"),
   });
 
   const { data: wares = [] } = useQuery<WareSummary[]>({
     queryKey: ["wares"],
-    queryFn: () => fetch("/api/v1/wares?limit=2000").then((r) => r.json()),
+    queryFn: () => apiGet<WareSummary[]>("/api/v1/wares?limit=2000"),
   });
 
   const factionMap = useMemo(
@@ -665,7 +664,7 @@ function GiftsTab() {
 function RanksTab() {
   const { data: ranks = [], isLoading } = useQuery<AgentRank[]>({
     queryKey: ["diplo-ranks"],
-    queryFn: () => fetch("/api/v1/diplomacy/agent-ranks").then((r) => r.json()),
+    queryFn: () => apiGet<AgentRank[]>("/api/v1/diplomacy/agent-ranks"),
   });
 
   if (isLoading) return <PageLoaderPreset preset="factions" />;

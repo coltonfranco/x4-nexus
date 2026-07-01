@@ -1,6 +1,31 @@
+import type { ReactNode } from "react";
 import { Badge } from "./ui/badge";
 import { getClassColor, classFull, getTypeColor, getMkColor } from "../lib/formatters";
 import { cn } from "../lib/utils";
+
+/** Colored accent dot + uppercase tracked label — the shared shell behind the
+ *  ship size/type/subtype badges below, which differ only in dot size/color and
+ *  label content. */
+function AccentLabel({
+  dotClassName,
+  textClassName,
+  className,
+  children,
+}: {
+  dotClassName?: string;
+  textClassName?: string;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className={cn("flex items-center gap-2", className)}>
+      <div className={cn("bg-current", dotClassName)} />
+      <span className={cn("text-xs font-bold text-foreground tracking-widest leading-none", textClassName)}>
+        {children}
+      </span>
+    </div>
+  );
+}
 
 /** Agnostic size badge — colored accent bar + full label (Small, Medium, Large, Extra Large).
  *  Accepts any value that `classShort` can normalise: `"s"`, `"m"`, `"l"`, `"xl"`, `"ship_s"`, etc. */
@@ -8,12 +33,9 @@ export function SizeBadge({ size, className = "" }: { size: string; className?: 
   const baseColor = getClassColor(size);
   const textColor = baseColor.split(" ").find((c) => c.startsWith("text-"));
   return (
-    <div className={cn("flex items-center gap-2", className)}>
-      <div className={cn("w-1 h-3.5 bg-current", textColor)} />
-      <span className="text-xs font-bold text-foreground tracking-widest leading-none">
-        {classFull(size)}
-      </span>
-    </div>
+    <AccentLabel dotClassName={cn("w-1 h-3.5", textColor)} className={className}>
+      {classFull(size)}
+    </AccentLabel>
   );
 }
 
@@ -26,15 +48,12 @@ export function ShipTypeBadge({ role, subtype, className = "" }: { role: string 
   if (!role) return null;
   const baseColor = getTypeColor(role);
   const textColor = baseColor.split(' ').find(c => c.startsWith('text-'));
-  
+
   return (
-    <div className={cn("flex items-center gap-2", className)}>
-      <div className={cn("w-1.5 h-1.5 bg-current", textColor)} />
-      <span className="text-xs font-bold text-foreground tracking-widest leading-none">
-        {role.charAt(0).toUpperCase() + role.slice(1)}
-        {subtype && <span className="opacity-50 ml-1.5 capitalize font-medium">{subtype}</span>}
-      </span>
-    </div>
+    <AccentLabel dotClassName={cn("w-1.5 h-1.5", textColor)} className={className}>
+      {role.charAt(0).toUpperCase() + role.slice(1)}
+      {subtype && <span className="opacity-50 ml-1.5 capitalize font-medium">{subtype}</span>}
+    </AccentLabel>
   );
 }
 
@@ -43,12 +62,13 @@ export function ShipSubtypeBadge({ subtype, role, className = "" }: { subtype: s
   const baseColor = getTypeColor(role);
   const textColor = baseColor.split(' ').find(c => c.startsWith('text-'));
   return (
-    <div className={cn("flex items-center gap-2", className)}>
-      <div className={cn("w-1.5 h-1.5 bg-current opacity-50", textColor)} />
-      <span className="text-xs font-bold text-foreground tracking-widest opacity-70 leading-none capitalize">
-        {subtype}
-      </span>
-    </div>
+    <AccentLabel
+      dotClassName={cn("w-1.5 h-1.5 opacity-50", textColor)}
+      textClassName="opacity-70 capitalize"
+      className={className}
+    >
+      {subtype}
+    </AccentLabel>
   );
 }
 

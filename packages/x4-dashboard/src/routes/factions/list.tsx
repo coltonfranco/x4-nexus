@@ -15,6 +15,7 @@ import { HUDCard } from "../../components/HUDCard";
 import { PageTabs, PageTab } from "../../components/ui/page-tabs";
 import { useHasSave } from "../../lib/useHasSave";
 import { NoSavePlaceholder } from "../../components/NoSavePlaceholder";
+import { apiGet } from "../../lib/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -111,7 +112,7 @@ const METRICS: {
 function StandingsView({ onSelectFaction, hasSave }: { onSelectFaction: (id: string) => void; hasSave: boolean }) {
   const { data: strength = [], isLoading } = useQuery<FactionStrength[]>({
     queryKey: ["factions-strength"],
-    queryFn: () => fetch("/api/v1/factions/strength").then((r) => r.json()),
+    queryFn: () => apiGet<FactionStrength[]>("/api/v1/factions/strength"),
     staleTime: 30_000,
     enabled: hasSave,
   });
@@ -194,37 +195,37 @@ function FactionDetailPanel({ factionId, onClose, hasSave }: { factionId: string
 
   const { data: faction, isLoading: factionLoading } = useQuery<FactionDetail>({
     queryKey: ["faction", factionId],
-    queryFn: () => fetch(`/api/v1/factions/${factionId}`).then((r) => r.json()),
+    queryFn: () => apiGet<FactionDetail>(`/api/v1/factions/${factionId}`),
   });
 
   const { data: licences = [], isLoading: licencesLoading } = useQuery<FactionLicence[]>({
     queryKey: ["faction-licences", factionId],
-    queryFn: () => fetch(`/api/v1/licences?faction_id=${factionId}`).then((r) => r.json()),
+    queryFn: () => apiGet<FactionLicence[]>(`/api/v1/licences?faction_id=${factionId}`),
   });
 
   const { data: allFactions = [] } = useQuery<FactionSummary[]>({
     queryKey: ["factions"],
-    queryFn: () => fetch("/api/v1/factions").then((r) => r.json()),
+    queryFn: () => apiGet<FactionSummary[]>("/api/v1/factions"),
   });
 
   const { data: relations = [] } = useQuery<FactionRelation[]>({
     queryKey: ["faction-relations", factionId],
-    queryFn: () => fetch(`/api/v1/factions/${factionId}/relations`).then((r) => r.json()),
+    queryFn: () => apiGet<FactionRelation[]>(`/api/v1/factions/${factionId}/relations`),
   });
 
   const { data: sectors = [] } = useQuery<MapSummary[]>({
     queryKey: ["faction-sectors", factionId],
-    queryFn: () => fetch(`/api/v1/map/sectors?owner_faction=${factionId}`).then((r) => r.json()),
+    queryFn: () => apiGet<MapSummary[]>(`/api/v1/map/sectors?owner_faction=${factionId}`),
   });
 
   const { data: clusters = [] } = useQuery<MapSummary[]>({
     queryKey: ["faction-clusters", factionId],
-    queryFn: () => fetch(`/api/v1/map/clusters?owner_faction=${factionId}`).then((r) => r.json()),
+    queryFn: () => apiGet<MapSummary[]>(`/api/v1/map/clusters?owner_faction=${factionId}`),
   });
 
   const { data: strengthData = [] } = useQuery<FactionStrength[]>({
     queryKey: ["factions-strength"],
-    queryFn: () => fetch("/api/v1/factions/strength").then((r) => r.json()),
+    queryFn: () => apiGet<FactionStrength[]>("/api/v1/factions/strength"),
     staleTime: 30_000,
   });
 
@@ -720,13 +721,13 @@ export default function FactionsPage() {
 
   const { data: knownFactions = {} } = useQuery<Record<string, boolean>>({
     queryKey: ["factions-known"],
-    queryFn: () => fetch("/api/v1/factions/known").then((r) => r.json()),
+    queryFn: () => apiGet<Record<string, boolean>>("/api/v1/factions/known"),
     staleTime: 60_000,
   });
 
   const { data: factions = [], isLoading: factionsLoading } = useQuery<FactionSummary[]>({
     queryKey: ["factions"],
-    queryFn: () => fetch("/api/v1/factions").then((r) => r.json()),
+    queryFn: () => apiGet<FactionSummary[]>("/api/v1/factions"),
   });
 
   const visibleFactions = useMemo(() => {
@@ -736,7 +737,7 @@ export default function FactionsPage() {
 
   const { data: relations = [], isLoading: relationsLoading } = useQuery<AllFactionRelation[]>({
     queryKey: ["faction-relations"],
-    queryFn: () => fetch("/api/v1/faction-relations").then((r) => r.json()),
+    queryFn: () => apiGet<AllFactionRelation[]>("/api/v1/faction-relations"),
   });
 
   const loading = factionsLoading || relationsLoading;

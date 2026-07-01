@@ -7,6 +7,9 @@ import {
 import { PageLoaderPreset } from "./PageLoader";
 import { Currency } from "./Currency";
 import { HUDCard } from "./HUDCard";
+import { apiGet, apiGetOrNull } from "../lib/api";
+import { useSaveTime } from "../lib/useSaveTime";
+import { formatCompactNumber, formatDuration } from "../lib/formatters";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -112,8 +115,7 @@ function fmtValue(stat: PlayerStat): string {
   if (stat.stat_id.endsWith("_percent")) return `${v.toFixed(1)}%`;
   if (stat.stat_id.includes("_rank")) return `${v}`;
   if (stat.stat_id.includes("_score")) return v.toLocaleString();
-  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
-  if (v >= 1_000) return `${(v / 1_000).toFixed(1)}k`;
+  if (v >= 1_000) return formatCompactNumber(v, { decimals: 1 });
   if (v === Math.floor(v)) return v.toLocaleString();
   return v.toFixed(1);
 }
@@ -123,24 +125,27 @@ function fmtValue(stat: PlayerStat): string {
 export function PlayerCard() {
   const { data: meta, isLoading: metaLoading } = useQuery<{
     player_name?: string; player_credits?: number;
-    game_version?: string; in_game_time_sec?: number;
+    game_version?: string;
   } | null>({
     queryKey: ["player-meta"],
-    queryFn: () => fetch("/api/v1/player").then(r => r.ok ? r.json() : null),
+    queryFn: () =>
+      apiGetOrNull<{ player_name?: string; player_credits?: number; game_version?: string }>(
+        "/api/v1/player"
+      ),
     staleTime: 60_000,
   });
 
+  const saveTime = useSaveTime();
+
   const { data: stats = [] } = useQuery<PlayerStat[]>({
     queryKey: ["player-stats"],
-    queryFn: () => fetch("/api/v1/player/stats").then(r => r.json()),
+    queryFn: () => apiGet<PlayerStat[]>("/api/v1/player/stats"),
     staleTime: 60_000,
   });
 
   const groups = useMemo(() => categorizeStats(stats), [stats]);
 
-  const playTime = meta?.in_game_time_sec
-    ? `${Math.floor(meta.in_game_time_sec / 3600)}h ${Math.floor((meta.in_game_time_sec % 3600) / 60)}m`
-    : null;
+  const playTime = saveTime > 0 ? formatDuration(saveTime) : null;
 
   if (metaLoading) return <div className="text-sm text-muted-foreground p-6"><PageLoaderPreset preset="player" /></div>;
   if (!meta) return null;

@@ -21,6 +21,7 @@ import { useAnalysisOverlay, type ConflictToggles } from "../lib/map/overlays/us
 import type { ConflictEntry, SectorForceEntry } from "../lib/map/overlays/useAnalysisData";
 import { useSettings } from "../lib/settingsStore";
 import { useHasSave } from "../lib/useHasSave";
+import { apiGet, apiGetOrNull } from "../lib/api";
 
 const mapApi = getRouteApi("/map");
 
@@ -36,17 +37,22 @@ export default function MapPage() {
     zone_id: string | null;
   } | null>({
     queryKey: ["player"],
-    queryFn: () => fetch("/api/v1/player").then((r) => (r.ok ? r.json() : null)),
+    queryFn: () =>
+      apiGetOrNull<{
+        current_sector: string | null;
+        sector_id: string | null;
+        zone_id: string | null;
+      }>("/api/v1/player"),
     staleTime: 30_000,
   });
   const { data: forcesData } = useQuery<SectorForceEntry[]>({
     queryKey: ["map-forces"],
-    queryFn: () => fetch("/api/v1/map/forces").then((r) => r.json()),
+    queryFn: () => apiGet<SectorForceEntry[]>("/api/v1/map/forces"),
     staleTime: 30_000,
   });
   const { data: conflictsData } = useQuery<ConflictEntry[]>({
     queryKey: ["map-conflicts"],
-    queryFn: () => fetch("/api/v1/map/conflicts").then((r) => r.json()),
+    queryFn: () => apiGet<ConflictEntry[]>("/api/v1/map/conflicts"),
     staleTime: 30_000,
   });
 

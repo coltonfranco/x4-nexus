@@ -1,4 +1,5 @@
 import { FactionBadge } from "../../components/FactionBadge";
+import { MissionListCard } from "./CardShell";
 import type { FactionSummary } from "../../lib/map/types";
 import type { Mission } from "./types";
 
@@ -59,52 +60,23 @@ export function GroupCard({
     : "All stages required";
 
   return (
-    <div
+    <MissionListCard
       onClick={onClick}
-      className="relative mb-2 rounded-[11px] cursor-pointer overflow-hidden select-none transition-colors"
-      style={{
-        background: isSelected
-          ? "rgba(92,200,236,0.08)"
-          : "rgba(255,255,255,0.018)",
-        border: `1px solid ${isSelected ? "rgba(92,200,236,0.4)" : "rgba(255,255,255,0.09)"}`,
-      }}
-    >
-      {/* Left edge strip — always visible for groups */}
-      <div
-        className="absolute left-0 top-0 bottom-0 w-[3px]"
-        style={{ background: edgeColor }}
-      />
-
-      <div className="p-3 pl-4">
-        {/* Top row */}
-        <div className="flex items-start gap-2.5">
-          <div className="flex items-center gap-2 min-w-0 flex-1">
-            <span
-              className="w-2 h-2 rounded-[2px] shrink-0 mt-1"
-              style={{ background: isChoice ? "#d79be8" : "#7fb9d6" }}
-            />
-            <div className="min-w-0">
-              <h3 className="text-[13px] font-semibold text-foreground truncate">
-                {title}
-              </h3>
-              <p className="text-[10.5px] text-muted-foreground truncate mt-0.5">
-                {subtitle}
-              </p>
-            </div>
-          </div>
-
-          <div className="text-right shrink-0">
-            <span
-              className="font-mono text-[13px] font-semibold"
-              style={{ color: edgeColor }}
-            >
-              {isChoice ? "⑂" : "⛓"}
-            </span>
-          </div>
-        </div>
-
-        {/* Badge row */}
-        <div className="flex items-center gap-1.5 mt-2.5 flex-wrap">
+      isSelected={isSelected}
+      dotColor={isChoice ? "#d79be8" : "#7fb9d6"}
+      edgeColor={edgeColor}
+      alwaysShowEdge
+      bg="rgba(255,255,255,0.018)"
+      unselectedBorder="rgba(255,255,255,0.09)"
+      title={title}
+      subtitle={subtitle}
+      trailing={
+        <span className="font-mono text-[13px] font-semibold" style={{ color: edgeColor }}>
+          {isChoice ? "⑂" : "⛓"}
+        </span>
+      }
+      badges={
+        <>
           <span
             className="text-[9px] font-semibold uppercase tracking-[0.3px] px-2 py-0.5 rounded-[5px]"
             style={{ background: tagBg, color: tagColor }}
@@ -147,8 +119,8 @@ export function GroupCard({
               ◈ {primaryMission.faction}
             </span>
           )}
-        </div>
-      </div>
-    </div>
+        </>
+      }
+    />
   );
 }

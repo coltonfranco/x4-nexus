@@ -1,6 +1,7 @@
 import { useMemo, useState, useCallback, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { X, Target, Plus, Minus } from "lucide-react";
+import { apiGetOrNull } from "../lib/api";
 import { useMapData } from "../lib/map/useMapData";
 import { useMapLayout } from "../lib/map/useMapLayout";
 import { HexGridLayer } from "./map/layers/HexGridLayer";
@@ -45,9 +46,9 @@ export function MissionMapModal({ open, onClose, sectorId, objectives }: Mission
   const data = useMapData();
   const layout = useMapLayout(data, null, false);
 
-  const { data: player } = useQuery<{ sector_id: string | null; zone_id: string | null }>({
+  const { data: player } = useQuery<{ sector_id: string | null; zone_id: string | null } | null>({
     queryKey: ["player"],
-    queryFn: async () => { const r = await fetch("/api/v1/player"); return r.ok ? r.json() : null; },
+    queryFn: () => apiGetOrNull<{ sector_id: string | null; zone_id: string | null }>("/api/v1/player"),
     enabled: open,
     staleTime: 30_000,
   });

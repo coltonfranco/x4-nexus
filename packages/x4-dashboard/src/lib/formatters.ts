@@ -102,26 +102,77 @@ export const getWeaponType = (name: string) => {
     .trim() || "Other";
 };
 
-export function formatAge(seconds: number): string {
-  if (seconds < 60) return `${Math.floor(seconds)}s`;
+/**
+ * Abbreviate a number with k/M/(B) suffixes, e.g. 1_500_000 -> "1.5M".
+ * Tier thresholds are decided off `Math.abs(value)`; the sign stays on `value`
+ * itself so callers get correctly-signed output without special-casing.
+ */
+export function formatCompactNumber(
+  value: number,
+  opts: {
+    /** k-tier decimal places (default 1). */
+    decimals?: number;
+    /** M-tier decimal places (default 1). */
+    mDecimals?: number;
+    /** B-tier decimal places (default 1, only used when `billions` is set). */
+    bDecimals?: number;
+    /** Enable the 1e9 "B" tier. */
+    billions?: boolean;
+    /** Strip trailing zeros, e.g. "1.50M" -> "1.5M". */
+    trim?: boolean;
+    /** Formatter for |value| < 1000. Defaults to the raw value. */
+    base?: (v: number) => string;
+  } = {}
+): string {
+  const { decimals = 1, mDecimals = 1, bDecimals = 1, billions = false, trim = false, base } = opts;
+  const abs = Math.abs(value);
+  const fixed = (n: number, d: number, unit: string) => {
+    let s = n.toFixed(d);
+    if (trim) s = String(parseFloat(s));
+    return `${s}${unit}`;
+  };
+  if (billions && abs >= 1_000_000_000) return fixed(value / 1_000_000_000, bDecimals, "B");
+  if (abs >= 1_000_000) return fixed(value / 1_000_000, mDecimals, "M");
+  if (abs >= 1_000) return fixed(value / 1_000, decimals, "k");
+  return base ? base(value) : `${value}`;
+}
+
+/**
+ * Ship/equipment stat display: abbreviated above 1000, otherwise a small-value
+ * heuristic (one decimal for non-integers under 10, whole numbers otherwise) —
+ * shared by the ship builder's stat rows and the ship detail panel.
+ */
+export function formatStatValue(value: number): string {
+  return formatCompactNumber(value, { base: (v) => v.toFixed(v < 10 && v % 1 !== 0 ? 1 : 0) });
+}
+
+/** Largest whole s/m/h/d unit fitting a duration — the shared core of every
+ *  "time since" display (formatAge, formatTimeAgo, RefreshIndicator's clock). */
+export function bucketSeconds(seconds: number): { n: number; unit: "s" | "m" | "h" | "d" } {
+  if (seconds < 60) return { n: Math.floor(seconds), unit: "s" };
   const m = Math.floor(seconds / 60);
-  if (m < 60) return `${m}m`;
+  if (m < 60) return { n: m, unit: "m" };
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h`;
-  const d = Math.floor(h / 24);
-  return `${d}d`;
+  if (h < 24) return { n: h, unit: "h" };
+  return { n: Math.floor(h / 24), unit: "d" };
+}
+
+export function formatAge(seconds: number): string {
+  const { n, unit } = bucketSeconds(seconds);
+  return `${n}${unit}`;
 }
 
 export function formatTimeAgo(timeSec: number, currentTimeSec: number): string {
   if (!timeSec) return "";
-  const diff = Math.max(0, currentTimeSec - timeSec);
-  if (diff < 60) return `${Math.floor(diff)}s ago`;
-  const mins = Math.floor(diff / 60);
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.floor(hrs / 24);
-  return `${days}d ago`;
+  const { n, unit } = bucketSeconds(Math.max(0, currentTimeSec - timeSec));
+  return `${n}${unit} ago`;
+}
+
+/** In-game play time as "Xh Ym" (e.g. save summaries, player stats). */
+export function formatDuration(seconds: number): string {
+  const hrs = Math.floor(seconds / 3600);
+  const mins = Math.floor((seconds % 3600) / 60);
+  return `${hrs}h ${mins}m`;
 }
 
 export function cleanText(text: string): string {

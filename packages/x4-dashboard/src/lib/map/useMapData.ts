@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 
+import { apiGet } from "../api";
 import type {
   Cluster,
   ClusterResourceEntry,
@@ -14,47 +15,42 @@ import type {
   Zone,
 } from "./types";
 
-const okJson = (r: Response) => {
-  if (!r.ok) throw new Error(r.statusText);
-  return r.json();
-};
-
 export function useMapData() {
   const clustersQuery = useQuery<Cluster[]>({
     queryKey: ["map-clusters"],
-    queryFn: () => fetch("/api/v1/map/clusters?limit=2000").then((r) => r.json()),
+    queryFn: () => apiGet<Cluster[]>("/api/v1/map/clusters?limit=2000"),
   });
   const sectorsQuery = useQuery<Sector[]>({
     queryKey: ["map-sectors"],
-    queryFn: () => fetch("/api/v1/map/sectors?limit=2000").then((r) => r.json()),
+    queryFn: () => apiGet<Sector[]>("/api/v1/map/sectors?limit=2000"),
   });
   const zonesQuery = useQuery<Zone[]>({
     queryKey: ["map-zones"],
-    queryFn: () => fetch("/api/v1/map/zones?limit=5000").then(okJson),
+    queryFn: () => apiGet<Zone[]>("/api/v1/map/zones?limit=5000"),
   });
   const gatesQuery = useQuery<Gate[]>({
     queryKey: ["map-gates"],
-    queryFn: () => fetch("/api/v1/map/gates?limit=5000").then(okJson),
+    queryFn: () => apiGet<Gate[]>("/api/v1/map/gates?limit=5000"),
   });
   const highwaysQuery = useQuery<Highway[]>({
     queryKey: ["map-superhighways"],
-    queryFn: () => fetch("/api/v1/map/superhighways?limit=5000").then(okJson),
+    queryFn: () => apiGet<Highway[]>("/api/v1/map/superhighways?limit=5000"),
   });
   const connectionsQuery = useQuery<SectorConnection[]>({
     queryKey: ["map-sector-connections"],
-    queryFn: () => fetch("/api/v1/map/sector-connections").then((r) => r.json()),
+    queryFn: () => apiGet<SectorConnection[]>("/api/v1/map/sector-connections"),
   });
   const resourcesQuery = useQuery<ClusterResourceEntry[]>({
     queryKey: ["map-cluster-resources"],
-    queryFn: () => fetch("/api/v1/map/cluster-resources").then((r) => r.json()),
+    queryFn: () => apiGet<ClusterResourceEntry[]>("/api/v1/map/cluster-resources"),
   });
   const factionsQuery = useQuery<FactionSummary[]>({
     queryKey: ["factions"],
-    queryFn: () => fetch("/api/v1/factions").then((r) => r.json()),
+    queryFn: () => apiGet<FactionSummary[]>("/api/v1/factions"),
   });
   const stationsQuery = useQuery<MapStation[]>({
     queryKey: ["map-stations"],
-    queryFn: () => fetch("/api/v1/map/stations?limit=20000").then(okJson),
+    queryFn: () => apiGet<MapStation[]>("/api/v1/map/stations?limit=20000"),
   });
 
   return {

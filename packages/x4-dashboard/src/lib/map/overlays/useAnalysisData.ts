@@ -4,15 +4,15 @@
 import { useQuery } from "@tanstack/react-query";
 
 import type { EconomyWare, PlayerRelation, TradeRoute, WareOffer } from "./types";
+import { formatCompactNumber } from "../../formatters";
+import { apiGet } from "../../api";
 
 type StaticResourceRow = { sector_id: string | null; ware: string; yield_level: string };
 type LiveResourceRow = { sector_id: string; ware: string; current: number | null; max: number | null; yield_tier: string | null };
 type RawEntry = { sector: string; ware: string; rank: number; label: string };
 
 function compact(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
-  return `${n}`;
+  return formatCompactNumber(n);
 }
 
 // X4 region yield tiers, lowest → highest (region_definitions.xml vocabulary). Numeric
@@ -46,6 +46,8 @@ export type ResourceData = { byWare: YieldMap; bySector: SectorResourceMap; sour
 // to a comparable rank + a human label: live ranks by current stock, static by tier.
 async function fetchResourceEntries(): Promise<{ entries: RawEntry[]; source: ResourceSource }> {
   try {
+    // Raw fetch: checks `.ok` without throwing so a failed/empty live endpoint falls
+    // through to the static query below, instead of apiGet's throw-on-non-ok.
     const live = await fetch("/api/v1/map/resources/live?limit=2000");
     if (live.ok) {
       const rows: LiveResourceRow[] = await live.json();
@@ -64,7 +66,7 @@ async function fetchResourceEntries(): Promise<{ entries: RawEntry[]; source: Re
   } catch {
     // Network error reaching the live endpoint — fall through to static.
   }
-  const rows: StaticResourceRow[] = await fetch("/api/v1/map/resources?limit=2000").then((r) => r.json());
+  const rows = await apiGet<StaticResourceRow[]>("/api/v1/map/resources?limit=2000");
   return {
     source: "static",
     entries: rows.filter((r) => r.sector_id).map((r) => ({
@@ -128,7 +130,7 @@ export function useEconomyWares(enabled: boolean) {
   return useQuery<EconomyWare[]>({
     queryKey: ["economy-wares-list"],
     enabled,
-    queryFn: () => fetch("/api/v1/economy/wares?limit=2000").then((r) => r.json()),
+    queryFn: () => apiGet<EconomyWare[]>("/api/v1/economy/wares?limit=2000"),
   });
 }
 
@@ -137,7 +139,7 @@ export function useWareOffers(wareId: string | null) {
   return useQuery<WareOffer[]>({
     queryKey: ["economy-ware-stations", wareId],
     enabled: wareId != null,
-    queryFn: () => fetch(`/api/v1/economy/wares/${wareId}/stations`).then((r) => r.json()),
+    queryFn: () => apiGet<WareOffer[]>(`/api/v1/economy/wares/${wareId}/stations`),
   });
 }
 
@@ -146,7 +148,7 @@ export function useTopRoutes(enabled: boolean) {
   return useQuery<TradeRoute[]>({
     queryKey: ["map-top-routes"],
     enabled,
-    queryFn: () => fetch("/api/v1/routes?limit=80").then((r) => r.json()),
+    queryFn: () => apiGet<TradeRoute[]>("/api/v1/routes?limit=80"),
   });
 }
 
@@ -154,7 +156,7 @@ export function usePlayerRelations(enabled: boolean) {
   return useQuery<PlayerRelation[]>({
     queryKey: ["player-reputation"],
     enabled,
-    queryFn: () => fetch("/api/v1/player/reputation").then((r) => r.json()),
+    queryFn: () => apiGet<PlayerRelation[]>("/api/v1/player/reputation"),
   });
 }
 
@@ -179,7 +181,7 @@ export function useConflictData(enabled: boolean) {
   return useQuery<ConflictEntry[]>({
     queryKey: ["map-conflicts"],
     enabled,
-    queryFn: () => fetch("/api/v1/map/conflicts").then((r) => r.json()),
+    queryFn: () => apiGet<ConflictEntry[]>("/api/v1/map/conflicts"),
     staleTime: 30_000,
   });
 }
@@ -196,10 +198,7 @@ export function useTensionData(enabled: boolean) {
   return useQuery<BorderTensionEntry[]>({
     queryKey: ["map-tensions"],
     enabled,
-    queryFn: () => fetch("/api/v1/map/tensions").then((r) => r.json()).then(data => {
-      console.log("FETCHED TENSIONS:", data);
-      return data;
-    }),
+    queryFn: () => apiGet<BorderTensionEntry[]>("/api/v1/map/tensions"),
     staleTime: 30_000,
   });
 }
@@ -215,7 +214,7 @@ export function useSectorForces(enabled: boolean) {
   return useQuery<SectorForceEntry[]>({
     queryKey: ["map-forces"],
     enabled,
-    queryFn: () => fetch("/api/v1/map/forces").then((r) => r.json()),
+    queryFn: () => apiGet<SectorForceEntry[]>("/api/v1/map/forces"),
     staleTime: 30_000,
   });
 }

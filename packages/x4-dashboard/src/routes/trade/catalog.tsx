@@ -27,6 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../components/ui/select";
+import { apiGet } from "../../lib/api";
 
 type WareGroup = { group_id: string; name: string | null; tier: number | null };
 
@@ -65,6 +66,8 @@ export default function TradeCatalogPage() {
 
   const { data: wares = [], isLoading } = useQuery<Ware[]>({
     queryKey: ["wares", "commodity"],
+    // Raw fetch: normalizes a non-array payload to [] (defensive against a bad/error
+    // response shape), which doesn't fit apiGet/apiGetOrNull's ok-vs-throw/null contract.
     queryFn: () =>
       fetch("/api/v1/wares?category=commodity&limit=2000")
         .then((r) => r.json())
@@ -73,6 +76,7 @@ export default function TradeCatalogPage() {
   });
   const { data: groupList = [] } = useQuery<WareGroup[]>({
     queryKey: ["ware-groups"],
+    // Raw fetch: same defensive array-normalization as `wares` above.
     queryFn: () =>
       fetch("/api/v1/ware-groups")
         .then((r) => r.json())
@@ -342,8 +346,7 @@ export default function TradeCatalogPage() {
                 onRowHover={(w) =>
                   qc.prefetchQuery({
                     queryKey: ["wares", w.ware_id],
-                    queryFn: () =>
-                      fetch(`/api/v1/wares/${w.ware_id}`).then((r) => r.json()),
+                    queryFn: () => apiGet(`/api/v1/wares/${w.ware_id}`),
                     staleTime: 60_000,
                   })
                 }

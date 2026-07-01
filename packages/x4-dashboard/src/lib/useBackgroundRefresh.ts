@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { apiGet } from "./api";
 
 /**
  * Selective background refresh.
@@ -11,11 +12,15 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
  * full `invalidateQueries()` for an explicit, complete rebuild.
  */
 
-type RefreshStatus = {
+/** The full `/api/v1/refresh-status` payload. Consumers that only need a
+ *  subset should narrow with `Pick<RefreshStatus, ...>` rather than redeclare. */
+export type RefreshStatus = {
   active_key: string;
+  following_latest: boolean;
   ingested_at: string | null;
   source_fingerprint: string | null;
   last_event_id: number;
+  last_ingest_ms: number | null;
   markers: Record<string, number>;
 };
 
@@ -82,7 +87,7 @@ export function useBackgroundRefresh(intervalMs = 7000): void {
 
   const { data } = useQuery<RefreshStatus>({
     queryKey: ["refresh-status"],
-    queryFn: () => fetch("/api/v1/refresh-status").then((r) => r.json()),
+    queryFn: () => apiGet<RefreshStatus>("/api/v1/refresh-status"),
     refetchInterval: intervalMs,
     refetchIntervalInBackground: true,
   });

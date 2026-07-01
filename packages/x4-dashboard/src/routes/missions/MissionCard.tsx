@@ -1,5 +1,6 @@
 import { MapPin } from "lucide-react";
 import { FactionBadge } from "../../components/FactionBadge";
+import { MissionListCard } from "./CardShell";
 
 import type { FactionSummary } from "../../lib/map/types";
 import type { Mission } from "./types";
@@ -36,67 +37,36 @@ export function MissionCard({ m, factionMap, nowSec, isSelected, isInRun, onClic
     : m.rewardtext ?? null;
 
   return (
-    <div
+    <MissionListCard
       onClick={onClick}
-      className="relative mb-2 rounded-[11px] cursor-pointer overflow-hidden select-none transition-colors"
-      style={{
-        background: isSelected
-          ? "rgba(92,200,236,0.08)"
-          : "rgba(255,255,255,0.02)",
-        border: `1px solid ${isSelected ? "rgba(92,200,236,0.4)" : "rgba(255,255,255,0.07)"}`,
-      }}
-    >
-      {/* Left edge strip */}
-      <div
-        className="absolute left-0 top-0 bottom-0 w-[3px]"
-        style={{ background: isSelected ? "#5cc8ec" : "transparent" }}
-      />
-
-      <div className="p-3 pl-4">
-        {/* Top row: type dot + title + reward */}
-        <div className="flex items-start gap-2.5">
-          <div className="flex items-center gap-2 min-w-0 flex-1">
-            {/* Type color dot */}
-            <span
-              className="w-2 h-2 rounded-[2px] shrink-0 mt-1"
-              style={{ background: mtypeColor ?? "#8a95ab" }}
-            />
-            <div className="min-w-0">
-              <h3 className="text-[13px] font-semibold text-foreground truncate">
-                {m.name}
-              </h3>
-              <p className="text-[10.5px] text-muted-foreground truncate mt-0.5">
-                {m.caption
-                  ? <><UserLabel /> {m.caption}</>
-                  : m.group_name
-                    ? `${m.group_name} · Mission`
-                    : relativeTime
-                      ? relativeTime
-                      : null}
-              </p>
+      isSelected={isSelected}
+      dotColor={mtypeColor ?? "#8a95ab"}
+      title={m.name}
+      subtitle={
+        m.caption ? (
+          <><UserLabel /> {m.caption}</>
+        ) : m.group_name ? (
+          `${m.group_name} · Mission`
+        ) : relativeTime ? (
+          relativeTime
+        ) : null
+      }
+      trailing={
+        <>
+          {hasReward && (
+            <div className="font-mono text-[13px] font-semibold tabular-nums" style={{ color: "var(--gold)" }}>
+              {rewardDisplay}
             </div>
-          </div>
-
-          {/* Reward + time */}
-          <div className="text-right shrink-0">
-            {hasReward && (
-              <div
-                className="font-mono text-[13px] font-semibold tabular-nums"
-                style={{ color: "var(--gold)" }}
-              >
-                {rewardDisplay}
-              </div>
-            )}
-            {relativeTime && (
-              <div className="font-mono text-[10px] text-muted-foreground mt-1">
-                {relativeTime}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Badge row */}
-        <div className="flex items-center gap-1.5 mt-2.5 flex-wrap">
+          )}
+          {relativeTime && (
+            <div className="font-mono text-[10px] text-muted-foreground mt-1">
+              {relativeTime}
+            </div>
+          )}
+        </>
+      }
+      badges={
+        <>
           {mtLabel && mtypeColor && (
             <span
               className="text-[9px] font-semibold uppercase tracking-[0.3px] px-2 py-0.5 rounded-[5px]"
@@ -152,10 +122,10 @@ export function MissionCard({ m, factionMap, nowSec, isSelected, isInRun, onClic
               {m.associated_entity_name}
             </span>
           )}
-        </div>
-
-        {/* Add to Run button */}
-        {onToggleRun && (
+        </>
+      }
+      trailingButton={
+        onToggleRun && (
           <button
             onClick={(e) => { e.stopPropagation(); onToggleRun(); }}
             className="absolute right-2.5 bottom-2.5 w-6 h-6 rounded-md flex items-center justify-center text-[13px] transition-colors hover:brightness-125"
@@ -170,9 +140,9 @@ export function MissionCard({ m, factionMap, nowSec, isSelected, isInRun, onClic
           >
             {isInRun ? "✓" : "＋"}
           </button>
-        )}
-      </div>
-    </div>
+        )
+      }
+    />
   );
 }
 

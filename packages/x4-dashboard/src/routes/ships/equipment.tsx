@@ -30,6 +30,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../../components/ui/dialog";
+import { apiGet } from "../../lib/api";
 
 type EngineStats = {
   mk: number | null;
@@ -346,7 +347,7 @@ function EquipmentTable({
     { licence_type: string; faction_id: string }[]
   >({
     queryKey: ["player-licences"],
-    queryFn: () => fetch("/api/v1/player/licences").then((r) => r.json()),
+    queryFn: () => apiGet<{ licence_type: string; faction_id: string }[]>("/api/v1/player/licences"),
     staleTime: 60_000,
   });
 
@@ -583,7 +584,7 @@ export default function EquipmentPage() {
 
   const { data: knownFactions = {} } = useQuery<Record<string, boolean>>({
     queryKey: ["factions-known"],
-    queryFn: () => fetch("/api/v1/factions/known").then((r) => r.json()),
+    queryFn: () => apiGet<Record<string, boolean>>("/api/v1/factions/known"),
     staleTime: 60_000,
   });
 
@@ -591,7 +592,7 @@ export default function EquipmentPage() {
     { faction_id: string; licence_type: string }[]
   >({
     queryKey: ["player-licences"],
-    queryFn: () => fetch("/api/v1/player/licences").then((r) => r.json()),
+    queryFn: () => apiGet<{ faction_id: string; licence_type: string }[]>("/api/v1/player/licences"),
   });
 
   const playerLicenceSet = useMemo(() => {
@@ -604,9 +605,9 @@ export default function EquipmentPage() {
   const { data: rawItems = [], isLoading } = useQuery<Equipment[]>({
     queryKey: ["equipment"],
     queryFn: () =>
-      fetch("/api/v1/equipment?limit=2000")
-        .then((r) => r.json())
-        .then((d) => (Array.isArray(d) ? d : [])),
+      apiGet<any>("/api/v1/equipment?limit=2000").then((d) =>
+        Array.isArray(d) ? d : []
+      ),
     staleTime: 5 * 60_000,
   });
 
@@ -619,7 +620,7 @@ export default function EquipmentPage() {
 
   const { data: factions = [] } = useQuery<FactionSummary[]>({
     queryKey: ["factions"],
-    queryFn: () => fetch("/api/v1/factions").then((r) => r.json()),
+    queryFn: () => apiGet<FactionSummary[]>("/api/v1/factions"),
   });
 
   const globalLicences = useMemo(() => {

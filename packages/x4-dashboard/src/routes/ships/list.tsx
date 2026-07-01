@@ -38,6 +38,7 @@ import { SearchInput } from "../../components/ui/search-input";
 import { DataTable } from "../../components/DataTable";
 import type { ColumnDef, ColumnGroup, RowGroup } from "../../components/DataTable";
 import { useColumnVisibility } from "../../lib/useColumnVisibility";
+import { apiGet } from "../../lib/api";
 
 type ShipSummary = {
   ship_id: string;
@@ -295,17 +296,17 @@ export default function ShipsPage() {
 
   const { data: ships = [], isLoading } = useQuery<ShipSummary[]>({
     queryKey: ["ships"],
-    queryFn: () => fetch("/api/v1/ships?limit=2000").then((r) => r.json()),
+    queryFn: () => apiGet<ShipSummary[]>("/api/v1/ships?limit=2000"),
   });
 
   const { data: factions = [] } = useQuery<FactionSummary[]>({
     queryKey: ["factions"],
-    queryFn: () => fetch("/api/v1/factions").then((r) => r.json()),
+    queryFn: () => apiGet<FactionSummary[]>("/api/v1/factions"),
   });
 
   const { data: knownFactions = {} } = useQuery<Record<string, boolean>>({
     queryKey: ["factions-known"],
-    queryFn: () => fetch("/api/v1/factions/known").then((r) => r.json()),
+    queryFn: () => apiGet<Record<string, boolean>>("/api/v1/factions/known"),
     staleTime: 60_000,
   });
 
@@ -313,7 +314,7 @@ export default function ShipsPage() {
     { licence_type: string; faction_id: string }[]
   >({
     queryKey: ["player-licences"],
-    queryFn: () => fetch("/api/v1/player/licences").then((r) => r.json()),
+    queryFn: () => apiGet<{ licence_type: string; faction_id: string }[]>("/api/v1/player/licences"),
     staleTime: 60_000,
   });
 
@@ -1153,10 +1154,7 @@ export default function ShipsPage() {
                 onRowHover={(ship) =>
                   queryClient.prefetchQuery({
                     queryKey: ["ship", ship.ship_id],
-                    queryFn: () =>
-                      fetch(`/api/v1/ships/${ship.ship_id}`).then((r) =>
-                        r.json()
-                      ),
+                    queryFn: () => apiGet(`/api/v1/ships/${ship.ship_id}`),
                     staleTime: 5 * 60_000,
                   })
                 }
