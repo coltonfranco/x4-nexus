@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Mail, Star, ArrowLeft, Clock, User, MapPin } from "lucide-react";
 import { PageLoaderPreset } from "../../components/PageLoader";
+import { PageSubtitle } from "../../components/ui/page-subtitle";
 import { cn } from "../../lib/utils";
 import { useSaveTime } from "../../lib/useSaveTime";
 import { formatTimeAgo } from "../../lib/formatters";
@@ -71,9 +72,7 @@ export default function MessagesPage() {
           <h1 className="text-2xl font-bold flex items-center gap-2 tracking-tight">
             <Mail className="h-6 w-6 text-primary" /> Inbox
           </h1>
-          <p className="text-xs uppercase tracking-widest text-muted-foreground mt-1 font-semibold">
-            {messages.length} message{messages.length !== 1 ? "s" : ""}
-          </p>
+          <PageSubtitle>{messages.length} message{messages.length !== 1 ? "s" : ""}</PageSubtitle>
         </div>
       </div>
 

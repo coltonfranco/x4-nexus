@@ -35,6 +35,8 @@ import { ModuleSummary, ModuleDetail, ModuleDetailPanel, isModuleLicenceLocked, 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../components/ui/tooltip";
 import { FactionSummary } from "../../lib/map/types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../components/ui/dialog";
+import { DetailDialog } from "../../components/ui/detail-dialog";
+import { PageSubtitle } from "../../components/ui/page-subtitle";
 import { EntityIcon } from "../../components/EntityIcon";
 import { Currency } from "../../components/Currency";
 import { ContextMenu } from "./ContextMenu";
@@ -49,6 +51,7 @@ import { useBlocker } from "@tanstack/react-router";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { apiGet } from "../../lib/api";
+import { usePlayerLicences } from "../../lib/usePlayerLicences";
 import {
   serializeNodes,
   serializeEdges,
@@ -507,11 +510,7 @@ function StationBuilderContent() {
     staleTime: 10 * 60_000,
   });
 
-  const { data: playerLicences = [] } = useQuery<{ licence_type: string; faction_id: string }[]>({
-    queryKey: ["player-licences"],
-    queryFn: () => apiGet<{ licence_type: string; faction_id: string }[]>("/api/v1/player/licences"),
-    staleTime: 60_000,
-  });
+  const { data: playerLicences = [] } = usePlayerLicences();
 
   const licenceSet = useMemo(() => new Set(playerLicences.map((l) => `${l.faction_id}:${l.licence_type}`)), [playerLicences]);
   const anyLicenceSet = useMemo(() => new Set(playerLicences.map((l) => l.licence_type)), [playerLicences]);
@@ -1129,7 +1128,7 @@ function StationBuilderContent() {
         <div className="w-80 border-r border-border bg-card flex flex-col h-full shrink-0">
           <div className="px-6 py-4 flex-none border-b border-border bg-card">
             <h1 className="text-2xl font-bold tracking-tight">Station Builder</h1>
-            <p className="text-xs uppercase tracking-widest text-muted-foreground mt-1 font-semibold">Design and prototype station layouts</p>
+            <PageSubtitle>Design and prototype station layouts</PageSubtitle>
           </div>
           <div className="p-4 border-b border-border space-y-3">
             <SearchInput placeholder="Search modules..." value={search} onChange={e => setSearch(e.target.value)} />
@@ -1461,22 +1460,23 @@ function StationBuilderContent() {
         </div>
       </div>
 
-      <Dialog open={selectedDetailId !== null} onOpenChange={(open) => { if (!open) setSelectedDetailId(null); }}>
-        <DialogContent className="sm:max-w-2xl md:max-w-3xl min-h-[50vh] max-h-[90vh] overflow-y-auto">
-          <DialogHeader className="sr-only">
-            <DialogTitle>{selectedModuleSummary?.name ?? "Module details"}</DialogTitle>
-          </DialogHeader>
-          {selectedModuleSummary && (
-            <ModuleDetailPanel
-              moduleId={selectedModuleSummary.module_id}
-              summary={selectedModuleSummary}
-              factions={factions}
-              licenceSet={licenceSet}
-              anyLicenceSet={anyLicenceSet}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
+      <DetailDialog
+        open={selectedDetailId !== null}
+        onOpenChange={(open) => { if (!open) setSelectedDetailId(null); }}
+        title={selectedModuleSummary?.name ?? "Module details"}
+        description={`Detailed stats for ${selectedModuleSummary?.name ?? "the selected module"}`}
+        contentClassName="sm:max-w-2xl md:max-w-3xl min-h-[50vh] max-h-[90vh] overflow-y-auto"
+      >
+        {selectedModuleSummary && (
+          <ModuleDetailPanel
+            moduleId={selectedModuleSummary.module_id}
+            summary={selectedModuleSummary}
+            factions={factions}
+            licenceSet={licenceSet}
+            anyLicenceSet={anyLicenceSet}
+          />
+        )}
+      </DetailDialog>
 
       {/* Load a saved design */}
       <Dialog open={loadDialogOpen} onOpenChange={setLoadDialogOpen}>

@@ -12,6 +12,7 @@ import { getWareGroupColor, RACE_COLORS, methodLabel } from "../../lib/constants
 import { ArrowUp, ArrowDown } from "lucide-react";
 import type { FactionSummary } from "../../lib/map/types";
 import { apiGet } from "../../lib/api";
+import { useFactionMap } from "../../lib/useFactionMap";
 
 type ProductionInput = { ware_id: string; amount: number };
 type ProductionMethod = {
@@ -68,7 +69,7 @@ export function WareDetailPanel({ wareId }: { wareId: string }) {
   if (isLoading) return <div className="p-6 text-muted-foreground text-sm">Loading details…</div>;
   if (!data) return null;
 
-  const factionMap = new Map(factions.map(f => [f.faction_id, f]));
+  const factionMap = useFactionMap(factions);
   const priceDiff = (data.market_avg != null && data.price_avg != null) ? data.market_avg - data.price_avg : 0;
   const showLive = data.market_avg != null && data.market_avg !== data.price_avg;
 

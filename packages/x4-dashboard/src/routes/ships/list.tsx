@@ -15,13 +15,7 @@ import type { FactionSummary } from "../../lib/map/types";
 import { ShipClassBadge, ShipTypeBadge } from "../../components/ShipBadges";
 import { Button } from "../../components/ui/button";
 import { ShipDetailPanel } from "../../components/ShipDetailPanel";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "../../components/ui/dialog";
+import { DetailDialog } from "../../components/ui/detail-dialog";
 import { Switch } from "../../components/ui/switch";
 import {
   Select,
@@ -32,6 +26,7 @@ import {
 } from "../../components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../../components/ui/tooltip";
 import { PageLoaderPreset } from "../../components/PageLoader";
+import { PageSubtitle } from "../../components/ui/page-subtitle";
 import { HUDCard } from "../../components/HUDCard";
 import { FilterBar } from "../../components/FilterBar";
 import { SearchInput } from "../../components/ui/search-input";
@@ -39,6 +34,10 @@ import { DataTable } from "../../components/DataTable";
 import type { ColumnDef, ColumnGroup, RowGroup } from "../../components/DataTable";
 import { useColumnVisibility } from "../../lib/useColumnVisibility";
 import { apiGet } from "../../lib/api";
+import { useKnownFactions } from "../../lib/useKnownFactions";
+import { useFactionMap } from "../../lib/useFactionMap";
+import { usePlayerLicences } from "../../lib/usePlayerLicences";
+import { useGlobalLicences } from "../../lib/useGlobalLicences";
 
 type ShipSummary = {
   ship_id: string;
@@ -304,24 +303,11 @@ export default function ShipsPage() {
     queryFn: () => apiGet<FactionSummary[]>("/api/v1/factions"),
   });
 
-  const { data: knownFactions = {} } = useQuery<Record<string, boolean>>({
-    queryKey: ["factions-known"],
-    queryFn: () => apiGet<Record<string, boolean>>("/api/v1/factions/known"),
-    staleTime: 60_000,
-  });
+  const { data: knownFactions = {} } = useKnownFactions();
 
-  const { data: playerLicences = [] } = useQuery<
-    { licence_type: string; faction_id: string }[]
-  >({
-    queryKey: ["player-licences"],
-    queryFn: () => apiGet<{ licence_type: string; faction_id: string }[]>("/api/v1/player/licences"),
-    staleTime: 60_000,
-  });
+  const { data: playerLicences = [] } = usePlayerLicences();
 
-  const factionMap = useMemo(
-    () => new Map(factions.map((f) => [f.faction_id, f])),
-    [factions]
-  );
+  const factionMap = useFactionMap(factions);
   const licenceSet = useMemo(
     () => new Set(playerLicences.map((l) => `${l.faction_id}:${l.licence_type}`)),
     [playerLicences]
@@ -331,24 +317,7 @@ export default function ShipsPage() {
     [playerLicences]
   );
 
-  const globalLicences = useMemo(() => {
-    const count = new Map<string, Set<string>>();
-    for (const s of ships) {
-      const lic = s.restriction_licence;
-      if (
-        lic &&
-        lic !== "generaluseship" &&
-        lic !== "generaluseequipment" &&
-        s.faction_id
-      ) {
-        if (!count.has(lic)) count.set(lic, new Set());
-        count.get(lic)!.add(s.faction_id);
-      }
-    }
-    return new Set(
-      [...count].filter(([, fids]) => fids.size <= 2).map(([lic]) => lic)
-    );
-  }, [ships]);
+  const globalLicences = useGlobalLicences(ships);
 
   const filtered = ships.filter((s) => {
     if (settings.fogOfWar && s.faction_id && knownFactions[s.faction_id] === false)
@@ -924,12 +893,12 @@ export default function ShipsPage() {
     <div className="flex flex-col h-full">
       <div className="px-6 py-5">
         <h1 className="text-2xl font-bold tracking-tight">Ships</h1>
-        <p className="text-xs uppercase tracking-widest text-muted-foreground mt-1 font-semibold flex items-center">
+        <PageSubtitle className="flex items-center">
           <span>
             {ships.length} ships in catalog
             {filtered.length !== ships.length && ` · ${filtered.length} matching`}
           </span>
-        </p>
+        </PageSubtitle>
       </div>
 
       <FilterBar
@@ -1216,27 +1185,21 @@ export default function ShipsPage() {
         </HUDCard>
       </div>
 
-      <Dialog
+      <DetailDialog
         open={selectedShip !== null}
         onOpenChange={(open) => {
           if (!open) setSelectedShip(null);
         }}
+        title={selectedShip?.name ?? "Ship details"}
+        description={`Detailed stats for ${selectedShip?.name}`}
       >
-        <DialogContent className="sm:max-w-2xl md:max-w-3xl">
-          <DialogHeader className="sr-only">
-            <DialogTitle>{selectedShip?.name ?? "Ship details"}</DialogTitle>
-            <DialogDescription>
-              Detailed stats for {selectedShip?.name}
-            </DialogDescription>
-          </DialogHeader>
-          {selectedShip && (
-            <ShipDetailPanel
-              shipId={selectedShip.ship_id}
-              factions={factions}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
+        {selectedShip && (
+          <ShipDetailPanel
+            shipId={selectedShip.ship_id}
+            factions={factions}
+          />
+        )}
+      </DetailDialog>
     </div>
   );
 }

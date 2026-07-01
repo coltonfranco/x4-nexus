@@ -2,16 +2,11 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { apiGet } from "../../lib/api";
 import { PageLoaderPreset } from "../../components/PageLoader";
+import { PageSubtitle } from "../../components/ui/page-subtitle";
 import { HUDCard } from "../../components/HUDCard";
 import { FilterBar } from "../../components/FilterBar";
 import { SearchInput } from "../../components/ui/search-input";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "../../components/ui/dialog";
+import { DetailDialog } from "../../components/ui/detail-dialog";
 
 type Ware = {
   ware_id: string;
@@ -46,9 +41,7 @@ export default function PaintModsPage() {
     <div className="flex h-full flex-col">
       <div className="px-6 pt-5">
         <h1 className="text-2xl font-bold tracking-tight">Paint Mods</h1>
-        <p className="text-xs uppercase tracking-widest text-muted-foreground mt-1 font-semibold mb-4">
-          {paintMods.length} colors available for application
-        </p>
+        <PageSubtitle className="mb-4">{paintMods.length} colors available for application</PageSubtitle>
       </div>
 
       <FilterBar>
@@ -99,40 +92,35 @@ export default function PaintModsPage() {
         )}
       </div>
 
-      <Dialog
+      <DetailDialog
         open={selectedMod !== null}
         onOpenChange={(open) => {
           if (!open) setSelectedMod(null);
         }}
+        title="Paint Mod Details"
+        description="Detailed view of the selected paint mod"
+        contentClassName="sm:max-w-xl md:max-w-2xl bg-card border-border"
       >
-        <DialogContent className="sm:max-w-xl md:max-w-2xl bg-card border-border">
-          <DialogHeader className="sr-only">
-            <DialogTitle>Paint Mod Details</DialogTitle>
-            <DialogDescription>
-              Detailed view of the selected paint mod
-            </DialogDescription>
-          </DialogHeader>
-          {selectedMod && (
-            <div className="flex flex-col items-center justify-center p-4 sm:p-8 gap-6">
-              <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-center">{selectedMod.name}</h2>
-              <div className="w-full flex items-center justify-center bg-black/20 rounded-xl p-8 shadow-inner">
-                {selectedMod.icon_url ? (
-                  <img
-                    src={selectedMod.icon_url}
-                    alt={selectedMod.name}
-                    className="w-full max-h-[60vh] object-contain drop-shadow-2xl"
-                    loading="lazy"
-                  />
-                ) : (
-                  <div className="w-full h-64 flex items-center justify-center">
-                    <span className="text-muted-foreground">No icon available</span>
-                  </div>
-                )}
-              </div>
+        {selectedMod && (
+          <div className="flex flex-col items-center justify-center p-4 sm:p-8 gap-6">
+            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-center">{selectedMod.name}</h2>
+            <div className="w-full flex items-center justify-center bg-black/20 rounded-xl p-8 shadow-inner">
+              {selectedMod.icon_url ? (
+                <img
+                  src={selectedMod.icon_url}
+                  alt={selectedMod.name}
+                  className="w-full max-h-[60vh] object-contain drop-shadow-2xl"
+                  loading="lazy"
+                />
+              ) : (
+                <div className="w-full h-64 flex items-center justify-center">
+                  <span className="text-muted-foreground">No icon available</span>
+                </div>
+              )}
             </div>
-          )}
-        </DialogContent>
-      </Dialog>
+          </div>
+        )}
+      </DetailDialog>
     </div>
   );
 }

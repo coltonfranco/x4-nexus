@@ -8,9 +8,13 @@ import { FactionBadge } from "../../components/FactionBadge";
 import { getReputationScore, formatTimeAgo, cleanText } from "../../lib/formatters";
 import { useSaveTime } from "../../lib/useSaveTime";
 import { prettyId } from "../../lib/wareFormat";
+import { useFactionMap } from "../../lib/useFactionMap";
+import { useLookupMap } from "../../lib/useLookupMap";
+import { usePlayerLicences } from "../../lib/usePlayerLicences";
 import { ShipDetailPanel } from "../../components/ShipDetailPanel";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../../components/ui/dialog";
+import { DetailDialog } from "../../components/ui/detail-dialog";
 import { PageLoaderPreset } from "../../components/PageLoader";
+import { PageSubtitle } from "../../components/ui/page-subtitle";
 import { HUDCard } from "../../components/HUDCard";
 import { useSettings } from "../../lib/settingsStore";
 import { useHasSave } from "../../lib/useHasSave";
@@ -20,7 +24,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../
 import { STATUS_COLORS } from "../../lib/map/constants";
 
 type Player = { player_id: string | null; name: string | null; credits: number | null; current_ship_id: string | null };
-type Licence = { licence_type: string; faction_id: string };
 type FleetShip = {
   ship_id: string;
   code: string | null;
@@ -89,9 +92,7 @@ export default function EmpireOverviewPage() {
   const { data: blueprints = [] } = useQuery<{ ware_id: string }[]>({
     queryKey: ["player-blueprints"], queryFn: () => apiGet<{ ware_id: string }[]>("/api/v1/player/blueprints"),
   });
-  const { data: licences = [] } = useQuery<Licence[]>({
-    queryKey: ["player-licences"], queryFn: () => apiGet<Licence[]>("/api/v1/player/licences"),
-  });
+  const { data: licences = [] } = usePlayerLicences();
   const { data: fleet = [] } = useQuery<FleetShip[]>({
     queryKey: ["fleet-player"], queryFn: () => apiGet<FleetShip[]>("/api/v1/fleet?player_only=true&limit=2000"),
   });
@@ -107,10 +108,7 @@ export default function EmpireOverviewPage() {
   const { data: strength = [] } = useQuery<FactionStrength[]>({
     queryKey: ["factions-strength"], queryFn: () => apiGet<FactionStrength[]>("/api/v1/factions/strength"), staleTime: 30_000,
   });
-  const factionMap = useMemo(() => {
-    const m = new Map(factions.map(f => [f.faction_id, f]));
-    return m;
-  }, [factions]);
+  const factionMap = useFactionMap(factions);
 
   const standing = useMemo(
     () =>
@@ -126,12 +124,12 @@ export default function EmpireOverviewPage() {
     queryKey: ["map-sectors"], queryFn: () => apiGet<Sector[]>("/api/v1/map/sectors?limit=2000"), staleTime: 600_000,
   });
 
-  const sectorName = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const s of sectors) if (s.name) m.set(s.sector_id.toLowerCase(), s.name);
-    return (id: string | null) => (id ? (m.get(id.toLowerCase()) ?? prettyId(id)) : "Unknown");
-  }, [sectors]);
-  const factionName = useMemo(() => new Map(factions.map((f) => [f.faction_id, f])), [factions]);
+  const sectorName = useLookupMap(
+    sectors,
+    (s) => s.sector_id,
+    (s) => s.name,
+    { normalizeId: (id) => id.toLowerCase(), onMissing: prettyId, onEmpty: "Unknown" }
+  );
 
   const fleetByRole = useMemo(() => {
     const c = new Map<string, number>();
@@ -154,9 +152,7 @@ export default function EmpireOverviewPage() {
           <h1 className="text-2xl font-bold flex items-center gap-2 tracking-tight">
             <User className="h-6 w-6 text-primary" /> {player?.name ?? "Pilot"}
           </h1>
-          <p className="text-xs uppercase tracking-widest text-muted-foreground mt-1 font-semibold">
-            Your empire at a glance
-          </p>
+          <PageSubtitle>Your empire at a glance</PageSubtitle>
         </div>
       </div>
 
@@ -307,7 +303,7 @@ export default function EmpireOverviewPage() {
                       ) : (
                         <div className="space-y-3">
                           {licencesByFaction.map(([fid, types]) => {
-                            const f = factionName.get(fid);
+                            const f = factionMap.get(fid);
                             return (
                               <div key={fid}>
                                 <div className="flex items-center gap-2 mb-1.5">
@@ -398,15 +394,14 @@ export default function EmpireOverviewPage() {
         </div>
       </div>
 
-      <Dialog open={selectedMacroId !== null} onOpenChange={(open) => { if (!open) setSelectedMacroId(null); }}>
-        <DialogContent className="sm:max-w-2xl md:max-w-3xl">
-          <DialogHeader className="sr-only">
-            <DialogTitle>{selectedMacroName ?? "Ship details"}</DialogTitle>
-            <DialogDescription>Detailed stats for {selectedMacroName}</DialogDescription>
-          </DialogHeader>
-          {selectedMacroId && <ShipDetailPanel shipId={selectedMacroId} factions={factions} />}
-        </DialogContent>
-      </Dialog>
+      <DetailDialog
+        open={selectedMacroId !== null}
+        onOpenChange={(open) => { if (!open) setSelectedMacroId(null); }}
+        title={selectedMacroName ?? "Ship details"}
+        description={`Detailed stats for ${selectedMacroName}`}
+      >
+        {selectedMacroId && <ShipDetailPanel shipId={selectedMacroId} factions={factions} />}
+      </DetailDialog>
     </div>
   );
 }

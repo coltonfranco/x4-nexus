@@ -6,17 +6,14 @@ import { PageLoaderPreset } from "../../components/PageLoader";
 import { Currency } from "../../components/Currency";
 import { FactionBadge } from "../../components/FactionBadge";
 import { getWareGroupColor, RACE_COLORS, methodLabel } from "../../lib/constants";
+import { prettyId } from "../../lib/wareFormat";
+import { useFactionMap } from "../../lib/useFactionMap";
+import { usePlayerLicences } from "../../lib/usePlayerLicences";
 import type { FactionSummary } from "../../lib/map/types";
 import { MapPin, Info, Recycle } from "lucide-react";
 import { ModuleDetailPanel, type ModuleSummary } from "../stations/modules";
 import { WareDetailPanel } from "../../components/trade/WareDetailPanel";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "../../components/ui/dialog";
+import { DetailDialog } from "../../components/ui/detail-dialog";
 import { apiGet } from "../../lib/api";
 
 // ── Types mirror /api/v1/economy/production-chain ──────────────────────────────
@@ -675,9 +672,6 @@ type WareOfferRow = {
 
 type SectorRow = { sector_id: string; name: string | null };
 
-const prettyId = (s: string) =>
-  s.replace(/_macro$/, "").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-
 function ConnectedWareDetailDialog({
   wareId,
   onClose,
@@ -686,15 +680,15 @@ function ConnectedWareDetailDialog({
   onClose: () => void;
 }) {
   return (
-    <Dialog open={wareId !== null} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent className="sm:max-w-2xl md:max-w-4xl min-h-[60vh] max-h-[90vh] overflow-y-auto">
-        <DialogHeader className="sr-only">
-          <DialogTitle>Commodity Details</DialogTitle>
-          <DialogDescription>Detailed view of the selected commodity</DialogDescription>
-        </DialogHeader>
-        {wareId && <WareDetailPanel wareId={wareId} />}
-      </DialogContent>
-    </Dialog>
+    <DetailDialog
+      open={wareId !== null}
+      onOpenChange={(open) => { if (!open) onClose(); }}
+      title="Commodity Details"
+      description="Detailed view of the selected commodity"
+      contentClassName="sm:max-w-2xl md:max-w-4xl min-h-[60vh] max-h-[90vh] overflow-y-auto"
+    >
+      {wareId && <WareDetailPanel wareId={wareId} />}
+    </DetailDialog>
   );
 }
 
@@ -716,11 +710,7 @@ function ConnectedModuleDetailDialog({
     staleTime: Infinity,
   });
 
-  const { data: playerLicences = [] } = useQuery<{ licence_type: string; faction_id: string }[]>({
-    queryKey: ["player-licences"],
-    queryFn: () => apiGet<{ licence_type: string; faction_id: string }[]>("/api/v1/player/licences"),
-    staleTime: 60_000,
-  });
+  const { data: playerLicences = [] } = usePlayerLicences();
 
   const licenceSet = useMemo(
     () => new Set(playerLicences.map((l) => `${l.faction_id}:${l.licence_type}`)),
@@ -732,23 +722,23 @@ function ConnectedModuleDetailDialog({
   );
 
   return (
-    <Dialog open={moduleId !== null} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent className="sm:max-w-2xl md:max-w-3xl min-h-[50vh] max-h-[90vh] overflow-y-auto">
-        <DialogHeader className="sr-only">
-          <DialogTitle>{moduleName ?? "Module details"}</DialogTitle>
-          <DialogDescription>Detailed stats for {moduleName}</DialogDescription>
-        </DialogHeader>
-        {moduleId && summary && (
-          <ModuleDetailPanel
-            moduleId={moduleId}
-            summary={summary}
-            factions={factions}
-            licenceSet={licenceSet}
-            anyLicenceSet={anyLicenceSet}
-          />
-        )}
-      </DialogContent>
-    </Dialog>
+    <DetailDialog
+      open={moduleId !== null}
+      onOpenChange={(open) => { if (!open) onClose(); }}
+      title={moduleName ?? "Module details"}
+      description={`Detailed stats for ${moduleName}`}
+      contentClassName="sm:max-w-2xl md:max-w-3xl min-h-[50vh] max-h-[90vh] overflow-y-auto"
+    >
+      {moduleId && summary && (
+        <ModuleDetailPanel
+          moduleId={moduleId}
+          summary={summary}
+          factions={factions}
+          licenceSet={licenceSet}
+          anyLicenceSet={anyLicenceSet}
+        />
+      )}
+    </DetailDialog>
   );
 }
 
@@ -842,10 +832,7 @@ function ProductionDetailSidebar({
     staleTime: 10 * 60_000,
     enabled: hasMarket,
   });
-  const factionMap = useMemo(
-    () => new Map(factions.map((f) => [f.faction_id, f])),
-    [factions]
-  );
+  const factionMap = useFactionMap(factions);
   const sectorName = useMemo(() => {
     const m = new Map<string, string>();
     sectors.forEach((s) => s.name && m.set(s.sector_id.toLowerCase(), s.name));

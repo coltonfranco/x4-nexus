@@ -7,14 +7,9 @@ import { cn } from "../../lib/utils";
 import { PriceBar } from "../../components/trade/PriceBar";
 import { Currency } from "../../components/Currency";
 import { WareDetailPanel } from "../../components/trade/WareDetailPanel";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "../../components/ui/dialog";
+import { DetailDialog } from "../../components/ui/detail-dialog";
 import { PageLoaderPreset } from "../../components/PageLoader";
+import { PageSubtitle } from "../../components/ui/page-subtitle";
 import { HUDCard } from "../../components/HUDCard";
 import { FilterBar } from "../../components/FilterBar";
 import { SearchInput } from "../../components/ui/search-input";
@@ -279,10 +274,10 @@ export default function TradeCatalogPage() {
     <div className="flex h-full flex-col">
       <div className="px-6 py-5">
         <h1 className="text-2xl font-bold tracking-tight">Trade Goods</h1>
-        <p className="text-xs uppercase tracking-widest text-muted-foreground mt-1 font-semibold">
+        <PageSubtitle>
           {wares.length} tradable commodities · reference price range, production
           chains, drop sources
-        </p>
+        </PageSubtitle>
         {!hasSave && (
           <p className="text-xs text-amber-300/60 mt-2">
             Load a save to unlock live supply radar and trade route data.
@@ -358,22 +353,17 @@ export default function TradeCatalogPage() {
         </HUDCard>
       </div>
 
-      <Dialog
+      <DetailDialog
         open={selectedWareId !== null}
         onOpenChange={(open) => {
           if (!open) setSelectedWareId(null);
         }}
+        title="Commodity Details"
+        description="Detailed view of the selected commodity"
+        contentClassName="sm:max-w-2xl md:max-w-4xl min-h-[60vh] max-h-[90vh] overflow-y-auto"
       >
-        <DialogContent className="sm:max-w-2xl md:max-w-4xl min-h-[60vh] max-h-[90vh] overflow-y-auto">
-          <DialogHeader className="sr-only">
-            <DialogTitle>Commodity Details</DialogTitle>
-            <DialogDescription>
-              Detailed view of the selected commodity
-            </DialogDescription>
-          </DialogHeader>
-          {selectedWareId && <WareDetailPanel wareId={selectedWareId} />}
-        </DialogContent>
-      </Dialog>
+        {selectedWareId && <WareDetailPanel wareId={selectedWareId} />}
+      </DetailDialog>
     </div>
   );
 }

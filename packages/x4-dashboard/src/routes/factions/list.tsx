@@ -11,11 +11,13 @@ import type { FactionSummary } from '../../lib/map/types';
 import { Reputation } from "../../components/GameValues";
 import { Currency } from "../../components/Currency";
 import { PageLoaderPreset } from "../../components/PageLoader";
+import { PageSubtitle } from "../../components/ui/page-subtitle";
 import { HUDCard } from "../../components/HUDCard";
 import { PageTabs, PageTab } from "../../components/ui/page-tabs";
 import { useHasSave } from "../../lib/useHasSave";
 import { NoSavePlaceholder } from "../../components/NoSavePlaceholder";
 import { apiGet } from "../../lib/api";
+import { useKnownFactions } from "../../lib/useKnownFactions";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -719,11 +721,7 @@ export default function FactionsPage() {
     if (search.faction) setSelectedFactionId(search.faction);
   }, [search.faction]);
 
-  const { data: knownFactions = {} } = useQuery<Record<string, boolean>>({
-    queryKey: ["factions-known"],
-    queryFn: () => apiGet<Record<string, boolean>>("/api/v1/factions/known"),
-    staleTime: 60_000,
-  });
+  const { data: knownFactions = {} } = useKnownFactions();
 
   const { data: factions = [], isLoading: factionsLoading } = useQuery<FactionSummary[]>({
     queryKey: ["factions"],
@@ -746,9 +744,9 @@ export default function FactionsPage() {
     <div className="flex flex-col h-full">
       <div className="px-6 pt-5 shrink-0">
         <h1 className="text-2xl font-bold tracking-tight">Factions</h1>
-        <p className="text-xs uppercase tracking-widest text-muted-foreground mt-1 font-semibold">
+        <PageSubtitle>
           {visibleFactions.length} factions · {relations.length} relation pairs
-        </p>
+        </PageSubtitle>
       </div>
 
       <div className="flex-1 overflow-hidden px-6 pb-6 pt-4 flex flex-col">

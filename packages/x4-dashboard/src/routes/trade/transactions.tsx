@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { Currency } from "../../components/Currency";
 import { PageLoaderPreset } from "../../components/PageLoader";
+import { PageSubtitle } from "../../components/ui/page-subtitle";
 import { formatTimeAgo } from "../../lib/formatters";
 import { useSaveTime } from "../../lib/useSaveTime";
 import { Tooltip as UiTooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../components/ui/tooltip";
@@ -74,9 +75,7 @@ export default function TransactionsPage() {
         <h1 className="text-2xl font-bold flex items-center gap-2 tracking-tight">
           <ArrowLeftRight className="h-6 w-6 text-primary" /> Transactions
         </h1>
-        <p className="text-xs uppercase tracking-widest text-muted-foreground mt-1 font-semibold">
-          All player trade history
-        </p>
+        <PageSubtitle>All player trade history</PageSubtitle>
       </div>
 
       {/* Table */}

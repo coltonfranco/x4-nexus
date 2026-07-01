@@ -5,6 +5,7 @@ import {
   Handshake, Mountain, Shield, Swords, Timer, TrendingUp, User,
 } from "lucide-react";
 import { PageLoaderPreset } from "./PageLoader";
+import { PageSubtitle } from "./ui/page-subtitle";
 import { Currency } from "./Currency";
 import { HUDCard } from "./HUDCard";
 import { apiGet, apiGetOrNull } from "../lib/api";
@@ -156,7 +157,7 @@ export function PlayerCard() {
         <h1 className="text-2xl font-bold tracking-tight">
           {meta.player_name || "Player Stats"}
         </h1>
-        <p className="text-xs uppercase tracking-widest text-muted-foreground mt-1 font-semibold flex items-center gap-1.5 flex-wrap">
+        <PageSubtitle className="flex items-center gap-1.5 flex-wrap">
           <Activity className="h-3 w-3" /> Player Statistics
           {meta.game_version && (
             <>
@@ -177,7 +178,7 @@ export function PlayerCard() {
               <Currency value={meta.player_credits} className="text-amber-500" />
             </>
           )}
-        </p>
+        </PageSubtitle>
       </div>
 
       <div className="flex-1 overflow-auto px-6 pb-6 pt-6">

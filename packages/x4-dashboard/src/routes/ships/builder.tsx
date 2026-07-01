@@ -19,6 +19,9 @@ import { FactionCombobox } from "../../components/FactionCombobox";
 import { ShipImage } from "../../components/ShipImage";
 import { Switch } from "../../components/ui/switch";
 import { apiGet } from "../../lib/api";
+import { useKnownFactions } from "../../lib/useKnownFactions";
+import { useFactionMap } from "../../lib/useFactionMap";
+import { usePlayerLicences } from "../../lib/usePlayerLicences";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -848,16 +851,9 @@ export default function BuilderPage() {
   const [sortFilter, setSortFilter] = useState<string>("");
   const [obtainableOnly, setObtainableOnly] = useState<boolean>(false);
 
-  const { data: knownFactions = {} } = useQuery<Record<string, boolean>>({
-    queryKey: ["factions-known"],
-    queryFn: () => apiGet<Record<string, boolean>>("/api/v1/factions/known"),
-    staleTime: 60_000,
-  });
+  const { data: knownFactions = {} } = useKnownFactions();
 
-  const { data: playerLicences = [] } = useQuery<{ faction_id: string; licence_type: string }[]>({
-    queryKey: ["player-licences"],
-    queryFn: () => apiGet<{ faction_id: string; licence_type: string }[]>("/api/v1/player/licences"),
-  });
+  const { data: playerLicences = [] } = usePlayerLicences();
 
   const playerLicenceSet = useMemo(() => {
     const set = new Set<string>();
@@ -910,7 +906,7 @@ export default function BuilderPage() {
     queryKey: ["factions"], queryFn: () => apiGet<FactionSummary[]>("/api/v1/factions"),
   });
 
-  const factionMap = new Map(factions.map(f => [f.faction_id, f]));
+  const factionMap = useFactionMap(factions);
   const slots = useMemo(() => shipDetail ? generateSlots(shipDetail) : [], [shipDetail]);
 
   const shortToFullFaction = useMemo(() => {

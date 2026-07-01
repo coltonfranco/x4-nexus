@@ -4,14 +4,9 @@ import { useMemo, useState } from "react";
 import { Currency } from "../../components/Currency";
 import { WareDetailPanel } from "../../components/trade/WareDetailPanel";
 import { Badge } from "../../components/ui/badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "../../components/ui/dialog";
+import { DetailDialog } from "../../components/ui/detail-dialog";
 import { PageLoaderPreset } from "../../components/PageLoader";
+import { PageSubtitle } from "../../components/ui/page-subtitle";
 import { HUDCard } from "../../components/HUDCard";
 import { FilterBar } from "../../components/FilterBar";
 import { SearchInput } from "../../components/ui/search-input";
@@ -221,10 +216,10 @@ export default function InventoryPage() {
         <h1 className="text-2xl font-bold tracking-tight">
           Inventory &amp; Crafting
         </h1>
-        <p className="text-xs uppercase tracking-widest text-muted-foreground mt-1 font-semibold">
+        <PageSubtitle>
           {withBucket.length} inventory items · crafting materials,
           mission items, contraband and curiosities
-        </p>
+        </PageSubtitle>
         <PageTabs>
           <PageTab active={filter === "all"} onClick={() => setFilter("all")}>
             All
@@ -286,22 +281,17 @@ export default function InventoryPage() {
         </HUDCard>
       </div>
 
-      <Dialog
+      <DetailDialog
         open={selectedWareId !== null}
         onOpenChange={(open) => {
           if (!open) setSelectedWareId(null);
         }}
+        title="Item Details"
+        description="Detailed view of the selected item"
+        contentClassName="sm:max-w-2xl md:max-w-4xl min-h-[60vh] max-h-[90vh] overflow-y-auto"
       >
-        <DialogContent className="sm:max-w-2xl md:max-w-4xl min-h-[60vh] max-h-[90vh] overflow-y-auto">
-          <DialogHeader className="sr-only">
-            <DialogTitle>Item Details</DialogTitle>
-            <DialogDescription>
-              Detailed view of the selected item
-            </DialogDescription>
-          </DialogHeader>
-          {selectedWareId && <WareDetailPanel wareId={selectedWareId} />}
-        </DialogContent>
-      </Dialog>
+        {selectedWareId && <WareDetailPanel wareId={selectedWareId} />}
+      </DetailDialog>
     </div>
   );
 }

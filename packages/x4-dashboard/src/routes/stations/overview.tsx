@@ -6,6 +6,7 @@ import { prettyId } from "../../lib/wareFormat";
 import { formatCompactNumber } from "../../lib/formatters";
 import { PageLoaderPreset } from "../../components/PageLoader";
 import { apiGet } from "../../lib/api";
+import { useLookupMap } from "../../lib/useLookupMap";
 
 // ── Types (mirror /api/v1/stations rollup + sub-endpoints) ──────────────────────
 type Station = {
@@ -102,16 +103,18 @@ export default function MyStationsPage() {
     staleTime: 600_000,
   });
 
-  const sectorName = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const s of sectors) if (s.name) m.set(s.sector_id.toLowerCase(), s.name);
-    return (id: string | null) => (id ? (m.get(id.toLowerCase()) ?? prettyId(id)) : "Unknown");
-  }, [sectors]);
-  const wareName = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const w of wares) if (w.name) m.set(w.ware_id, w.name);
-    return (id: string) => m.get(id) ?? prettyId(id);
-  }, [wares]);
+  const sectorName = useLookupMap(
+    sectors,
+    (s) => s.sector_id,
+    (s) => s.name,
+    { normalizeId: (id) => id.toLowerCase(), onMissing: prettyId, onEmpty: "Unknown" }
+  );
+  const wareName = useLookupMap(
+    wares,
+    (w) => w.ware_id,
+    (w) => w.name,
+    { onMissing: prettyId }
+  );
 
   const all = stations ?? [];
   const types = useMemo(() => {

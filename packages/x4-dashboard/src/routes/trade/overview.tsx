@@ -8,6 +8,7 @@ import { HUDCard } from "../../components/HUDCard";
 import { Currency } from "../../components/Currency";
 import { EntityIcon } from "../../components/EntityIcon";
 import { PageLoaderPreset } from "../../components/PageLoader";
+import { PageSubtitle } from "../../components/ui/page-subtitle";
 import { Tooltip as UiTooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../components/ui/tooltip";
 import { NetWorthChart } from "../../components/NetWorthChart";
 import type { NetWorthPoint } from "../../components/NetWorthChart";
@@ -383,9 +384,7 @@ function Header() {
       <h1 className="text-2xl font-bold flex items-center gap-2 tracking-tight">
         <TrendingUp className="h-6 w-6 text-primary" /> Economic Overview
       </h1>
-      <p className="text-xs uppercase tracking-widest text-muted-foreground mt-1 font-semibold">
-        Faction finances &amp; system economy
-      </p>
+      <PageSubtitle>Faction finances &amp; system economy</PageSubtitle>
     </div>
   );
 }

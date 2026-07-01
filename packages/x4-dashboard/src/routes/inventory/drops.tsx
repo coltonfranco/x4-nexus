@@ -12,6 +12,7 @@ import {
 import { Input } from "../../components/ui/input";
 import { DropListContent, buildDropGroups, DropEntry } from "../../components/DropListContent";
 import { PageLoaderPreset } from "../../components/PageLoader";
+import { PageSubtitle } from "../../components/ui/page-subtitle";
 import { HUDCard } from "../../components/HUDCard";
 import { apiGet } from "../../lib/api";
 
@@ -183,9 +184,7 @@ export default function DropsPage() {
     <div className="flex flex-col h-full">
       <div className="px-6 py-5">
         <h1 className="text-2xl font-bold tracking-tight">Drop Tables</h1>
-        <p className="text-xs uppercase tracking-widest text-muted-foreground mt-1 font-semibold">
-          {lists.length} drop tables · click any entry to see its loot
-        </p>
+        <PageSubtitle>{lists.length} drop tables · click any entry to see its loot</PageSubtitle>
       </div>
 
       <div className="flex-1 overflow-hidden px-6 pb-6 pt-0 flex flex-col">

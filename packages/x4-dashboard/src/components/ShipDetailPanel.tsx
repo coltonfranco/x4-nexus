@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { StatBar } from "./StatBar";
 import { PageLoaderPreset } from "./PageLoader";
 import { apiGet } from "../lib/api";
+import { usePlayerLicences } from "../lib/usePlayerLicences";
 import { classShort, formatLicence, formatStatValue } from "../lib/formatters";
 import { cn } from "../lib/utils";
 import type { FactionSummary } from '../lib/map/types';
@@ -88,11 +89,7 @@ export function ShipDetailPanel({ shipId, factions }: { shipId: string; factions
     enabled: !!data,
   });
 
-  const { data: playerLicences = [] } = useQuery<{ licence_type: string; faction_id: string }[]>({
-    queryKey: ["player-licences"],
-    queryFn: () => apiGet<{ licence_type: string; faction_id: string }[]>("/api/v1/player/licences"),
-    staleTime: 60_000,
-  });
+  const { data: playerLicences = [] } = usePlayerLicences();
 
   if (isLoading) return <div className="p-6 text-muted-foreground text-sm"><PageLoaderPreset preset="ships" className="py-12" /></div>;
   if (!data) return null;

@@ -1,5 +1,6 @@
 import { Rocket, Construction } from "lucide-react";
 import { HUDCard } from "../../components/HUDCard";
+import { PageSubtitle } from "../../components/ui/page-subtitle";
 
 export default function FleetPage() {
   return (
@@ -8,9 +9,7 @@ export default function FleetPage() {
         <h1 className="text-2xl font-bold flex items-center gap-2 tracking-tight">
           <Rocket className="h-6 w-6 text-primary" /> Fleets
         </h1>
-        <p className="text-xs uppercase tracking-widest text-muted-foreground mt-1 font-semibold">
-          Fleet and Squadron Management
-        </p>
+        <PageSubtitle>Fleet and Squadron Management</PageSubtitle>
       </div>
       
       <div className="flex-1 p-6">

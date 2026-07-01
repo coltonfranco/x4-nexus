@@ -7,6 +7,7 @@ import { FactionBadge } from "../../components/FactionBadge";
 import { StatBar } from "../../components/StatBar";
 import { Currency } from "../../components/Currency";
 import { fmtSeconds } from "../../lib/wareFormat";
+import { useFactionMap } from "../../lib/useFactionMap";
 
 import { SortHeader } from "../../components/ui/sort-header";
 import type { FactionSummary } from "../../lib/map/types";
@@ -19,6 +20,7 @@ import {
 } from "../../components/ui/select";
 
 import { PageLoaderPreset } from "../../components/PageLoader";
+import { PageSubtitle } from "../../components/ui/page-subtitle";
 import { HUDCard } from "../../components/HUDCard";
 import {
   Table,
@@ -577,10 +579,7 @@ function GiftsTab() {
     queryFn: () => apiGet<WareSummary[]>("/api/v1/wares?limit=2000"),
   });
 
-  const factionMap = useMemo(
-    () => new Map(factions.map((f) => [f.faction_id, f])),
-    [factions],
-  );
+  const factionMap = useFactionMap(factions);
   const wareMap = useMemo(
     () => new Map(wares.map((w) => [w.ware_id, w])),
     [wares],
@@ -741,9 +740,7 @@ export default function DiplomacyPage() {
     <div className="flex flex-col h-full">
       <div className="px-6 pt-5">
         <h1 className="text-2xl font-bold tracking-tight">Diplomacy</h1>
-        <p className="text-xs uppercase tracking-widest text-muted-foreground mt-1 font-semibold">
-          Agent actions, faction gifts, and rank progression
-        </p>
+        <PageSubtitle>Agent actions, faction gifts, and rank progression</PageSubtitle>
         <PageTabs>
           {TABS.map((t) => (
             <PageTab

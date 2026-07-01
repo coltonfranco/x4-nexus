@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { BookOpen, Loader2, Search, X, MessageCircle, Info, Star, Newspaper, Wrench, ChevronDown, AlertTriangle, Shield, Ribbon, Handshake, Settings, UserCheck, Crosshair, Flame } from "lucide-react";
 import { PageLoaderPreset } from "../../components/PageLoader";
+import { PageSubtitle } from "../../components/ui/page-subtitle";
 import { Currency } from "../../components/Currency";
 import { MultiSelect } from "../../components/ui/multi-select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../components/ui/dialog";
@@ -350,13 +351,13 @@ export default function LogbookPage() {
           <BookOpen className="h-6 w-6 text-primary" /> Logbook
           {isFetching && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground ml-1" />}
         </h1>
-        <p className="text-xs uppercase tracking-widest text-muted-foreground mt-1 font-semibold">
+        <PageSubtitle>
           {total > 0 ? (
             <>Showing {priorityFiltered.length} of {total.toLocaleString()} event{total !== 1 ? "s" : ""}</>
           ) : (
             <>No events</>
           )}
-        </p>
+        </PageSubtitle>
       </div>
 
       {/* Filters */}

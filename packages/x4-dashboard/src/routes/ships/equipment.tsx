@@ -15,6 +15,7 @@ import { ShipTypeBadge, EquipmentMkBadge, ShipClassBadge } from "../../component
 import { StatBar } from "../../components/StatBar";
 import { EntityIcon } from "../../components/EntityIcon";
 import { PageLoaderPreset } from "../../components/PageLoader";
+import { PageSubtitle } from "../../components/ui/page-subtitle";
 import { HUDCard } from "../../components/HUDCard";
 import { FilterBar } from "../../components/FilterBar";
 import { SearchInput } from "../../components/ui/search-input";
@@ -23,14 +24,12 @@ import type { ColumnDef } from "../../components/DataTable";
 import { EquipmentFilterBar } from "../../components/EquipmentFilterBar";
 import { getWeaponType } from "../../lib/formatters";
 import type { FactionSummary } from "../../lib/map/types";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "../../components/ui/dialog";
+import { DetailDialog } from "../../components/ui/detail-dialog";
 import { apiGet } from "../../lib/api";
+import { useKnownFactions } from "../../lib/useKnownFactions";
+import { useFactionMap } from "../../lib/useFactionMap";
+import { usePlayerLicences } from "../../lib/usePlayerLicences";
+import { useGlobalLicences } from "../../lib/useGlobalLicences";
 
 type EngineStats = {
   mk: number | null;
@@ -343,13 +342,7 @@ function EquipmentTable({
 }) {
   const metrics = category.metrics;
 
-  const { data: playerLicences = [] } = useQuery<
-    { licence_type: string; faction_id: string }[]
-  >({
-    queryKey: ["player-licences"],
-    queryFn: () => apiGet<{ licence_type: string; faction_id: string }[]>("/api/v1/player/licences"),
-    staleTime: 60_000,
-  });
+  const { data: playerLicences = [] } = usePlayerLicences();
 
   const licenceSet = useMemo(
     () => new Set(playerLicences.map((l) => `${l.faction_id}:${l.licence_type}`)),
@@ -360,10 +353,7 @@ function EquipmentTable({
     [playerLicences]
   );
 
-  const factionMap = useMemo(
-    () => new Map(factions.map((f) => [f.faction_id, f])),
-    [factions]
-  );
+  const factionMap = useFactionMap(factions);
   const shortFactionMap = useMemo(() => {
     const m = new Map(factionMap);
     for (const f of factions) {
@@ -582,18 +572,9 @@ export default function EquipmentPage() {
   const [obtainableOnly, setObtainableOnly] = useState(false);
   const { settings } = useSettings();
 
-  const { data: knownFactions = {} } = useQuery<Record<string, boolean>>({
-    queryKey: ["factions-known"],
-    queryFn: () => apiGet<Record<string, boolean>>("/api/v1/factions/known"),
-    staleTime: 60_000,
-  });
+  const { data: knownFactions = {} } = useKnownFactions();
 
-  const { data: playerLicences = [] } = useQuery<
-    { faction_id: string; licence_type: string }[]
-  >({
-    queryKey: ["player-licences"],
-    queryFn: () => apiGet<{ faction_id: string; licence_type: string }[]>("/api/v1/player/licences"),
-  });
+  const { data: playerLicences = [] } = usePlayerLicences();
 
   const playerLicenceSet = useMemo(() => {
     const set = new Set<string>();
@@ -623,24 +604,7 @@ export default function EquipmentPage() {
     queryFn: () => apiGet<FactionSummary[]>("/api/v1/factions"),
   });
 
-  const globalLicences = useMemo(() => {
-    const count = new Map<string, Set<string>>();
-    for (const e of items) {
-      const lic = e.restriction_licence;
-      if (
-        lic &&
-        lic !== "generaluseship" &&
-        lic !== "generaluseequipment" &&
-        e.faction_id
-      ) {
-        if (!count.has(lic)) count.set(lic, new Set());
-        count.get(lic)!.add(e.faction_id);
-      }
-    }
-    return new Set(
-      [...count].filter(([, fids]) => fids.size <= 2).map(([lic]) => lic)
-    );
-  }, [items]);
+  const globalLicences = useGlobalLicences(items);
 
   const counts = useMemo(() => {
     const c: Record<string, number> = {};
@@ -775,10 +739,10 @@ export default function EquipmentPage() {
     <div className="flex h-full flex-col">
       <div className="px-6 pt-5">
         <h1 className="text-2xl font-bold tracking-tight">Equipment</h1>
-        <p className="text-xs uppercase tracking-widest text-muted-foreground mt-1 font-semibold">
+        <PageSubtitle>
           Compare ship parts — pick a category and size, ranked by the stat that
           matters.
-        </p>
+        </PageSubtitle>
         <PageTabs>
           {CATEGORIES.filter((c) => counts[c.id] > 0).map((c) => (
             <PageTab
@@ -877,29 +841,21 @@ export default function EquipmentPage() {
         </HUDCard>
       </div>
 
-      <Dialog
+      <DetailDialog
         open={selectedEquipment !== null}
         onOpenChange={(open) => {
           if (!open) setSelectedEquipment(null);
         }}
+        title={selectedEquipment?.name ?? "Equipment details"}
+        description={`Detailed stats for ${selectedEquipment?.name}`}
       >
-        <DialogContent className="sm:max-w-2xl md:max-w-3xl">
-          <DialogHeader className="sr-only">
-            <DialogTitle>
-              {selectedEquipment?.name ?? "Equipment details"}
-            </DialogTitle>
-            <DialogDescription>
-              Detailed stats for {selectedEquipment?.name}
-            </DialogDescription>
-          </DialogHeader>
-          {selectedEquipment && (
-            <EquipmentDetailPanel
-              item={selectedEquipment}
-              factions={factions}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
+        {selectedEquipment && (
+          <EquipmentDetailPanel
+            item={selectedEquipment}
+            factions={factions}
+          />
+        )}
+      </DetailDialog>
     </div>
   );
 }

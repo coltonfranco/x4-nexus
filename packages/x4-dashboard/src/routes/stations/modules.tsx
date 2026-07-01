@@ -10,6 +10,7 @@ import { MultiSelect } from "../../components/ui/multi-select";
 import { Switch } from "../../components/ui/switch";
 import { cn } from "../../lib/utils";
 import { PageLoaderPreset } from "../../components/PageLoader";
+import { PageSubtitle } from "../../components/ui/page-subtitle";
 import { HUDCard } from "../../components/HUDCard";
 import { FilterBar } from "../../components/FilterBar";
 import { SearchInput } from "../../components/ui/search-input";
@@ -17,6 +18,8 @@ import { DataTable } from "../../components/DataTable";
 import type { ColumnDef, ColumnGroup, RowGroup } from "../../components/DataTable";
 import { useColumnVisibility } from "../../lib/useColumnVisibility";
 import { apiGet } from "../../lib/api";
+import { useFactionMap } from "../../lib/useFactionMap";
+import { usePlayerLicences } from "../../lib/usePlayerLicences";
 import {
   Select,
   SelectContent,
@@ -24,13 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "../../components/ui/dialog";
+import { DetailDialog } from "../../components/ui/detail-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import type { FactionSummary } from "../../lib/map/types";
 import { ProductionChain } from "../../components/trade/ProductionChain";
@@ -289,18 +286,9 @@ export default function ModulesPage() {
     staleTime: Infinity,
   });
 
-  const { data: playerLicences = [] } = useQuery<
-    { licence_type: string; faction_id: string }[]
-  >({
-    queryKey: ["player-licences"],
-    queryFn: () => apiGet<{ licence_type: string; faction_id: string }[]>("/api/v1/player/licences"),
-    staleTime: 60_000,
-  });
+  const { data: playerLicences = [] } = usePlayerLicences();
 
-  const factionMap = useMemo(
-    () => new Map(factions.map((f) => [f.faction_id, f])),
-    [factions]
-  );
+  const factionMap = useFactionMap(factions);
   const licenceSet = useMemo(
     () => new Set(playerLicences.map((l) => `${l.faction_id}:${l.licence_type}`)),
     [playerLicences]
@@ -671,9 +659,9 @@ export default function ModulesPage() {
     <div className="flex h-full flex-col">
       <div className="px-6 py-5">
         <h1 className="text-2xl font-bold tracking-tight">Station Modules</h1>
-        <p className="text-xs uppercase tracking-widest text-muted-foreground mt-1 font-semibold">
+        <PageSubtitle>
           {modules.length} buildable modules · hull, storage, turret &amp; shield hardpoints, blueprint prices
-        </p>
+        </PageSubtitle>
       </div>
 
       <FilterBar>
@@ -774,15 +762,15 @@ export default function ModulesPage() {
         </HUDCard>
       </div>
 
-      <Dialog open={selectedModule !== null} onOpenChange={(open) => { if (!open) setSelectedModule(null); }}>
-        <DialogContent className="sm:max-w-2xl md:max-w-3xl min-h-[50vh] max-h-[90vh] overflow-y-auto">
-          <DialogHeader className="sr-only">
-            <DialogTitle>{selectedModule?.name ?? "Module details"}</DialogTitle>
-            <DialogDescription>Detailed stats for {selectedModule?.name}</DialogDescription>
-          </DialogHeader>
-          {selectedModule && <ModuleDetailPanel moduleId={selectedModule.module_id} summary={selectedModule} factions={factions} licenceSet={licenceSet} anyLicenceSet={anyLicenceSet} />}
-        </DialogContent>
-      </Dialog>
+      <DetailDialog
+        open={selectedModule !== null}
+        onOpenChange={(open) => { if (!open) setSelectedModule(null); }}
+        title={selectedModule?.name ?? "Module details"}
+        description={`Detailed stats for ${selectedModule?.name}`}
+        contentClassName="sm:max-w-2xl md:max-w-3xl min-h-[50vh] max-h-[90vh] overflow-y-auto"
+      >
+        {selectedModule && <ModuleDetailPanel moduleId={selectedModule.module_id} summary={selectedModule} factions={factions} licenceSet={licenceSet} anyLicenceSet={anyLicenceSet} />}
+      </DetailDialog>
     </div>
   );
 }

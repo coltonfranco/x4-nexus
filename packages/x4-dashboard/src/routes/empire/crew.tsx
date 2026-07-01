@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Users, Ship, Building2, X } from "lucide-react";
 import { PageLoaderPreset } from "../../components/PageLoader";
+import { PageSubtitle } from "../../components/ui/page-subtitle";
 import { HUDCard } from "../../components/HUDCard";
 import { FilterBar } from "../../components/FilterBar";
 import { SearchInput } from "../../components/ui/search-input";
@@ -15,7 +16,7 @@ import { useColumnVisibility } from "../../lib/useColumnVisibility";
 import { MultiSelect } from "../../components/ui/multi-select";
 import { EntityIcon } from "../../components/EntityIcon";
 import { ShipDetailPanel } from "../../components/ShipDetailPanel";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../components/ui/dialog";
+import { DetailDialog } from "../../components/ui/detail-dialog";
 import { apiGet } from "../../lib/api";
 
 type RoleSkillWeight = {
@@ -564,9 +565,7 @@ export default function CrewPage() {
         <h1 className="text-2xl font-bold flex items-center gap-2 tracking-tight">
           <Users className="h-6 w-6 text-primary" /> Crew
         </h1>
-        <p className="text-xs uppercase tracking-widest text-muted-foreground mt-1 font-semibold">
-          {filtered.length} personnel
-        </p>
+        <PageSubtitle>{filtered.length} personnel</PageSubtitle>
       </div>
 
       <FilterBar>
@@ -672,14 +671,14 @@ export default function CrewPage() {
         </HUDCard>
       </div>
     </div>
-    <Dialog open={selectedShipId !== null} onOpenChange={(open) => { if (!open) setSelectedShipId(null); }}>
-      <DialogContent className="sm:max-w-2xl md:max-w-3xl">
-        <DialogHeader className="sr-only">
-          <DialogTitle>Ship Details</DialogTitle>
-        </DialogHeader>
-        {selectedShipId && <ShipDetailPanel shipId={selectedShipId} factions={factions} />}
-      </DialogContent>
-    </Dialog>
+    <DetailDialog
+      open={selectedShipId !== null}
+      onOpenChange={(open) => { if (!open) setSelectedShipId(null); }}
+      title="Ship Details"
+      description="Detailed stats for the selected ship"
+    >
+      {selectedShipId && <ShipDetailPanel shipId={selectedShipId} factions={factions} />}
+    </DetailDialog>
     </>
   );
 }
