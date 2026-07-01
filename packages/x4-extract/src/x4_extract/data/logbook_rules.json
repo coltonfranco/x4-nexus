@@ -102,7 +102,7 @@
         },
         "promotion": {
           "label": "Rank Promotion",
-          "patterns": ["promotion to"]
+          "patterns": ["promotion to", "promoted to"]
         },
         "relations": {
           "label": "Relations Changed",
