@@ -9,9 +9,9 @@ a zone in one to a zone in the other. Distances are all-pairs BFS hop counts.
 layered in later from zone positions.
 """
 
-import sqlite3
-import math
 import heapq
+import math
+import sqlite3
 from collections import defaultdict
 
 

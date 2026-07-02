@@ -8,6 +8,7 @@ configuration.  This is the "New Game" menu data.
 from __future__ import annotations
 
 import sqlite3
+from contextlib import suppress
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -56,7 +57,6 @@ def extract(xml_bytes: bytes) -> ExtractResult:
 
         # ── Location ──
         loc_el = gs_el.find("location")
-        player_el = loc_el.find("player") if loc_el is not None else None
 
         # ── Player ──
         pl_el = gs_el.find("player")
@@ -150,14 +150,12 @@ def extract(xml_bytes: bytes) -> ExtractResult:
             faction = rel_el.get("faction")
             rel_val = rel_el.get("relation")
             if faction and rel_val:
-                try:
+                with suppress(ValueError):
                     out.relations.append({
                         "gamestart_id": gs_id,
                         "faction_id": faction,
                         "relation": float(rel_val),
                     })
-                except ValueError:
-                    pass
 
         # ── Player skills ──
         skills_el = gs_el.find("skills")
@@ -173,12 +171,12 @@ def extract(xml_bytes: bytes) -> ExtractResult:
                     })
 
         # ── Story missions ──
-        def _collect_stories(container: etree._Element) -> None:
+        def _collect_stories(container: etree._Element, gamestart_id: str = gs_id) -> None:
             for st_el in container.iterfind("story"):
                 ref = st_el.get("ref")
                 if ref:
                     out.stories.append({
-                        "gamestart_id": gs_id,
+                        "gamestart_id": gamestart_id,
                         "story_ref": ref,
                         "story_group": st_el.get("group"),
                         "story_index": _int(st_el, "index"),

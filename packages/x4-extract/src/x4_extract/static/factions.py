@@ -10,6 +10,7 @@ Color resolution is a two-level indirection in X4:
 from __future__ import annotations
 
 import sqlite3
+from contextlib import suppress
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -68,14 +69,12 @@ def extract(factions_bytes: bytes, colors_bytes: bytes | None = None) -> Extract
             other = rel_el.get("faction")
             val = rel_el.get("relation")
             if other and val is not None:
-                try:
+                with suppress(ValueError):
                     out.relations.append({
                         "faction_id": faction_id,
                         "other_faction_id": other,
                         "initial_relation": float(val),
                     })
-                except ValueError:
-                    pass
 
         for lic_el in f_el.iterfind("licences/licence"):
             l_type = lic_el.get("type")
@@ -87,10 +86,8 @@ def extract(factions_bytes: bytes, colors_bytes: bytes | None = None) -> Extract
                 min_rel = None
                 r_str = lic_el.get("minrelation")
                 if r_str:
-                    try:
+                    with suppress(ValueError):
                         min_rel = float(r_str)
-                    except ValueError:
-                        pass
                 
                 out.licences.append({
                     "licence_type": l_type,
@@ -153,12 +150,10 @@ def _build_color_map(colors_bytes: bytes) -> dict[str, str]:
     rgb: dict[str, tuple[int, int, int]] = {}
     for el in root.iter("color"):
         cid = el.get("id")
-        r, g, b = el.get("r"), el.get("g"), el.get("b")
-        if cid and r is not None and g is not None and b is not None:
-            try:
-                rgb[cid] = (int(r), int(g), int(b))
-            except ValueError:
-                pass
+        r_raw, g_raw, b_raw = el.get("r"), el.get("g"), el.get("b")
+        if cid and r_raw is not None and g_raw is not None and b_raw is not None:
+            with suppress(ValueError):
+                rgb[cid] = (int(r_raw), int(g_raw), int(b_raw))
 
     # Pass 2: mappings id → ref (indirection layer)
     resolved: dict[str, str] = {}

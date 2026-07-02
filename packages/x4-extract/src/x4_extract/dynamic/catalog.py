@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import gzip
 import sqlite3
-import threading
 import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -398,6 +397,5 @@ def ensure_active_dynamic_db(settings: ExtractSettings) -> Path:
         if not is_dynamic_initialized(db):
             apply_schema(settings.data_dir, "dynamic", db_path=db)
     return db
-
 
 

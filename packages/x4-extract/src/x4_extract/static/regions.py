@@ -44,14 +44,17 @@ def build_region_sector_map(map_xmls: dict[str, bytes]) -> dict[str, set[str]]:
             if not region_def:
                 continue
             # Walk up to the enclosing sector macro to get the canonical sector ID.
-            sector_el = conn_el
+            sector_el: etree._Element | None = conn_el
             for _ in range(4):  # connection → connections → macro(sector) — 2-3 levels up
+                if sector_el is None:
+                    break
                 sector_el = sector_el.getparent()
                 if sector_el is None:
                     break
                 if sector_el.tag == "macro" and sector_el.get("name", "").endswith("_macro"):
                     sector_id = sector_el.get("name")
-                    mapping.setdefault(region_def, set()).add(sector_id)
+                    if sector_id is not None:
+                        mapping.setdefault(region_def, set()).add(sector_id)
                     break
     return mapping
 

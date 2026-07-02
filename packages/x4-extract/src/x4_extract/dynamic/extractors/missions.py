@@ -25,8 +25,10 @@ Missions and offers are VOLATILE.
 from __future__ import annotations
 
 import dataclasses
+import hashlib
 import json
 import sqlite3
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 
 from lxml import etree
@@ -59,6 +61,10 @@ def _float(v: str | None) -> float | None:
         return float(v)
     except ValueError:
         return None
+
+
+def _attrs(elem: etree._Element) -> dict[str, str]:
+    return {str(k): str(v) for k, v in elem.attrib.items()}
 
 
 # Attributes promoted to columns for active missions.
@@ -216,7 +222,7 @@ class MissionsCollector:
     # -- Active missions ----------------------------------------------------
 
     def _on_mission(self, elem: etree._Element) -> None:
-        attrs = dict(elem.attrib)
+        attrs = _attrs(elem)
         extra = {k: v for k, v in attrs.items() if k not in _MAPPED_MISSION}
 
         mission_id = attrs.get("id") or _synthetic_mission_id(attrs)
@@ -254,7 +260,7 @@ class MissionsCollector:
     # -- Mission offers -----------------------------------------------------
 
     def _on_offer(self, elem: etree._Element) -> None:
-        attrs = dict(elem.attrib)
+        attrs = _attrs(elem)
         extra = {k: v for k, v in attrs.items() if k not in _MAPPED_OFFER}
 
         offer_id = attrs.get("id") or _synthetic_mission_id(attrs)
@@ -293,7 +299,7 @@ class MissionsCollector:
         offer = parent.getparent()  # offer
         if offer is None or offer.tag != "offer":
             return
-        offer_id = offer.get("id") or _synthetic_mission_id(dict(offer.attrib))
+        offer_id = offer.get("id") or _synthetic_mission_id(_attrs(offer))
         self._offer_repeatable.add(offer_id)
         rewardtext = elem.get("rewardtext")
         if rewardtext:
@@ -306,7 +312,7 @@ class MissionsCollector:
         offer = parent.getparent()  # offer
         if offer is None or offer.tag != "offer":
             return
-        offer_id = offer.get("id") or _synthetic_mission_id(dict(offer.attrib))
+        offer_id = offer.get("id") or _synthetic_mission_id(_attrs(offer))
         if offer_id not in self._offer_stations:
             comp = elem.get("component")
             if comp:
@@ -319,7 +325,7 @@ class MissionsCollector:
         offer = parent.getparent()  # offer
         if offer is None or offer.tag != "offer":
             return
-        offer_id = offer.get("id") or _synthetic_mission_id(dict(offer.attrib))
+        offer_id = offer.get("id") or _synthetic_mission_id(_attrs(offer))
         if offer_id not in self._offer_bbs:
             comp = elem.get("component")
             if comp:
@@ -332,10 +338,10 @@ class MissionsCollector:
         if parent_mission is None:
             return
 
-        mission_attrs = dict(parent_mission.attrib)
+        mission_attrs = _attrs(parent_mission)
         mission_id = mission_attrs.get("id") or _synthetic_mission_id(mission_attrs)
 
-        attrs = dict(elem.attrib)
+        attrs = _attrs(elem)
         step = _int(attrs.get("step"))
         is_active = attrs.get("active") == "1"
 
@@ -404,33 +410,33 @@ class MissionsCollector:
 
     # --- delta source ------------------------------------------------------
 
-    def keyed_rows(self, tier: Tier):
+    def keyed_rows(self, tier: Tier) -> Iterable[tuple[str, str, Mapping[str, object]]]:
         """Active missions (keyed by mission_id) and available offers (by offer_id). A
         mission appearing/completing or its active/priority state moving is a 'mission'
         event; new BBS offers are 'mission_offer' events. Objectives are intentionally
         left out of the feed for now — add them here keyed by (mission_id, step) later."""
         if tier is not Tier.VOLATILE:
             return
-        for r in self.mission_rows:
-            if r.mission_id is None:
+        for mission in self.mission_rows:
+            if mission.mission_id is None:
                 continue
-            yield "mission", r.mission_id, {
-                "mission_id": r.mission_id,
-                "name": r.name,
-                "faction": r.faction,
-                "type": r.type,
-                "level": r.level,
-                "is_active": r.is_active,
-                "priority": r.priority,
+            yield "mission", mission.mission_id, {
+                "mission_id": mission.mission_id,
+                "name": mission.name,
+                "faction": mission.faction,
+                "type": mission.type,
+                "level": mission.level,
+                "is_active": mission.is_active,
+                "priority": mission.priority,
             }
-        for r in self.offer_rows:
-            if r.offer_id is None:
+        for offer in self.offer_rows:
+            if offer.offer_id is None:
                 continue
-            yield "mission_offer", r.offer_id, {
-                "offer_id": r.offer_id,
-                "name": r.name,
-                "faction": r.faction,
-                "type": r.type,
+            yield "mission_offer", offer.offer_id, {
+                "offer_id": offer.offer_id,
+                "name": offer.name,
+                "faction": offer.faction,
+                "type": offer.type,
             }
 
     # --- tiered contract ---------------------------------------------------
@@ -450,7 +456,6 @@ class MissionsCollector:
             parts.append(hash_rows([dataclasses.asdict(r) for r in self.offer_rows]))
         if not parts:
             return ""
-        import hashlib
         h = hashlib.sha256()
         for p in sorted(parts):
             h.update(p.encode())
@@ -524,7 +529,7 @@ def _find_objective_key(elem: etree._Element) -> tuple[str, int] | None:
             # Now find the parent mission
             mission_node = _find_parent_mission(node)
             if mission_node is not None:
-                mission_attrs = dict(mission_node.attrib)
+                mission_attrs = _attrs(mission_node)
                 mission_id = mission_attrs.get("id") or _synthetic_mission_id(mission_attrs)
                 return (mission_id, step)
             return None
@@ -534,6 +539,5 @@ def _find_objective_key(elem: etree._Element) -> tuple[str, int] | None:
 
 def _synthetic_mission_id(attrs: dict[str, str]) -> str:
     """Generate a stable synthetic id for entities without an explicit id."""
-    import hashlib
     key = f"{attrs.get('faction','')}|{attrs.get('type','')}|{attrs.get('name','')}"
     return f"syn_{hashlib.md5(key.encode()).hexdigest()[:8]}"

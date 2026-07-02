@@ -176,7 +176,7 @@ def _parse_macros(
             cluster_id = _derive_cluster_id(macro_id)
             # Fall back to cluster-level props when the sector dataset lacks <area>
             # (e.g. Boron DLC puts sunlight/economy/security on the cluster dataset).
-            cluster_props = defaults.get(cluster_id.lower(), {})
+            cluster_props = defaults.get(cluster_id.lower(), {}) if cluster_id is not None else {}
             out.sectors.append({
                 "sector_id":    macro_id,
                 "cluster_id":   cluster_id,
@@ -372,7 +372,8 @@ def _parse_mapdefaults(root: etree._Element) -> dict[str, dict[str, Any]]:
     defaults = {}
     for ds in root.iter("dataset"):
         macro = ds.get("macro")
-        if not macro: continue
+        if not macro:
+            continue
         macro = macro.lower()  # normalise; game XMLs use PascalCase, mapdefaults uses mixed case
         
         props: dict[str, Any] = {}
@@ -459,7 +460,7 @@ def _float(el: etree._Element, attr: str) -> float | None:
 
 def _dedup(rows: list[dict[str, Any]], keys: tuple[str, ...]) -> None:
     """Deduplicate *rows* in-place by composite key, keeping the last occurrence."""
-    seen: dict[tuple, dict[str, Any]] = {}
+    seen: dict[tuple[Any, ...], dict[str, Any]] = {}
     for r in rows:
         key = tuple(r[k] for k in keys)
         seen[key] = r

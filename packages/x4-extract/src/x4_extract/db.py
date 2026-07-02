@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import sqlite3
 import threading
-from contextlib import closing
+from contextlib import closing, suppress
 from pathlib import Path
 from typing import Literal
 
@@ -35,14 +35,13 @@ def apply_schema(data_dir: Path, name: SchemaName, *, db_path: Path | None = Non
     target = db_path if db_path is not None else data_dir / f"{name}.db"
     target.parent.mkdir(parents=True, exist_ok=True)
 
-    with SCHEMA_LOCK:
-        # `with sqlite3.connect(...)` only commits/rolls back — it does NOT close the
-        # connection, so the handle (and on Windows its file lock) lingers until GC.
-        # Wrap in closing() so the DB file can be deleted/overwritten right after.
-        with closing(sqlite3.connect(target)) as conn, conn:
-            conn.executescript(sql)
-            if name == "dynamic":
-                _migrate_dynamic(conn)
+    # `with sqlite3.connect(...)` only commits/rolls back — it does NOT close the
+    # connection, so the handle (and on Windows its file lock) lingers until GC.
+    # Wrap in closing() so the DB file can be deleted/overwritten right after.
+    with SCHEMA_LOCK, closing(sqlite3.connect(target)) as conn, conn:
+        conn.executescript(sql)
+        if name == "dynamic":
+            _migrate_dynamic(conn)
 
 
 def _migrate_dynamic(conn: sqlite3.Connection) -> None:
@@ -57,22 +56,16 @@ def _migrate_dynamic(conn: sqlite3.Connection) -> None:
     cols = {r[1] for r in conn.execute("PRAGMA table_info('station_overview')").fetchall()}
     for col in ("account_min", "account_max"):
         if col not in cols:
-            try:
+            with suppress(sqlite3.OperationalError):
                 conn.execute(f"ALTER TABLE station_overview ADD COLUMN {col} INTEGER")
-            except sqlite3.OperationalError:
-                pass  # column already exists (race with another connection)
 
     # logbook: subcategory (2026-07)
     cols = {r[1] for r in conn.execute("PRAGMA table_info('logbook')").fetchall()}
     if "subcategory" not in cols:
-        try:
+        with suppress(sqlite3.OperationalError):
             conn.execute("ALTER TABLE logbook ADD COLUMN subcategory TEXT")
-        except sqlite3.OperationalError:
-            pass
-    try:
+    with suppress(sqlite3.OperationalError):
         conn.execute("CREATE INDEX IF NOT EXISTS idx_logbook_subcategory ON logbook(subcategory)")
-    except sqlite3.OperationalError:
-        pass
 
     # Reclassify existing logbook entries that haven't been classified yet.
     # Keeps the game's original category as a hint for the fallback logic

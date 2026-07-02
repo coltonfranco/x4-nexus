@@ -27,6 +27,7 @@ import contextlib
 import dataclasses
 import json
 import sqlite3
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -166,7 +167,7 @@ class StatsCollector:
             with contextlib.suppress(ValueError):
                 self.stats[sid] = float(val)
 
-    def keyed_rows(self, tier: Tier):
+    def keyed_rows(self, tier: Tier) -> Iterable[tuple[str, str, Mapping[str, object]]]:
         """Each player stat keyed by its id; a moved value is a 'stat' change. Low volume
         and shallow, but changes often — handy for keeping a stats view live."""
         if tier is not Tier.VOLATILE:

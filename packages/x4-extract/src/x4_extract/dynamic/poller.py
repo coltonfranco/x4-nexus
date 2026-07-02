@@ -163,13 +163,16 @@ def watch_realtime(
             return settle
         return interval_provider() if interval_provider is not None else static_every
 
-    stop = stop or threading.Event()
-    wake = wake or threading.Event()
+    if stop is None:
+        stop = threading.Event()
+    if wake is None:
+        wake = threading.Event()
+    wake_event = wake
 
     observer = None
     try:
-        from watchdog.events import FileSystemEventHandler  # noqa: PLC0415 — optional dep
-        from watchdog.observers import Observer  # noqa: PLC0415
+        from watchdog.events import FileSystemEventHandler
+        from watchdog.observers import Observer
 
         folder = resolve_save_path(settings.save_path)
 
@@ -177,7 +180,7 @@ def watch_realtime(
             def on_any_event(self, event: object) -> None:
                 paths = (getattr(event, "src_path", ""), getattr(event, "dest_path", ""))
                 if any(str(p).endswith(_SAVE_SUFFIXES) for p in paths):
-                    wake.set()
+                    wake_event.set()
 
         observer = Observer()
         observer.schedule(_Handler(), str(folder), recursive=False)
@@ -190,7 +193,7 @@ def watch_realtime(
             result = poll_once(settings, min_quiet_sec=settle)  # ingest current state on startup
             on_tick(result)
         else:
-            result = PollResult(False, False, None)
+            result = PollResult(None, None, False)
 
         while not stop.is_set():
             # `None` waits indefinitely (watchdog-only); else poll when the interval elapses.

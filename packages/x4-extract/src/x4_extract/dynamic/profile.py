@@ -34,7 +34,7 @@ from lxml import etree
 
 from x4_extract.config import ExtractSettings
 from x4_extract.db import apply_schema, open_db
-from x4_extract.dynamic.collector import TIERS
+from x4_extract.dynamic.collector import TIERS, Collector
 from x4_extract.savefile.dispatch import stream_save
 
 _READ_CHUNK = 1 << 20  # 1 MiB reads when draining the decompressed stream
@@ -94,7 +94,9 @@ def _time_iterparse(save_path: Path) -> tuple[float, int]:
     return perf_counter() - t0, n
 
 
-def _time_dispatch(settings: ExtractSettings, save_path: Path):
+def _time_dispatch(
+    settings: ExtractSettings, save_path: Path
+) -> tuple[float, list[Collector], cProfile.Profile]:
     """Time a clean dispatch pass, then a separate profiled pass for attribution.
 
     cProfile intercepts tens of millions of calls and badly inflates wall clock, so the
@@ -121,7 +123,9 @@ def _time_dispatch(settings: ExtractSettings, save_path: Path):
     return elapsed, collectors, profiler
 
 
-def _time_flush(settings: ExtractSettings, save_path: Path, collectors) -> float:
+def _time_flush(
+    settings: ExtractSettings, save_path: Path, collectors: list[Collector]
+) -> float:
     """Write every tier into a throwaway DB (+ derived artifacts) and time it."""
     from x4_extract.dynamic.pipeline import _rewrite_tier, _run_derived
 

@@ -12,6 +12,7 @@ attack"/"... destroyed", so we match on both category and keywords for robustnes
 
 from __future__ import annotations
 
+import contextlib
 from collections.abc import Mapping
 from dataclasses import dataclass
 
@@ -128,7 +129,12 @@ def _f(v: object) -> float | None:
 def _truthy(v: object) -> bool:
     if v is None:
         return False
+    if isinstance(v, bool):
+        return v
+    if isinstance(v, int | float | str | bytes | bytearray):
+        with contextlib.suppress(ValueError):
+            return int(v) != 0
     try:
-        return int(v) != 0  # type: ignore[arg-type]
-    except (TypeError, ValueError):
+        return bool(v)
+    except TypeError:
         return bool(v)

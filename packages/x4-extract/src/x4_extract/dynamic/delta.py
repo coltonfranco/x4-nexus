@@ -60,7 +60,7 @@ def compute_and_record(
     baseline_types = entity_types - {etype for etype, _ in stored}
 
     now = datetime.now(UTC).isoformat()
-    events: list[tuple] = []
+    events: list[tuple[object, ...]] = []
 
     for ck, content in current.items():
         entity_type, key = ck
@@ -101,7 +101,7 @@ def _load_stored(
 ) -> dict[tuple[str, str], str]:
     placeholders = ",".join("?" * len(entity_types))
     rows = conn.execute(
-        f"SELECT entity_type, entity_key, row_hash FROM row_state "  # noqa: S608 — placeholders only
+        "SELECT entity_type, entity_key, row_hash FROM row_state "
         f"WHERE entity_type IN ({placeholders})",
         tuple(entity_types),
     )
@@ -115,7 +115,7 @@ def _event_row(
     content: Mapping[str, object] | None,
     game_time: float | None,
     now: str,
-) -> tuple:
+) -> tuple[object, ...]:
     cls = alerts.classify(entity_type, kind, content or {})
     payload = json.dumps(content, sort_keys=True, default=str) if content is not None else None
     return (

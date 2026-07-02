@@ -19,10 +19,11 @@ visitor here and never touch iterparse directly.
 from __future__ import annotations
 
 import gzip
+import time
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import IO, cast
+from typing import IO, BinaryIO, cast
 
 from lxml import etree
 
@@ -59,10 +60,6 @@ class Target:
 class Registration:
     target: Target
     visitor: Visitor
-
-
-import time
-from typing import BinaryIO
 
 class _ProgressReader:
     def __init__(self, f: BinaryIO, total: int, on_progress: Callable[[float], None] | None):

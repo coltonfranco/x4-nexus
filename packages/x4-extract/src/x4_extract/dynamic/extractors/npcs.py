@@ -38,6 +38,7 @@ import dataclasses
 import json
 import sqlite3
 from dataclasses import dataclass, field
+from typing import cast
 
 from lxml import etree
 
@@ -45,6 +46,7 @@ from x4_extract.dynamic.collector import Tier, hash_rows
 from x4_extract.dynamic.extractors.common import ANCESTOR_WALK_LIMIT
 from x4_extract.savefile.dispatch import Registration, Target
 
+NpcData = dict[str, object]
 
 
 @dataclass(slots=True)
@@ -72,7 +74,7 @@ class NPCRow:
 
 @dataclass(slots=True)
 class NPCsCollector:
-    _by_id: dict[str, dict[str, object]] = field(default_factory=dict)
+    _by_id: dict[str, NpcData] = field(default_factory=dict)
     _person_counter: int = 0
 
     def register(self) -> list[Registration]:
@@ -151,7 +153,7 @@ class NPCsCollector:
             ancestor = ancestor.getparent()
         return ship_id, station_id, owner, sector_id, is_buildstorage
 
-    def _ensure(self, npc_id: str) -> dict[str, object]:
+    def _ensure(self, npc_id: str) -> NpcData:
         if npc_id not in self._by_id:
             self._by_id[npc_id] = {}
         return self._by_id[npc_id]
@@ -171,7 +173,7 @@ class NPCsCollector:
         data["location_station_id"] = station_id
         # Capture unmapped attributes
         mapped = frozenset({"id", "name", "code", "macro", "owner", "class", "connection"})
-        extra = {k: v for k, v in elem.attrib.items() if k not in mapped}
+        extra: dict[str, object] = {str(k): v for k, v in elem.attrib.items() if str(k) not in mapped}
         if sector_id:
             extra["sector_id"] = sector_id
         if is_buildstorage:
@@ -180,7 +182,7 @@ class NPCsCollector:
         if extra:
             existing = data.get("_extra")
             if isinstance(existing, dict):
-                existing.update(extra)
+                _object_dict(existing).update(extra)
             else:
                 data["_extra"] = extra
 
@@ -215,7 +217,7 @@ class NPCsCollector:
         if not npc_id:
             return
         data = self._ensure(npc_id)
-        skills: dict[str, int] = data.setdefault("_skills", {})
+        skills = _int_dict(data.setdefault("_skills", {}))
         for attr in ("piloting", "morale", "engineering", "management", "boarding"):
             raw = elem.get(attr)
             if raw is not None:
@@ -233,7 +235,7 @@ class NPCsCollector:
         text = elem.text
         if name:
             data = self._ensure(npc_id)
-            bb: dict[str, str] = data.setdefault("_blackboard", {})
+            bb = _str_dict(data.setdefault("_blackboard", {}))
             bb[name] = text if text else ""
 
     def _get_or_create_person_tmp_id(self, person: etree._Element) -> str:
@@ -250,7 +252,7 @@ class NPCsCollector:
             return
         tmp_id = self._get_or_create_person_tmp_id(person)
         data = self._ensure(tmp_id)
-        skills: dict[str, int] = data.setdefault("_skills", {})
+        skills = _int_dict(data.setdefault("_skills", {}))
         for attr in ("piloting", "morale", "engineering", "management", "boarding"):
             raw = elem.get(attr)
             if raw is not None:
@@ -287,7 +289,7 @@ class NPCsCollector:
         data["location_ship_id"] = ship_id
         data["location_station_id"] = station_id
         
-        extra = data.get("_extra", {})
+        extra = _object_dict(data.get("_extra", {}))
         if sector_id:
             extra["sector_id"] = sector_id
         if is_buildstorage:
@@ -323,22 +325,23 @@ class NPCsCollector:
             return
         rows: list[NPCRow] = []
         for npc_id, data in sorted(self._by_id.items()):
-            owner = data.get("owner_faction")
-            loc_station = data.get("location_station_id")
-            skills: dict[str, int] = data.get("_skills", {})
-            bb = data.get("_blackboard")
+            owner = _optional_str(data.get("owner_faction"))
+            loc_station = _optional_str(data.get("location_station_id"))
+            skills = _int_dict(data.get("_skills", {}))
+            bb = _str_dict(data.get("_blackboard", {}))
+            extra = _object_dict(data.get("_extra", {}))
             rows.append(
                 NPCRow(
                     id=npc_id,
-                    name=data.get("name"),
-                    code=data.get("code"),
-                    macro=data.get("macro"),
+                    name=_optional_str(data.get("name")),
+                    code=_optional_str(data.get("code")),
+                    macro=_optional_str(data.get("macro")),
                     owner_faction=owner,
-                    entity_type=data.get("entity_type"),
-                    entity_post=data.get("entity_post"),
-                    seed=data.get("seed"),
-                    connection=data.get("connection"),
-                    location_ship_id=data.get("location_ship_id"),
+                    entity_type=_optional_str(data.get("entity_type")),
+                    entity_post=_optional_str(data.get("entity_post")),
+                    seed=_optional_str(data.get("seed")),
+                    connection=_optional_str(data.get("connection")),
+                    location_ship_id=_optional_str(data.get("location_ship_id")),
                     location_station_id=loc_station,
                     skill_piloting=skills.get("piloting"),
                     skill_morale=skills.get("morale"),
@@ -347,7 +350,7 @@ class NPCsCollector:
                     skill_boarding=skills.get("boarding"),
                     blackboard_json=json.dumps(bb, sort_keys=True) if bb else None,
                     employment=self._employment(owner, loc_station),
-                    extra_json=json.dumps(data["_extra"], sort_keys=True) if data.get("_extra") else None,
+                    extra_json=json.dumps(extra, sort_keys=True) if extra else None,
                 )
             )
         conn.executemany(
@@ -365,3 +368,25 @@ class NPCsCollector:
             """,
             [dataclasses.asdict(r) for r in rows],
         )
+
+
+def _optional_str(value: object) -> str | None:
+    return value if isinstance(value, str) else None
+
+
+def _int_dict(value: object) -> dict[str, int]:
+    if isinstance(value, dict):
+        return cast("dict[str, int]", value)
+    return {}
+
+
+def _str_dict(value: object) -> dict[str, str]:
+    if isinstance(value, dict):
+        return cast("dict[str, str]", value)
+    return {}
+
+
+def _object_dict(value: object) -> dict[str, object]:
+    if isinstance(value, dict):
+        return cast("dict[str, object]", value)
+    return {}
