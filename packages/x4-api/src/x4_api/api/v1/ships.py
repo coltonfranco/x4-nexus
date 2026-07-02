@@ -6,6 +6,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
+from x4_api.api.db_utils import fetch_one_or_404
 from x4_api.api.deps import get_db
 from x4_api.api.icons import get_icon_url
 from x4_api.api.schemas import PublicModel
@@ -134,6 +135,15 @@ class ShipDetail(ShipSummary):
     drop_list_id: str | None
 
 
+_DOCK_STORAGE_COLS = (
+    "dock_s", "dock_m", "dock_l", "dock_xl",
+    "storage_s", "storage_m", "storage_l", "storage_xl",
+    "weapons_s", "weapons_m", "weapons_l", "weapons_xl",
+    "turrets_s", "turrets_m", "turrets_l", "turrets_xl",
+    "shields_s", "shields_m", "shields_l", "shields_xl",
+    "engines_s", "engines_m", "engines_l", "engines_xl",
+)
+
 _DETAIL_COLS = (
     "s.ship_id, s.name, s.description, s.basename, s.variation, s.dlc, s.class_id, s.ship_type, s.role, s.faction_id, "
     "s.hull, s.cargo_volume, s.dps_max, s.speed_min, s.speed_max, s.icon_path, "
@@ -201,67 +211,20 @@ def list_ships(
     sql.append("ORDER BY s.ship_id LIMIT :limit OFFSET :offset")
 
     rows = conn.execute(" ".join(sql), params).fetchall()
-    return [
-        ShipSummary(
-            ship_id=r["ship_id"],
-            name=r["name"],
-            dlc=r["dlc"],
-            class_id=r["class_id"],
-            ship_type=r["ship_type"],
-            role=r["role"],
-            faction_id=r["faction_id"],
-            hull=r["hull"],
-            shield_capacity_max=r["shield_capacity_max"],
-            cargo_volume=r["cargo_volume"],
-            dps_max=r["dps_max"],
-            speed_min=r["speed_min"],
-            speed_max=r["speed_max"],
-            travel_max=r["travel_max"],
-            boost_max=r["boost_max"],
-            accel_max=r["accel_max"],
-            shield_recharge_max=r["shield_recharge_max"],
-            radar_range=r["radar_range"],
-            range_max=r["range_max"],
-            people_capacity=r["people_capacity"],
-            missile_storage=r["missile_storage"],
-            drone_storage=r["drone_storage"],
-            countermeasure_storage=r["countermeasure_storage"],
-            deployable_storage=r["deployable_storage"],
-            dock_s=r["dock_s"] or 0,
-            dock_m=r["dock_m"] or 0,
-            dock_l=r["dock_l"] or 0,
-            dock_xl=r["dock_xl"] or 0,
-            storage_s=r["storage_s"] or 0,
-            storage_m=r["storage_m"] or 0,
-            storage_l=r["storage_l"] or 0,
-            storage_xl=r["storage_xl"] or 0,
-            weapons_s=r["weapons_s"] or 0,
-            weapons_m=r["weapons_m"] or 0,
-            weapons_l=r["weapons_l"] or 0,
-            weapons_xl=r["weapons_xl"] or 0,
-            turrets_s=r["turrets_s"] or 0,
-            turrets_m=r["turrets_m"] or 0,
-            turrets_l=r["turrets_l"] or 0,
-            turrets_xl=r["turrets_xl"] or 0,
-            shields_s=r["shields_s"] or 0,
-            shields_m=r["shields_m"] or 0,
-            shields_l=r["shields_l"] or 0,
-            shields_xl=r["shields_xl"] or 0,
-            engines_s=r["engines_s"] or 0,
-            engines_m=r["engines_m"] or 0,
-            engines_l=r["engines_l"] or 0,
-            engines_xl=r["engines_xl"] or 0,
-            icon_url=get_icon_url(r["icon_path"]),
-            image_url=get_icon_url(f"ship_{r['ship_id']}"),
-            price_avg=r["price_avg"],
-            is_owned=bool(r["is_owned"]),
-            restriction_licence=r["restriction_licence"],
-            has_blueprint=bool(r["has_blueprint"]),
-            is_obtainable=bool(r["is_obtainable"]),
-            can_be_captured=r["can_be_captured"] is None or bool(r["can_be_captured"]),
-        )
-        for r in rows
-    ]
+    result = []
+    for r in rows:
+        d = dict(r)
+        icon_path = d.pop("icon_path")
+        for col in _DOCK_STORAGE_COLS:
+            d[col] = d[col] or 0
+        d["icon_url"] = get_icon_url(icon_path)
+        d["image_url"] = get_icon_url(f"ship_{d['ship_id']}")
+        d["is_owned"] = bool(d["is_owned"])
+        d["has_blueprint"] = bool(d["has_blueprint"])
+        d["is_obtainable"] = bool(d["is_obtainable"])
+        d["can_be_captured"] = d["can_be_captured"] is None or bool(d["can_be_captured"])
+        result.append(ShipSummary(**d))
+    return result
 
 
 class ClassMax(PublicModel):
@@ -306,11 +269,12 @@ def get_ship(
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
 ) -> ShipDetail:
     """Get detailed stats for a specific ship."""
-    row = conn.execute(
-        f"SELECT {_DETAIL_COLS} FROM s.ships s LEFT JOIN s.wares w ON w.ware_id = REPLACE(s.ship_id, '_macro', '') WHERE s.ship_id = :id", {"id": ship_id}
-    ).fetchone()
-    if row is None:
-        raise HTTPException(status_code=404, detail=f"Unknown ship_id: {ship_id}")
+    row = fetch_one_or_404(
+        conn,
+        f"SELECT {_DETAIL_COLS} FROM s.ships s LEFT JOIN s.wares w ON w.ware_id = REPLACE(s.ship_id, '_macro', '') WHERE s.ship_id = :id",
+        {"id": ship_id},
+        f"Unknown ship_id: {ship_id}",
+    )
     sw_rows = conn.execute(
         "SELECT ware_id, compatible, is_default FROM s.ship_software WHERE ship_id = :id ORDER BY ware_id",
         {"id": ship_id},

@@ -21,6 +21,10 @@ from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
+from fastapi.testclient import TestClient
+from x4_api.api.app import app as app_factory
+from x4_api.api.deps import get_settings
+from x4_api.config import Settings
 from x4_extract.db import migrate_all
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -31,6 +35,21 @@ def data_dir(tmp_path: Path) -> Path:
     """Fresh data directory with empty static.db and dynamic.db (schemas applied)."""
     migrate_all(tmp_path)
     return tmp_path
+
+
+@pytest.fixture
+def client(settings: Settings) -> Iterator[TestClient]:
+    """A TestClient wired to a fresh app instance with `settings` dependency-overridden.
+
+    Depends on a `settings` fixture that each test module defines itself (its
+    `Settings(...)` construction varies — install_path, save_path, etc.).
+    """
+    fast_app = app_factory()
+    fast_app.dependency_overrides[get_settings] = lambda: settings
+    try:
+        yield TestClient(fast_app)
+    finally:
+        fast_app.dependency_overrides.clear()
 
 
 @pytest.fixture

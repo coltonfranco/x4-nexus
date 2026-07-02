@@ -6,6 +6,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
 
+from x4_api.api.db_utils import localized_text_sql, table_exists
 from x4_api.api.deps import get_db
 from x4_api.api.icons import get_icon_url
 from x4_api.api.schemas import PublicModel
@@ -53,8 +54,8 @@ _NPC_JOINED_COLS = (
     "npc.skill_piloting, npc.skill_morale, npc.skill_engineering, "
     "npc.skill_management, npc.skill_boarding, npc.blackboard_json, "
     "npc.employment, npc.extra_json, "
-    "CASE WHEN sh.name LIKE '{%,%}' THEN "
-    "  COALESCE((SELECT text FROM s.texts WHERE page_id = CAST(SUBSTR(sh.name, 2, INSTR(sh.name, ',') - 2) AS INTEGER) AND text_id = CAST(SUBSTR(sh.name, INSTR(sh.name, ',') + 1, LENGTH(sh.name) - INSTR(sh.name, ',') - 1) AS INTEGER)), sc.name, sh.code) "
+    f"CASE WHEN sh.name LIKE '{{%,%}}' THEN "
+    f"  COALESCE({localized_text_sql('sh.name')}, sc.name, sh.code) "
     "ELSE COALESCE(sh.name, sc.name, sh.code) END AS location_ship_name, "
     "sh.code AS location_ship_code, "
     "json_extract(sh.extra_json, '$.current_order') AS location_ship_command, "
@@ -64,7 +65,7 @@ _NPC_JOINED_COLS = (
     "sh.macro AS ship_macro, "
     "sc.icon_path AS _ship_icon_path, "
     "COALESCE("
-    "  CASE WHEN st.name LIKE '{%,%}' THEN (SELECT text FROM s.texts WHERE page_id = CAST(SUBSTR(st.name, 2, INSTR(st.name, ',') - 2) AS INTEGER) AND text_id = CAST(SUBSTR(st.name, INSTR(st.name, ',') + 1, LENGTH(st.name) - INSTR(st.name, ',') - 1) AS INTEGER)) ELSE st.name END, "
+    f"  CASE WHEN st.name LIKE '{{%,%}}' THEN {localized_text_sql('st.name')} ELSE st.name END, "
     "  st.code, "
     "  CASE WHEN json_extract(npc.extra_json, '$.is_buildstorage') = 1 THEN 'Build Storage' ELSE NULL END"
     ") AS location_station_name, "
@@ -93,10 +94,7 @@ def list_npcs(
     limit: Annotated[int, Query(ge=1, le=5000, description="Max entries")] = 500,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> list[NPCEntry]:
-    has_npc = bool(
-        conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='npc'").fetchone()
-    )
-    if not has_npc:
+    if not table_exists(conn, "npc"):
         return []
 
     where = []

@@ -4,8 +4,9 @@
 import sqlite3
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 
+from x4_api.api.db_utils import fetch_one_or_404
 from x4_api.api.deps import get_db
 from x4_api.api.icons import get_icon_url
 from x4_api.api.schemas import PublicModel
@@ -70,17 +71,12 @@ def list_races(
     rows = conn.execute(
         f"SELECT {_LIST_COLS} FROM s.races ORDER BY race_id"
     ).fetchall()
-    return [
-        RaceSummary(
-            race_id=r["race_id"],
-            name=r["name"],
-            description=r["description"],
-            shortname=r["shortname"],
-            tags=r["tags"],
-            icon_url=get_icon_url(r["icon_active"]),
-        )
-        for r in rows
-    ]
+    result = []
+    for r in rows:
+        d = dict(r)
+        d["icon_url"] = get_icon_url(d.pop("icon_active"))
+        result.append(RaceSummary(**d))
+    return result
 
 
 @router.get("/races/{race_id}", response_model=RaceDetail)
@@ -88,12 +84,12 @@ def get_race(
     race_id: str,
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
 ) -> RaceDetail:
-    row = conn.execute(
+    row = fetch_one_or_404(
+        conn,
         f"SELECT {_DETAIL_COLS} FROM s.races WHERE race_id = :id",
         {"id": race_id},
-    ).fetchone()
-    if row is None:
-        raise HTTPException(status_code=404, detail=f"Unknown race_id: {race_id}")
+        f"Unknown race_id: {race_id}",
+    )
     d = dict(row)
     d["icon_url"] = get_icon_url(d.pop("icon_active"))
     return RaceDetail(**d)

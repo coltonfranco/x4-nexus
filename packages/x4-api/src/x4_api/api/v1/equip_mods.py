@@ -4,8 +4,9 @@
 import sqlite3
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 
+from x4_api.api.db_utils import fetch_one_or_404
 from x4_api.api.deps import get_db
 from x4_api.api.schemas import PublicModel
 
@@ -65,12 +66,12 @@ def get_equip_mod(
     ware_id: str,
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
 ) -> EquipModDetail:
-    row = conn.execute(
+    row = fetch_one_or_404(
+        conn,
         "SELECT ware_id, name, shortname, description, category, stat, quality, "
         "min_factor, max_factor, price_min, price_avg, price_max, production_time "
         "FROM s.equip_mods WHERE ware_id = :id",
         {"id": ware_id},
-    ).fetchone()
-    if row is None:
-        raise HTTPException(status_code=404, detail=f"Unknown ware_id: {ware_id}")
+        f"Unknown ware_id: {ware_id}",
+    )
     return EquipModDetail(**dict(row))

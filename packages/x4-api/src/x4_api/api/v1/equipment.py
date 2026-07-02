@@ -150,6 +150,45 @@ def _load_stat_tables(
     return engines, shields, weapons, bullets
 
 
+def _bullet_stats(bullet: sqlite3.Row | None) -> dict:
+    """The 22 WeaponStats fields resolved from a bullet row (all None if there's no bullet)."""
+    if bullet is None:
+        return dict.fromkeys(
+            (
+                "damage", "shield_damage", "hull_damage", "shield_disruption",
+                "reload_rate", "reload_time", "bullet_speed", "bullet_lifetime",
+                "bullet_amount", "bullet_barrel", "bullet_angle", "bullet_maxhits",
+                "bullet_range", "heat_value", "explosion_hull", "explosion_shield",
+                "ammo_value", "ammo_reload", "missile_lifetime", "missile_range",
+                "area_damage", "area_lifetime",
+            )
+        )
+    return {
+        "damage": bullet["damage"],
+        "shield_damage": bullet["shield_damage"],
+        "hull_damage": bullet["hull_damage"],
+        "shield_disruption": bullet["shield_disruption"],
+        "reload_rate": bullet["reload_rate"],
+        "reload_time": bullet["reload_time"],
+        "bullet_speed": bullet["speed"],
+        "bullet_lifetime": bullet["lifetime"],
+        "bullet_amount": bullet["amount"],
+        "bullet_barrel": bullet["barrelamount"],
+        "bullet_angle": bullet["angle"],
+        "bullet_maxhits": bullet["maxhits"],
+        "bullet_range": bullet["range_direct"],
+        "heat_value": bullet["heat_value"],
+        "explosion_hull": bullet["explosion_hull"],
+        "explosion_shield": bullet["explosion_shield"],
+        "ammo_value": bullet["ammo_value"],
+        "ammo_reload": bullet["ammo_reload"],
+        "missile_lifetime": bullet["missile_lifetime"],
+        "missile_range": bullet["missile_range"],
+        "area_damage": bullet["area_damage"],
+        "area_lifetime": bullet["area_lifetime"],
+    }
+
+
 def _weapon_stats(row: sqlite3.Row, bullets: dict[str, sqlite3.Row]) -> WeaponStats:
     bullet = bullets.get(row["default_bullet_id"]) if row["default_bullet_id"] else None
     return WeaponStats(
@@ -159,28 +198,7 @@ def _weapon_stats(row: sqlite3.Row, bullets: dict[str, sqlite3.Row]) -> WeaponSt
         rotation_speed=row["rotation_speed"],
         heat_overheat=row["heat_overheat"],
         heat_coolrate=row["heat_coolrate"],
-        damage=bullet["damage"] if bullet else None,
-        shield_damage=bullet["shield_damage"] if bullet else None,
-        hull_damage=bullet["hull_damage"] if bullet else None,
-        shield_disruption=bullet["shield_disruption"] if bullet else None,
-        reload_rate=bullet["reload_rate"] if bullet else None,
-        reload_time=bullet["reload_time"] if bullet else None,
-        bullet_speed=bullet["speed"] if bullet else None,
-        bullet_lifetime=bullet["lifetime"] if bullet else None,
-        bullet_amount=bullet["amount"] if bullet else None,
-        bullet_barrel=bullet["barrelamount"] if bullet else None,
-        bullet_angle=bullet["angle"] if bullet else None,
-        bullet_maxhits=bullet["maxhits"] if bullet else None,
-        bullet_range=bullet["range_direct"] if bullet else None,
-        heat_value=bullet["heat_value"] if bullet else None,
-        explosion_hull=bullet["explosion_hull"] if bullet else None,
-        explosion_shield=bullet["explosion_shield"] if bullet else None,
-        ammo_value=bullet["ammo_value"] if bullet else None,
-        ammo_reload=bullet["ammo_reload"] if bullet else None,
-        missile_lifetime=bullet["missile_lifetime"] if bullet else None,
-        missile_range=bullet["missile_range"] if bullet else None,
-        area_damage=bullet["area_damage"] if bullet else None,
-        area_lifetime=bullet["area_lifetime"] if bullet else None,
+        **_bullet_stats(bullet),
     )
 
 
@@ -232,28 +250,7 @@ def _build_item(
             rotation_speed=None,
             heat_overheat=None,
             heat_coolrate=None,
-            damage=b["damage"],
-            shield_damage=b["shield_damage"],
-            hull_damage=b["hull_damage"],
-            shield_disruption=b["shield_disruption"],
-            reload_rate=b["reload_rate"],
-            reload_time=b["reload_time"],
-            bullet_speed=b["speed"],
-            bullet_lifetime=b["lifetime"],
-            bullet_amount=b["amount"],
-            bullet_barrel=b["barrelamount"],
-            bullet_angle=b["angle"],
-            bullet_maxhits=b["maxhits"],
-            bullet_range=b["range_direct"],
-            heat_value=b["heat_value"],
-            explosion_hull=b["explosion_hull"],
-            explosion_shield=b["explosion_shield"],
-            ammo_value=b["ammo_value"],
-            ammo_reload=b["ammo_reload"],
-            missile_lifetime=b["missile_lifetime"],
-            missile_range=b["missile_range"],
-            area_damage=b["area_damage"],
-            area_lifetime=b["area_lifetime"],
+            **_bullet_stats(b),
         )
 
     return EquipmentItem(

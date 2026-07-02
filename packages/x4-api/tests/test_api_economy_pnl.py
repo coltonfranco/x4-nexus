@@ -6,13 +6,10 @@ ware catalog, then exercises the endpoints end-to-end through the API client.
 
 from __future__ import annotations
 
-from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
-from x4_api.api.app import app as app_factory
-from x4_api.api.deps import get_settings
 from x4_api.config import Settings
 from x4_extract.db import open_db
 from x4_extract.dynamic.catalog import ensure_active_dynamic_db
@@ -27,16 +24,6 @@ N_SHIP = "[0xN2]"
 @pytest.fixture
 def settings(data_dir: Path) -> Settings:
     return Settings(install_path=Path("C:/fake/x4"), data_dir=data_dir)
-
-
-@pytest.fixture
-def client(settings: Settings) -> Iterator[TestClient]:
-    fast_app = app_factory()
-    fast_app.dependency_overrides[get_settings] = lambda: settings
-    try:
-        yield TestClient(fast_app)
-    finally:
-        fast_app.dependency_overrides.clear()
 
 
 def _seed(settings: Settings) -> None:

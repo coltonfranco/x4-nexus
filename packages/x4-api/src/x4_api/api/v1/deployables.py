@@ -6,6 +6,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
 
+from x4_api.api.db_utils import table_exists
 from x4_api.api.deps import get_db
 from x4_api.api.schemas import PublicModel
 
@@ -32,12 +33,7 @@ def list_deployables(
     limit: Annotated[int, Query(ge=1, le=5000)] = 500,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> list[DeployableEntry]:
-    has_table = bool(
-        conn.execute(
-            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='deployables'"
-        ).fetchone()
-    )
-    if not has_table:
+    if not table_exists(conn, "deployables"):
         return []
 
     where = []

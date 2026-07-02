@@ -4,8 +4,9 @@
 import sqlite3
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 
+from x4_api.api.db_utils import fetch_one_or_404
 from x4_api.api.deps import get_db
 from x4_api.api.schemas import PublicModel
 
@@ -101,13 +102,13 @@ def get_terraform_project(
     project_id: str,
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
 ) -> TerraformProjectDetail:
-    row = conn.execute(
+    row = fetch_one_or_404(
+        conn,
         "SELECT project_id, group_id, name, description, duration, repeat_cooldown, resilient, resource_credits "
         "FROM s.terraform_projects WHERE project_id = :id",
         {"id": project_id},
-    ).fetchone()
-    if row is None:
-        raise HTTPException(status_code=404, detail=f"Unknown project_id: {project_id}")
+        f"Unknown project_id: {project_id}",
+    )
 
     effects = conn.execute(
         "SELECT stat, change, min_val FROM s.terraform_project_effects WHERE project_id = :id ORDER BY stat",

@@ -4,8 +4,9 @@
 import sqlite3
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 
+from x4_api.api.db_utils import fetch_one_or_404
 from x4_api.api.deps import get_db
 from x4_api.api.schemas import PublicModel
 
@@ -87,14 +88,14 @@ def get_diplo_action(
     action_id: str,
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
 ) -> DiploAction:
-    row = conn.execute(
+    row = fetch_one_or_404(
+        conn,
         """SELECT action_id, category, name, description, hidden, cost_influence, cost_money,
                   success_chance, duration_sec, cooldown_sec, agent_type, agent_experience, risk
            FROM s.diplo_actions WHERE action_id = :id""",
         {"id": action_id},
-    ).fetchone()
-    if row is None:
-        raise HTTPException(status_code=404, detail=f"Unknown action_id: {action_id}")
+        f"Unknown action_id: {action_id}",
+    )
     bribe_rows = conn.execute(
         "SELECT ware_id, ware_tags, amount FROM s.diplo_action_bribe_wares WHERE action_id = :id",
         {"id": action_id},

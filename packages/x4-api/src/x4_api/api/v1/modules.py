@@ -4,8 +4,9 @@
 import sqlite3
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 
+from x4_api.api.db_utils import fetch_one_or_404
 from x4_api.api.deps import get_db
 from x4_api.api.schemas import PublicModel
 
@@ -244,12 +245,12 @@ def get_module(
     module_id: str,
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
 ) -> ModuleDetail:
-    row = conn.execute(
+    row = fetch_one_or_404(
+        conn,
         f"SELECT {_DETAIL_COLS} {_MODULES_FROM} WHERE m.module_id = :id",
         {"id": module_id},
-    ).fetchone()
-    if row is None:
-        raise HTTPException(status_code=404, detail=f"Unknown module_id: {module_id}")
+        f"Unknown module_id: {module_id}",
+    )
     return _row_to_detail(row, conn)
 
 

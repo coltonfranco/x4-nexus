@@ -4,8 +4,9 @@
 import sqlite3
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 
+from x4_api.api.db_utils import fetch_one_or_404, table_exists
 from x4_api.api.deps import get_db
 from x4_api.api.faction_utils import disambiguate
 from x4_api.api.icons import get_icon_url
@@ -256,10 +257,7 @@ def list_known_factions(
     }
     known: set[str] = {"player"}
 
-    has_live = bool(conn.execute(
-        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='faction_relations_current'"
-    ).fetchone())
-    if has_live:
+    if table_exists(conn, "faction_relations_current"):
         known.update(
             r["other_faction_id"]
             for r in conn.execute(
@@ -267,9 +265,7 @@ def list_known_factions(
             ).fetchall()
         )
 
-    has_stations = bool(conn.execute(
-        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='stations'"
-    ).fetchone())
+    has_stations = table_exists(conn, "stations")
     if has_stations:
         known.update(
             r["owner_faction"]
@@ -278,10 +274,7 @@ def list_known_factions(
             ).fetchall()
         )
 
-    has_ss = bool(conn.execute(
-        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='sector_state'"
-    ).fetchone())
-    if has_ss and has_stations:
+    if table_exists(conn, "sector_state") and has_stations:
         known.update(
             r["owner_faction"]
             for r in conn.execute(
@@ -300,16 +293,16 @@ def get_faction(
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
 ) -> FactionDetail:
     """Get detailed information for a specific faction."""
-    row = conn.execute(
+    row = fetch_one_or_404(
+        conn,
         "SELECT faction_id, name, color_hex, primary_race, short_name, prefix_name, "
         "space_name, home_space_name, police_faction, icon_active, icon_inactive, icon_banner, "
         "description, behaviour_set, tags "
         "FROM s.factions WHERE faction_id = :id",
         {"id": faction_id},
-    ).fetchone()
-    if row is None:
-        raise HTTPException(status_code=404, detail=f"Unknown faction_id: {faction_id}")
-    
+        f"Unknown faction_id: {faction_id}",
+    )
+
     d = dict(row)
     # Disambiguate if this faction's name collides with others
     (same_name_count,) = conn.execute(
@@ -327,9 +320,12 @@ def list_faction_relations(
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
 ) -> list[FactionRelation]:
     """Diplomatic relations for a faction from the active save. Returns [] until a save is ingested."""
-    row = conn.execute("SELECT 1 FROM s.factions WHERE faction_id = :id", {"id": faction_id}).fetchone()
-    if row is None:
-        raise HTTPException(status_code=404, detail=f"Unknown faction_id: {faction_id}")
+    fetch_one_or_404(
+        conn,
+        "SELECT 1 FROM s.factions WHERE faction_id = :id",
+        {"id": faction_id},
+        f"Unknown faction_id: {faction_id}",
+    )
     rows = conn.execute(
         "SELECT c.other_faction_id, c.relation AS initial_relation, c.relation AS current_relation "
         "FROM faction_relations_current c "

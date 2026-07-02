@@ -17,6 +17,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
+from x4_api.api.db_utils import fetch_one_or_404, table_exists
 from x4_api.api.deps import get_db
 from x4_api.api.icons import get_ware_icon_url
 from x4_api.api.schemas import PublicModel
@@ -107,12 +108,7 @@ def _market_price_sql(conn: sqlite3.Connection) -> tuple[str, bool]:
     live economy.  When no save is active (or the table doesn't exist yet) the static
     reference prices are used as-is.
     """
-    has_offers = bool(
-        conn.execute(
-            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='station_offers'"
-        ).fetchone()
-    )
-    if not has_offers:
+    if not table_exists(conn, "station_offers"):
         return (
             "w.price_min, w.price_avg, w.price_max, "
             "NULL AS market_min, NULL AS market_avg, NULL AS market_max, "
@@ -143,6 +139,16 @@ def _market_join_sql() -> str:
         "  GROUP BY ware_id"
         ") m ON w.ware_id = m.ware_id"
     )
+
+
+def _ware_fields(r: sqlite3.Row) -> dict:
+    """Common WareSummary/WareDetail field prep shared by list_wares and get_ware."""
+    d = dict(r)
+    icon_path = d.pop("icon_path", None)
+    d["icon_url"] = get_ware_icon_url(d["ware_id"], icon_path, d.get("tags"))
+    d["has_production"] = bool(d["has_production"])
+    d["has_drops"] = bool(d["has_drops"])
+    return d
 
 
 @router.get("/wares", response_model=list[WareSummary])
@@ -188,36 +194,7 @@ def list_wares(
     sql.append("ORDER BY w.ware_id LIMIT :limit OFFSET :offset")
 
     rows = conn.execute(" ".join(sql), params).fetchall()
-    return [
-        WareSummary(
-            ware_id=r["ware_id"],
-            name=r["name"],
-            shortname=r["shortname"],
-            description=r["description"],
-            group_id=r["group_id"],
-            category=r["category"],
-            transport=r["transport"],
-            volume=r["volume"],
-            price_min=r["price_min"],
-            price_avg=r["price_avg"],
-            price_max=r["price_max"],
-            market_min=r["market_min"],
-            market_avg=r["market_avg"],
-            market_max=r["market_max"],
-            sell_qty=r["sell_qty"],
-            buy_qty=r["buy_qty"],
-            net_demand=r["net_demand"],
-            tags=r["tags"],
-            icon_url=get_ware_icon_url(r["ware_id"], r["icon_path"], r["tags"]),
-            sortorder=r["sortorder"],
-            dismantlefactor=r["dismantlefactor"],
-            research_time=r["research_time"],
-            has_production=bool(r["has_production"]),
-            has_drops=bool(r["has_drops"]),
-            tier=r["tier"],
-        )
-        for r in rows
-    ]
+    return [WareSummary(**_ware_fields(r)) for r in rows]
 
 
 @router.get("/wares/{ware_id}", response_model=WareDetail)
@@ -228,7 +205,8 @@ def get_ware(
     price_sql, has_live = _market_price_sql(conn)
     join_clause = _market_join_sql() if has_live else ""
 
-    row = conn.execute(
+    row = fetch_one_or_404(
+        conn,
         f"""
         SELECT w.ware_id, w.name, w.shortname, w.description, w.group_id,
                ({_CAT_SQL}) AS category, w.transport, w.volume,
@@ -242,9 +220,8 @@ def get_ware(
         WHERE w.ware_id = :id
         """,
         {"id": ware_id},
-    ).fetchone()
-    if row is None:
-        raise HTTPException(status_code=404, detail=f"Unknown ware_id: {ware_id}")
+        f"Unknown ware_id: {ware_id}",
+    )
 
     owner_rows = conn.execute(
         "SELECT faction_id FROM s.ware_owners WHERE ware_id = :id ORDER BY faction_id",
@@ -295,37 +272,10 @@ def get_ware(
         )
 
     return WareDetail(
-        ware_id=row["ware_id"],
-        name=row["name"],
-        shortname=row["shortname"],
-        description=row["description"],
-        group_id=row["group_id"],
-        category=row["category"],
-        transport=row["transport"],
-        volume=row["volume"],
-        price_min=row["price_min"],
-        price_avg=row["price_avg"],
-        price_max=row["price_max"],
-        market_min=row["market_min"],
-        market_avg=row["market_avg"],
-        market_max=row["market_max"],
-        sell_qty=row["sell_qty"],
-        buy_qty=row["buy_qty"],
-        net_demand=row["net_demand"],
-        storage_class=row["storage_class"],
-        tags=row["tags"],
-        restriction_licence=row["restriction_licence"],
-        use_threshold=row["use_threshold"],
+        **_ware_fields(row),
         owners=[r["faction_id"] for r in owner_rows],
         illegal_factions=[r["faction_id"] for r in illegal_rows],
         used_for=used_for_list,
-        icon_url=get_ware_icon_url(row["ware_id"], row["icon_path"], row["tags"]),
-        sortorder=row["sortorder"],
-        dismantlefactor=row["dismantlefactor"],
-        research_time=row["research_time"],
-        has_production=bool(row["has_production"]),
-        has_drops=bool(row["has_drops"]),
-        tier=row["tier"],
         exclusive_race=exclusive_race,
         production=[
             ProductionMethod(

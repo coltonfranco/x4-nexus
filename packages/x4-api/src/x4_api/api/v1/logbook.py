@@ -15,6 +15,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query
 from x4_extract.i18n import Localizer
 
+from x4_api.api.db_utils import table_exists
 from x4_api.api.deps import get_db, get_settings
 from x4_api.api.schemas import PublicModel
 from x4_api.config import Settings
@@ -159,12 +160,7 @@ def list_logbook(
 ) -> LogbookPage:
     """Player logbook entries, newest first, with total count for pagination.
     Faction references like {20203,3001} are resolved to readable names."""
-    has_logbook = bool(
-        conn.execute(
-            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='logbook'"
-        ).fetchone()
-    )
-    if not has_logbook:
+    if not table_exists(conn, "logbook"):
         return LogbookPage(entries=[], total=0)
 
     localizer = _cached_localizer(str(settings.data_dir))

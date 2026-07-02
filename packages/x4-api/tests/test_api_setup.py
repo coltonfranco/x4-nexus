@@ -3,14 +3,11 @@
 from __future__ import annotations
 
 import sqlite3
-from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 from x4_api import appdata
-from x4_api.api.app import app as app_factory
-from x4_api.api.deps import get_settings
 from x4_api.config import Settings
 
 
@@ -26,16 +23,6 @@ def isolated_appdata(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 @pytest.fixture
 def settings(data_dir: Path) -> Settings:
     return Settings(install_path=None, data_dir=data_dir, save_path=None)
-
-
-@pytest.fixture
-def client(settings: Settings) -> Iterator[TestClient]:
-    fast_app = app_factory()
-    fast_app.dependency_overrides[get_settings] = lambda: settings
-    try:
-        yield TestClient(fast_app)
-    finally:
-        fast_app.dependency_overrides.clear()
 
 
 def _populate_static(data_dir: Path) -> None:

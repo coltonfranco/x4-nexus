@@ -10,7 +10,6 @@ import os
 import shutil
 import sqlite3
 import time
-from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -21,7 +20,7 @@ from x4_api.config import Settings
 
 
 @pytest.fixture
-def client(data_dir: Path, fixtures_dir: Path) -> Iterator[TestClient]:
+def settings(data_dir: Path, fixtures_dir: Path) -> Settings:
     folder = data_dir / "saves"
     folder.mkdir()
     save = folder / "save_001.xml.gz"
@@ -31,13 +30,7 @@ def client(data_dir: Path, fixtures_dir: Path) -> Iterator[TestClient]:
     past = time.time() - 30
     os.utime(save, (past, past))
 
-    settings = Settings(install_path=Path("C:/fake/x4"), data_dir=data_dir, save_path=folder)
-    fast_app = app_factory()
-    fast_app.dependency_overrides[get_settings] = lambda: settings
-    try:
-        yield TestClient(fast_app)
-    finally:
-        fast_app.dependency_overrides.clear()
+    return Settings(install_path=Path("C:/fake/x4"), data_dir=data_dir, save_path=folder)
 
 
 def _activate(client: TestClient) -> None:

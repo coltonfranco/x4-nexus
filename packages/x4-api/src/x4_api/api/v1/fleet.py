@@ -11,6 +11,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
 
+from x4_api.api.db_utils import localized_text_sql
 from x4_api.api.deps import get_db
 from x4_api.api.schemas import PublicModel
 
@@ -48,8 +49,8 @@ def list_fleet(
     # LEFT JOIN the static ship catalog (by macro) for role/type/name/cargo.
     sql = [
         "SELECT sh.ship_id, sh.code, "
-        "CASE WHEN sh.name LIKE '{%,%}' THEN "
-        "  COALESCE((SELECT text FROM s.texts WHERE page_id = CAST(SUBSTR(sh.name, 2, INSTR(sh.name, ',') - 2) AS INTEGER) AND text_id = CAST(SUBSTR(sh.name, INSTR(sh.name, ',') + 1, LENGTH(sh.name) - INSTR(sh.name, ',') - 1) AS INTEGER)), sh.name) "
+        f"CASE WHEN sh.name LIKE '{{%,%}}' THEN "
+        f"  COALESCE({localized_text_sql('sh.name')}, sh.name) "
         "ELSE sh.name END AS name, "
         "sh.macro, sh.owner_faction, sh.class_id, "
         "sh.sector_id, sh.state, sh.level, sh.thruster, sh.is_player_owned, "

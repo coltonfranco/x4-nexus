@@ -7,8 +7,6 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
-from x4_api.api.app import app as app_factory
-from x4_api.api.deps import get_settings
 from x4_api.config import Settings
 from x4_extract.static import factions
 
@@ -35,17 +33,8 @@ TINY_COLORS_XML = b"""<?xml version="1.0" encoding="utf-8"?>
 
 
 @pytest.fixture
-def client(data_dir: Path) -> TestClient:
-    fast_app = app_factory()
-    test_settings = Settings(
-        install_path=Path("C:/fake/x4"),
-        data_dir=data_dir,
-    )
-    fast_app.dependency_overrides[get_settings] = lambda: test_settings
-    try:
-        yield TestClient(fast_app)
-    finally:
-        fast_app.dependency_overrides.clear()
+def settings(data_dir: Path) -> Settings:
+    return Settings(install_path=Path("C:/fake/x4"), data_dir=data_dir)
 
 
 def test_list_factions_returns_all_factions(client: TestClient, static_conn: sqlite3.Connection) -> None:

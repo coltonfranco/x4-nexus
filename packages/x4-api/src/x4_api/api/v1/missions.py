@@ -235,6 +235,88 @@ def _resolve_group_names(
     return {r[0]: {"name": r[1], "is_story": bool(r[2])} for r in rows}
 
 
+# Column name → extra_json key for fields that have both a dedicated column (new DBs)
+# and an extra_json fallback (existing DBs ingested before the column existed).
+_ENRICHMENT_KEYS = (
+    ("rewardtext", "rewardtext"),
+    ("reward_credits", "reward_credits"),
+    ("opposing_faction", "opposing_faction"),
+    ("caption", "caption"),
+    ("icon", "icon"),
+    ("time", "time"),
+)
+
+
+def _merge_enrichment(d: dict, enrichment: dict) -> None:
+    """Prefer `d`'s dedicated columns over `enrichment`'s extra_json fallbacks.
+
+    Mutates both in place: `enrichment` ends up holding the resolved value for each
+    key in `_ENRICHMENT_KEYS` (used later as explicit `Mission(...)` kwargs), and
+    those same keys are popped off `d` so it can be spread with `**d` without
+    duplicate-kwarg errors. `group_id`/`is_story` are folded directly into `d`
+    instead, since they pass through `**d` rather than as explicit kwargs.
+    """
+    for key, ej_key in _ENRICHMENT_KEYS:
+        if d.get(key) is not None:
+            enrichment[key] = d[key]
+        elif enrichment.get(ej_key) is not None:
+            enrichment[key] = enrichment[ej_key]
+    if not d.get("group_id") and enrichment.get("group_id"):
+        d["group_id"] = enrichment["group_id"]
+    if not d.get("is_story") and enrichment.get("is_story"):
+        d["is_story"] = int(enrichment["is_story"])
+    for key, _ in _ENRICHMENT_KEYS:
+        d.pop(key, None)
+
+
+def _resolve_associated_entity(
+    d: dict, resolved: dict[str, dict], positions: dict[str, dict]
+) -> tuple[dict | None, dict | None]:
+    """Look up a mission's `associated_entity` in the batch-resolved maps."""
+    ae_ref = d.get("associated_entity")
+    ae_info = resolved.get(ae_ref) if ae_ref else None
+    ae_pos = positions.get(ae_ref) if ae_ref else None
+    return ae_info, ae_pos
+
+
+def _hydrate_objectives(
+    raw_objectives: list[MissionObjective],
+    resolved: dict[str, dict],
+    positions: dict[str, dict],
+) -> list[MissionObjective]:
+    """Fill in target name/position on each objective from batch-resolved maps."""
+    hydrated: list[MissionObjective] = []
+    for obj in raw_objectives:
+        tgt_name: str | None = None
+        tgt_pos: dict | None = None
+        if obj.target_id:
+            rhs = resolved.get(obj.target_id)
+            if rhs:
+                tgt_name = rhs["name"]
+            tgt_pos = positions.get(obj.target_id)
+        hydrated.append(
+            MissionObjective(
+                step=obj.step,
+                type=obj.type,
+                text=obj.text,
+                is_active=obj.is_active,
+                target_id=obj.target_id,
+                target_name=tgt_name,
+                target_sector_id=tgt_pos["sector_id"] if tgt_pos else None,
+                target_zone_id=tgt_pos["zone_id"] if tgt_pos else None,
+                target_x=tgt_pos["x"] if tgt_pos else None,
+                target_y=tgt_pos["y"] if tgt_pos else None,
+                target_z=tgt_pos["z"] if tgt_pos else None,
+                progress_current=obj.progress_current,
+                progress_max=obj.progress_max,
+                progress_name=obj.progress_name,
+                encyclopedia_type=obj.encyclopedia_type,
+                encyclopedia_item=obj.encyclopedia_item,
+            )
+        )
+    return hydrated
+
+
 def _resolve_entity_positions(
     conn: sqlite3.Connection, entity_ids: set[str]
 ) -> dict[str, dict[str, str | float | None]]:
@@ -366,68 +448,12 @@ def list_missions(
         d = dict(r)
         extra_json = d.pop("extra_json", None)
         enrichment = _parse_extra(extra_json)
+        _merge_enrichment(d, enrichment)
 
-        # Use dedicated columns, falling back to extra_json for existing DBs.
-        # Put column-first values into enrichment so the explicit kwargs below pick them up.
-        for key, ej_key in [
-            ("rewardtext", "rewardtext"),
-            ("reward_credits", "reward_credits"),
-            ("opposing_faction", "opposing_faction"),
-            ("caption", "caption"),
-            ("icon", "icon"),
-            ("time", "time"),
-        ]:
-            if d.get(key) is not None:
-                enrichment[key] = d[key]
-            elif enrichment.get(ej_key) is not None:
-                enrichment[key] = enrichment[ej_key]
-        # group_id and is_story go through **d (not explicit kwargs)
-        if not d.get("group_id") and enrichment.get("group_id"):
-            d["group_id"] = enrichment["group_id"]
-        if not d.get("is_story") and enrichment.get("is_story"):
-            d["is_story"] = int(enrichment["is_story"])
+        ae_info, ae_pos = _resolve_associated_entity(d, resolved, positions)
 
-        # Resolve associated entity.
-        ae_ref = d.get("associated_entity")
-        ae_info = resolved.get(ae_ref) if ae_ref else None
-        ae_pos = positions.get(ae_ref) if ae_ref else None
-
-        # Fill in target names on objectives.
         raw_objectives = objectives_by_mission.get(d["mission_id"], [])
-        mission_objectives: list[MissionObjective] = []
-        for obj in raw_objectives:
-            tgt_name: str | None = None
-            tgt_pos: dict | None = None
-            if obj.target_id:
-                rhs = resolved.get(obj.target_id)
-                if rhs:
-                    tgt_name = rhs["name"]
-                tgt_pos = positions.get(obj.target_id)
-            mission_objectives.append(
-                MissionObjective(
-                    step=obj.step,
-                    type=obj.type,
-                    text=obj.text,
-                    is_active=obj.is_active,
-                    target_id=obj.target_id,
-                    target_name=tgt_name,
-                    target_sector_id=tgt_pos["sector_id"] if tgt_pos else None,
-                    target_zone_id=tgt_pos["zone_id"] if tgt_pos else None,
-                    target_x=tgt_pos["x"] if tgt_pos else None,
-                    target_y=tgt_pos["y"] if tgt_pos else None,
-                    target_z=tgt_pos["z"] if tgt_pos else None,
-                    progress_current=obj.progress_current,
-                    progress_max=obj.progress_max,
-                    progress_name=obj.progress_name,
-                    encyclopedia_type=obj.encyclopedia_type,
-                    encyclopedia_item=obj.encyclopedia_item,
-                )
-            )
-
-        # Pop keys that we pass explicitly to avoid duplicate-kwarg errors
-        for pop_key in ("rewardtext", "reward_credits", "opposing_faction",
-                        "caption", "icon", "time"):
-            d.pop(pop_key, None)
+        mission_objectives = _hydrate_objectives(raw_objectives, resolved, positions)
 
         result.append(Mission(
             **d,
@@ -569,23 +595,7 @@ def get_mission(
     d = dict(row)
     extra_json = d.pop("extra_json", None)
     enrichment = _parse_extra(extra_json)
-    # Use dedicated columns, falling back to extra_json for existing DBs
-    for key, ej_key in [
-        ("rewardtext", "rewardtext"),
-        ("reward_credits", "reward_credits"),
-        ("opposing_faction", "opposing_faction"),
-        ("caption", "caption"),
-        ("icon", "icon"),
-        ("time", "time"),
-    ]:
-        if d.get(key) is not None:
-            enrichment[key] = d[key]
-        elif enrichment.get(ej_key) is not None:
-            enrichment[key] = enrichment[ej_key]
-    if not d.get("group_id") and enrichment.get("group_id"):
-        d["group_id"] = enrichment["group_id"]
-    if not d.get("is_story") and enrichment.get("is_story"):
-        d["is_story"] = int(enrichment["is_story"])
+    _merge_enrichment(d, enrichment)
 
     objectives = _load_objectives(conn, [mission_id])
 
@@ -603,45 +613,8 @@ def get_mission(
     gid = d.get("group_id")
     group_names = _resolve_group_names(conn, {gid}) if gid else {}
 
-    # Fill in target names and positions on objectives.
-    final_objectives: list[MissionObjective] = []
-    for obj in objectives.get(mission_id, []):
-        tgt_name: str | None = None
-        tgt_pos: dict | None = None
-        if obj.target_id:
-            rhs = resolved.get(obj.target_id)
-            if rhs:
-                tgt_name = rhs["name"]
-            tgt_pos = positions.get(obj.target_id)
-        final_objectives.append(
-            MissionObjective(
-                step=obj.step,
-                type=obj.type,
-                text=obj.text,
-                is_active=obj.is_active,
-                target_id=obj.target_id,
-                target_name=tgt_name,
-                target_sector_id=tgt_pos["sector_id"] if tgt_pos else None,
-                target_zone_id=tgt_pos["zone_id"] if tgt_pos else None,
-                target_x=tgt_pos["x"] if tgt_pos else None,
-                target_y=tgt_pos["y"] if tgt_pos else None,
-                target_z=tgt_pos["z"] if tgt_pos else None,
-                progress_current=obj.progress_current,
-                progress_max=obj.progress_max,
-                progress_name=obj.progress_name,
-                encyclopedia_type=obj.encyclopedia_type,
-                encyclopedia_item=obj.encyclopedia_item,
-            )
-        )
-
-    ae_ref = d.get("associated_entity")
-    ae_info = resolved.get(ae_ref) if ae_ref else None
-    ae_pos = positions.get(ae_ref) if ae_ref else None
-
-    # Pop keys that we pass explicitly to avoid duplicate-kwarg errors
-    for pop_key in ("rewardtext", "reward_credits", "opposing_faction",
-                    "caption", "icon", "time"):
-        d.pop(pop_key, None)
+    final_objectives = _hydrate_objectives(objectives.get(mission_id, []), resolved, positions)
+    ae_info, ae_pos = _resolve_associated_entity(d, resolved, positions)
 
     return Mission(
         **d,

@@ -8,8 +8,9 @@ empty: the account endpoint 404s, the list endpoints return [].
 import sqlite3
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 
+from x4_api.api.db_utils import fetch_one_or_404, table_exists
 from x4_api.api.deps import get_db
 from x4_api.api.faction_utils import disambiguate
 from x4_api.api.schemas import PublicModel
@@ -57,16 +58,17 @@ def get_player(conn: Annotated[sqlite3.Connection, Depends(get_db)]) -> PlayerAc
 
     Joins the player's current ship to resolve live position (sector/zone).
     """
-    row = conn.execute(
+    row = fetch_one_or_404(
+        conn,
         "SELECT p.player_id, p.name, p.credits, p.hq_station_id, "
         "COALESCE(sh.sector_id, p.current_sector) AS current_sector, "
         "p.current_ship_id, sh.sector_id, sh.zone_id "
         "FROM player p "
         "LEFT JOIN ships sh ON sh.ship_id = p.current_ship_id "
-        "WHERE p.id = 1"
-    ).fetchone()
-    if row is None:
-        raise HTTPException(status_code=404, detail="No player data — ingest a save first.")
+        "WHERE p.id = 1",
+        {},
+        "No player data — ingest a save first.",
+    )
     return PlayerAccount(**dict(row))
 
 
@@ -89,10 +91,7 @@ def list_licences(conn: Annotated[sqlite3.Connection, Depends(get_db)]) -> list[
 @router.get("/player/stats", response_model=list[PlayerStat])
 def player_stats(conn: Annotated[sqlite3.Connection, Depends(get_db)]) -> list[PlayerStat]:
     """Flat key-value player statistics from the save file."""
-    has_stats = bool(conn.execute(
-        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='player_stats'"
-    ).fetchone())
-    if not has_stats:
+    if not table_exists(conn, "player_stats"):
         return []
     rows = conn.execute("SELECT stat_id, value FROM player_stats ORDER BY stat_id").fetchall()
     return [

@@ -9,8 +9,9 @@ human-readable group metadata.
 import sqlite3
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 
+from x4_api.api.db_utils import fetch_one_or_404
 from x4_api.api.deps import get_db
 from x4_api.api.schemas import PublicModel
 
@@ -23,6 +24,9 @@ class MissionGroup(PublicModel):
     faction: str | None
     enemy: str | None
     is_story: bool
+
+
+_COLUMNS = "group_id, name, faction, enemy, is_story"
 
 
 @router.get("/mission-groups", response_model=list[MissionGroup])
@@ -41,7 +45,7 @@ def list_mission_groups(
         clauses.append("is_story = 1")
 
     rows = conn.execute(
-        f"""SELECT group_id, name, faction, enemy, is_story
+        f"""SELECT {_COLUMNS}
             FROM s.mission_groups
             WHERE {' AND '.join(clauses)}
             ORDER BY is_story DESC, group_id""",
@@ -55,11 +59,10 @@ def get_mission_group(
     group_id: str,
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
 ) -> MissionGroup:
-    row = conn.execute(
-        """SELECT group_id, name, faction, enemy, is_story
-           FROM s.mission_groups WHERE group_id = :id""",
+    row = fetch_one_or_404(
+        conn,
+        f"SELECT {_COLUMNS} FROM s.mission_groups WHERE group_id = :id",
         {"id": group_id},
-    ).fetchone()
-    if row is None:
-        raise HTTPException(status_code=404, detail=f"Unknown group_id: {group_id}")
+        f"Unknown group_id: {group_id}",
+    )
     return MissionGroup(**dict(row))

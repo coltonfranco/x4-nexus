@@ -4,8 +4,9 @@
 import sqlite3
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 
+from x4_api.api.db_utils import fetch_one_or_404
 from x4_api.api.deps import get_db
 from x4_api.api.schemas import PublicModel
 
@@ -65,12 +66,12 @@ def get_drop_list(
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
 ) -> DropListDetail:
     """Get a specific drop table with all its resolved ware entries."""
-    row = conn.execute(
+    row = fetch_one_or_404(
+        conn,
         "SELECT list_id, category FROM s.drop_lists WHERE list_id = :id",
         {"id": list_id},
-    ).fetchone()
-    if row is None:
-        raise HTTPException(status_code=404, detail=f"Unknown drop list: {list_id}")
+        f"Unknown drop list: {list_id}",
+    )
 
     ware_rows = conn.execute(
         """SELECT d.ware_id, w.name AS ware_name, d.spawn_chance, d.item_chance, d.min_amount, d.max_amount, d.source_basket

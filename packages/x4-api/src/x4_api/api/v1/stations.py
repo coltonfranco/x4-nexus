@@ -15,8 +15,9 @@ from static module recipes (see docs/save-structure.md).
 import sqlite3
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 
+from x4_api.api.db_utils import fetch_one_or_404
 from x4_api.api.deps import get_db
 from x4_api.api.schemas import PublicModel
 from x4_api.api.v1.map import _category_from_macro
@@ -161,14 +162,12 @@ def list_stations(
 
 
 def _require_station(conn: sqlite3.Connection, station_id: str) -> sqlite3.Row:
-    row = conn.execute(
-        "SELECT station_id, is_under_construction, build_pct FROM stations "
-        "WHERE station_id = :id",
+    return fetch_one_or_404(
+        conn,
+        "SELECT station_id, is_under_construction, build_pct FROM stations WHERE station_id = :id",
         {"id": station_id},
-    ).fetchone()
-    if row is None:
-        raise HTTPException(status_code=404, detail=f"Unknown station_id: {station_id}")
-    return row
+        f"Unknown station_id: {station_id}",
+    )
 
 
 @router.get("/stations/{station_id}/offers", response_model=list[StationOffer])

@@ -13,21 +13,12 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
-from x4_api.api.app import app as app_factory
-from x4_api.api.deps import get_settings
 from x4_api.config import Settings
 
 
 @pytest.fixture
-def client(data_dir: Path) -> TestClient:
-    fast_app = app_factory()
-    fast_app.dependency_overrides[get_settings] = lambda: Settings(
-        install_path=Path("C:/fake/x4"), data_dir=data_dir
-    )
-    try:
-        yield TestClient(fast_app)
-    finally:
-        fast_app.dependency_overrides.clear()
+def settings(data_dir: Path) -> Settings:
+    return Settings(install_path=Path("C:/fake/x4"), data_dir=data_dir)
 
 
 def _seed(conn: sqlite3.Connection) -> None:
