@@ -78,6 +78,7 @@ def _migrate_dynamic(conn: sqlite3.Connection) -> None:
     ).fetchall()
     if rows:
         import json
+
         updates = []
         for row in rows:
             # Prefer game_category from extra_json (set by new extractor),
@@ -107,7 +108,7 @@ def migrate_all(data_dir: Path) -> None:
 
 def is_dynamic_initialized(db_path: Path) -> bool:
     """Check if the dynamic schema has actually been applied (tables exist).
-    
+
     A bare `Path.exists()` check is vulnerable to race conditions because
     sqlite3 creates an empty file before `conn.executescript()` completes.
     """
@@ -116,7 +117,9 @@ def is_dynamic_initialized(db_path: Path) -> bool:
     try:
         with sqlite3.connect(f"file:{db_path}?mode=ro", uri=True) as conn:
             # Pick a table at the bottom of schema_dynamic.sql
-            row = conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='player'").fetchone()
+            row = conn.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='player'"
+            ).fetchone()
             return row is not None
     except sqlite3.OperationalError:
         return False

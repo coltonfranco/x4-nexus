@@ -72,9 +72,7 @@ def _init_classifier() -> None:
         return  # already initialised
     _RULES = _load_rules()
     _MATCHERS = _build_matchers(_RULES)
-    _NATIVE_FALLBACK = {
-        k.lower(): v for k, v in _RULES.get("native_fallback", {}).items()
-    }
+    _NATIVE_FALLBACK = {k.lower(): v for k, v in _RULES.get("native_fallback", {}).items()}
 
 
 def classify_entry(title: str, native_category: str | None) -> tuple[str, str]:

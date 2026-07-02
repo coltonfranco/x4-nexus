@@ -50,28 +50,32 @@ def extract(mods_bytes: bytes, wares_bytes: bytes) -> ExtractResult:
             min_raw = mod_el.get("min")
             max_raw = mod_el.get("max")
 
-            out.mods.append({
-                "ware_id": ware_id,
-                "name": info.get("name"),
-                "shortname": info.get("shortname"),
-                "description": info.get("description"),
-                "category": category,
-                "stat": stat,
-                "quality": quality,
-                "min_factor": float(min_raw) if min_raw else None,
-                "max_factor": float(max_raw) if max_raw else None,
-                "price_min": info.get("price_min"),
-                "price_avg": info.get("price_avg"),
-                "price_max": info.get("price_max"),
-                "production_time": info.get("production_time"),
-            })
+            out.mods.append(
+                {
+                    "ware_id": ware_id,
+                    "name": info.get("name"),
+                    "shortname": info.get("shortname"),
+                    "description": info.get("description"),
+                    "category": category,
+                    "stat": stat,
+                    "quality": quality,
+                    "min_factor": float(min_raw) if min_raw else None,
+                    "max_factor": float(max_raw) if max_raw else None,
+                    "price_min": info.get("price_min"),
+                    "price_avg": info.get("price_avg"),
+                    "price_max": info.get("price_max"),
+                    "production_time": info.get("production_time"),
+                }
+            )
 
             bonus_el = mod_el.find("bonus")
             if bonus_el is not None:
                 chance_raw = bonus_el.get("chance")
                 max_rolls_raw = bonus_el.get("max")
                 chance = float(chance_raw) if chance_raw else None
-                max_rolls = int(max_rolls_raw) if max_rolls_raw and max_rolls_raw.isdigit() else None
+                max_rolls = (
+                    int(max_rolls_raw) if max_rolls_raw and max_rolls_raw.isdigit() else None
+                )
 
                 for bonus_stat_el in bonus_el:
                     if callable(bonus_stat_el.tag):
@@ -80,15 +84,17 @@ def extract(mods_bytes: bytes, wares_bytes: bytes) -> ExtractResult:
                     b_min = bonus_stat_el.get("min")
                     b_max = bonus_stat_el.get("max")
                     b_weight = bonus_stat_el.get("weight")
-                    out.bonuses.append({
-                        "ware_id": ware_id,
-                        "stat": bonus_stat,
-                        "min_factor": float(b_min) if b_min else None,
-                        "max_factor": float(b_max) if b_max else None,
-                        "chance": chance,
-                        "max_rolls": max_rolls,
-                        "weight": int(b_weight) if b_weight and b_weight.isdigit() else None,
-                    })
+                    out.bonuses.append(
+                        {
+                            "ware_id": ware_id,
+                            "stat": bonus_stat,
+                            "min_factor": float(b_min) if b_min else None,
+                            "max_factor": float(b_max) if b_max else None,
+                            "chance": chance,
+                            "max_rolls": max_rolls,
+                            "weight": int(b_weight) if b_weight and b_weight.isdigit() else None,
+                        }
+                    )
 
     return out
 

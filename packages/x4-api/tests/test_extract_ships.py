@@ -46,6 +46,7 @@ TINY_SHIP_2_XML = b"""<?xml version="1.0" encoding="utf-8"?>
 </macros>
 """
 
+
 def mock_resolve(path: str) -> bytes:
     if path == "assets/units/size_s/ship_arg_s_fighter_01_a_macro.xml":
         return TINY_SHIP_1_XML
@@ -56,9 +57,9 @@ def mock_resolve(path: str) -> bytes:
 
 def test_extract_ships_pulls_basic_fields() -> None:
     result = ships.extract(TINY_MACROS_XML, mock_resolve, mock_resolve)
-    
+
     assert len(result.ships) == 2
-    
+
     s1 = next(s for s in result.ships if s["ship_id"] == "ship_arg_s_fighter_01_a_macro")
     assert s1["name"] == "Elite Vanguard"
     assert s1["class_id"] == "s"
@@ -67,7 +68,7 @@ def test_extract_ships_pulls_basic_fields() -> None:
     assert s1["hull"] == 1200
     assert s1["cargo_volume"] == 200
     assert s1["icon_path"] == "ship_s_fighter_01"
-    
+
     s2 = next(s for s in result.ships if s["ship_id"] == "units_size_l_miner_macro")
     assert s2["class_id"] == "l"
     assert s2["cargo_volume"] == 8000
@@ -79,4 +80,7 @@ def test_write_round_trips_through_static_db(static_conn: sqlite3.Connection) ->
     static_conn.commit()
 
     rows = static_conn.execute("SELECT name, class_id FROM ships ORDER BY name").fetchall()
-    assert [(r["name"], r["class_id"]) for r in rows] == [("Elite Vanguard", "s"), ("Magnetar", "l")]
+    assert [(r["name"], r["class_id"]) for r in rows] == [
+        ("Elite Vanguard", "s"),
+        ("Magnetar", "l"),
+    ]

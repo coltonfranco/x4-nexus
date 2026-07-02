@@ -34,7 +34,7 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
-ignore = ["E501"]  # line length handled by formatter
+ignore = ["E501", "B008"]  # line length handled by formatter; B008 idiomatic FastAPI/Typer
 
 [tool.pytest.ini_options]
 testpaths = ["packages/x4-api/tests", "packages/x4-extract/tests"]

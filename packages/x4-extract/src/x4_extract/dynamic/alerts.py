@@ -22,8 +22,16 @@ WARN = "warn"
 ALERT = "alert"
 
 _COMBAT_KEYWORDS = (
-    "attack", "under fire", "destroyed", "killed", "boarding", "boarded",
-    "bail", "distress", "hull critical", "lost",
+    "attack",
+    "under fire",
+    "destroyed",
+    "killed",
+    "boarding",
+    "boarded",
+    "bail",
+    "distress",
+    "hull critical",
+    "lost",
 )
 _COMBAT_LOG_CATEGORIES = frozenset({"alerts"})
 # Below this relation a faction is effectively hostile (X4 scale is -1..1).
@@ -69,9 +77,7 @@ def classify(entity_type: str, change_kind: str, content: Mapping[str, object]) 
         player = _truthy(content.get("is_player_owned"))
         if change_kind == "removed":
             # A player ship vanishing is almost always a loss; NPC churn is noise.
-            return Classification(
-                WARN if player else INFO, "fleet", f"Ship lost: {name}", None
-            )
+            return Classification(WARN if player else INFO, "fleet", f"Ship lost: {name}", None)
         if change_kind == "added":
             return Classification(INFO, "fleet", f"New ship: {name}", None)
         return Classification(INFO, "fleet", f"Ship updated: {name}", _s(content.get("state")))
@@ -94,7 +100,9 @@ def classify(entity_type: str, change_kind: str, content: Mapping[str, object]) 
 
     if entity_type == "mission":
         name = _s(content.get("name"))
-        verb = {"added": "New mission", "removed": "Mission ended"}.get(change_kind, "Mission updated")
+        verb = {"added": "New mission", "removed": "Mission ended"}.get(
+            change_kind, "Mission updated"
+        )
         return Classification(INFO, "mission", f"{verb}: {name}", _s(content.get("faction")))
 
     if entity_type == "mission_offer":
@@ -108,7 +116,9 @@ def classify(entity_type: str, change_kind: str, content: Mapping[str, object]) 
         ware = _s(content.get("ware_id"))
         verb = {"added": "New", "removed": "Closed"}.get(change_kind, "Updated")
         return Classification(
-            INFO, "economy", f"{verb} {side} offer: {ware}",
+            INFO,
+            "economy",
+            f"{verb} {side} offer: {ware}",
             f"{content.get('quantity')} @ {content.get('price')}",
         )
 

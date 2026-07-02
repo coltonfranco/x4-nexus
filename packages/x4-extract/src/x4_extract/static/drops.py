@@ -104,8 +104,7 @@ def extract(xml_bytes: bytes) -> ExtractResult:
 
     # Pre-compute total weight per basket for item_chance calculation
     basket_totals: dict[str, float] = {
-        bid: float(sum(e.weight for e in entries))
-        for bid, entries in basket_entries.items()
+        bid: float(sum(e.weight for e in entries)) for bid, entries in basket_entries.items()
     }
 
     def _basket_chance(basket_id: str, weight: int | None) -> float | None:
@@ -140,16 +139,18 @@ def extract(xml_bytes: bytes) -> ExtractResult:
                 if ref:
                     # Basket reference — expand entries, compute item_chance from basket totals
                     for entry in basket_entries.get(ref, []):
-                        out.list_wares.append({
-                            "list_id": list_id,
-                            "ware_id": entry.ware_id,
-                            "spawn_chance": spawn_chance,
-                            "item_chance": _basket_chance(ref, entry.weight),
-                            "weight": entry.weight,
-                            "min_amount": entry.min_amount,
-                            "max_amount": entry.max_amount,
-                            "source_basket": ref,
-                        })
+                        out.list_wares.append(
+                            {
+                                "list_id": list_id,
+                                "ware_id": entry.ware_id,
+                                "spawn_chance": spawn_chance,
+                                "item_chance": _basket_chance(ref, entry.weight),
+                                "weight": entry.weight,
+                                "min_amount": entry.min_amount,
+                                "max_amount": entry.max_amount,
+                                "source_basket": ref,
+                            }
+                        )
                 else:
                     # Inline wares — two sub-forms
                     # Form A: <wares><ware ware="..." min="..." max="..."/></wares>  (all drop, no selection)
@@ -159,16 +160,18 @@ def extract(xml_bytes: bytes) -> ExtractResult:
                             continue
                         min_raw = ware_el.get("min") or ware_el.get("amount")
                         max_raw = ware_el.get("max") or ware_el.get("amount")
-                        out.list_wares.append({
-                            "list_id": list_id,
-                            "ware_id": ware_id,
-                            "spawn_chance": spawn_chance,
-                            "item_chance": None,  # all items drop — no selection
-                            "weight": None,
-                            "min_amount": int(min_raw) if min_raw else 1,
-                            "max_amount": int(max_raw) if max_raw else 1,
-                            "source_basket": None,
-                        })
+                        out.list_wares.append(
+                            {
+                                "list_id": list_id,
+                                "ware_id": ware_id,
+                                "spawn_chance": spawn_chance,
+                                "item_chance": None,  # all items drop — no selection
+                                "weight": None,
+                                "min_amount": int(min_raw) if min_raw else 1,
+                                "max_amount": int(max_raw) if max_raw else 1,
+                                "source_basket": None,
+                            }
+                        )
                     # Form B: <wares selection="random"><select weight="..."><ware .../></select></wares>
                     # Collect all items first to compute total weight for this drop event
                     inline_selects: list[InlineSelect] = []
@@ -193,16 +196,20 @@ def extract(xml_bytes: bytes) -> ExtractResult:
                         )
                     inline_total = float(sum(s.weight for s in inline_selects))
                     for s in inline_selects:
-                        out.list_wares.append({
-                            "list_id": list_id,
-                            "ware_id": s.ware_id,
-                            "spawn_chance": spawn_chance,
-                            "item_chance": round(s.weight / inline_total * 100, 1) if inline_total > 0 else None,
-                            "weight": s.weight,
-                            "min_amount": s.min_amount,
-                            "max_amount": s.max_amount,
-                            "source_basket": None,
-                        })
+                        out.list_wares.append(
+                            {
+                                "list_id": list_id,
+                                "ware_id": s.ware_id,
+                                "spawn_chance": spawn_chance,
+                                "item_chance": round(s.weight / inline_total * 100, 1)
+                                if inline_total > 0
+                                else None,
+                                "weight": s.weight,
+                                "min_amount": s.min_amount,
+                                "max_amount": s.max_amount,
+                                "source_basket": None,
+                            }
+                        )
 
             # Ammo basket ref
             ammo_el = collectable_el.find("ammo")
@@ -211,16 +218,18 @@ def extract(xml_bytes: bytes) -> ExtractResult:
                 if ref:
                     for entry in basket_entries.get(ref, []):
                         if entry.macro:
-                            out.list_wares.append({
-                                "list_id": list_id,
-                                "ware_id": entry.macro,  # store missile macro as ware_id
-                                "spawn_chance": spawn_chance,
-                                "item_chance": _basket_chance(ref, entry.weight),
-                                "weight": entry.weight,
-                                "min_amount": entry.min_amount,
-                                "max_amount": entry.max_amount,
-                                "source_basket": ref,
-                            })
+                            out.list_wares.append(
+                                {
+                                    "list_id": list_id,
+                                    "ware_id": entry.macro,  # store missile macro as ware_id
+                                    "spawn_chance": spawn_chance,
+                                    "item_chance": _basket_chance(ref, entry.weight),
+                                    "weight": entry.weight,
+                                    "min_amount": entry.min_amount,
+                                    "max_amount": entry.max_amount,
+                                    "source_basket": ref,
+                                }
+                            )
 
     return out
 

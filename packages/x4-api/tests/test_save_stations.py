@@ -176,9 +176,7 @@ def test_station_build_plan_and_overview(tmp_path: Path, data_dir: Path) -> None
                 "SELECT macro, count FROM station_build_plan WHERE station_id = '[0x200]'"
             )
         }
-        ov = conn.execute(
-            "SELECT * FROM station_overview WHERE station_id = '[0x200]'"
-        ).fetchone()
+        ov = conn.execute("SELECT * FROM station_overview WHERE station_id = '[0x200]'").fetchone()
         station = conn.execute(
             "SELECT is_under_construction, build_pct FROM stations WHERE station_id = '[0x200]'"
         ).fetchone()

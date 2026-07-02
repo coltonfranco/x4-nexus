@@ -68,19 +68,49 @@ def _attrs(elem: etree._Element) -> dict[str, str]:
 
 
 # Attributes promoted to columns for active missions.
-_MAPPED_MISSION = frozenset({
-    "id", "name", "description", "faction", "type", "level",
-    "active", "priority", "abortable", "associated", "activation", "alert",
-    "group", "caption", "icon", "time", "rewardtext", "reward",
-    "opposingfaction",
-})
+_MAPPED_MISSION = frozenset(
+    {
+        "id",
+        "name",
+        "description",
+        "faction",
+        "type",
+        "level",
+        "active",
+        "priority",
+        "abortable",
+        "associated",
+        "activation",
+        "alert",
+        "group",
+        "caption",
+        "icon",
+        "time",
+        "rewardtext",
+        "reward",
+        "opposingfaction",
+    }
+)
 
 # Attributes promoted to columns for mission offers.
-_MAPPED_OFFER = frozenset({
-    "id", "name", "description", "faction", "type", "level", "actor",
-    "opposingfaction", "group", "reward", "component", "distance", "threadtype",
-    "duration",
-})
+_MAPPED_OFFER = frozenset(
+    {
+        "id",
+        "name",
+        "description",
+        "faction",
+        "type",
+        "level",
+        "actor",
+        "opposingfaction",
+        "group",
+        "reward",
+        "component",
+        "distance",
+        "threadtype",
+        "duration",
+    }
+)
 
 
 # --- Row types -------------------------------------------------------------
@@ -135,17 +165,17 @@ class OfferRow:
     type: str | None
     level: str | None
     actor: str | None
-    station_id: str | None          # first <location component="...">
-    bbs_station_id: str | None      # from <bbs>/<space component="...">
-    is_repeatable: bool              # has a <briefing>/<mission> child
-    rewardtext: str | None           # from nested briefing/mission
+    station_id: str | None  # first <location component="...">
+    bbs_station_id: str | None  # from <bbs>/<space component="...">
+    is_repeatable: bool  # has a <briefing>/<mission> child
+    rewardtext: str | None  # from nested briefing/mission
     opposing_faction: str | None = None  # from XML opposingfaction attr
-    group_id: str | None = None          # from XML group attr
-    reward_credits: int | None = None    # from XML reward attr
-    component_id: str | None = None      # from XML component attr
-    distance: int | None = None          # from XML distance attr
-    thread_type: str | None = None       # from XML threadtype attr
-    duration: float | None = None        # from XML duration attr
+    group_id: str | None = None  # from XML group attr
+    reward_credits: int | None = None  # from XML reward attr
+    component_id: str | None = None  # from XML component attr
+    distance: int | None = None  # from XML distance attr
+    thread_type: str | None = None  # from XML threadtype attr
+    duration: float | None = None  # from XML duration attr
     extra_json: str | None = None
 
 
@@ -233,29 +263,31 @@ class MissionsCollector:
                     return
 
         group_id = attrs.get("group")
-        self.mission_rows.append(MissionRow(
-            mission_id=mission_id,
-            name=attrs.get("name"),
-            description=attrs.get("description"),
-            faction=attrs.get("faction"),
-            type=attrs.get("type"),
-            level=attrs.get("level"),
-            is_active=attrs.get("active") == "1",
-            priority=_int(attrs.get("priority")),
-            abortable=_bool(attrs.get("abortable")),
-            associated_entity=attrs.get("associated"),
-            group_id=group_id,
-            is_story=bool(group_id and group_id.startswith("story_")),
-            caption=attrs.get("caption"),
-            icon=attrs.get("icon"),
-            time=_float(attrs.get("time")),
-            rewardtext=attrs.get("rewardtext"),
-            reward_credits=_int(attrs.get("reward")),
-            opposing_faction=attrs.get("opposingfaction"),
-            activation=attrs.get("activation"),
-            alert=attrs.get("alert"),
-            extra_json=json.dumps(extra, sort_keys=True) if extra else None,
-        ))
+        self.mission_rows.append(
+            MissionRow(
+                mission_id=mission_id,
+                name=attrs.get("name"),
+                description=attrs.get("description"),
+                faction=attrs.get("faction"),
+                type=attrs.get("type"),
+                level=attrs.get("level"),
+                is_active=attrs.get("active") == "1",
+                priority=_int(attrs.get("priority")),
+                abortable=_bool(attrs.get("abortable")),
+                associated_entity=attrs.get("associated"),
+                group_id=group_id,
+                is_story=bool(group_id and group_id.startswith("story_")),
+                caption=attrs.get("caption"),
+                icon=attrs.get("icon"),
+                time=_float(attrs.get("time")),
+                rewardtext=attrs.get("rewardtext"),
+                reward_credits=_int(attrs.get("reward")),
+                opposing_faction=attrs.get("opposingfaction"),
+                activation=attrs.get("activation"),
+                alert=attrs.get("alert"),
+                extra_json=json.dumps(extra, sort_keys=True) if extra else None,
+            )
+        )
 
     # -- Mission offers -----------------------------------------------------
 
@@ -270,27 +302,29 @@ class MissionsCollector:
         bbs_station_id = self._offer_bbs.get(offer_id)
         rewardtext = self._offer_rewardtext.get(offer_id)
 
-        self.offer_rows.append(OfferRow(
-            offer_id=offer_id,
-            name=attrs.get("name"),
-            description=attrs.get("description"),
-            faction=attrs.get("faction"),
-            type=attrs.get("type"),
-            level=attrs.get("level"),
-            actor=attrs.get("actor"),
-            station_id=station_id,
-            bbs_station_id=bbs_station_id,
-            is_repeatable=is_repeatable,
-            rewardtext=rewardtext,
-            opposing_faction=attrs.get("opposingfaction"),
-            group_id=attrs.get("group"),
-            reward_credits=_int(attrs.get("reward")),
-            component_id=attrs.get("component"),
-            distance=_int(attrs.get("distance")),
-            thread_type=attrs.get("threadtype"),
-            duration=_float(attrs.get("duration")),
-            extra_json=json.dumps(extra, sort_keys=True) if extra else None,
-        ))
+        self.offer_rows.append(
+            OfferRow(
+                offer_id=offer_id,
+                name=attrs.get("name"),
+                description=attrs.get("description"),
+                faction=attrs.get("faction"),
+                type=attrs.get("type"),
+                level=attrs.get("level"),
+                actor=attrs.get("actor"),
+                station_id=station_id,
+                bbs_station_id=bbs_station_id,
+                is_repeatable=is_repeatable,
+                rewardtext=rewardtext,
+                opposing_faction=attrs.get("opposingfaction"),
+                group_id=attrs.get("group"),
+                reward_credits=_int(attrs.get("reward")),
+                component_id=attrs.get("component"),
+                distance=_int(attrs.get("distance")),
+                thread_type=attrs.get("threadtype"),
+                duration=_float(attrs.get("duration")),
+                extra_json=json.dumps(extra, sort_keys=True) if extra else None,
+            )
+        )
 
     def _on_offer_mission(self, elem: etree._Element) -> None:
         parent = elem.getparent()  # briefing
@@ -420,24 +454,32 @@ class MissionsCollector:
         for mission in self.mission_rows:
             if mission.mission_id is None:
                 continue
-            yield "mission", mission.mission_id, {
-                "mission_id": mission.mission_id,
-                "name": mission.name,
-                "faction": mission.faction,
-                "type": mission.type,
-                "level": mission.level,
-                "is_active": mission.is_active,
-                "priority": mission.priority,
-            }
+            yield (
+                "mission",
+                mission.mission_id,
+                {
+                    "mission_id": mission.mission_id,
+                    "name": mission.name,
+                    "faction": mission.faction,
+                    "type": mission.type,
+                    "level": mission.level,
+                    "is_active": mission.is_active,
+                    "priority": mission.priority,
+                },
+            )
         for offer in self.offer_rows:
             if offer.offer_id is None:
                 continue
-            yield "mission_offer", offer.offer_id, {
-                "offer_id": offer.offer_id,
-                "name": offer.name,
-                "faction": offer.faction,
-                "type": offer.type,
-            }
+            yield (
+                "mission_offer",
+                offer.offer_id,
+                {
+                    "offer_id": offer.offer_id,
+                    "name": offer.name,
+                    "faction": offer.faction,
+                    "type": offer.type,
+                },
+            )
 
     # --- tiered contract ---------------------------------------------------
 
@@ -539,5 +581,5 @@ def _find_objective_key(elem: etree._Element) -> tuple[str, int] | None:
 
 def _synthetic_mission_id(attrs: dict[str, str]) -> str:
     """Generate a stable synthetic id for entities without an explicit id."""
-    key = f"{attrs.get('faction','')}|{attrs.get('type','')}|{attrs.get('name','')}"
+    key = f"{attrs.get('faction', '')}|{attrs.get('type', '')}|{attrs.get('name', '')}"
     return f"syn_{hashlib.md5(key.encode()).hexdigest()[:8]}"

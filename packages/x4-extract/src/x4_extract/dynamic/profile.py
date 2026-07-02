@@ -123,9 +123,7 @@ def _time_dispatch(
     return elapsed, collectors, profiler
 
 
-def _time_flush(
-    settings: ExtractSettings, save_path: Path, collectors: list[Collector]
-) -> float:
+def _time_flush(settings: ExtractSettings, save_path: Path, collectors: list[Collector]) -> float:
     """Write every tier into a throwaway DB (+ derived artifacts) and time it."""
     from x4_extract.dynamic.pipeline import _rewrite_tier, _run_derived
 

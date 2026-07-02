@@ -4,7 +4,6 @@ These read the active save's dynamic DB. Before any save is ingested the tables 
 empty: the account endpoint 404s, the list endpoints return [].
 """
 
-
 import sqlite3
 from typing import Annotated
 
@@ -120,7 +119,9 @@ def player_reputation(conn: Annotated[sqlite3.Connection, Depends(get_db)]) -> l
         """
     ).fetchall()
 
-    return [PlayerRelation(**d) for d in disambiguate([dict(r) for r in rows], name_col="faction_name")]
+    return [
+        PlayerRelation(**d) for d in disambiguate([dict(r) for r in rows], name_col="faction_name")
+    ]
 
 
 class PlayerMessage(PublicModel):
@@ -162,11 +163,18 @@ def player_messages(conn: Annotated[sqlite3.Connection, Depends(get_db)]) -> lis
         # Put the cleaned dict values back (station_name/ship_name already popped)
         result.append(
             PlayerMessage(
-                id=d["id"], time=d["time"], title=d["title"], text=d["text"],
-                source=d["source"], highpriority=d["highpriority"],
-                interact=d["interact"], component=d["component"],
-                component_name=name, component_kind=kind,
-                read=d["read"], extra_json=d["extra_json"],
+                id=d["id"],
+                time=d["time"],
+                title=d["title"],
+                text=d["text"],
+                source=d["source"],
+                highpriority=d["highpriority"],
+                interact=d["interact"],
+                component=d["component"],
+                component_name=name,
+                component_kind=kind,
+                read=d["read"],
+                extra_json=d["extra_json"],
             )
         )
     return result

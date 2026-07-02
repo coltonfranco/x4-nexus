@@ -153,7 +153,9 @@ def watch_realtime(
     next wait to `settle_sec` so the finished save is ingested promptly even when the backstop
     poll is long or disabled (watchdog-only).
     """
-    static_every = fallback_interval if fallback_interval is not None else settings.poll_interval_sec
+    static_every = (
+        fallback_interval if fallback_interval is not None else settings.poll_interval_sec
+    )
     settle = settle_sec if settle_sec is not None else settings.save_settle_sec
 
     def _timeout(deferred: bool) -> float | None:
@@ -202,10 +204,10 @@ def watch_realtime(
             wake.clear()
             if stop.is_set():
                 break
-            
+
             if pause_provider is not None and pause_provider():
                 continue
-                
+
             result = poll_once(settings, min_quiet_sec=settle)
             on_tick(result)
     finally:

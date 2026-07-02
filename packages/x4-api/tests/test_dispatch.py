@@ -60,7 +60,9 @@ def test_class_wildcard_routes_by_class(tmp_path: Path) -> None:
     regs = [
         Registration(Target(tag="component", class_attr="ship_s"), lambda e: on_ship("ship", e)),
         Registration(Target(tag="component", class_attr="ship_l"), lambda e: on_ship("ship", e)),
-        Registration(Target(tag="component", class_attr="station"), lambda e: on_station("station", e)),
+        Registration(
+            Target(tag="component", class_attr="station"), lambda e: on_station("station", e)
+        ),
         Registration(Target(tag="component", class_attr="npc"), lambda e: on_npc("npc", e)),
     ]
     stream_save(_write(tmp_path), regs)
@@ -88,7 +90,9 @@ def test_fixed_depth_and_wildcard_coexist(tmp_path: Path) -> None:
     wild, on_wild = _collector()
     # galaxy sits at depth 3 (savegame>universe>component[galaxy]); wildcard matches every component.
     regs = [
-        Registration(Target(tag="component", depth=3, class_attr="galaxy"), lambda e: on_fixed("g", e)),
+        Registration(
+            Target(tag="component", depth=3, class_attr="galaxy"), lambda e: on_fixed("g", e)
+        ),
         Registration(Target(tag="component", class_attr="ship_s"), lambda e: on_wild("s", e)),
     ]
     stream_save(_write(tmp_path), regs)

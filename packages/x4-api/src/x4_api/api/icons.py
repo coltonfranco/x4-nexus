@@ -48,13 +48,13 @@ def get_icon_url(logical_id: str | None) -> str | None:
     """Return the static URL for a logical icon ID."""
     if not logical_id:
         return None
-        
+
     manifest = _load_manifest()
-    
+
     # If the icon exists in our manifest, use its exact generated path
     if logical_id in manifest and "path" in manifest[logical_id]:
         return f"{ICON_BASE}/{manifest[logical_id]['path']}"
-        
+
     # Fallback if manifest is missing or icon wasn't extracted
     category = logical_id.split("_", 1)[0] if "_" in logical_id else "misc"
     return f"{ICON_BASE}/{category}/{logical_id}.png"

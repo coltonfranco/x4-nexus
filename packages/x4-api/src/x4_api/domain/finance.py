@@ -28,19 +28,22 @@ _RESOLVE = """
     COALESCE({st}.is_player_owned, {sh}.is_player_owned, 0) AS {p}_is_player
 """
 
+
 @dataclass(slots=True)
 class Account:
     owner: str
     name: str | None
-    kind: str                  # station | ship | account
+    kind: str  # station | ship | account
     faction: str | None
     is_player: bool
-    net_worth: int | None      # latest baseline `v` (faction-level; NULL for most stations)
+    net_worth: int | None  # latest baseline `v` (faction-level; NULL for most stations)
     net_worth_assets: int | None  # latest baseline `v2`
-    live_cash: int | None      # exact cash balance from latest transaction event
-    account_amount: int | None  # station's own credits (from station_overview; NULL for non-stations)
-    account_min: int | None    # operating budget lower threshold
-    account_max: int | None    # operating budget upper threshold (manager target)
+    live_cash: int | None  # exact cash balance from latest transaction event
+    account_amount: (
+        int | None
+    )  # station's own credits (from station_overview; NULL for non-stations)
+    account_min: int | None  # operating budget lower threshold
+    account_max: int | None  # operating budget upper threshold (manager target)
     latest_time: float | None
     event_count: int
 
@@ -53,14 +56,14 @@ class NetWorthPoint:
     time: float
     v: int | None
     v2: int | None
-    type: str | None              # event reason (trade/transfer/orderqueue_*/NULL baseline)
-    delta: int | None             # change in v from the previous point (null for first)
-    partner: str | None           # counterparty raw component id (for linking)
-    partner_name: str | None      # resolved station/ship name
-    partner_faction: str | None   # resolved faction id (for linking)
+    type: str | None  # event reason (trade/transfer/orderqueue_*/NULL baseline)
+    delta: int | None  # change in v from the previous point (null for first)
+    partner: str | None  # counterparty raw component id (for linking)
+    partner_name: str | None  # resolved station/ship name
+    partner_faction: str | None  # resolved faction id (for linking)
     partner_faction_name: str | None  # resolved faction display name
-    partner_kind: str | None      # station | ship | account
-    partner_is_player: bool       # whether the counterparty is player-owned
+    partner_kind: str | None  # station | ship | account
+    partner_is_player: bool  # whether the counterparty is player-owned
 
 
 @dataclass(slots=True)
@@ -69,9 +72,9 @@ class WarePnl:
     ware_name: str | None
     icon_path: str | None
     tags: str | None
-    income: int       # credits the player earned selling this ware
-    spend: int        # credits the player spent buying it
-    net: int          # income - spend
+    income: int  # credits the player earned selling this ware
+    spend: int  # credits the player spent buying it
+    net: int  # income - spend
     sell_count: int
     buy_count: int
 
@@ -100,7 +103,6 @@ class NetWorthBreakdown:
     station_modules: int
     inventory: int
     total: int
-
 
 
 _ACCOUNTS_QUERY = f"""
@@ -222,6 +224,7 @@ def net_worth_series(
 
     # Group by owner; within each group, rows are already ordered by time.
     from collections import defaultdict
+
     groups: dict[str, list[sqlite3.Row]] = defaultdict(list)
     for r in rows:
         groups[r["owner"]].append(r)

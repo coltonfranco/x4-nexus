@@ -50,34 +50,46 @@ def extract(xml_bytes: bytes) -> ExtractResult:
         duration_raw = time_el.get("duration") if time_el is not None else None
         cooldown_raw = time_el.get("cooldown") if time_el is not None else None
 
-        out.actions.append({
-            "action_id": action_id,
-            "category": action_el.get("category"),
-            "name": action_el.get("name"),
-            "description": action_el.get("description"),
-            "shortdescription": action_el.get("shortdescription"),
-            "hidden": 1 if action_el.get("hidden") == "true" else 0,
-            "is_unique": 1 if action_el.get("unique") == "true" else 0,
-            "friendgroup": action_el.get("friendgroup"),
-            "cost_influence": _int(cost_el, "influence") if cost_el is not None else None,
-            "cost_money": _int(cost_el, "money") if cost_el is not None else None,
-            "cost_maxinfluencefactor": _int(cost_el, "maxinfluencefactor") if cost_el is not None else None,
-            "success_chance": int(chance_raw) if chance_raw and chance_raw.isdigit() else None,
-            "success_weight": _int(success_el, "weight") if success_el is not None else None,
-            "success_selectionbonus": success_el.get("selectionweightbonus") if success_el is not None else None,
-            "success_text": success_el.get("text") if success_el is not None else None,
-            "duration_sec": int(duration_raw) if duration_raw and duration_raw.isdigit() else None,
-            "cooldown_sec": int(cooldown_raw) if cooldown_raw and cooldown_raw.isdigit() else None,
-            "time_maxinfluencefactor": _int(time_el, "maxinfluencefactor") if time_el is not None else None,
-            "agent_type": agent_el.get("type") if agent_el is not None else None,
-            "agent_experience": _int(agent_el, "experience") if agent_el is not None else None,
-            "risk": agent_el.get("risk") if agent_el is not None else None,
-            "reward_influence": _int(reward_el, "influence") if reward_el is not None else None,
-            "reward_text": reward_el.get("text") if reward_el is not None else None,
-            "icon_active": icon_el.get("active") if icon_el is not None else None,
-            "icon_image": icon_el.get("image") if icon_el is not None else None,
-            "triggers_event": 1 if action_el.get("triggersevent") == "true" else 0,
-        })
+        out.actions.append(
+            {
+                "action_id": action_id,
+                "category": action_el.get("category"),
+                "name": action_el.get("name"),
+                "description": action_el.get("description"),
+                "shortdescription": action_el.get("shortdescription"),
+                "hidden": 1 if action_el.get("hidden") == "true" else 0,
+                "is_unique": 1 if action_el.get("unique") == "true" else 0,
+                "friendgroup": action_el.get("friendgroup"),
+                "cost_influence": _int(cost_el, "influence") if cost_el is not None else None,
+                "cost_money": _int(cost_el, "money") if cost_el is not None else None,
+                "cost_maxinfluencefactor": _int(cost_el, "maxinfluencefactor")
+                if cost_el is not None
+                else None,
+                "success_chance": int(chance_raw) if chance_raw and chance_raw.isdigit() else None,
+                "success_weight": _int(success_el, "weight") if success_el is not None else None,
+                "success_selectionbonus": success_el.get("selectionweightbonus")
+                if success_el is not None
+                else None,
+                "success_text": success_el.get("text") if success_el is not None else None,
+                "duration_sec": int(duration_raw)
+                if duration_raw and duration_raw.isdigit()
+                else None,
+                "cooldown_sec": int(cooldown_raw)
+                if cooldown_raw and cooldown_raw.isdigit()
+                else None,
+                "time_maxinfluencefactor": _int(time_el, "maxinfluencefactor")
+                if time_el is not None
+                else None,
+                "agent_type": agent_el.get("type") if agent_el is not None else None,
+                "agent_experience": _int(agent_el, "experience") if agent_el is not None else None,
+                "risk": agent_el.get("risk") if agent_el is not None else None,
+                "reward_influence": _int(reward_el, "influence") if reward_el is not None else None,
+                "reward_text": reward_el.get("text") if reward_el is not None else None,
+                "icon_active": icon_el.get("active") if icon_el is not None else None,
+                "icon_image": icon_el.get("image") if icon_el is not None else None,
+                "triggers_event": 1 if action_el.get("triggersevent") == "true" else 0,
+            }
+        )
 
         if cost_el is not None:
             wares_el = cost_el.find("wares")
@@ -88,20 +100,24 @@ def extract(xml_bytes: bytes) -> ExtractResult:
                     for w in specific_wares:
                         ware_id = w.get("ware")
                         amount_raw = w.get("amount")
-                        out.bribe_wares.append({
-                            "action_id": action_id,
-                            "ware_id": ware_id,
-                            "ware_tags": ware_tags,
-                            "amount": int(amount_raw) if amount_raw else None,
-                        })
+                        out.bribe_wares.append(
+                            {
+                                "action_id": action_id,
+                                "ware_id": ware_id,
+                                "ware_tags": ware_tags,
+                                "amount": int(amount_raw) if amount_raw else None,
+                            }
+                        )
                 else:
                     # Tag-based requirement without specific ware list
-                    out.bribe_wares.append({
-                        "action_id": action_id,
-                        "ware_id": None,
-                        "ware_tags": ware_tags,
-                        "amount": None,
-                    })
+                    out.bribe_wares.append(
+                        {
+                            "action_id": action_id,
+                            "ware_id": None,
+                            "ware_tags": ware_tags,
+                            "amount": None,
+                        }
+                    )
 
     for el in root.findall("gifts/gift"):
         ware_id = el.get("ware")
@@ -116,26 +132,30 @@ def extract(xml_bytes: bytes) -> ExtractResult:
     for el in root.findall("rank/level"):
         value_raw = el.get("value")
         bonus_raw = el.get("eventbonus")
-        out.ranks.append({
-            "min_value": int(value_raw) if value_raw and value_raw.isdigit() else None,
-            "name": el.get("name"),
-            "event_bonus": float(bonus_raw) if bonus_raw else None,
-            "icon": el.get("icon"),
-        })
+        out.ranks.append(
+            {
+                "min_value": int(value_raw) if value_raw and value_raw.isdigit() else None,
+                "name": el.get("name"),
+                "event_bonus": float(bonus_raw) if bonus_raw else None,
+                "icon": el.get("icon"),
+            }
+        )
 
     for event_el in root.findall("events/event"):
         event_id = event_el.get("id")
         if not event_id:
             continue
         icon_el = event_el.find("icon")
-        out.events.append({
-            "event_id": event_id,
-            "name": event_el.get("name"),
-            "description": event_el.get("description"),
-            "shortdescription": event_el.get("shortdescription"),
-            "duration_sec": _int(event_el, "duration"),
-            "icon_image": icon_el.get("image") if icon_el is not None else None,
-        })
+        out.events.append(
+            {
+                "event_id": event_id,
+                "name": event_el.get("name"),
+                "description": event_el.get("description"),
+                "shortdescription": event_el.get("shortdescription"),
+                "duration_sec": _int(event_el, "duration"),
+                "icon_image": icon_el.get("image") if icon_el is not None else None,
+            }
+        )
         for opt_el in event_el.findall("options/option"):
             opt_id = opt_el.get("id")
             if not opt_id:
@@ -146,21 +166,31 @@ def extract(xml_bytes: bytes) -> ExtractResult:
             opt_relation = opt_el.find("relation")
             opt_conclusion = opt_el.find("conclusion")
             opt_result = opt_el.find("result")
-            out.event_options.append({
-                "event_id": event_id,
-                "option_id": opt_id,
-                "name": opt_el.get("name"),
-                "description": opt_el.get("description"),
-                "menuposition": _int(opt_el, "menuposition"),
-                "agent_risk": opt_agent.get("risk") if opt_agent is not None else None,
-                "cost_influence": _int(opt_cost, "influence") if opt_cost is not None else None,
-                "cost_money": _int(opt_cost, "money") if opt_cost is not None else None,
-                "success_weight": _int(opt_success, "weight") if opt_success is not None else None,
-                "success_selectionbonus": opt_success.get("selectionweightbonus") if opt_success is not None else None,
-                "relation_value": _float(opt_relation, "value") if opt_relation is not None else None,
-                "conclusion_text": opt_conclusion.get("text") if opt_conclusion is not None else None,
-                "result_text": opt_result.get("text") if opt_result is not None else None,
-            })
+            out.event_options.append(
+                {
+                    "event_id": event_id,
+                    "option_id": opt_id,
+                    "name": opt_el.get("name"),
+                    "description": opt_el.get("description"),
+                    "menuposition": _int(opt_el, "menuposition"),
+                    "agent_risk": opt_agent.get("risk") if opt_agent is not None else None,
+                    "cost_influence": _int(opt_cost, "influence") if opt_cost is not None else None,
+                    "cost_money": _int(opt_cost, "money") if opt_cost is not None else None,
+                    "success_weight": _int(opt_success, "weight")
+                    if opt_success is not None
+                    else None,
+                    "success_selectionbonus": opt_success.get("selectionweightbonus")
+                    if opt_success is not None
+                    else None,
+                    "relation_value": _float(opt_relation, "value")
+                    if opt_relation is not None
+                    else None,
+                    "conclusion_text": opt_conclusion.get("text")
+                    if opt_conclusion is not None
+                    else None,
+                    "result_text": opt_result.get("text") if opt_result is not None else None,
+                }
+            )
 
     return out
 

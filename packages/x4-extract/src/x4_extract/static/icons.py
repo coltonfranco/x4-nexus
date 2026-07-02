@@ -44,7 +44,7 @@ def run(settings: ExtractSettings, on_progress: Callable[[str, float], None] | N
     """Extract all icons from game data to PNG files."""
     t0 = time.monotonic()
     _log("Starting icon generation...")
-    
+
     cat_paths = discover_cats(settings.install_path)
     if not cat_paths:
         _log("No catalogs found for icons.")
@@ -105,7 +105,7 @@ def run(settings: ExtractSettings, on_progress: Callable[[str, float], None] | N
                         # Calculate what the `*` matched
                         # The suffix in the XML is usually .tga, but the index has .gz or .dds
                         # We just extract the wildcard portion before the file extension.
-                        stem_match = idx_path[len(prefix):]
+                        stem_match = idx_path[len(prefix) :]
                         if "/" in stem_match:
                             continue  # Don't cross directories
 
@@ -167,12 +167,12 @@ def run(settings: ExtractSettings, on_progress: Callable[[str, float], None] | N
 
             # Strip common prefixes for cleaner organization
             if directory.startswith("assets/textures/"):
-                directory = directory[len("assets/textures/"):]
+                directory = directory[len("assets/textures/") :]
             elif directory.startswith("extensions/"):
                 parts = directory.split("/")
                 if "assets" in parts and "textures" in parts:
                     idx = parts.index("textures")
-                    directory = "/".join(parts[idx+1:])
+                    directory = "/".join(parts[idx + 1 :])
 
             # Filter to only keep 'ui/' icons and rebase them to root
             if not directory.startswith("ui/"):
@@ -190,7 +190,7 @@ def run(settings: ExtractSettings, on_progress: Callable[[str, float], None] | N
             if _decode_dds_to_png(dds_data, out_png):
                 new_manifest[logical_id] = {
                     "md5": icon_entry.md5,
-                    "path": f"{category}/{logical_id}.png"
+                    "path": f"{category}/{logical_id}.png",
                 }
                 processed_count += 1
         except Exception as e:
@@ -201,8 +201,10 @@ def run(settings: ExtractSettings, on_progress: Callable[[str, float], None] | N
 
     if on_progress:
         on_progress(f"Building icons ({total}/{total})...", 1.0)
-    
-    _log(f"Icon generation complete: {processed_count} extracted (skipped {skipped_count} unchanged) in {time.monotonic() - t0:.1f}s")
+
+    _log(
+        f"Icon generation complete: {processed_count} extracted (skipped {skipped_count} unchanged) in {time.monotonic() - t0:.1f}s"
+    )
 
 
 def _decode_dds_to_png(dds_data: bytes, output_path: Path) -> bool:
@@ -251,6 +253,7 @@ def _decode_dds_to_png(dds_data: bytes, output_path: Path) -> bool:
 
     # Attempt to load natively with Pillow (handles uncompressed and standard DXT formats)
     import io
+
     try:
         with Image.open(io.BytesIO(dds_data)) as img:
             img.save(output_path)
@@ -274,13 +277,7 @@ def _fallback_texconv(dds_data: bytes, output_path: Path) -> bool:
 
         try:
             subprocess.run(
-                [
-                    "texconv.exe",
-                    "-ft", "png",
-                    "-o", temp_dir,
-                    "-nologo",
-                    str(temp_dds)
-                ],
+                ["texconv.exe", "-ft", "png", "-o", temp_dir, "-nologo", str(temp_dds)],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 check=True,

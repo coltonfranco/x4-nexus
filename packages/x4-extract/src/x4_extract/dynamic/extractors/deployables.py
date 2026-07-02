@@ -27,7 +27,9 @@ from x4_extract.dynamic.extractors.positions import position_cache
 from x4_extract.savefile.dispatch import Registration
 
 _DEPLOYABLE_CLASSES = ("satellite", "resourceprobe", "navbeacon", "mine", "lockbox")
-_MAPPED_DEPLOYABLE_ATTRS = frozenset({"id", "class", "code", "macro", "owner", "connection", "knownto"})
+_MAPPED_DEPLOYABLE_ATTRS = frozenset(
+    {"id", "class", "code", "macro", "owner", "connection", "knownto"}
+)
 
 
 @dataclass(slots=True)

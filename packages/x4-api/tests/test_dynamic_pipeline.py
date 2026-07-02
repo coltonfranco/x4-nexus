@@ -60,8 +60,13 @@ def test_pipeline_ingests_stations_meta_and_state(data_dir: Path, fixtures_dir: 
 
     # Both tiers fired plus the source + stat + pipeline-version guards and the ingest-cost record.
     assert tiers == {
-        "source", "source_mtime", "source_size",
-        "structural", "volatile", "pipeline_version", "ingest_ms",
+        "source",
+        "source_mtime",
+        "source_size",
+        "structural",
+        "volatile",
+        "pipeline_version",
+        "ingest_ms",
     }
 
 

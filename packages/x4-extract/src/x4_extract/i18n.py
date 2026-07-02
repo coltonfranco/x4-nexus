@@ -27,7 +27,7 @@ class Localizer:
             ).fetchone()
         except sqlite3.OperationalError:
             row = None
-            
+
         if not row:
             # If language file is not found, we just do nothing and return macros
             return
@@ -52,27 +52,27 @@ class Localizer:
                     i = 0
                     n = len(text)
                     while i < n:
-                        if text[i] == '\\' and i + 1 < n and text[i+1] in ('(', ')'):
+                        if text[i] == "\\" and i + 1 < n and text[i + 1] in ("(", ")"):
                             if depth == 0:
-                                out.append(text[i+1])
+                                out.append(text[i + 1])
                             i += 2
                             continue
-                        if text[i] == '(':
+                        if text[i] == "(":
                             depth += 1
                             i += 1
                             continue
-                        if text[i] == ')':
+                        if text[i] == ")":
                             if depth > 0:
                                 depth -= 1
                             else:
                                 if depth == 0:
-                                    out.append(')')
+                                    out.append(")")
                             i += 1
                             continue
                         if depth == 0:
                             out.append(text[i])
                         i += 1
-                    
+
                     self._map[(page_id, text_id)] = "".join(out).strip()
         except etree.XMLSyntaxError:
             pass

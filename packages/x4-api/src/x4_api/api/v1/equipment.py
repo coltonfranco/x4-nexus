@@ -12,9 +12,8 @@ Stat coverage is partial for a few kinds (thrusters/missiles/drones have no stat
 table); those parts still carry price and parsed metadata (kind/size/mk/faction).
 """
 
-
 import sqlite3
-from typing import Annotated
+from typing import Annotated, Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
@@ -31,11 +30,11 @@ from x4_api.domain.ware_class import (
 # Fallback icons for equipment kinds that don't have in-game icon images.
 # Sourced from the game's own ship builder sidebar tab icons.
 _KIND_FALLBACK_ICON: dict[str, str] = {
-    "software":       f"{ICON_BASE}/ship_build_sidebar_tabs/shipbuildst_software.png",
-    "missile":        f"{ICON_BASE}/ship_build_sidebar_tabs/shipbuildst_consumable.png",
+    "software": f"{ICON_BASE}/ship_build_sidebar_tabs/shipbuildst_software.png",
+    "missile": f"{ICON_BASE}/ship_build_sidebar_tabs/shipbuildst_consumable.png",
     "countermeasure": f"{ICON_BASE}/ship_build_sidebar_tabs/shipbuildst_consumable.png",
-    "deployable":     f"{ICON_BASE}/ship_build_sidebar_tabs/shipbuildst_consumable.png",
-    "drone":          f"{ICON_BASE}/ship_build_sidebar_tabs/shipbuildst_consumable.png",
+    "deployable": f"{ICON_BASE}/ship_build_sidebar_tabs/shipbuildst_consumable.png",
+    "drone": f"{ICON_BASE}/ship_build_sidebar_tabs/shipbuildst_consumable.png",
 }
 
 router = APIRouter()
@@ -97,8 +96,8 @@ class EquipmentItem(PublicModel):
     kind: str
     size: str | None
     mk: int | None
-    compat_tags: str | None           # space-separated restrictive tags (NULL = fits all ships of this size)
-    compat_ship_name: str | None      # resolved ship name from compat_tags (NULL if not exclusive)
+    compat_tags: str | None  # space-separated restrictive tags (NULL = fits all ships of this size)
+    compat_ship_name: str | None  # resolved ship name from compat_tags (NULL if not exclusive)
     faction_id: str | None
     price_min: int | None
     price_avg: int | None
@@ -135,13 +134,15 @@ def _resolve_compat_ship(conn: sqlite3.Connection, compat_tags: str) -> str | No
             (pattern,),
         ).fetchone()
         if row:
-            return row["name"]
+            return cast(str, row["name"])
     return None
 
 
 def _load_stat_tables(
     conn: sqlite3.Connection,
-) -> tuple[dict[str, sqlite3.Row], dict[str, sqlite3.Row], dict[str, sqlite3.Row], dict[str, sqlite3.Row]]:
+) -> tuple[
+    dict[str, sqlite3.Row], dict[str, sqlite3.Row], dict[str, sqlite3.Row], dict[str, sqlite3.Row]
+]:
     """Pull the whole equip_* stat tables into id-keyed dicts (a few hundred rows each)."""
     engines = {r["engine_id"]: r for r in conn.execute("SELECT * FROM s.equip_engines")}
     shields = {r["shield_id"]: r for r in conn.execute("SELECT * FROM s.equip_shields")}
@@ -150,17 +151,33 @@ def _load_stat_tables(
     return engines, shields, weapons, bullets
 
 
-def _bullet_stats(bullet: sqlite3.Row | None) -> dict:
+def _bullet_stats(bullet: sqlite3.Row | None) -> dict[str, Any]:
     """The 22 WeaponStats fields resolved from a bullet row (all None if there's no bullet)."""
     if bullet is None:
         return dict.fromkeys(
             (
-                "damage", "shield_damage", "hull_damage", "shield_disruption",
-                "reload_rate", "reload_time", "bullet_speed", "bullet_lifetime",
-                "bullet_amount", "bullet_barrel", "bullet_angle", "bullet_maxhits",
-                "bullet_range", "heat_value", "explosion_hull", "explosion_shield",
-                "ammo_value", "ammo_reload", "missile_lifetime", "missile_range",
-                "area_damage", "area_lifetime",
+                "damage",
+                "shield_damage",
+                "hull_damage",
+                "shield_disruption",
+                "reload_rate",
+                "reload_time",
+                "bullet_speed",
+                "bullet_lifetime",
+                "bullet_amount",
+                "bullet_barrel",
+                "bullet_angle",
+                "bullet_maxhits",
+                "bullet_range",
+                "heat_value",
+                "explosion_hull",
+                "explosion_shield",
+                "ammo_value",
+                "ammo_reload",
+                "missile_lifetime",
+                "missile_range",
+                "area_damage",
+                "area_lifetime",
             )
         )
     return {
@@ -265,7 +282,9 @@ def _build_item(
         price_min=row["price_min"],
         price_avg=row["price_avg"],
         price_max=row["price_max"],
-        icon_url=get_icon_url(row["icon_path"]) or get_icon_url(f"upgrade_{row['ware_id']}_macro") or _KIND_FALLBACK_ICON.get(kind),
+        icon_url=get_icon_url(row["icon_path"])
+        or get_icon_url(f"upgrade_{row['ware_id']}_macro")
+        or _KIND_FALLBACK_ICON.get(kind),
         restriction_licence=row["restriction_licence"],
         has_production=bool(row["has_production"]),
         engine_stats=engine_stats,
@@ -277,9 +296,13 @@ def _build_item(
 @router.get("/equipment", response_model=list[EquipmentItem])
 def list_equipment(
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
-    kind: str | None = Query(None, description="engine, shield, weapon, turret, thruster, missile, …"),
+    kind: str | None = Query(
+        None, description="engine, shield, weapon, turret, thruster, missile, …"
+    ),
     size: str | None = Query(None, description="xs, s, m, l, xl"),
-    faction_id: str | None = Query(None, description="Race/faction code parsed from the ware id, e.g. arg"),
+    faction_id: str | None = Query(
+        None, description="Race/faction code parsed from the ware id, e.g. arg"
+    ),
     search: str | None = Query(None, description="Case-insensitive name substring"),
     limit: int = Query(2000, ge=1, le=2000),
     offset: int = Query(0, ge=0),

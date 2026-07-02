@@ -1,6 +1,5 @@
 """Terraforming system endpoints."""
 
-
 import sqlite3
 from typing import Annotated
 

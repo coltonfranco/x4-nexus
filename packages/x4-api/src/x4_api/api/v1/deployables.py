@@ -1,6 +1,5 @@
 """REST endpoint for deployables (satellites, resource probes, nav beacons, mines)."""
 
-
 import sqlite3
 from typing import Annotated
 
@@ -28,7 +27,10 @@ class DeployableEntry(PublicModel):
 @router.get("/deployables", response_model=list[DeployableEntry])
 def list_deployables(
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
-    class_: Annotated[str | None, Query(alias="class", description="Filter by class (satellite, resourceprobe, etc.)")] = None,
+    class_: Annotated[
+        str | None,
+        Query(alias="class", description="Filter by class (satellite, resourceprobe, etc.)"),
+    ] = None,
     owner: Annotated[str | None, Query(description="Filter by owner faction")] = None,
     limit: Annotated[int, Query(ge=1, le=5000)] = 500,
     offset: Annotated[int, Query(ge=0)] = 0,

@@ -1,6 +1,5 @@
 """Race definitions endpoint."""
 
-
 import sqlite3
 from typing import Annotated
 
@@ -68,9 +67,7 @@ _DETAIL_COLS = (
 def list_races(
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
 ) -> list[RaceSummary]:
-    rows = conn.execute(
-        f"SELECT {_LIST_COLS} FROM s.races ORDER BY race_id"
-    ).fetchall()
+    rows = conn.execute(f"SELECT {_LIST_COLS} FROM s.races ORDER BY race_id").fetchall()
     result = []
     for r in rows:
         d = dict(r)

@@ -46,11 +46,14 @@ def test_append_id_name_rows_skips_items_without_id() -> None:
 
 
 def test_extra_json_from_attrs_returns_only_unmapped_attrs() -> None:
-    assert extra_json_from_attrs(
-        {"id": "known", "state": "extra"},
-        frozenset({"id"}),
-        {"derived": True},
-    ) == '{"derived": true, "state": "extra"}'
+    assert (
+        extra_json_from_attrs(
+            {"id": "known", "state": "extra"},
+            frozenset({"id"}),
+            {"derived": True},
+        )
+        == '{"derived": true, "state": "extra"}'
+    )
     assert extra_json_from_attrs({"id": "known"}, frozenset({"id"})) is None
 
 

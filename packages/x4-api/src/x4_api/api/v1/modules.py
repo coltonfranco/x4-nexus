@@ -1,8 +1,7 @@
 """Station modules endpoint."""
 
-
 import sqlite3
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Query
 
@@ -178,8 +177,8 @@ class ModuleDetail(ModuleSummary):
     shields_m: int = 0
     shields_l: int = 0
     shields_xl: int = 0
-    construction_resources: list[dict] | None = None
-    production_inputs: list[dict] | None = None
+    construction_resources: list[dict[str, Any]] | None = None
+    production_inputs: list[dict[str, Any]] | None = None
 
 
 def _module_icon_url(module_id: str) -> str | None:
@@ -190,6 +189,7 @@ def _module_icon_url(module_id: str) -> str | None:
     ``stationmodules/`` not a ``module/`` directory).
     """
     from x4_api.api.icons import ICON_BASE, _load_manifest
+
     key = f"module_{module_id}"
     manifest = _load_manifest()
     if key in manifest and "path" in manifest[key]:
@@ -210,7 +210,9 @@ def _row_to_detail(r: sqlite3.Row, conn: sqlite3.Connection | None = None) -> Mo
     d["icon_url"] = _module_icon_url(d["module_id"])
     if conn is not None:
         d["construction_resources"] = _fetch_construction_resources(conn, d["module_id"])
-        d["production_inputs"] = _fetch_production_inputs(conn, d["produces_ware_id"], d.get("production_method"))
+        d["production_inputs"] = _fetch_production_inputs(
+            conn, d["produces_ware_id"], d.get("production_method")
+        )
     else:
         d["construction_resources"] = None
         d["production_inputs"] = None
@@ -234,7 +236,9 @@ def list_modules(
         sql.append("AND m.kind = :kind")
         params["kind"] = kind
     if is_obtainable:
-        sql.append("AND COALESCE(' ' || m.build_sets || ' ' LIKE '% factory %' OR ' ' || m.build_sets || ' ' LIKE '% headquarters_player %', 0)")
+        sql.append(
+            "AND COALESCE(' ' || m.build_sets || ' ' LIKE '% factory %' OR ' ' || m.build_sets || ' ' LIKE '% headquarters_player %', 0)"
+        )
     sql.append("ORDER BY m.module_id LIMIT :limit OFFSET :offset")
     rows = conn.execute(" ".join(sql), params).fetchall()
     return [_row_to_summary(r) for r in rows]
@@ -254,7 +258,9 @@ def get_module(
     return _row_to_detail(row, conn)
 
 
-def _fetch_construction_resources(conn: sqlite3.Connection, module_id: str) -> list[dict] | None:
+def _fetch_construction_resources(
+    conn: sqlite3.Connection, module_id: str
+) -> list[dict[str, Any]] | None:
     """Return list of {ware_id, name, amount, price_avg, total} for building this module."""
     rows = conn.execute(
         """
@@ -282,7 +288,9 @@ def _fetch_construction_resources(conn: sqlite3.Connection, module_id: str) -> l
     ]
 
 
-def _fetch_production_inputs(conn: sqlite3.Connection, ware_id: str | None, method: str | None) -> list[dict] | None:
+def _fetch_production_inputs(
+    conn: sqlite3.Connection, ware_id: str | None, method: str | None
+) -> list[dict[str, Any]] | None:
     """Return all production inputs for a produced ware, with rates per cycle and per hour."""
     if not ware_id:
         return None

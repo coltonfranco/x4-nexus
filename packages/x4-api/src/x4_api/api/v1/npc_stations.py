@@ -30,8 +30,12 @@ class NpcStationDetail(NpcStationSummary):
 def list_npc_stations(
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
     owner: Annotated[str | None, Query(description="Filter by owner faction ID")] = None,
-    tag: Annotated[str | None, Query(description="Filter by tag, e.g. shipyard, wharf, equipmentdock")] = None,
-    sector: Annotated[str | None, Query(description="Filter by location_sector (case-insensitive)")] = None,
+    tag: Annotated[
+        str | None, Query(description="Filter by tag, e.g. shipyard, wharf, equipmentdock")
+    ] = None,
+    sector: Annotated[
+        str | None, Query(description="Filter by location_sector (case-insensitive)")
+    ] = None,
 ) -> list[NpcStationSummary]:
     """Deprecated: seed database removed. Use /map/stations for live station data."""
     return []

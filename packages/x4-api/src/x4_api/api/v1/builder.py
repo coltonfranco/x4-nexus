@@ -23,6 +23,7 @@ router = APIRouter()
 
 # --- Wire models ------------------------------------------------------------------
 
+
 class BuilderNode(BaseModel):
     node_id: str
     module_id: str
@@ -77,6 +78,7 @@ class BuilderStationDetail(PublicModel):
 
 
 # --- Helpers ----------------------------------------------------------------------
+
 
 def _now() -> str:
     return datetime.now(UTC).isoformat()
@@ -156,6 +158,7 @@ def _load_detail(conn: sqlite3.Connection, station_id: str) -> BuilderStationDet
 
 # --- Endpoints --------------------------------------------------------------------
 
+
 @router.get("/builder/stations", response_model=list[BuilderStationSummary])
 def list_builder_stations(
     conn: Annotated[sqlite3.Connection, Depends(get_appdata_db)],
@@ -205,7 +208,16 @@ def create_builder_station(
             "INSERT INTO builder_stations "
             "(id, name, notes, grid_mode, source_kind, source_ref, created_at, updated_at) "
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            (station_id, body.name, body.notes, int(body.grid_mode), source_kind, body.source_ref, now, now),
+            (
+                station_id,
+                body.name,
+                body.notes,
+                int(body.grid_mode),
+                source_kind,
+                body.source_ref,
+                now,
+                now,
+            ),
         )
         _write_children(conn, station_id, body)
     return _load_detail(conn, station_id)
@@ -217,9 +229,7 @@ def update_builder_station(
     body: BuilderStationInput,
     conn: Annotated[sqlite3.Connection, Depends(get_appdata_db)],
 ) -> BuilderStationDetail:
-    exists = conn.execute(
-        "SELECT 1 FROM builder_stations WHERE id = ?", (station_id,)
-    ).fetchone()
+    exists = conn.execute("SELECT 1 FROM builder_stations WHERE id = ?", (station_id,)).fetchone()
     if exists is None:
         raise HTTPException(status_code=404, detail="Station design not found")
     with conn:

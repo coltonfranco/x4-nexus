@@ -64,7 +64,9 @@ def test_player_endpoints(client: TestClient) -> None:
     bps = {b["ware_id"] for b in client.get("/api/v1/player/blueprints").json()}
     assert bps == {"module_test_01", "ship_test_02"}
 
-    lics = {(x["licence_type"], x["faction_id"]) for x in client.get("/api/v1/player/licences").json()}
+    lics = {
+        (x["licence_type"], x["faction_id"]) for x in client.get("/api/v1/player/licences").json()
+    }
     assert ("capitalship", "argon") in lics
 
 
@@ -187,9 +189,7 @@ def test_live_resources(client: TestClient) -> None:
     assert rows["silicon"]["yield_tier"] == "lowplus"  # v9 saves carry no max field
 
 
-def test_faction_relations_from_save(
-    client: TestClient, static_conn: sqlite3.Connection
-) -> None:
+def test_faction_relations_from_save(client: TestClient, static_conn: sqlite3.Connection) -> None:
     # Relations now come entirely from the live save (faction_relations_current); seed.db
     # was removed, so initial == current. The tiny fixture sets player → argon at 0.5.
     static_conn.execute("INSERT INTO factions (faction_id, name) VALUES ('player', 'Player')")

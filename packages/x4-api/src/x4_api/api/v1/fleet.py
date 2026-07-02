@@ -5,7 +5,6 @@ the actual ships in the player's save, at their current sectors and states. The 
 column joins `s.ships` for catalog specs. Empty until a save is ingested.
 """
 
-
 import sqlite3
 from typing import Annotated
 
@@ -21,19 +20,19 @@ router = APIRouter()
 class LiveShip(PublicModel):
     ship_id: str
     code: str | None
-    name: str | None              # in-save name (player-renamed); often null for NPC ships
+    name: str | None  # in-save name (player-renamed); often null for NPC ships
     macro: str | None
     owner_faction: str | None
-    class_id: str | None          # size: ship_xs..ship_xl
+    class_id: str | None  # size: ship_xs..ship_xl
     sector_id: str | None
     state: str | None
     is_player_owned: bool
-    catalog_name: str | None      # from the static ship catalog (e.g. "Rapier")
-    role: str | None              # fight | trade | mine | build | auxiliary | ...
-    ship_type: str | None         # scout | fighter | miner | freighter | ...
+    catalog_name: str | None  # from the static ship catalog (e.g. "Rapier")
+    role: str | None  # fight | trade | mine | build | auxiliary | ...
+    ship_type: str | None  # scout | fighter | miner | freighter | ...
     cargo_volume: int | None
-    level: float | None           # pilot skill 0-5
-    thruster: str | None          # equipped thruster macro
+    level: float | None  # pilot skill 0-5
+    thruster: str | None  # equipped thruster macro
 
 
 @router.get("/fleet", response_model=list[LiveShip])

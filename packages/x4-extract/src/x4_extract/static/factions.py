@@ -70,11 +70,13 @@ def extract(factions_bytes: bytes, colors_bytes: bytes | None = None) -> Extract
             val = rel_el.get("relation")
             if other and val is not None:
                 with suppress(ValueError):
-                    out.relations.append({
-                        "faction_id": faction_id,
-                        "other_faction_id": other,
-                        "initial_relation": float(val),
-                    })
+                    out.relations.append(
+                        {
+                            "faction_id": faction_id,
+                            "other_faction_id": other,
+                            "initial_relation": float(val),
+                        }
+                    )
 
         for lic_el in f_el.iterfind("licences/licence"):
             l_type = lic_el.get("type")
@@ -88,17 +90,19 @@ def extract(factions_bytes: bytes, colors_bytes: bytes | None = None) -> Extract
                 if r_str:
                     with suppress(ValueError):
                         min_rel = float(r_str)
-                
-                out.licences.append({
-                    "licence_type": l_type,
-                    "faction_id": faction_id,
-                    "name": lic_el.get("name"),
-                    "description": lic_el.get("description"),
-                    "icon": lic_el.get("icon"),
-                    "precursor": lic_el.get("precursor"),
-                    "price": price,
-                    "min_relation": min_rel,
-                })
+
+                out.licences.append(
+                    {
+                        "licence_type": l_type,
+                        "faction_id": faction_id,
+                        "name": lic_el.get("name"),
+                        "description": lic_el.get("description"),
+                        "icon": lic_el.get("icon"),
+                        "precursor": lic_el.get("precursor"),
+                        "price": price,
+                        "min_relation": min_rel,
+                    }
+                )
 
     # Deduplicate relations: merged DLC sub-elements may produce duplicate
     # (faction_id, other_faction_id) pairs.  Last-wins so DLC updates to

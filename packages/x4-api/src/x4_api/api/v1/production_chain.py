@@ -97,8 +97,7 @@ def production_chain(
     ).fetchall()
     node_ids = {r["ware_id"] for r in ware_rows}
     group_tiers = {
-        r["group_id"]: r["tier"]
-        for r in conn.execute("SELECT group_id, tier FROM s.ware_groups")
+        r["group_id"]: r["tier"] for r in conn.execute("SELECT group_id, tier FROM s.ware_groups")
     }
 
     # Recipes for the node set (all methods); inputs kept whole so the page can show them,
@@ -141,7 +140,7 @@ def production_chain(
         "prod_ter_scrap_recycler_macro": ["computronicsubstrate", "siliconcarbide"],
         "prod_gen_scrap_recyclerkhaak_macro": ["khaakalloy"],
     }
-    
+
     modules_by_ware: dict[str, list[ProducerModule]] = {}
     for r in conn.execute(
         "SELECT module_id, name, makerrace, produces_ware_id, production_method FROM s.modules"
@@ -153,12 +152,15 @@ def production_chain(
             wares.append(r["produces_ware_id"])
         if r["module_id"] in RECYCLER_MODULES:
             wares.extend(RECYCLER_MODULES[r["module_id"]])
-            
+
         for w in wares:
             if w in node_ids:
                 modules_by_ware.setdefault(w, []).append(
                     ProducerModule(
-                        module_id=r["module_id"], name=r["name"], makerrace=r["makerrace"], production_method=r["production_method"]
+                        module_id=r["module_id"],
+                        name=r["name"],
+                        makerrace=r["makerrace"],
+                        production_method=r["production_method"],
                     )
                 )
 

@@ -32,8 +32,14 @@ def _parse_yieldid(yieldid: str) -> tuple[str, str | None] | None:
     parts = yieldid.split("_")
     # Known ware names to scan for (longest first to avoid partial matches)
     WARES = [
-        "rawscrap", "nividium", "silicon", "hydrogen", "methane",
-        "helium", "ore", "ice",
+        "rawscrap",
+        "nividium",
+        "silicon",
+        "hydrogen",
+        "methane",
+        "helium",
+        "ore",
+        "ice",
     ]
     for ware in WARES:
         try:

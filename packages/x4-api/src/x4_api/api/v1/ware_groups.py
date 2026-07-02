@@ -1,6 +1,5 @@
 """REST endpoints for ware group catalog."""
 
-
 import sqlite3
 from typing import Annotated
 

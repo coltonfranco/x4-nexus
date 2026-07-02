@@ -37,26 +37,26 @@ def extract(xml_bytes: bytes) -> ExtractResult:
             i = 0
             n = len(text)
             while i < n:
-                if text[i] == '\\' and i + 1 < n and text[i+1] in ('(', ')'):
+                if text[i] == "\\" and i + 1 < n and text[i + 1] in ("(", ")"):
                     if depth == 0:
-                        parsed.append(text[i+1])
+                        parsed.append(text[i + 1])
                     i += 2
                     continue
-                if text[i] == '(':
+                if text[i] == "(":
                     depth += 1
                     i += 1
                     continue
-                if text[i] == ')':
+                if text[i] == ")":
                     if depth > 0:
                         depth -= 1
                     else:
-                        parsed.append(')')
+                        parsed.append(")")
                     i += 1
                     continue
                 if depth == 0:
                     parsed.append(text[i])
                 i += 1
-            
+
             clean_text = "".join(parsed).replace("\\n", "\n")
             if clean_text:
                 out.texts.append((pid, tid, clean_text))

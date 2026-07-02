@@ -28,7 +28,9 @@ def build_sector_distance(conn: sqlite3.Connection) -> None:
     # Load zones and their coordinates
     zones = {}
     zones_by_sector = defaultdict(list)
-    for row in conn.execute("SELECT zone_id, sector_id, x, y, z FROM s.zones WHERE sector_id IS NOT NULL"):
+    for row in conn.execute(
+        "SELECT zone_id, sector_id, x, y, z FROM s.zones WHERE sector_id IS NOT NULL"
+    ):
         z_id = row["zone_id"]
         s_id = row["sector_id"]
         x, y, z = row["x"] or 0.0, row["y"] or 0.0, row["z"] or 0.0
@@ -92,24 +94,24 @@ def build_sector_distance(conn: sqlite3.Connection) -> None:
 
     for source_id in all_sectors:
         start_node = f"s:{source_id}"
-        
+
         # Dijkstra
         # Priority queue stores (weight, node, manual_dist, fast_time, hops)
         pq = [(0.0, start_node, 0.0, 0.0, 0)]
         visited = set()
         best_dist: dict[str, float] = {}
-        
+
         while pq:
             w, u, m_dist, f_time, h = heapq.heappop(pq)
-            
+
             if u in visited:
                 continue
             visited.add(u)
-            
+
             if u.startswith("s:") and u != start_node:
                 target_id = u[2:]
                 rows.append((source_id, target_id, h, m_dist, f_time))
-            
+
             for v, edge_w, edge_m, edge_f, edge_h in adj[u]:
                 if v not in visited:
                     new_w = w + edge_w

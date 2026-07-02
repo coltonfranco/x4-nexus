@@ -135,11 +135,11 @@ def run(
         collectors = build_collectors(settings, save_path)
         registrations = [r for c in collectors for r in c.register()]
         load_static_zones(str(settings.data_dir / "static.db"))
-        
+
         def _stream_progress(frac: float) -> None:
             if on_progress:
-                on_progress(f"Reading save data ({frac*100:.0f}%)...", frac * 0.7)
-                
+                on_progress(f"Reading save data ({frac * 100:.0f}%)...", frac * 0.7)
+
         stream_save(save_path, registrations, on_progress=_stream_progress)
 
         game_time = _game_time_sec(collectors)
@@ -183,7 +183,10 @@ def run(
             _write_ingest_state(conn, "ingest_ms", str(elapsed_ms))
         log.info(
             "ingested %s in %dms (%d/%d tiers rewritten)",
-            save_path.name, elapsed_ms, rewritten, len(TIERS),
+            save_path.name,
+            elapsed_ms,
+            rewritten,
+            len(TIERS),
         )
     finally:
         conn.close()

@@ -4,7 +4,6 @@ Reads the active save's offers crossed with the static ware catalog. Empty until
 save is ingested.
 """
 
-
 import dataclasses
 import sqlite3
 from typing import Annotated, Literal
@@ -87,18 +86,18 @@ def ware_offer_breakdown(
 
 
 class AccountRow(PublicModel):
-    owner: str                    # `[0x..]` component id
-    name: str | None              # resolved station/ship name (raw id when unresolved)
-    kind: str                     # station | ship | account (empire/faction-level)
+    owner: str  # `[0x..]` component id
+    name: str | None  # resolved station/ship name (raw id when unresolved)
+    kind: str  # station | ship | account (empire/faction-level)
     faction: str | None
     is_player: bool
-    net_worth: int | None         # latest baseline value (faction-level; NULL for most stations)
+    net_worth: int | None  # latest baseline value (faction-level; NULL for most stations)
     net_worth_assets: int | None  # latest baseline secondary value
-    live_cash: int | None         # exact cash balance from latest transaction event
-    account_amount: int | None    # station's own credits (from station_overview)
-    account_min: int | None       # operating budget lower threshold
-    account_max: int | None       # operating budget upper threshold (manager target)
-    latest_time: float | None     # in-game seconds of the latest sample
+    live_cash: int | None  # exact cash balance from latest transaction event
+    account_amount: int | None  # station's own credits (from station_overview)
+    account_min: int | None  # operating budget lower threshold
+    account_max: int | None  # operating budget upper threshold (manager target)
+    latest_time: float | None  # in-game seconds of the latest sample
     event_count: int
 
 
@@ -109,8 +108,7 @@ def list_accounts(
 ) -> list[AccountRow]:
     """Tracked money accounts with their latest net worth — feeds the net-worth picker."""
     return [
-        AccountRow(**dataclasses.asdict(a))
-        for a in finance.accounts(conn, player_only=player_only)
+        AccountRow(**dataclasses.asdict(a)) for a in finance.accounts(conn, player_only=player_only)
     ]
 
 
@@ -135,7 +133,9 @@ class NetWorthPointRow(PublicModel):
 def net_worth_series(
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
     owner: str | None = Query(None, description="Pin one account; omit for all player accounts"),
-    player_only: bool = Query(True, description="Restrict to player accounts (ignored when owner set)"),
+    player_only: bool = Query(
+        True, description="Restrict to player accounts (ignored when owner set)"
+    ),
 ) -> list[NetWorthPointRow]:
     """Net-worth-over-time samples for charting (the in-game player overview curve)."""
     return [

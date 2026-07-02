@@ -4,7 +4,6 @@ EXEMPLAR endpoint: response model defined locally for stability, dependency-inje
 DB connection, no business logic in the handler (delegated to a query).
 """
 
-
 import sqlite3
 import time
 from datetime import UTC, datetime

@@ -43,16 +43,20 @@ from x4_extract.static.raw import RawFileStore
 
 # ── Logging helpers ────────────────────────────────────────────────────────────
 
+
 def run(settings: ExtractSettings, on_progress: Callable[[str, float], None] | None = None) -> None:
     _step = [0]
     _total_steps = 26
+
     def _progress_log(msg: str) -> None:
         _log(msg)
         if on_progress:
             _step[0] += 1
             # Scale from 0.0 to 1.0 (since icons are now moved out)
-            frac = (min(_step[0], _total_steps) / _total_steps)
-            on_progress(msg.replace("Extracting: ", "").replace("Computing: ", "").capitalize(), frac)
+            frac = min(_step[0], _total_steps) / _total_steps
+            on_progress(
+                msg.replace("Extracting: ", "").replace("Computing: ", "").capitalize(), frac
+            )
 
     settings.data_dir.mkdir(parents=True, exist_ok=True)
     db_path = settings.data_dir / "static.db"
@@ -82,6 +86,7 @@ def run(settings: ExtractSettings, on_progress: Callable[[str, float], None] | N
     import dataclasses
 
     from x4_extract.i18n import Localizer
+
     localizer = Localizer(conn, DEFAULT_LANGUAGE_CODE)
 
     def _localize_result(result: Any) -> Any:
@@ -109,14 +114,20 @@ def run(settings: ExtractSettings, on_progress: Callable[[str, float], None] | N
             waregroups_xml = get_raw_file("libraries/waregroups.xml")
             if waregroups_xml:
                 waregroups.write(conn, _localize_result(waregroups.extract(waregroups_xml)))
-                _progress_log(f"  -> {len(waregroups.extract(waregroups_xml).groups)} groups ({_elapsed(t0)})")
+                _progress_log(
+                    f"  -> {len(waregroups.extract(waregroups_xml).groups)} groups ({_elapsed(t0)})"
+                )
 
             t0 = time.monotonic()
             _progress_log("Extracting: mission groups")
             missiongroups_xml = get_raw_file("libraries/missiongroups.xml")
             if missiongroups_xml:
-                missiongroups.write(conn, _localize_result(missiongroups.extract(missiongroups_xml)))
-                _progress_log(f"  -> {len(missiongroups.extract(missiongroups_xml).groups)} groups ({_elapsed(t0)})")
+                missiongroups.write(
+                    conn, _localize_result(missiongroups.extract(missiongroups_xml))
+                )
+                _progress_log(
+                    f"  -> {len(missiongroups.extract(missiongroups_xml).groups)} groups ({_elapsed(t0)})"
+                )
 
             t0 = time.monotonic()
             _progress_log("Extracting: wares")
@@ -163,12 +174,8 @@ def run(settings: ExtractSettings, on_progress: Callable[[str, float], None] | N
                 # resolves thousands of paths and filenames.  Doing 8K+
                 # individual DB queries (each with COLLATE NOCASE) is the
                 # dominant cost in the entire pipeline.
-                rows = conn.execute(
-                    "SELECT filepath, content FROM raw.raw_files"
-                ).fetchall()
-                _all_raw: dict[str, bytes] = {
-                    str(r[0]): str(r[1]).encode("utf-8") for r in rows
-                }
+                rows = conn.execute("SELECT filepath, content FROM raw.raw_files").fetchall()
+                _all_raw: dict[str, bytes] = {str(r[0]): str(r[1]).encode("utf-8") for r in rows}
                 # Case-insensitive fallback: macro index uses lowercase paths
                 # (assets/props/engines/…) but the cat archives preserve the
                 # original casing (assets/props/Engines/…).
@@ -210,7 +217,9 @@ def run(settings: ExtractSettings, on_progress: Callable[[str, float], None] | N
                 _progress_log("Extracting: equipment")
                 e_result = equipment.extract(macros_xml, cached_resolver, cached_resolve_name)
                 equipment.write(conn, _localize_result(e_result))
-                _progress_log(f"  -> {len(e_result.engines)} engines, {len(e_result.shields)} shields, {len(e_result.weapons)} weapons ({_elapsed(t0)})")
+                _progress_log(
+                    f"  -> {len(e_result.engines)} engines, {len(e_result.shields)} shields, {len(e_result.weapons)} weapons ({_elapsed(t0)})"
+                )
 
                 t0 = time.monotonic()
                 _progress_log("Extracting: modules")
@@ -247,15 +256,14 @@ def run(settings: ExtractSettings, on_progress: Callable[[str, float], None] | N
             ).fetchall()
             map_xmls: dict[str, bytes] = {}
             if map_rows:
-                map_xmls = {
-                    row[0].rsplit("/", 1)[-1]: row[1].encode("utf-8")
-                    for row in map_rows
-                }
+                map_xmls = {row[0].rsplit("/", 1)[-1]: row[1].encode("utf-8") for row in map_rows}
 
             region_xml = get_raw_file("libraries/region_definitions.xml")
             if region_xml:
                 region_sector_map = regions.build_region_sector_map(map_xmls) if map_xmls else None
-                regions.write(conn, _localize_result(regions.extract(region_xml, region_sector_map)))
+                regions.write(
+                    conn, _localize_result(regions.extract(region_xml, region_sector_map))
+                )
 
             if map_xmls:
                 mapdefaults_xml = get_raw_file("libraries/mapdefaults.xml")
@@ -263,7 +271,9 @@ def run(settings: ExtractSettings, on_progress: Callable[[str, float], None] | N
                     map_xmls["mapdefaults.xml"] = mapdefaults_xml
                 map_result = map.extract(map_xmls)
                 map.write(conn, _localize_result(map_result))
-                _progress_log(f"  -> {len(map_result.clusters)} clusters, {len(map_result.sectors)} sectors ({_elapsed(t0)})")
+                _progress_log(
+                    f"  -> {len(map_result.clusters)} clusters, {len(map_result.sectors)} sectors ({_elapsed(t0)})"
+                )
 
             t0 = time.monotonic()
             _progress_log("Extracting: terraforming")
@@ -336,7 +346,7 @@ def run(settings: ExtractSettings, on_progress: Callable[[str, float], None] | N
             ).fetchall()
             if ai_rows:
                 total_orders = 0
-                conn.execute("DELETE FROM orders") # Clear table before loop
+                conn.execute("DELETE FROM orders")  # Clear table before loop
                 for row in ai_rows:
                     o_result = orders.extract(row[0].encode("utf-8"))
                     if o_result.orders:
@@ -352,7 +362,7 @@ def run(settings: ExtractSettings, on_progress: Callable[[str, float], None] | N
             t0 = time.monotonic()
             _progress_log("Computing: ware uses")
             conn.execute("DELETE FROM ware_uses")
-            conn.execute('''
+            conn.execute("""
                 INSERT INTO ware_uses (ware_id, use_type, use_value)
                 SELECT DISTINCT wi.input_ware_id, 'category' AS use_type,
                     CASE
@@ -385,7 +395,7 @@ def run(settings: ExtractSettings, on_progress: Callable[[str, float], None] | N
                 LEFT JOIN equip_deployables ed ON w.component_ref = ed.deployable_id
                 WHERE s.ship_id IS NULL AND m.module_id IS NULL AND ed.deployable_id IS NULL
                   AND w.group_id NOT IN ('weapons', 'turrets', 'shields', 'engines', 'thrusters', 'drones', 'missiles', 'countermeasures', 'equipmod', 'paintmod')
-            ''')
+            """)
             _progress_log(f"  done ({_elapsed(t0)})")
     finally:
         conn.close()

@@ -3,12 +3,12 @@
 Active missions, mission offers, and mission group reference enrichment.
 """
 
-
 import json
 import sqlite3
-from typing import Annotated
+from typing import Annotated, Any, TypedDict
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import Field
 
 from x4_api.api.deps import get_db
 from x4_api.api.schemas import PublicModel
@@ -61,13 +61,13 @@ class Mission(PublicModel):
     is_story: bool | None = None
     rewardtext: str | None = None
     reward_credits: int | None = None
-    opposing_faction: str | None = None   # parsed from extra_json
+    opposing_faction: str | None = None  # parsed from extra_json
     caption: str | None = None
     icon: str | None = None
-    time: str | float | None = None        # in-game seconds (float from DB, string from extra_json)
+    time: str | float | None = None  # in-game seconds (float from DB, string from extra_json)
     activation: str | None = None
     alert: str | None = None
-    objectives: list[MissionObjective] = []
+    objectives: list[MissionObjective] = Field(default_factory=list)
 
 
 class MissionOffer(PublicModel):
@@ -105,13 +105,13 @@ class MissionOffer(PublicModel):
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 
-def _parse_extra(extra_json: str | None) -> dict:
+def _parse_extra(extra_json: str | None) -> dict[str, Any]:
     """Parse extra_json into a dict of enrichment fields.
 
     These serve as fallbacks for existing DBs that don't have the dedicated columns yet.
     The handler prefers the dedicated column; this function fills gaps.
     """
-    result: dict = {}
+    result: dict[str, Any] = {}
     if extra_json:
         try:
             extra = json.loads(extra_json)
@@ -148,7 +148,7 @@ def _load_objectives(
                    target_id, progress_current, progress_max, progress_name,
                    encyclopedia_type, encyclopedia_item
             FROM mission_objectives
-            WHERE mission_id IN ({','.join('?' for _ in mission_ids)})
+            WHERE mission_id IN ({",".join("?" for _ in mission_ids)})
             ORDER BY mission_id, step""",
         mission_ids,
     ).fetchall()
@@ -170,9 +170,7 @@ def _load_objectives(
     return result
 
 
-def _resolve_entities(
-    conn: sqlite3.Connection, entity_ids: set[str]
-) -> dict[str, dict]:
+def _resolve_entities(conn: sqlite3.Connection, entity_ids: set[str]) -> dict[str, dict[str, Any]]:
     """Batch-resolve ``[0x...]`` entity references to (kind, name) pairs.
 
     Queries each lookup table once so the cost stays O(tables) regardless of
@@ -181,7 +179,7 @@ def _resolve_entities(
     """
     if not entity_ids:
         return {}
-    resolved: dict[str, dict] = {}
+    resolved: dict[str, dict[str, Any]] = {}
 
     for table, id_col, kind_label in [
         ("npc", "id", "npc"),
@@ -221,15 +219,20 @@ def _resolve_entities(
     return resolved
 
 
+class _GroupInfo(TypedDict):
+    name: str | None
+    is_story: bool
+
+
 def _resolve_group_names(
     conn: sqlite3.Connection, group_ids: set[str]
-) -> dict[str, dict[str, str | bool | None]]:
+) -> dict[str, _GroupInfo]:
     """Batch-lookup human-readable names + story flag for group ids."""
     if not group_ids:
         return {}
     rows = conn.execute(
         f"""SELECT group_id, name, is_story FROM s.mission_groups
-            WHERE group_id IN ({','.join('?' for _ in group_ids)})""",
+            WHERE group_id IN ({",".join("?" for _ in group_ids)})""",
         list(group_ids),
     ).fetchall()
     return {r[0]: {"name": r[1], "is_story": bool(r[2])} for r in rows}
@@ -247,7 +250,7 @@ _ENRICHMENT_KEYS = (
 )
 
 
-def _merge_enrichment(d: dict, enrichment: dict) -> None:
+def _merge_enrichment(d: dict[str, Any], enrichment: dict[str, Any]) -> None:
     """Prefer `d`'s dedicated columns over `enrichment`'s extra_json fallbacks.
 
     Mutates both in place: `enrichment` ends up holding the resolved value for each
@@ -270,8 +273,8 @@ def _merge_enrichment(d: dict, enrichment: dict) -> None:
 
 
 def _resolve_associated_entity(
-    d: dict, resolved: dict[str, dict], positions: dict[str, dict]
-) -> tuple[dict | None, dict | None]:
+    d: dict[str, Any], resolved: dict[str, dict[str, Any]], positions: dict[str, dict[str, Any]]
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
     """Look up a mission's `associated_entity` in the batch-resolved maps."""
     ae_ref = d.get("associated_entity")
     ae_info = resolved.get(ae_ref) if ae_ref else None
@@ -281,14 +284,14 @@ def _resolve_associated_entity(
 
 def _hydrate_objectives(
     raw_objectives: list[MissionObjective],
-    resolved: dict[str, dict],
-    positions: dict[str, dict],
+    resolved: dict[str, dict[str, Any]],
+    positions: dict[str, dict[str, Any]],
 ) -> list[MissionObjective]:
     """Fill in target name/position on each objective from batch-resolved maps."""
     hydrated: list[MissionObjective] = []
     for obj in raw_objectives:
         tgt_name: str | None = None
-        tgt_pos: dict | None = None
+        tgt_pos: dict[str, Any] | None = None
         if obj.target_id:
             rhs = resolved.get(obj.target_id)
             if rhs:
@@ -400,7 +403,7 @@ def list_missions(
 ) -> list[Mission]:
     """List all active missions enriched with reference group data."""
     clauses = ["1=1"]
-    params: dict = {}
+    params: dict[str, Any] = {}
     if faction:
         clauses.append("m.faction = :faction")
         params["faction"] = faction
@@ -412,7 +415,7 @@ def list_missions(
 
     rows = conn.execute(
         f"""SELECT * FROM missions m
-            WHERE {' AND '.join(clauses)}
+            WHERE {" AND ".join(clauses)}
             ORDER BY m.is_active DESC, m.priority, m.mission_id""",
         params,
     ).fetchall()
@@ -455,24 +458,28 @@ def list_missions(
         raw_objectives = objectives_by_mission.get(d["mission_id"], [])
         mission_objectives = _hydrate_objectives(raw_objectives, resolved, positions)
 
-        result.append(Mission(
-            **d,
-            associated_entity_name=ae_info["name"] if ae_info else None,
-            associated_entity_kind=ae_info["kind"] if ae_info else None,
-            associated_entity_sector_id=ae_pos["sector_id"] if ae_pos else None,
-            associated_entity_zone_id=ae_pos["zone_id"] if ae_pos else None,
-            associated_entity_x=ae_pos["x"] if ae_pos else None,
-            associated_entity_y=ae_pos["y"] if ae_pos else None,
-            associated_entity_z=ae_pos["z"] if ae_pos else None,
-            group_name=(group_names.get(d["group_id"]) or {}).get("name") if d.get("group_id") else None,
-            rewardtext=enrichment.get("rewardtext"),
-            reward_credits=enrichment.get("reward_credits"),
-            opposing_faction=enrichment.get("opposing_faction"),
-            caption=enrichment.get("caption"),
-            icon=enrichment.get("icon"),
-            time=enrichment.get("time"),
-            objectives=mission_objectives,
-        ))
+        result.append(
+            Mission(
+                **d,
+                associated_entity_name=ae_info["name"] if ae_info else None,
+                associated_entity_kind=ae_info["kind"] if ae_info else None,
+                associated_entity_sector_id=ae_pos["sector_id"] if ae_pos else None,
+                associated_entity_zone_id=ae_pos["zone_id"] if ae_pos else None,
+                associated_entity_x=ae_pos["x"] if ae_pos else None,
+                associated_entity_y=ae_pos["y"] if ae_pos else None,
+                associated_entity_z=ae_pos["z"] if ae_pos else None,
+                group_name=group_info["name"]
+                if (gid := d.get("group_id")) and (group_info := group_names.get(gid))
+                else None,
+                rewardtext=enrichment.get("rewardtext"),
+                reward_credits=enrichment.get("reward_credits"),
+                opposing_faction=enrichment.get("opposing_faction"),
+                caption=enrichment.get("caption"),
+                icon=enrichment.get("icon"),
+                time=enrichment.get("time"),
+                objectives=mission_objectives,
+            )
+        )
     return result
 
 
@@ -483,12 +490,14 @@ def list_missions(
 def list_mission_offers(
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
     faction: Annotated[str | None, Query(description="Filter by faction")] = None,
-    repeatable_only: Annotated[bool | None, Query(description="Only repeatable guild/war offers")] = None,
+    repeatable_only: Annotated[
+        bool | None, Query(description="Only repeatable guild/war offers")
+    ] = None,
     exclude_tutorials: Annotated[bool | None, Query(description="Exclude tutorial offers")] = True,
 ) -> list[MissionOffer]:
     """List available mission offers (the mission board)."""
     clauses = ["1=1"]
-    params: dict = {}
+    params: dict[str, Any] = {}
     if faction:
         clauses.append("faction = :faction")
         params["faction"] = faction
@@ -499,7 +508,7 @@ def list_mission_offers(
 
     rows = conn.execute(
         f"""SELECT * FROM mission_offers
-            WHERE {' AND '.join(clauses)}
+            WHERE {" AND ".join(clauses)}
             ORDER BY is_repeatable DESC, level, name""",
         params,
     ).fetchall()
@@ -625,7 +634,7 @@ def get_mission(
         associated_entity_x=ae_pos["x"] if ae_pos else None,
         associated_entity_y=ae_pos["y"] if ae_pos else None,
         associated_entity_z=ae_pos["z"] if ae_pos else None,
-        group_name=(group_names.get(gid) or {}).get("name") if gid else None,
+        group_name=group_info["name"] if gid and (group_info := group_names.get(gid)) else None,
         rewardtext=enrichment.get("rewardtext"),
         reward_credits=enrichment.get("reward_credits"),
         opposing_faction=enrichment.get("opposing_faction"),

@@ -51,7 +51,7 @@ def test_ware_market_classifies_and_ranks(data_dir: Path) -> None:
     assert hp.sell_qty == 100 and hp.buy_qty == 900
     assert hp.net_demand == 800
     assert hp.classification == "shortage"
-    assert hp.best_buy_price == 130   # cheapest sell offer
+    assert hp.best_buy_price == 130  # cheapest sell offer
     assert hp.best_sell_price == 140  # dearest buy offer
     assert hp.price_index is not None and hp.price_index > 1  # elevated vs ref 100
 

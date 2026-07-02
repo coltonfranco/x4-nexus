@@ -37,7 +37,9 @@ def settings(data_dir: Path) -> Settings:
     return Settings(install_path=Path("C:/fake/x4"), data_dir=data_dir)
 
 
-def test_list_factions_returns_all_factions(client: TestClient, static_conn: sqlite3.Connection) -> None:
+def test_list_factions_returns_all_factions(
+    client: TestClient, static_conn: sqlite3.Connection
+) -> None:
     result = factions.extract(TINY_FACTIONS_XML, TINY_COLORS_XML)
     factions.write(static_conn, result)
     static_conn.commit()
@@ -61,7 +63,9 @@ def test_get_faction_detail_returns_404_on_missing(client: TestClient) -> None:
     assert "Unknown faction_id" in resp.json()["detail"]
 
 
-def test_get_faction_detail_returns_full_record(client: TestClient, static_conn: sqlite3.Connection) -> None:
+def test_get_faction_detail_returns_full_record(
+    client: TestClient, static_conn: sqlite3.Connection
+) -> None:
     result = factions.extract(TINY_FACTIONS_XML, TINY_COLORS_XML)
     factions.write(static_conn, result)
     static_conn.commit()

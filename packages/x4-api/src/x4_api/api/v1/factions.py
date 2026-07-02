@@ -1,6 +1,5 @@
 """REST endpoints for game factions."""
 
-
 import sqlite3
 from typing import Annotated, Any
 
@@ -99,23 +98,23 @@ class FactionStrength(PublicModel):
     # Normalized 0-100 scores (best faction in each category = 100)
     military_score: float
     economic_score: float
-    diplomatic_score: float   # absolute: avg_relation mapped -1..1 → 0..100
+    diplomatic_score: float  # absolute: avg_relation mapped -1..1 → 0..100
     territory_score: float
     # Raw detail fields
     fight_ship_count: int
     trade_ship_count: int
     mine_ship_count: int
-    military_station_count: int   # defence + shipyard + wharf
-    economic_station_count: int   # trade stations, equipment docks, factories, etc.
+    military_station_count: int  # defence + shipyard + wharf
+    economic_station_count: int  # trade stations, equipment docks, factories, etc.
     sector_count: int
-    cluster_count: int            # distinct clusters with at least one owned sector
-    avg_relation: float           # game-scale -30..30
+    cluster_count: int  # distinct clusters with at least one owned sector
+    avg_relation: float  # game-scale -30..30
 
 
 # Player is included so it ranks alongside AI factions; only structural placeholders skipped.
 _SKIP_FACTIONS = frozenset({"visitor", "ownerless"})
 _CLASS_MULT = {"s": 1, "m": 2, "l": 4, "xl": 8, "xs": 1}
-_ECON_MULT  = {"s": 1, "m": 2, "l": 3, "xl": 4, "xs": 1}
+_ECON_MULT = {"s": 1, "m": 2, "l": 3, "xl": 4, "xs": 1}
 
 
 @router.get("/factions/strength", response_model=list[FactionStrength])
@@ -208,30 +207,30 @@ def faction_strength(
         mil_raw = mil_weighted.get(fid, 0.0)
         # Economic: econ ships (x0.8) + live stations (3 pts) + sector economy rating.
         econ_raw = (
-            station_cnt * 3.0
-            + sec_cnt * avg_econ * 5.0
-            + econ_ship_weighted.get(fid, 0.0) * 0.8
+            station_cnt * 3.0 + sec_cnt * avg_econ * 5.0 + econ_ship_weighted.get(fid, 0.0) * 0.8
         )
         territory_raw = float(sec_cnt + clus_cnt * 2)
         diplo_score = round((avg_rel + 1.0) / 2.0 * 100.0, 1)
 
-        rows.append({
-            "faction_id": fid,
-            "name": f["name"],
-            "color_hex": f["color_hex"],
-            "military_raw": mil_raw,
-            "economic_raw": econ_raw,
-            "territory_raw": territory_raw,
-            "diplomatic_score": diplo_score,
-            "fight_ship_count": fight_counts.get(fid, 0),
-            "trade_ship_count": trade_counts.get(fid, 0),
-            "mine_ship_count": mine_counts.get(fid, 0),
-            "military_station_count": 0,  # live station type-classification is a fast-follow
-            "economic_station_count": station_cnt,
-            "sector_count": sec_cnt,
-            "cluster_count": clus_cnt,
-            "avg_relation": round(avg_rel * 30.0, 1),  # game-scale -30..30
-        })
+        rows.append(
+            {
+                "faction_id": fid,
+                "name": f["name"],
+                "color_hex": f["color_hex"],
+                "military_raw": mil_raw,
+                "economic_raw": econ_raw,
+                "territory_raw": territory_raw,
+                "diplomatic_score": diplo_score,
+                "fight_ship_count": fight_counts.get(fid, 0),
+                "trade_ship_count": trade_counts.get(fid, 0),
+                "mine_ship_count": mine_counts.get(fid, 0),
+                "military_station_count": 0,  # live station type-classification is a fast-follow
+                "economic_station_count": station_cnt,
+                "sector_count": sec_cnt,
+                "cluster_count": clus_cnt,
+                "avg_relation": round(avg_rel * 30.0, 1),  # game-scale -30..30
+            }
+        )
 
     # Normalize military, economic, territory relative to the strongest faction
     for metric in ("military_raw", "economic_raw", "territory_raw"):
@@ -240,10 +239,7 @@ def faction_strength(
         for r in rows:
             r[score_key] = round(r[metric] / max_val * 100.0, 1)
 
-    return [
-        FactionStrength(**{k: v for k, v in r.items() if not k.endswith("_raw")})
-        for r in rows
-    ]
+    return [FactionStrength(**{k: v for k, v in r.items() if not k.endswith("_raw")}) for r in rows]
 
 
 @router.get("/factions/known", response_model=dict[str, bool])
@@ -253,7 +249,9 @@ def list_known_factions(
     """Return {faction_id: is_known} for every static faction."""
     all_factions = {
         r["faction_id"]
-        for r in conn.execute("SELECT faction_id FROM s.factions WHERE faction_id NOT IN ('ownerless', 'visitor')").fetchall()
+        for r in conn.execute(
+            "SELECT faction_id FROM s.factions WHERE faction_id NOT IN ('ownerless', 'visitor')"
+        ).fetchall()
     }
     known: set[str] = {"player"}
 
@@ -334,18 +332,21 @@ def list_faction_relations(
     ).fetchall()
     return [FactionRelation(**dict(r)) for r in rows]
 
+
 @router.get("/licences", response_model=list[FactionLicence])
 def list_licences(
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
     faction_id: str | None = None,
 ) -> list[FactionLicence]:
     """List all faction licences, optionally filtered by faction_id."""
-    sql = ["SELECT licence_type, faction_id, name, description, icon, precursor, price, min_relation FROM s.faction_licences WHERE 1=1"]
+    sql = [
+        "SELECT licence_type, faction_id, name, description, icon, precursor, price, min_relation FROM s.faction_licences WHERE 1=1"
+    ]
     params: dict[str, object] = {}
     if faction_id is not None:
         sql.append("AND faction_id = :faction_id")
         params["faction_id"] = faction_id
     sql.append("ORDER BY faction_id, licence_type")
-    
+
     rows = conn.execute(" ".join(sql), params).fetchall()
     return [FactionLicence(**dict(r)) for r in rows]

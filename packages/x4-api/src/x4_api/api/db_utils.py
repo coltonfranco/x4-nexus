@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
-from typing import Any
+from typing import Any, cast
 
 from fastapi import HTTPException
 
@@ -33,7 +33,7 @@ def fetch_one_or_404(
     row = conn.execute(sql, params).fetchone()
     if row is None:
         raise HTTPException(status_code=404, detail=detail)
-    return row
+    return cast(sqlite3.Row, row)
 
 
 def localized_text_sql(col: str) -> str:

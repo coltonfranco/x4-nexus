@@ -16,7 +16,7 @@ from x4_extract.dynamic.catalog import ensure_active_dynamic_db
 
 P_STAT = "[0xP_STAT]"
 P_SHIP = "[0xP_SHIP]"
-EMPIRE = "[0xEMPIRE]"   # resolves to neither station nor ship → kind 'account'
+EMPIRE = "[0xEMPIRE]"  # resolves to neither station nor ship → kind 'account'
 N_STAT = "[0xN_STAT]"
 N_SHIP = "[0xN2]"
 
@@ -65,10 +65,24 @@ def _seed(settings: Settings) -> None:
         conn.executemany(
             "INSERT INTO economy_trade (time, ware, buyer, seller, price, v) VALUES (?,?,?,?,?,?)",
             [
-                (64613.5, "silicon", N_STAT, P_STAT, 100, 10),     # player sells silicon (external income)
-                (64700.0, "energycells", P_SHIP, N_STAT, 20, 5),   # player buys energycells (external spend)
-                (64800.0, "silicon", N_STAT, N_SHIP, 99, 8),       # npc↔npc, no player party
-                (64900.0, "ore", P_STAT, P_SHIP, 50, 4),           # player→player internal transfer
+                (
+                    64613.5,
+                    "silicon",
+                    N_STAT,
+                    P_STAT,
+                    100,
+                    10,
+                ),  # player sells silicon (external income)
+                (
+                    64700.0,
+                    "energycells",
+                    P_SHIP,
+                    N_STAT,
+                    20,
+                    5,
+                ),  # player buys energycells (external spend)
+                (64800.0, "silicon", N_STAT, N_SHIP, 99, 8),  # npc↔npc, no player party
+                (64900.0, "ore", P_STAT, P_SHIP, 50, 4),  # player→player internal transfer
             ],
         )
         conn.commit()
@@ -77,6 +91,7 @@ def _seed(settings: Settings) -> None:
 
 
 # ── accounts ───────────────────────────────────────────────────────────────────
+
 
 def test_accounts_resolve_and_rank(client: TestClient, settings: Settings) -> None:
     _seed(settings)
@@ -91,9 +106,9 @@ def test_accounts_resolve_and_rank(client: TestClient, settings: Settings) -> No
     assert stat["event_count"] == 3  # two baselines + one event
 
     empire = next(r for r in rows if r["owner"] == EMPIRE)
-    assert empire["kind"] == "account"          # resolves to no asset
+    assert empire["kind"] == "account"  # resolves to no asset
     assert empire["is_player"] is False
-    assert empire["name"] == EMPIRE             # raw id fallback
+    assert empire["name"] == EMPIRE  # raw id fallback
 
 
 def test_accounts_player_only(client: TestClient, settings: Settings) -> None:
@@ -104,7 +119,10 @@ def test_accounts_player_only(client: TestClient, settings: Settings) -> None:
 
 # ── net worth series ─────────────────────────────────────────────────────────────
 
-def test_networth_player_default_excludes_events_and_npc(client: TestClient, settings: Settings) -> None:
+
+def test_networth_player_default_excludes_events_and_npc(
+    client: TestClient, settings: Settings
+) -> None:
     _seed(settings)
     pts = client.get("/api/v1/economy/networth").json()
     # player baseline samples + event samples: P_STAT x3 + P_SHIP x1
@@ -121,6 +139,7 @@ def test_networth_owner_pin_overrides_player_filter(client: TestClient, settings
 
 
 # ── trades ───────────────────────────────────────────────────────────────────────
+
 
 def test_trades_recent_first_and_resolved(client: TestClient, settings: Settings) -> None:
     _seed(settings)
@@ -144,7 +163,10 @@ def test_trades_filters(client: TestClient, settings: Settings) -> None:
 
 # ── per-ware P&L ─────────────────────────────────────────────────────────────────
 
-def test_pnl_external_only_excludes_internal_transfers(client: TestClient, settings: Settings) -> None:
+
+def test_pnl_external_only_excludes_internal_transfers(
+    client: TestClient, settings: Settings
+) -> None:
     _seed(settings)
     rows = client.get("/api/v1/economy/pnl").json()
     by_ware = {r["ware"]: r for r in rows}
@@ -163,8 +185,14 @@ def test_pnl_external_only_excludes_internal_transfers(client: TestClient, setti
 
 # ── empty contract ───────────────────────────────────────────────────────────────
 
+
 def test_endpoints_empty_without_data(client: TestClient) -> None:
-    for path in ("/api/v1/economy/accounts", "/api/v1/economy/networth", "/api/v1/economy/trades", "/api/v1/economy/pnl"):
+    for path in (
+        "/api/v1/economy/accounts",
+        "/api/v1/economy/networth",
+        "/api/v1/economy/trades",
+        "/api/v1/economy/pnl",
+    ):
         resp = client.get(path)
         assert resp.status_code == 200
         assert resp.json() == []

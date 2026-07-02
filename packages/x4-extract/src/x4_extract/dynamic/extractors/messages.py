@@ -27,8 +27,7 @@ from x4_extract.savefile.dispatch import Registration, Target
 
 # Attributes promoted to typed columns. Anything else → extra_json.
 _MAPPED_ATTRS = frozenset(
-    {"id", "time", "title", "text", "source",
-     "highpriority", "interact", "component", "read"}
+    {"id", "time", "title", "text", "source", "highpriority", "interact", "component", "read"}
 )
 
 

@@ -17,22 +17,51 @@ from x4_extract.static.constants import EQUIPMENT_CLASSES, dlc_from_path
 # Tags that appear on every component connection and don't restrict compatibility.
 # We filter these OUT — what remains are the restrictive tags.
 _GENERIC_TAGS = {
-    "component", "world", "ship", "dock", "storage",
-    "small", "medium", "large", "extralarge", "extrasmall",
-    "engine", "weapon", "turret", "shield", "thruster",
-    "missile", "countermeasure", "deployable", "drone",
+    "component",
+    "world",
+    "ship",
+    "dock",
+    "storage",
+    "small",
+    "medium",
+    "large",
+    "extralarge",
+    "extrasmall",
+    "engine",
+    "weapon",
+    "turret",
+    "shield",
+    "thruster",
+    "missile",
+    "countermeasure",
+    "deployable",
+    "drone",
     "launchtube",
     # Subclass / faction / role tags — not ship-exclusive
-    "standard", "advanced", "small_racer",
-    "spacesuit", "xenon", "khaak", "mandatory",
+    "standard",
+    "advanced",
+    "small_racer",
+    "spacesuit",
+    "xenon",
+    "khaak",
+    "mandatory",
     # Shield component collision tags
-    "hittable", "unhittable",
+    "hittable",
+    "unhittable",
     # Weapon role / subclass tags
-    "combat", "mining", "highpower", "default", "repair",
-    "bomblauncher", "bomb",
+    "combat",
+    "mining",
+    "highpower",
+    "default",
+    "repair",
+    "bomblauncher",
+    "bomb",
     # Faction destroyer-class identifiers (fit multiple ships, not one)
-    "arg_destroyer_01", "par_destroyer_01", "spl_destroyer_01",
-    "tel_destroyer_01", "ter_destroyer_01",
+    "arg_destroyer_01",
+    "par_destroyer_01",
+    "spl_destroyer_01",
+    "tel_destroyer_01",
+    "ter_destroyer_01",
 }
 
 
@@ -46,7 +75,9 @@ class ExtractResult:
     software: list[dict[str, Any]] = field(default_factory=list)
 
 
-def extract(index_bytes: bytes, resolve_path: Callable[[str], bytes], resolve_name: Callable[[str], bytes]) -> ExtractResult:
+def extract(
+    index_bytes: bytes, resolve_path: Callable[[str], bytes], resolve_name: Callable[[str], bytes]
+) -> ExtractResult:
     """Parse merged macros.xml, resolve equipment macros, and extract row dicts."""
     root = etree.fromstring(index_bytes)
     out = ExtractResult()
@@ -81,7 +112,13 @@ def extract(index_bytes: bytes, resolve_path: Callable[[str], bytes], resolve_na
     return out
 
 
-def _parse_equipment_macro(macro_name: str, file_path: str, macro_el: etree._Element, resolve_name: Callable[[str], bytes], out: ExtractResult) -> None:
+def _parse_equipment_macro(
+    macro_name: str,
+    file_path: str,
+    macro_el: etree._Element,
+    resolve_name: Callable[[str], bytes],
+    out: ExtractResult,
+) -> None:
     class_id = macro_el.get("class", "")
 
     ident_el = macro_el.find("properties/identification")
@@ -105,7 +142,9 @@ def _parse_equipment_macro(macro_name: str, file_path: str, macro_el: etree._Ele
                 comp_node = comp_root.find(f".//component[@name='{comp_ref}']")
                 if comp_node is not None:
                     # Look for the root connection that identifies the component
-                    for conn in _xpath_elements(comp_node, ".//connection[contains(@tags, 'component')]"):
+                    for conn in _xpath_elements(
+                        comp_node, ".//connection[contains(@tags, 'component')]"
+                    ):
                         tags = conn.get("tags", "").split()
                         if "extralarge" in tags:
                             size = "xl"
@@ -133,53 +172,64 @@ def _parse_equipment_macro(macro_name: str, file_path: str, macro_el: etree._Ele
         boost_el = macro_el.find("properties/boost")
         travel_el = macro_el.find("properties/travel")
 
-        out.engines.append({
-            "engine_id": macro_name,
-            "name": name,
-            "file_path": file_path,
-            "is_legacy": "legacy" in file_path.lower(),
-            "dlc": dlc_from_path(file_path),
-            "class_id": class_id,
-            "size": size,
-            "compat_tags": compat_tags,
-            "faction_id": faction_id,
-            "mk": mk,
-            "thrust_forward": _float(thrust_el, "forward"),
-            "thrust_reverse": _float(thrust_el, "reverse"),
-            "thrust_strafe": _float(thrust_el, "strafe"),
-            "thrust_pitch": _float(thrust_el, "pitch"),
-            "thrust_yaw": _float(thrust_el, "yaw"),
-            "thrust_roll": _float(thrust_el, "roll"),
-            "travel_thrust": _float(travel_el, "thrust"),
-            "travel_attack": _float(travel_el, "attack"),
-            "travel_charge": _float(travel_el, "charge"),
-            "travel_release": _float(travel_el, "release"),
-            "boost_thrust": _float(boost_el, "thrust"),
-            "boost_duration": _float(boost_el, "duration"),
-            "boost_attack": _float(boost_el, "attack"),
-            "boost_release": _float(boost_el, "release"),
-        })
+        out.engines.append(
+            {
+                "engine_id": macro_name,
+                "name": name,
+                "file_path": file_path,
+                "is_legacy": "legacy" in file_path.lower(),
+                "dlc": dlc_from_path(file_path),
+                "class_id": class_id,
+                "size": size,
+                "compat_tags": compat_tags,
+                "faction_id": faction_id,
+                "mk": mk,
+                "thrust_forward": _float(thrust_el, "forward"),
+                "thrust_reverse": _float(thrust_el, "reverse"),
+                "thrust_strafe": _float(thrust_el, "strafe"),
+                "thrust_pitch": _float(thrust_el, "pitch"),
+                "thrust_yaw": _float(thrust_el, "yaw"),
+                "thrust_roll": _float(thrust_el, "roll"),
+                "travel_thrust": _float(travel_el, "thrust"),
+                "travel_attack": _float(travel_el, "attack"),
+                "travel_charge": _float(travel_el, "charge"),
+                "travel_release": _float(travel_el, "release"),
+                "boost_thrust": _float(boost_el, "thrust"),
+                "boost_duration": _float(boost_el, "duration"),
+                "boost_attack": _float(boost_el, "attack"),
+                "boost_release": _float(boost_el, "release"),
+            }
+        )
 
     elif class_id == "shieldgenerator":
         recharge_el = macro_el.find("properties/recharge")
 
-        out.shields.append({
-            "shield_id": macro_name,
-            "name": name,
-            "file_path": file_path,
-            "is_legacy": "legacy" in file_path.lower(),
-            "dlc": dlc_from_path(file_path),
-            "size": size,
-            "compat_tags": compat_tags,
-            "faction_id": faction_id,
-            "mk": mk,
-            "capacity": _float(recharge_el, "max"),
-            "recharge_rate": _float(recharge_el, "rate"),
-            "recharge_delay": _float(recharge_el, "delay"),
-            "disruption_stability": _float(recharge_el, "disruptionstability"),
-        })
+        out.shields.append(
+            {
+                "shield_id": macro_name,
+                "name": name,
+                "file_path": file_path,
+                "is_legacy": "legacy" in file_path.lower(),
+                "dlc": dlc_from_path(file_path),
+                "size": size,
+                "compat_tags": compat_tags,
+                "faction_id": faction_id,
+                "mk": mk,
+                "capacity": _float(recharge_el, "max"),
+                "recharge_rate": _float(recharge_el, "rate"),
+                "recharge_delay": _float(recharge_el, "delay"),
+                "disruption_stability": _float(recharge_el, "disruptionstability"),
+            }
+        )
 
-    elif class_id in ["weapon", "turret", "missilelauncher", "bomblauncher", "missileturret", "spacesuitlaser"]:
+    elif class_id in [
+        "weapon",
+        "turret",
+        "missilelauncher",
+        "bomblauncher",
+        "missileturret",
+        "spacesuitlaser",
+    ]:
         bullet_el = macro_el.find("properties/bullet")
         heat_el = macro_el.find("properties/heat")
         rot_el = macro_el.find("properties/rotationspeed")
@@ -191,30 +241,32 @@ def _parse_equipment_macro(macro_name: str, file_path: str, macro_el: etree._Ele
 
         default_bullet_id = bullet_el.get("class") if bullet_el is not None else None
 
-        out.weapons.append({
-            "weapon_id": macro_name,
-            "name": name,
-            "file_path": file_path,
-            "is_legacy": "legacy" in file_path.lower(),
-            "dlc": dlc_from_path(file_path),
-            "class_id": class_id,
-            "size": size,
-            "compat_tags": compat_tags,
-            "faction_id": faction_id,
-            "mk": mk,
-            "default_bullet_id": default_bullet_id,
-            "heat_overheat": _float(heat_el, "overheat"),
-            "heat_coolrate": _float(heat_el, "coolrate"),
-            "heat_cooldelay": _float(heat_el, "cooldelay"),
-            "heat_reenable": _float(heat_el, "reenable"),
-            "rotation_speed": _float(rot_el, "max"),
-            "rotation_accel": _float(rotaccel_el, "max"),
-            "reload_rate": _float(reload_el, "rate"),
-            "reload_time": _float(reload_el, "time"),
-            "hull_max": _int(hull_el, "max"),
-            "ammo_capacity": _int(ammo_el, "value"),
-            "missile_storage": _int(storage_el, "missile"),
-        })
+        out.weapons.append(
+            {
+                "weapon_id": macro_name,
+                "name": name,
+                "file_path": file_path,
+                "is_legacy": "legacy" in file_path.lower(),
+                "dlc": dlc_from_path(file_path),
+                "class_id": class_id,
+                "size": size,
+                "compat_tags": compat_tags,
+                "faction_id": faction_id,
+                "mk": mk,
+                "default_bullet_id": default_bullet_id,
+                "heat_overheat": _float(heat_el, "overheat"),
+                "heat_coolrate": _float(heat_el, "coolrate"),
+                "heat_cooldelay": _float(heat_el, "cooldelay"),
+                "heat_reenable": _float(heat_el, "reenable"),
+                "rotation_speed": _float(rot_el, "max"),
+                "rotation_accel": _float(rotaccel_el, "max"),
+                "reload_rate": _float(reload_el, "rate"),
+                "reload_time": _float(reload_el, "time"),
+                "hull_max": _int(hull_el, "max"),
+                "ammo_capacity": _int(ammo_el, "value"),
+                "missile_storage": _int(storage_el, "missile"),
+            }
+        )
 
     elif class_id in ["bullet", "missile", "bomb", "spacesuitbomb"]:
         bullet_el = macro_el.find("properties/bullet")
@@ -226,65 +278,73 @@ def _parse_equipment_macro(macro_name: str, file_path: str, macro_el: etree._Ele
         missile_el = macro_el.find("properties/missile")
         area_el = macro_el.find("properties/areadamage")
 
-        out.bullets.append({
-            "bullet_id": macro_name,
-            "name": name,
-            "file_path": file_path,
-            "is_legacy": "legacy" in file_path.lower(),
-            "dlc": dlc_from_path(file_path),
-            "speed": _float(bullet_el, "speed"),
-            "lifetime": _float(bullet_el, "lifetime"),
-            "amount": _int(bullet_el, "amount") or 1,
-            "barrelamount": _int(bullet_el, "barrelamount") or 1,
-            "angle": _float(bullet_el, "angle"),
-            "maxhits": _int(bullet_el, "maxhits"),
-            "range_direct": _float(bullet_el, "range"),
-            "reload_rate": _float(reload_el, "rate"),
-            "reload_time": _float(reload_el, "time"),
-            "damage": _float(damage_el, "value"),
-            "shield_damage": _float(damage_el, "shield"),
-            "hull_damage": _float(damage_el, "hull"),
-            "shield_disruption": _float(damage_el, "shielddisruption"),
-            "heat_value": _float(heat_el, "value"),
-            "explosion_hull": _float(explosion_el, "hull"),
-            "explosion_shield": _float(explosion_el, "shield"),
-            "ammo_value": _int(ammo_el, "value"),
-            "ammo_reload": _float(ammo_el, "reload"),
-            "missile_lifetime": _float(missile_el, "lifetime"),
-            "missile_range": _float(missile_el, "range"),
-            "area_damage": _float(area_el, "value"),
-            "area_lifetime": _float(area_el, "lifetime"),
-        })
+        out.bullets.append(
+            {
+                "bullet_id": macro_name,
+                "name": name,
+                "file_path": file_path,
+                "is_legacy": "legacy" in file_path.lower(),
+                "dlc": dlc_from_path(file_path),
+                "speed": _float(bullet_el, "speed"),
+                "lifetime": _float(bullet_el, "lifetime"),
+                "amount": _int(bullet_el, "amount") or 1,
+                "barrelamount": _int(bullet_el, "barrelamount") or 1,
+                "angle": _float(bullet_el, "angle"),
+                "maxhits": _int(bullet_el, "maxhits"),
+                "range_direct": _float(bullet_el, "range"),
+                "reload_rate": _float(reload_el, "rate"),
+                "reload_time": _float(reload_el, "time"),
+                "damage": _float(damage_el, "value"),
+                "shield_damage": _float(damage_el, "shield"),
+                "hull_damage": _float(damage_el, "hull"),
+                "shield_disruption": _float(damage_el, "shielddisruption"),
+                "heat_value": _float(heat_el, "value"),
+                "explosion_hull": _float(explosion_el, "hull"),
+                "explosion_shield": _float(explosion_el, "shield"),
+                "ammo_value": _int(ammo_el, "value"),
+                "ammo_reload": _float(ammo_el, "reload"),
+                "missile_lifetime": _float(missile_el, "lifetime"),
+                "missile_range": _float(missile_el, "range"),
+                "area_damage": _float(area_el, "value"),
+                "area_lifetime": _float(area_el, "lifetime"),
+            }
+        )
 
     elif class_id in ["satellite", "navbeacon", "resourceprobe", "mine", "countermeasure"]:
         radar_el = macro_el.find("properties/radar")
         hull_el = macro_el.find("properties/hull")
         exp_el = macro_el.find("properties/explosioneffect")
 
-        out.deployables.append({
-            "deployable_id": macro_name,
-            "name": name,
-            "file_path": file_path,
-            "is_legacy": "legacy" in file_path.lower(),
-            "dlc": dlc_from_path(file_path),
-            "class_id": class_id,
-            "radar_range": _float(radar_el, "range") if radar_el is not None else None,
-            "hull": _float(hull_el, "max") if hull_el is not None else None,
-            "explosioneffect_strength": _float(exp_el, "strength") if exp_el is not None else None,
-        })
+        out.deployables.append(
+            {
+                "deployable_id": macro_name,
+                "name": name,
+                "file_path": file_path,
+                "is_legacy": "legacy" in file_path.lower(),
+                "dlc": dlc_from_path(file_path),
+                "class_id": class_id,
+                "radar_range": _float(radar_el, "range") if radar_el is not None else None,
+                "hull": _float(hull_el, "max") if hull_el is not None else None,
+                "explosioneffect_strength": _float(exp_el, "strength")
+                if exp_el is not None
+                else None,
+            }
+        )
 
     elif class_id in ["scanner", "computer", "radar"]:
         scan_el = macro_el.find("properties/scan")
         radar_el = macro_el.find("properties/radar")
-        out.software.append({
-            "software_id": macro_name,
-            "name": name,
-            "file_path": file_path,
-            "is_legacy": "legacy" in file_path.lower(),
-            "class_id": class_id,
-            "scan_maxlevel": _int(scan_el, "maxlevel") if scan_el is not None else None,
-            "radar_range": _float(radar_el, "range") if radar_el is not None else None,
-        })
+        out.software.append(
+            {
+                "software_id": macro_name,
+                "name": name,
+                "file_path": file_path,
+                "is_legacy": "legacy" in file_path.lower(),
+                "class_id": class_id,
+                "scan_maxlevel": _int(scan_el, "maxlevel") if scan_el is not None else None,
+                "radar_range": _float(radar_el, "range") if radar_el is not None else None,
+            }
+        )
 
 
 def write(conn: sqlite3.Connection, result: ExtractResult) -> None:

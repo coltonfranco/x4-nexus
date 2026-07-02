@@ -20,6 +20,7 @@ import json
 import logging
 import threading
 from dataclasses import asdict, dataclass
+from pathlib import Path
 
 from x4_extract.dynamic import poller
 from x4_extract.dynamic.poller import PollResult
@@ -36,7 +37,7 @@ MIN_INTERVAL_SEC = 5
 @dataclass(frozen=True, slots=True)
 class RefreshConfig:
     interval_enabled: bool  # is the periodic backstop poll on? (watchdog runs regardless)
-    interval_sec: int       # seconds between backstop polls when enabled
+    interval_sec: int  # seconds between backstop polls when enabled
 
 
 class BackgroundRefresher:
@@ -53,7 +54,7 @@ class BackgroundRefresher:
     # --- config -------------------------------------------------------------------
 
     @property
-    def _config_path(self):
+    def _config_path(self) -> Path:
         return self._settings.data_dir / "refresh_config.json"
 
     def _load_config(self) -> RefreshConfig:
@@ -91,9 +92,11 @@ class BackgroundRefresher:
         with self._lock:
             cur = self._config
             cfg = RefreshConfig(
-                interval_enabled=cur.interval_enabled if interval_enabled is None
+                interval_enabled=cur.interval_enabled
+                if interval_enabled is None
                 else bool(interval_enabled),
-                interval_sec=cur.interval_sec if interval_sec is None
+                interval_sec=cur.interval_sec
+                if interval_sec is None
                 else max(MIN_INTERVAL_SEC, int(interval_sec)),
             )
             self._config = cfg
@@ -117,6 +120,7 @@ class BackgroundRefresher:
 
     def _run(self) -> None:
         import time
+
         from x4_api.config import static_db_ready
         from x4_api.init_job import job
 

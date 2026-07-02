@@ -41,14 +41,14 @@ class WareMarket:
     ref_price: int | None
     sell_offers: int
     sell_qty: int
-    best_buy_price: int | None        # cheapest place to buy
+    best_buy_price: int | None  # cheapest place to buy
     buy_offers: int
     buy_qty: int
-    best_sell_price: int | None       # dearest place to sell
+    best_sell_price: int | None  # dearest place to sell
     avg_price: int
-    net_demand: int                   # buy_qty - sell_qty; positive = under-supplied
-    price_index: float | None         # avg market price / reference avg; >1 = elevated
-    classification: str               # shortage | balanced | surplus
+    net_demand: int  # buy_qty - sell_qty; positive = under-supplied
+    price_index: float | None  # avg market price / reference avg; >1 = elevated
+    classification: str  # shortage | balanced | surplus
 
 
 def _classify(sell_qty: int, buy_qty: int) -> str:
@@ -64,9 +64,9 @@ class WareOffer:
     station_id: str
     station_name: str | None
     station_code: str | None
-    owner_faction: str | None   # faction_id — resolve to display name/colour on the client
+    owner_faction: str | None  # faction_id — resolve to display name/colour on the client
     sector_id: str | None
-    side: str           # 'sell' = station supplies it (you buy); 'buy' = station demands it (you sell)
+    side: str  # 'sell' = station supplies it (you buy); 'buy' = station demands it (you sell)
     price: int
     quantity: int
 

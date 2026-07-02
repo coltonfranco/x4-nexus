@@ -37,8 +37,9 @@ from x4_extract.savefile.dispatch import Registration, Target
 
 _LOG_DEPTH = 4  # savegame(1) → economylog(2) → entries(3) → log(4)
 
-_TRADE_MAPPED = frozenset({"time", "type", "ware", "buyer", "seller", "price", "v",
-                           "b", "bmax", "s", "smax"})
+_TRADE_MAPPED = frozenset(
+    {"time", "type", "ware", "buyer", "seller", "price", "v", "b", "bmax", "s", "smax"}
+)
 _MONEY_MAPPED = frozenset({"time", "owner", "type", "v", "v2", "partner"})
 
 

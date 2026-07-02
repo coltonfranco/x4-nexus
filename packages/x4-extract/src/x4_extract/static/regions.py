@@ -72,10 +72,12 @@ _ASTEROID_WARE = {
     "asteroid_rawscrap": "rawscrap",
 }
 _SIZE_YIELD = {
-    "xxl": "veryhigh", "xl": "veryhigh",
+    "xxl": "veryhigh",
+    "xl": "veryhigh",
     "l": "high",
     "m": "medium",
-    "s": "low", "xs": "low",
+    "s": "low",
+    "xs": "low",
 }
 
 
@@ -104,7 +106,7 @@ def extract(
             groupref = ast_el.get("groupref", "")
             for prefix, ware in _ASTEROID_WARE.items():
                 if groupref.startswith(prefix):
-                    size = groupref[len(prefix):].lstrip("_")
+                    size = groupref[len(prefix) :].lstrip("_")
                     yld = _SIZE_YIELD.get(size, "medium")
                     # Keep the best yield per ware
                     prev = best_yield.get(ware)
@@ -125,12 +127,14 @@ def extract(
         sectors: list[str | None] = list(mapping.get(name, [None]))
         for sector_id in sectors:
             for ware, yield_level in best_yield.items():
-                out.resources.append({
-                    "region_name": name,
-                    "sector_id": sector_id,
-                    "ware": ware,
-                    "yield": yield_level,
-                })
+                out.resources.append(
+                    {
+                        "region_name": name,
+                        "sector_id": sector_id,
+                        "ware": ware,
+                        "yield": yield_level,
+                    }
+                )
 
     return out
 

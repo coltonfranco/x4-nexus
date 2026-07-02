@@ -49,12 +49,14 @@ def extract(xml_bytes: bytes) -> ExtractResult:
         if not loadout_id or not ship_macro:
             continue
 
-        out.loadouts.append({
-            "loadout_id": loadout_id,
-            "ship_macro": ship_macro,
-            "name": lo_el.get("name"),
-            "description": lo_el.get("description"),
-        })
+        out.loadouts.append(
+            {
+                "loadout_id": loadout_id,
+                "ship_macro": ship_macro,
+                "name": lo_el.get("name"),
+                "description": lo_el.get("description"),
+            }
+        )
 
         for slot_el in lo_el.iterfind("macros/*"):
             kind = slot_el.tag
@@ -63,60 +65,68 @@ def extract(xml_bytes: bytes) -> ExtractResult:
             macro = slot_el.get("macro")
             if not macro:
                 continue
-            out.equipment.append({
-                "loadout_id": loadout_id,
-                "slot_path": slot_el.get("path"),
-                "macro": macro,
-                "kind": kind,
-                "optional": 1 if slot_el.get("optional") == "1" else 0,
-                "quantity": None,
-                "weaponmode": slot_el.get("weaponmode"),
-                "ammunition": slot_el.get("ammunition"),
-            })
+            out.equipment.append(
+                {
+                    "loadout_id": loadout_id,
+                    "slot_path": slot_el.get("path"),
+                    "macro": macro,
+                    "kind": kind,
+                    "optional": 1 if slot_el.get("optional") == "1" else 0,
+                    "quantity": None,
+                    "weaponmode": slot_el.get("weaponmode"),
+                    "ammunition": slot_el.get("ammunition"),
+                }
+            )
 
         for thr_el in lo_el.iterfind("virtualmacros/thruster"):
             macro = thr_el.get("macro")
             if macro:
-                out.equipment.append({
-                    "loadout_id": loadout_id,
-                    "slot_path": None,
-                    "macro": macro,
-                    "kind": "thruster",
-                    "optional": 0,
-                    "quantity": None,
-                    "weaponmode": None,
-                    "ammunition": None,
-                })
+                out.equipment.append(
+                    {
+                        "loadout_id": loadout_id,
+                        "slot_path": None,
+                        "macro": macro,
+                        "kind": "thruster",
+                        "optional": 0,
+                        "quantity": None,
+                        "weaponmode": None,
+                        "ammunition": None,
+                    }
+                )
 
         for sw_el in lo_el.iterfind("software/software"):
             ware = sw_el.get("ware")
             if ware:
-                out.equipment.append({
-                    "loadout_id": loadout_id,
-                    "slot_path": None,
-                    "macro": ware,
-                    "kind": "software",
-                    "optional": 0,
-                    "quantity": None,
-                    "weaponmode": None,
-                    "ammunition": None,
-                })
+                out.equipment.append(
+                    {
+                        "loadout_id": loadout_id,
+                        "slot_path": None,
+                        "macro": ware,
+                        "kind": "software",
+                        "optional": 0,
+                        "quantity": None,
+                        "weaponmode": None,
+                        "ammunition": None,
+                    }
+                )
 
         for ammo_el in lo_el.iterfind("ammunition/ammunition"):
             macro = ammo_el.get("macro")
             if not macro:
                 continue
             qty = ammo_el.get("exact")
-            out.equipment.append({
-                "loadout_id": loadout_id,
-                "slot_path": None,
-                "macro": macro,
-                "kind": "ammunition",
-                "optional": 1 if ammo_el.get("optional") == "1" else 0,
-                "quantity": int(qty) if qty is not None else None,
-                "weaponmode": None,
-                "ammunition": None,
-            })
+            out.equipment.append(
+                {
+                    "loadout_id": loadout_id,
+                    "slot_path": None,
+                    "macro": macro,
+                    "kind": "ammunition",
+                    "optional": 1 if ammo_el.get("optional") == "1" else 0,
+                    "quantity": int(qty) if qty is not None else None,
+                    "weaponmode": None,
+                    "ammunition": None,
+                }
+            )
 
     return out
 

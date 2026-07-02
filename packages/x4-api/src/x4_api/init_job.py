@@ -85,7 +85,6 @@ def wipe_game_data(settings: Settings) -> None:
     _remove_path(data_dir / "active_save.txt")
 
 
-
 @dataclass(frozen=True, slots=True)
 class InitState:
     stage: Stage = "idle"
@@ -139,12 +138,12 @@ class InitJob:
 
     def _run(self, settings: Settings, reset: bool = False) -> None:
         # Imported lazily — these pull in lxml/Pillow and are only needed during a build.
-        from x4_extract.static.crawler import run_crawler
-        from x4_extract.static.pipeline import run as run_static
-        from x4_extract.static.icons import run as rebuild_icons
-        from x4_extract.dynamic.pipeline import run as run_dynamic
         from x4_extract.config import resolve_save_path
         from x4_extract.dynamic.catalog import read_info_header
+        from x4_extract.dynamic.pipeline import run as run_dynamic
+        from x4_extract.static.crawler import run_crawler
+        from x4_extract.static.icons import run as rebuild_icons
+        from x4_extract.static.pipeline import run as run_static
 
         def _on_progress(detail: str, prog: float) -> None:
             self._set(detail=detail, progress=prog)
@@ -174,7 +173,9 @@ class InitJob:
 
             if settings.save_path is not None:
                 folder = resolve_save_path(settings.save_path)
-                saves = sorted(folder.glob("*.xml.gz"), key=lambda p: p.stat().st_mtime, reverse=True)
+                saves = sorted(
+                    folder.glob("*.xml.gz"), key=lambda p: p.stat().st_mtime, reverse=True
+                )
                 save_path = saves[0] if saves else None
 
                 if save_path is not None:
@@ -184,7 +185,12 @@ class InitJob:
                     except Exception:
                         save_name = None
 
-                    self._set(stage="dynamic", detail="Ingesting newest save...", progress=0.0, save_name=save_name)
+                    self._set(
+                        stage="dynamic",
+                        detail="Ingesting newest save...",
+                        progress=0.0,
+                        save_name=save_name,
+                    )
                     run_dynamic(settings, save_path, on_progress=_on_progress)
         except Exception as exc:  # surface any failure to the wizard rather than dying silently
             self._set(stage="error", error=f"{type(exc).__name__}: {exc}")

@@ -67,14 +67,16 @@ def extract(xml_bytes: bytes) -> ExtractResult:
                 "price_max": _int(price_el, "max") if price_el is not None else None,
                 "storage_class": storage_class,
                 "tags": raw_tags if raw_tags else None,
-                "restriction_licence": restriction_el.get("licence") if restriction_el is not None else None,
+                "restriction_licence": restriction_el.get("licence")
+                if restriction_el is not None
+                else None,
                 "component_ref": component_el.get("ref") if component_el is not None else None,
                 "use_threshold": _float(use_el, "threshold") if use_el is not None else None,
                 "icon_path": _icon_path(ware_el),
                 "sortorder": _int(ware_el, "sortorder"),
                 "dismantlefactor": None,  # filled below from production
-                "research_time": None,   # filled below from research
-                "tier": None,            # filled in pipeline from production depth
+                "research_time": None,  # filled below from research
+                "tier": None,  # filled in pipeline from production depth
             }
         )
 
@@ -144,7 +146,9 @@ def _assign_production_tiers(out: ExtractResult) -> None:
     node_ids = {w["ware_id"] for w in out.wares}
     inputs_by_method: dict[str, dict[str, list[str]]] = {}
     for inp in out.inputs:
-        inputs_by_method.setdefault(inp["ware_id"], {}).setdefault(inp["method"], []).append(inp["input_ware_id"])
+        inputs_by_method.setdefault(inp["ware_id"], {}).setdefault(inp["method"], []).append(
+            inp["input_ware_id"]
+        )
 
     memo: dict[str, int] = {}
 
@@ -153,7 +157,7 @@ def _assign_production_tiers(out: ExtractResult) -> None:
             return memo[ware_id]
         if ware_id in visiting:
             return 0  # cycle — treat as raw
-            
+
         ware_methods = inputs_by_method.get(ware_id, {})
         ins_raw = []
         if "default" in ware_methods:
@@ -164,7 +168,7 @@ def _assign_production_tiers(out: ExtractResult) -> None:
             ins_raw = ware_methods["recycling"]
         elif ware_methods:
             ins_raw = next(iter(ware_methods.values()))
-            
+
         ins = [i for i in ins_raw if i in node_ids]
         if not ins:
             memo[ware_id] = 0

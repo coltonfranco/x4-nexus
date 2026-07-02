@@ -29,7 +29,9 @@ class ExtractResult:
     software: list[dict[str, Any]] = field(default_factory=list)
 
 
-def extract(index_bytes: bytes, resolve_path: Callable[[str], bytes], resolve_name: Callable[[str], bytes]) -> ExtractResult:
+def extract(
+    index_bytes: bytes, resolve_path: Callable[[str], bytes], resolve_name: Callable[[str], bytes]
+) -> ExtractResult:
     """Parse merged macros.xml, resolve ship macros recursively, and extract row dicts."""
     root = etree.fromstring(index_bytes)
     out = ExtractResult()
@@ -64,7 +66,13 @@ def extract(index_bytes: bytes, resolve_path: Callable[[str], bytes], resolve_na
     return out
 
 
-def _parse_ship_macro(macro_name: str, file_path: str, macro_el: etree._Element, resolve_name: Callable[[str], bytes], out: ExtractResult) -> None:
+def _parse_ship_macro(
+    macro_name: str,
+    file_path: str,
+    macro_el: etree._Element,
+    resolve_name: Callable[[str], bytes],
+    out: ExtractResult,
+) -> None:
     class_raw = macro_el.get("class", "")
     class_id = class_raw.replace("ship_", "") if class_raw.startswith("ship_") else class_raw
 
@@ -93,25 +101,25 @@ def _parse_ship_macro(macro_name: str, file_path: str, macro_el: etree._Element,
         drone_storage = _int(storage_el, "unit")
         countermeasure_storage = _int(storage_el, "countermeasure")
         deployable_storage = _int(storage_el, "deployable")
-        
+
     if countermeasure_storage is None:
-        if class_id == 's':
+        if class_id == "s":
             countermeasure_storage = 4
-        elif class_id == 'm':
+        elif class_id == "m":
             countermeasure_storage = 8
-        elif class_id == 'l':
+        elif class_id == "l":
             countermeasure_storage = 20
-        elif class_id == 'xl':
+        elif class_id == "xl":
             countermeasure_storage = 40
-        
+
     if deployable_storage is None:
-        if class_id == 's':
+        if class_id == "s":
             deployable_storage = 50
-        elif class_id == 'm':
+        elif class_id == "m":
             deployable_storage = 100
-        elif class_id == 'l':
+        elif class_id == "l":
             deployable_storage = 250
-        elif class_id == 'xl':
+        elif class_id == "xl":
             deployable_storage = 450
 
     mass = None
@@ -144,14 +152,42 @@ def _parse_ship_macro(macro_name: str, file_path: str, macro_el: etree._Element,
             accel_factor_horizontal = _float(accfactors_el, "horizontal")
             accel_factor_vertical = _float(accfactors_el, "vertical")
 
-    accel_forward = _float(jerk_el.find("forward"), "accel") if jerk_el is not None and jerk_el.find("forward") is not None else None
-    decel_forward = _float(jerk_el.find("forward"), "decel") if jerk_el is not None and jerk_el.find("forward") is not None else None
-    accel_boost = _float(jerk_el.find("forward_boost"), "accel") if jerk_el is not None and jerk_el.find("forward_boost") is not None else None
-    accel_travel = _float(jerk_el.find("forward_travel"), "accel") if jerk_el is not None and jerk_el.find("forward_travel") is not None else None
-    accel_strafe = _float(jerk_el.find("strafe"), "value") if jerk_el is not None and jerk_el.find("strafe") is not None else None
-    accel_angular = _float(jerk_el.find("angular"), "value") if jerk_el is not None and jerk_el.find("angular") is not None else None
+    accel_forward = (
+        _float(jerk_el.find("forward"), "accel")
+        if jerk_el is not None and jerk_el.find("forward") is not None
+        else None
+    )
+    decel_forward = (
+        _float(jerk_el.find("forward"), "decel")
+        if jerk_el is not None and jerk_el.find("forward") is not None
+        else None
+    )
+    accel_boost = (
+        _float(jerk_el.find("forward_boost"), "accel")
+        if jerk_el is not None and jerk_el.find("forward_boost") is not None
+        else None
+    )
+    accel_travel = (
+        _float(jerk_el.find("forward_travel"), "accel")
+        if jerk_el is not None and jerk_el.find("forward_travel") is not None
+        else None
+    )
+    accel_strafe = (
+        _float(jerk_el.find("strafe"), "value")
+        if jerk_el is not None and jerk_el.find("strafe") is not None
+        else None
+    )
+    accel_angular = (
+        _float(jerk_el.find("angular"), "value")
+        if jerk_el is not None and jerk_el.find("angular") is not None
+        else None
+    )
 
-    modifier_weapon_heat = _float(modifiers_el.find("weapon"), "heat") if modifiers_el is not None and modifiers_el.find("weapon") is not None else None
+    modifier_weapon_heat = (
+        _float(modifiers_el.find("weapon"), "heat")
+        if modifiers_el is not None and modifiers_el.find("weapon") is not None
+        else None
+    )
     explosion_damage = _float(explosion_el, "value")
     explosion_shield_damage = _float(explosion_el, "shield")
     travel_stability = _float(travel_stability_el, "maxvalue")
@@ -169,12 +205,30 @@ def _parse_ship_macro(macro_name: str, file_path: str, macro_el: etree._Element,
     # Hardpoints counters
     counts = {
         "cargo_volume": 0,
-        "weapons_s": 0, "weapons_m": 0, "weapons_l": 0, "weapons_xl": 0,
-        "turrets_s": 0, "turrets_m": 0, "turrets_l": 0, "turrets_xl": 0,
-        "shields_s": 0, "shields_m": 0, "shields_l": 0, "shields_xl": 0,
-        "engines_s": 0, "engines_m": 0, "engines_l": 0, "engines_xl": 0,
-        "dock_s": 0, "dock_m": 0, "dock_l": 0, "dock_xl": 0,
-        "storage_s": 0, "storage_m": 0, "storage_l": 0, "storage_xl": 0,
+        "weapons_s": 0,
+        "weapons_m": 0,
+        "weapons_l": 0,
+        "weapons_xl": 0,
+        "turrets_s": 0,
+        "turrets_m": 0,
+        "turrets_l": 0,
+        "turrets_xl": 0,
+        "shields_s": 0,
+        "shields_m": 0,
+        "shields_l": 0,
+        "shields_xl": 0,
+        "engines_s": 0,
+        "engines_m": 0,
+        "engines_l": 0,
+        "engines_xl": 0,
+        "dock_s": 0,
+        "dock_m": 0,
+        "dock_l": 0,
+        "dock_xl": 0,
+        "storage_s": 0,
+        "storage_m": 0,
+        "storage_l": 0,
+        "storage_xl": 0,
         "launch_tubes": 0,
     }
 
@@ -261,7 +315,7 @@ def _parse_ship_macro(macro_name: str, file_path: str, macro_el: etree._Element,
             "boost_recharge_delay": boost_recharge_delay,
             "rotation_speed_max": rotation_speed_max,
             "rotation_accel_max": rotation_accel_max,
-            **counts
+            **counts,
         }
     )
 
@@ -271,12 +325,14 @@ def _parse_ship_macro(macro_name: str, file_path: str, macro_el: etree._Element,
             continue
         compatible = sw_el.get("compatible")
         default = sw_el.get("default")
-        out.software.append({
-            "ship_id": macro_name,
-            "ware_id": ware_id,
-            "compatible": 1 if compatible == "1" else 0,
-            "is_default": 1 if default == "1" else 0,
-        })
+        out.software.append(
+            {
+                "ship_id": macro_name,
+                "ware_id": ware_id,
+                "compatible": 1 if compatible == "1" else 0,
+                "is_default": 1 if default == "1" else 0,
+            }
+        )
 
 
 def _resolve_and_count_hardpoints(
@@ -310,7 +366,9 @@ def _resolve_and_count_hardpoints(
     if comp_el is not None:
         comp_ref = comp_el.get("ref")
         if comp_ref:
-            _add_component_counts(comp_ref, resolve_name, counts, tree_cache, count_cache, count_docks=False)
+            _add_component_counts(
+                comp_ref, resolve_name, counts, tree_cache, count_cache, count_docks=False
+            )
 
     # Resolve child macros — docks, hardpoints, and cargo.
     # Docks (dockarea, shipstorage) are defined in child macros, NOT the
@@ -318,7 +376,9 @@ def _resolve_and_count_hardpoints(
     for child_macro in _xpath_elements(el, ".//macro[@ref]"):
         macro_ref = child_macro.get("ref")
         if macro_ref:
-            _add_component_counts(macro_ref, resolve_name, counts, tree_cache, count_cache, count_docks=True)
+            _add_component_counts(
+                macro_ref, resolve_name, counts, tree_cache, count_cache, count_docks=True
+            )
 
 
 def _add_component_counts(
@@ -359,15 +419,33 @@ def _add_component_counts(
 
     local: dict[str, int] = {
         "cargo_volume": 0,
-        "weapons_s": 0, "weapons_m": 0, "weapons_l": 0, "weapons_xl": 0,
-        "turrets_s": 0, "turrets_m": 0, "turrets_l": 0, "turrets_xl": 0,
-        "shields_s": 0, "shields_m": 0, "shields_l": 0, "shields_xl": 0,
-        "engines_s": 0, "engines_m": 0, "engines_l": 0, "engines_xl": 0,
-        "dock_s": 0, "dock_m": 0, "dock_l": 0, "dock_xl": 0,
-        "storage_s": 0, "storage_m": 0, "storage_l": 0, "storage_xl": 0,
+        "weapons_s": 0,
+        "weapons_m": 0,
+        "weapons_l": 0,
+        "weapons_xl": 0,
+        "turrets_s": 0,
+        "turrets_m": 0,
+        "turrets_l": 0,
+        "turrets_xl": 0,
+        "shields_s": 0,
+        "shields_m": 0,
+        "shields_l": 0,
+        "shields_xl": 0,
+        "engines_s": 0,
+        "engines_m": 0,
+        "engines_l": 0,
+        "engines_xl": 0,
+        "dock_s": 0,
+        "dock_m": 0,
+        "dock_l": 0,
+        "dock_xl": 0,
+        "storage_s": 0,
+        "storage_m": 0,
+        "storage_l": 0,
+        "storage_xl": 0,
         "launch_tubes": 0,
     }
-    
+
     # Cargo always accumulates — storage macros are distinct from dock macros
     # and their cargo is additive, never duplicate.
     # Docks are gated by count_docks to allow callers to skip dock counting
@@ -413,7 +491,9 @@ def _add_component_counts(
     for child_macro in _xpath_elements(node, ".//macro[@ref]"):
         child_ref = child_macro.get("ref")
         if child_ref:
-            _add_component_counts(child_ref, resolve_name, local, tree_cache, count_cache, count_docks)
+            _add_component_counts(
+                child_ref, resolve_name, local, tree_cache, count_cache, count_docks
+            )
 
     # Cache and merge.
     count_cache[cache_key] = local
@@ -472,34 +552,105 @@ def write(conn: sqlite3.Connection, result: ExtractResult) -> None:
     conn.execute("DELETE FROM ships")
 
     columns = [
-        "ship_id", "name", "description", "basename", "file_path", "is_legacy", "dlc",
-        "class_id", "ship_type", "role", "faction_id", "variation",
-        "hull", "cargo_volume", "dps_max", "speed_min", "speed_max", "travel_min", "travel_max",
-        "boost_min", "boost_max", "pitch_min", "pitch_max", "yaw_min", "yaw_max",
-        "roll_min", "roll_max", "shield_capacity_min", "shield_capacity_max",
-        "shield_recharge_min", "shield_recharge_max", "shield_delay_min",
-        "shield_delay_max", "radar_range", "icon_path",
-        "mass", "drag_forward", "drag_reverse", "drag_horizontal", "drag_vertical",
-        "drag_pitch", "drag_yaw", "drag_roll",
-        "inertia_pitch", "inertia_yaw", "inertia_roll",
-        "people_capacity", "missile_storage", "drone_storage",
-        "countermeasure_storage", "deployable_storage",
+        "ship_id",
+        "name",
+        "description",
+        "basename",
+        "file_path",
+        "is_legacy",
+        "dlc",
+        "class_id",
+        "ship_type",
+        "role",
+        "faction_id",
+        "variation",
+        "hull",
+        "cargo_volume",
+        "dps_max",
+        "speed_min",
+        "speed_max",
+        "travel_min",
+        "travel_max",
+        "boost_min",
+        "boost_max",
+        "pitch_min",
+        "pitch_max",
+        "yaw_min",
+        "yaw_max",
+        "roll_min",
+        "roll_max",
+        "shield_capacity_min",
+        "shield_capacity_max",
+        "shield_recharge_min",
+        "shield_recharge_max",
+        "shield_delay_min",
+        "shield_delay_max",
+        "radar_range",
+        "icon_path",
+        "mass",
+        "drag_forward",
+        "drag_reverse",
+        "drag_horizontal",
+        "drag_vertical",
+        "drag_pitch",
+        "drag_yaw",
+        "drag_roll",
+        "inertia_pitch",
+        "inertia_yaw",
+        "inertia_roll",
+        "people_capacity",
+        "missile_storage",
+        "drone_storage",
+        "countermeasure_storage",
+        "deployable_storage",
         "secrecy_level",
-        "dock_s", "dock_m", "dock_l", "dock_xl",
-        "storage_s", "storage_m", "storage_l", "storage_xl",
+        "dock_s",
+        "dock_m",
+        "dock_l",
+        "dock_xl",
+        "storage_s",
+        "storage_m",
+        "storage_l",
+        "storage_xl",
         "launch_tubes",
-        "accel_forward", "decel_forward", "accel_boost", "accel_travel",
-        "accel_strafe", "accel_angular", "accel_factor_reverse",
-        "accel_factor_horizontal", "accel_factor_vertical",
-        "modifier_weapon_heat", "explosion_damage", "explosion_shield_damage",
-        "explosion_shield_disruption", "travel_stability",
-        "gatherrate_gas", "gatherrate_ore", "gatherrate_silicon",
-        "can_be_captured", "radar_range_direct", "boost_recharge_delay",
-        "rotation_speed_max", "rotation_accel_max",
-        "weapons_s", "weapons_m", "weapons_l", "weapons_xl",
-        "turrets_s", "turrets_m", "turrets_l", "turrets_xl",
-        "shields_s", "shields_m", "shields_l", "shields_xl",
-        "engines_s", "engines_m", "engines_l", "engines_xl"
+        "accel_forward",
+        "decel_forward",
+        "accel_boost",
+        "accel_travel",
+        "accel_strafe",
+        "accel_angular",
+        "accel_factor_reverse",
+        "accel_factor_horizontal",
+        "accel_factor_vertical",
+        "modifier_weapon_heat",
+        "explosion_damage",
+        "explosion_shield_damage",
+        "explosion_shield_disruption",
+        "travel_stability",
+        "gatherrate_gas",
+        "gatherrate_ore",
+        "gatherrate_silicon",
+        "can_be_captured",
+        "radar_range_direct",
+        "boost_recharge_delay",
+        "rotation_speed_max",
+        "rotation_accel_max",
+        "weapons_s",
+        "weapons_m",
+        "weapons_l",
+        "weapons_xl",
+        "turrets_s",
+        "turrets_m",
+        "turrets_l",
+        "turrets_xl",
+        "shields_s",
+        "shields_m",
+        "shields_l",
+        "shields_xl",
+        "engines_s",
+        "engines_m",
+        "engines_l",
+        "engines_xl",
     ]
 
     cols_str = ", ".join(columns)
@@ -539,8 +690,8 @@ def update_derived_stats(conn: sqlite3.Connection) -> None:
     e_thrust_max = _eng_agg("MAX", "thrust_forward")
     e_travel_min = _eng_agg("MIN", "thrust_forward * travel_thrust")
     e_travel_max = _eng_agg("MAX", "thrust_forward * travel_thrust")
-    e_boost_min  = _eng_agg("MIN", "thrust_forward * boost_thrust")
-    e_boost_max  = _eng_agg("MAX", "thrust_forward * boost_thrust")
+    e_boost_min = _eng_agg("MIN", "thrust_forward * boost_thrust")
+    e_boost_max = _eng_agg("MAX", "thrust_forward * boost_thrust")
 
     # Fetch per-size thruster aggregates.
     def _thr_agg(agg: str, col: str) -> dict[str, float]:
@@ -553,10 +704,10 @@ def update_derived_stats(conn: sqlite3.Connection) -> None:
 
     t_pitch_min = _thr_agg("MIN", "thrust_pitch")
     t_pitch_max = _thr_agg("MAX", "thrust_pitch")
-    t_yaw_min   = _thr_agg("MIN", "thrust_yaw")
-    t_yaw_max   = _thr_agg("MAX", "thrust_yaw")
-    t_roll_min  = _thr_agg("MIN", "thrust_roll")
-    t_roll_max  = _thr_agg("MAX", "thrust_roll")
+    t_yaw_min = _thr_agg("MIN", "thrust_yaw")
+    t_yaw_max = _thr_agg("MAX", "thrust_yaw")
+    t_roll_min = _thr_agg("MIN", "thrust_roll")
+    t_roll_max = _thr_agg("MAX", "thrust_roll")
 
     # Fetch per-size shield aggregates.
     def _shd_agg(agg: str, col: str) -> dict[str, float]:
@@ -566,23 +717,19 @@ def update_derived_stats(conn: sqlite3.Connection) -> None:
         ).fetchall()
         return {r[0]: (r[1] or 0.0) for r in rows}
 
-    s_cap_min  = _shd_agg("MIN", "capacity")
-    s_cap_max  = _shd_agg("MAX", "capacity")
-    s_rec_min  = _shd_agg("MIN", "recharge_rate")
-    s_rec_max  = _shd_agg("MAX", "recharge_rate")
-    s_del_min  = _shd_agg("MIN", "recharge_delay")
-    s_del_max  = _shd_agg("MAX", "recharge_delay")
+    s_cap_min = _shd_agg("MIN", "capacity")
+    s_cap_max = _shd_agg("MAX", "capacity")
+    s_rec_min = _shd_agg("MIN", "recharge_rate")
+    s_rec_max = _shd_agg("MAX", "recharge_rate")
+    s_del_min = _shd_agg("MIN", "recharge_delay")
+    s_del_max = _shd_agg("MAX", "recharge_delay")
 
     # Build the scalar expressions using pre-computed dicts.
     def _sum4(d: dict[str, float]) -> str:
-        return " + ".join(
-            f"COALESCE(engines_{s} * {d.get(s, 0.0)}, 0)" for s in sizes
-        )
+        return " + ".join(f"COALESCE(engines_{s} * {d.get(s, 0.0)}, 0)" for s in sizes)
 
     def _sum4_shd(d: dict[str, float]) -> str:
-        return " + ".join(
-            f"COALESCE(shields_{s} * {d.get(s, 0.0)}, 0)" for s in sizes
-        )
+        return " + ".join(f"COALESCE(shields_{s} * {d.get(s, 0.0)}, 0)" for s in sizes)
 
     def _wep_agg(agg: str) -> dict[str, float]:
         rows = conn.execute(
@@ -607,14 +754,10 @@ def update_derived_stats(conn: sqlite3.Connection) -> None:
     t_dps_max = _tur_agg("MAX")
 
     def _sum4_wep(d: dict[str, float]) -> str:
-        return " + ".join(
-            f"COALESCE(weapons_{s} * {d.get(s, 0.0)}, 0)" for s in sizes
-        )
+        return " + ".join(f"COALESCE(weapons_{s} * {d.get(s, 0.0)}, 0)" for s in sizes)
 
     def _sum4_tur(d: dict[str, float]) -> str:
-        return " + ".join(
-            f"COALESCE(turrets_{s} * {d.get(s, 0.0)}, 0)" for s in sizes
-        )
+        return " + ".join(f"COALESCE(turrets_{s} * {d.get(s, 0.0)}, 0)" for s in sizes)
 
     # Thruster stats are per-ship-class (same size as the ship itself).
     def _thr_expr(d: dict[str, float]) -> str:

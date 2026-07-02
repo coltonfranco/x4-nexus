@@ -90,7 +90,11 @@ class MetaCollector:
             return None
         extra = {
             f"{name}.{k}": v
-            for name, attrs in (("save", self._save), ("game", self._game), ("player", self._player))
+            for name, attrs in (
+                ("save", self._save),
+                ("game", self._game),
+                ("player", self._player),
+            )
             for k, v in attrs.items()
             if k not in _MAPPED[name]
         }
@@ -150,6 +154,7 @@ class MetaCollector:
 
 
 # ── Player stats (flat key-value from <savegame>/<stats>) ──────────────────────
+
 
 @dataclass(slots=True)
 class StatsCollector:

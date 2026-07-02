@@ -11,7 +11,6 @@ progress is not persisted in the save, so `/construction` derives the bill of ma
 from static module recipes (see docs/save-structure.md).
 """
 
-
 import sqlite3
 from typing import Annotated
 
@@ -233,7 +232,7 @@ def station_construction(
         {"id": station_id},
     ).fetchall()
 
-    # Bill of materials: sum each planned module's construction inputs × its count. Module
+    # Bill of materials: sum each planned module's construction inputs x its count. Module
     # build recipes hang off the module's ware via wares.component_ref → ware_inputs.
     bom = conn.execute(
         """

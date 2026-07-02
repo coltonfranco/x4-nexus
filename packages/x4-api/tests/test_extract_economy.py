@@ -91,8 +91,7 @@ def test_flush_roundtrip_and_dedup(tmp_path: Path) -> None:
     c = _stream(tmp_path)
     conn = sqlite3.connect(":memory:")
     schema = (
-        Path(__file__).parents[2]
-        / "x4-extract/src/x4_extract/sql/schema_dynamic.sql"
+        Path(__file__).parents[2] / "x4-extract/src/x4_extract/sql/schema_dynamic.sql"
     ).read_text()
     conn.executescript(schema)
 

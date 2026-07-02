@@ -1,6 +1,5 @@
 """REST endpoints for game ships."""
 
-
 import sqlite3
 from typing import Annotated
 
@@ -72,7 +71,7 @@ class ShipSummary(PublicModel):
     restriction_licence: str | None = None
     has_blueprint: bool = False
     is_obtainable: bool = False
-    can_be_captured: bool = True   # False = never capturable (Xenon capitals, Kha'ak, etc.)
+    can_be_captured: bool = True  # False = never capturable (Xenon capitals, Kha'ak, etc.)
 
 
 class ShipSoftware(PublicModel):
@@ -136,12 +135,30 @@ class ShipDetail(ShipSummary):
 
 
 _DOCK_STORAGE_COLS = (
-    "dock_s", "dock_m", "dock_l", "dock_xl",
-    "storage_s", "storage_m", "storage_l", "storage_xl",
-    "weapons_s", "weapons_m", "weapons_l", "weapons_xl",
-    "turrets_s", "turrets_m", "turrets_l", "turrets_xl",
-    "shields_s", "shields_m", "shields_l", "shields_xl",
-    "engines_s", "engines_m", "engines_l", "engines_xl",
+    "dock_s",
+    "dock_m",
+    "dock_l",
+    "dock_xl",
+    "storage_s",
+    "storage_m",
+    "storage_l",
+    "storage_xl",
+    "weapons_s",
+    "weapons_m",
+    "weapons_l",
+    "weapons_xl",
+    "turrets_s",
+    "turrets_m",
+    "turrets_l",
+    "turrets_xl",
+    "shields_s",
+    "shields_m",
+    "shields_l",
+    "shields_xl",
+    "engines_s",
+    "engines_m",
+    "engines_l",
+    "engines_xl",
 )
 
 _DETAIL_COLS = (
@@ -205,9 +222,7 @@ def list_ships(
         sql.append("AND s.faction_id = :faction_id")
         params["faction_id"] = faction_id
     if is_obtainable:
-        sql.append(
-            "AND s.can_be_captured IS NULL AND s.class_id != 'xs'"
-        )
+        sql.append("AND s.can_be_captured IS NULL AND s.class_id != 'xs'")
     sql.append("ORDER BY s.ship_id LIMIT :limit OFFSET :offset")
 
     rows = conn.execute(" ".join(sql), params).fetchall()
@@ -256,10 +271,16 @@ def class_max(
     if row is None or row[0] is None:
         raise HTTPException(status_code=404, detail=f"No ships found for class_id: {class_id}")
     return ClassMax(
-        hull=row[0], speed_max=row[1] or 0, travel_max=row[2] or 0,
-        boost_max=row[3] or 0, accel_max=row[4] or 0,
-        shield_capacity_max=row[5] or 0, shield_recharge_max=row[6] or 0,
-        cargo_volume=row[7] or 0, dps_max=row[8] or 0, range_max=row[9] or 0,
+        hull=row[0],
+        speed_max=row[1] or 0,
+        travel_max=row[2] or 0,
+        boost_max=row[3] or 0,
+        accel_max=row[4] or 0,
+        shield_capacity_max=row[5] or 0,
+        shield_recharge_max=row[6] or 0,
+        cargo_volume=row[7] or 0,
+        dps_max=row[8] or 0,
+        range_max=row[9] or 0,
     )
 
 
@@ -287,7 +308,9 @@ def get_ship(
     r["is_obtainable"] = bool(r["is_obtainable"])
     r["can_be_captured"] = r["can_be_captured"] is None or bool(r["can_be_captured"])
     r["software"] = [ShipSoftware(**dict(s)) for s in sw_rows]
-    r["drop_list_id"] = _resolve_drop_list(conn, r["ship_id"], r["class_id"], r["faction_id"], r["role"])
+    r["drop_list_id"] = _resolve_drop_list(
+        conn, r["ship_id"], r["class_id"], r["faction_id"], r["role"]
+    )
     return ShipDetail(**r)
 
 
@@ -320,4 +343,3 @@ def _resolve_drop_list(
         "SELECT 1 FROM s.drop_lists WHERE list_id = :id", {"id": candidate}
     ).fetchone()
     return candidate if exists else None
-

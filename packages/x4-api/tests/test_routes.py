@@ -13,7 +13,9 @@ def _seed_route_data(data_dir: Path) -> None:
     """A buy-low/sell-high pair for one ware across two stations in different sectors."""
     conn = open_db(data_dir)
     try:
-        conn.execute("INSERT INTO s.wares (ware_id, name, volume) VALUES ('energycells', 'Energy Cells', 1)")
+        conn.execute(
+            "INSERT INTO s.wares (ware_id, name, volume) VALUES ('energycells', 'Energy Cells', 1)"
+        )
         conn.executemany(
             "INSERT INTO stations (station_id, name, sector_id, is_player_owned, is_under_construction) "
             "VALUES (?, ?, ?, 0, 0)",
@@ -23,7 +25,7 @@ def _seed_route_data(data_dir: Path) -> None:
             "INSERT INTO station_offers (station_id, ware_id, side, price, quantity) VALUES (?, ?, ?, ?, ?)",
             [
                 ("A", "energycells", "sell", 100, 500),  # buy here (station sells)
-                ("B", "energycells", "buy", 150, 300),   # sell here (station buys)
+                ("B", "energycells", "buy", 150, 300),  # sell here (station buys)
             ],
         )
         conn.execute(

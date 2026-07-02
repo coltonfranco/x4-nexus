@@ -43,10 +43,18 @@ class PlayerCollector:
     def register(self) -> list[Registration]:
         return [
             Registration(Target(tag="component", depth=None, class_attr="player"), self._on_player),
-            Registration(Target(tag="account", depth=_ACCOUNT_DEPTH, parent_tag="faction"), self._on_account),
-            Registration(Target(tag="blueprint", depth=None, parent_tag="blueprints"), self._on_blueprint),
-            Registration(Target(tag="licence", depth=_LICENCE_DEPTH, parent_tag="licences"), self._on_licence),
-            Registration(Target(tag="ware", depth=None, parent_tag="inventory"), self._on_inventory_ware),
+            Registration(
+                Target(tag="account", depth=_ACCOUNT_DEPTH, parent_tag="faction"), self._on_account
+            ),
+            Registration(
+                Target(tag="blueprint", depth=None, parent_tag="blueprints"), self._on_blueprint
+            ),
+            Registration(
+                Target(tag="licence", depth=_LICENCE_DEPTH, parent_tag="licences"), self._on_licence
+            ),
+            Registration(
+                Target(tag="ware", depth=None, parent_tag="inventory"), self._on_inventory_ware
+            ),
         ]
 
     def _on_player(self, elem: etree._Element) -> None:
@@ -121,11 +129,15 @@ class PlayerCollector:
         row = self._player_row()
         if row is None:
             return
-        yield "player", "player", {
-            "name": row["name"],
-            "credits": row["credits"],
-            "current_ship_id": row["current_ship_id"],
-        }
+        yield (
+            "player",
+            "player",
+            {
+                "name": row["name"],
+                "credits": row["credits"],
+                "current_ship_id": row["current_ship_id"],
+            },
+        )
 
     # --- tiered contract -------------------------------------------------------
     def tables(self, tier: Tier) -> tuple[str, ...]:

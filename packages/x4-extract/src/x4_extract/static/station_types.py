@@ -84,33 +84,39 @@ def _parse_station(
     if not sets and ident_el is None:
         return
 
-    out.stations.append({
-        "station_id": macro_name,
-        "name": ident_el.get("name") if ident_el is not None else None,
-        "file_path": file_path,
-        "makerrace": ident_el.get("makerrace") if ident_el is not None else None,
-        "description": ident_el.get("description") if ident_el is not None else None,
-        "icon": ident_el.get("icon") if ident_el is not None else None,
-        "hull": _int(hull_el, "max"),
-        "hull_integrated": _bool_attr(hull_el, "integrated"),
-        "workforce_max": _int(workforce_el, "max") if _int(workforce_el, "max") is not None else _int(workforce_el, "capacity"),
-        "workforce_race": workforce_el.get("race") if workforce_el is not None else None,
-        "drone_capacity": _int(storage_el, "unit"),
-        "storage_capacity": _int(cargo_el, "max") if cargo_el is not None else None,
-        "storage_type": cargo_el.get("tags") if cargo_el is not None else None,
-        "dock_allow": _bool_attr(dock_el, "allow") if dock_el is not None else None,
-        "dock_allowtrade": _bool_attr(dock_el, "allowtrade") if dock_el is not None else None,
-        "dock_allowbuild": _bool_attr(dock_el, "allowbuild") if dock_el is not None else None,
-        "dock_external": _bool_attr(dock_el, "external") if dock_el is not None else None,
-        "dock_playeronly": _bool_attr(dock_el, "playeronly") if dock_el is not None else None,
-        "dock_size_tags": docksize_el.get("tags") if docksize_el is not None else None,
-        "equip_classes": equip_el.get("classes") if equip_el is not None else None,
-        "supply_classes": supply_el.get("classes") if supply_el is not None else None,
-        "production_research": _bool_attr(prod_el, "research") if prod_el is not None else None,
-        "secrecy_level": _int(secrecy_el, "level") if secrecy_el is not None else None,
-        "ownership_claim": _bool_attr(ownership_el, "claim") if ownership_el is not None else None,
-        "build_sets": json.dumps(sets) if sets else None,
-    })
+    out.stations.append(
+        {
+            "station_id": macro_name,
+            "name": ident_el.get("name") if ident_el is not None else None,
+            "file_path": file_path,
+            "makerrace": ident_el.get("makerrace") if ident_el is not None else None,
+            "description": ident_el.get("description") if ident_el is not None else None,
+            "icon": ident_el.get("icon") if ident_el is not None else None,
+            "hull": _int(hull_el, "max"),
+            "hull_integrated": _bool_attr(hull_el, "integrated"),
+            "workforce_max": _int(workforce_el, "max")
+            if _int(workforce_el, "max") is not None
+            else _int(workforce_el, "capacity"),
+            "workforce_race": workforce_el.get("race") if workforce_el is not None else None,
+            "drone_capacity": _int(storage_el, "unit"),
+            "storage_capacity": _int(cargo_el, "max") if cargo_el is not None else None,
+            "storage_type": cargo_el.get("tags") if cargo_el is not None else None,
+            "dock_allow": _bool_attr(dock_el, "allow") if dock_el is not None else None,
+            "dock_allowtrade": _bool_attr(dock_el, "allowtrade") if dock_el is not None else None,
+            "dock_allowbuild": _bool_attr(dock_el, "allowbuild") if dock_el is not None else None,
+            "dock_external": _bool_attr(dock_el, "external") if dock_el is not None else None,
+            "dock_playeronly": _bool_attr(dock_el, "playeronly") if dock_el is not None else None,
+            "dock_size_tags": docksize_el.get("tags") if docksize_el is not None else None,
+            "equip_classes": equip_el.get("classes") if equip_el is not None else None,
+            "supply_classes": supply_el.get("classes") if supply_el is not None else None,
+            "production_research": _bool_attr(prod_el, "research") if prod_el is not None else None,
+            "secrecy_level": _int(secrecy_el, "level") if secrecy_el is not None else None,
+            "ownership_claim": _bool_attr(ownership_el, "claim")
+            if ownership_el is not None
+            else None,
+            "build_sets": json.dumps(sets) if sets else None,
+        }
+    )
 
 
 def write(conn: sqlite3.Connection, result: ExtractResult) -> None:

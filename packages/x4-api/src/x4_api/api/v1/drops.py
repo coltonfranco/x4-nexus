@@ -1,6 +1,5 @@
 """REST endpoints for the loot drop system."""
 
-
 import sqlite3
 from typing import Annotated
 
@@ -45,7 +44,9 @@ class DropSource(PublicModel):
 @router.get("/drops/lists", response_model=list[DropList])
 def list_drop_lists(
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
-    category: str | None = Query(None, description="ship | lockbox | asteroid | crystal | story | masstraffic | other"),
+    category: str | None = Query(
+        None, description="ship | lockbox | asteroid | crystal | story | masstraffic | other"
+    ),
 ) -> list[DropList]:
     """List all named drop tables."""
     if category is not None:

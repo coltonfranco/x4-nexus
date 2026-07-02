@@ -124,7 +124,9 @@ class NPCsCollector:
             ancestor = ancestor.getparent()
         return None
 
-    def _enclosing_location(self, elem: etree._Element) -> tuple[str | None, str | None, str | None, str | None, bool]:
+    def _enclosing_location(
+        self, elem: etree._Element
+    ) -> tuple[str | None, str | None, str | None, str | None, bool]:
         """Walk ancestors to find the enclosing ship, station, component owner, sector, and whether it's a buildstorage."""
         ship_id: str | None = None
         station_id: str | None = None
@@ -148,7 +150,12 @@ class NPCsCollector:
                     is_buildstorage = True
                 elif cls == "sector" and sector_id is None:
                     sector_id = ancestor.get("macro")
-            if ship_id is not None and station_id is not None and owner is not None and sector_id is not None:
+            if (
+                ship_id is not None
+                and station_id is not None
+                and owner is not None
+                and sector_id is not None
+            ):
                 break
             ancestor = ancestor.getparent()
         return ship_id, station_id, owner, sector_id, is_buildstorage
@@ -167,18 +174,22 @@ class NPCsCollector:
         data["code"] = elem.get("code")
         data["macro"] = elem.get("macro")
         data["connection"] = elem.get("connection")
-        ship_id, station_id, enclosing_owner, sector_id, is_buildstorage = self._enclosing_location(elem)
+        ship_id, station_id, enclosing_owner, sector_id, is_buildstorage = self._enclosing_location(
+            elem
+        )
         data["owner_faction"] = elem.get("owner") or enclosing_owner
         data["location_ship_id"] = ship_id
         data["location_station_id"] = station_id
         # Capture unmapped attributes
         mapped = frozenset({"id", "name", "code", "macro", "owner", "class", "connection"})
-        extra: dict[str, object] = {str(k): v for k, v in elem.attrib.items() if str(k) not in mapped}
+        extra: dict[str, object] = {
+            str(k): v for k, v in elem.attrib.items() if str(k) not in mapped
+        }
         if sector_id:
             extra["sector_id"] = sector_id
         if is_buildstorage:
             extra["is_buildstorage"] = True
-        
+
         if extra:
             existing = data.get("_extra")
             if isinstance(existing, dict):
@@ -271,7 +282,7 @@ class NPCsCollector:
     def _on_person(self, elem: etree._Element) -> None:
         tmp_id = self._get_or_create_person_tmp_id(elem)
         data = self._ensure(tmp_id)
-        
+
         data["macro"] = elem.get("macro")
         role = elem.get("role")
         if role == "service":
@@ -283,12 +294,14 @@ class NPCsCollector:
         else:
             data["entity_post"] = role
             data["entity_type"] = "officer"
-            
-        ship_id, station_id, enclosing_owner, sector_id, is_buildstorage = self._enclosing_location(elem)
+
+        ship_id, station_id, enclosing_owner, sector_id, is_buildstorage = self._enclosing_location(
+            elem
+        )
         data["owner_faction"] = enclosing_owner
         data["location_ship_id"] = ship_id
         data["location_station_id"] = station_id
-        
+
         extra = _object_dict(data.get("_extra", {}))
         if sector_id:
             extra["sector_id"] = sector_id
@@ -296,7 +309,7 @@ class NPCsCollector:
             extra["is_buildstorage"] = True
         if extra:
             data["_extra"] = extra
-        
+
         real_id = f"{ship_id or station_id or 'unknown'}-person-{data.get('seed', tmp_id)}"
         self._by_id[real_id] = self._by_id.pop(tmp_id)
 

@@ -1,6 +1,5 @@
 """REST endpoints for NPCs (crew, marines, station personnel)."""
 
-
 import sqlite3
 from typing import Annotated
 
@@ -88,9 +87,13 @@ _NPC_JOINS = (
 @router.get("/npcs", response_model=list[NPCEntry])
 def list_npcs(
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
-    employment: Annotated[str | None, Query(description="Filter by employment: owned, hireable")] = None,
+    employment: Annotated[
+        str | None, Query(description="Filter by employment: owned, hireable")
+    ] = None,
     owner: Annotated[str | None, Query(description="Filter by owner faction (e.g. player)")] = None,
-    entity_type: Annotated[str | None, Query(description="Filter by role (officer, aipilot, engineer, defence)")] = None,
+    entity_type: Annotated[
+        str | None, Query(description="Filter by role (officer, aipilot, engineer, defence)")
+    ] = None,
     limit: Annotated[int, Query(ge=1, le=5000, description="Max entries")] = 500,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> list[NPCEntry]:

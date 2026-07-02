@@ -50,12 +50,12 @@ class SectorsCollector:
         sector_id = elem.get("macro")
         if not sector_id:
             return
-            
+
         known_to_player = 1 if elem.get("knownto") == "player" else 0
-        
+
         # We don't need to dump the rest of the attributes here since static map handles
         # sector layout, but we could put them in extra_json if needed. Let's just track knownto.
-        
+
         self.rows.append(
             SectorStateRow(
                 sector_id=sector_id,

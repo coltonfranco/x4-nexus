@@ -15,7 +15,9 @@ from typing import Any
 
 from lxml import etree
 
-_RE_DLC = re.compile(r"^dlc_?(\w+?)_(?:clusters|sectors|zones|sechighways|zonehighways)\.xml$", re.IGNORECASE)
+_RE_DLC = re.compile(
+    r"^dlc_?(\w+?)_(?:clusters|sectors|zones|sechighways|zonehighways)\.xml$", re.IGNORECASE
+)
 
 
 def _dlc_from_filename(name: str) -> str | None:
@@ -135,6 +137,7 @@ def write(conn: sqlite3.Connection, result: ExtractResult) -> None:
 # Internal parsers
 # ---------------------------------------------------------------------------
 
+
 def _parse_macros(
     root: etree._Element,
     out: ExtractResult,
@@ -143,7 +146,7 @@ def _parse_macros(
     dlc: str | None = None,
 ) -> None:
     for macro in root.iter("macro"):
-        cls      = macro.get("class")
+        cls = macro.get("class")
         macro_id = macro.get("name")
         if not macro_id or not cls:
             continue
@@ -152,66 +155,80 @@ def _parse_macros(
         pos = offsets.get(macro_id, {})
 
         if cls == "cluster":
-            out.clusters.append({
-                "cluster_id": macro_id,
-                "name":       macro_id,
-                "dlc":        dlc,
-                "name_id":        props.get("name_id"),
-                "description_id": props.get("description_id"),
-                "environment":    props.get("environment"),
-                "sun_class":      props.get("sun_class"),
-                "population_id":  props.get("population_id"),
-                "max_population": props.get("max_population"),
-                "owner_faction":  None,
-                "x": pos.get("x"),
-                "y": pos.get("y"),
-                "z": pos.get("z"),
-                "qx": pos.get("qx"),
-                "qy": pos.get("qy"),
-                "qz": pos.get("qz"),
-                "qw": pos.get("qw"),
-            })
+            out.clusters.append(
+                {
+                    "cluster_id": macro_id,
+                    "name": macro_id,
+                    "dlc": dlc,
+                    "name_id": props.get("name_id"),
+                    "description_id": props.get("description_id"),
+                    "environment": props.get("environment"),
+                    "sun_class": props.get("sun_class"),
+                    "population_id": props.get("population_id"),
+                    "max_population": props.get("max_population"),
+                    "owner_faction": None,
+                    "x": pos.get("x"),
+                    "y": pos.get("y"),
+                    "z": pos.get("z"),
+                    "qx": pos.get("qx"),
+                    "qy": pos.get("qy"),
+                    "qz": pos.get("qz"),
+                    "qw": pos.get("qw"),
+                }
+            )
 
         elif cls == "sector":
             cluster_id = _derive_cluster_id(macro_id)
             # Fall back to cluster-level props when the sector dataset lacks <area>
             # (e.g. Boron DLC puts sunlight/economy/security on the cluster dataset).
             cluster_props = defaults.get(cluster_id.lower(), {}) if cluster_id is not None else {}
-            out.sectors.append({
-                "sector_id":    macro_id,
-                "cluster_id":   cluster_id,
-                "name":         macro_id,
-                "owner_faction": None,
-                "dlc":           dlc,
-                "name_id":        props.get("name_id") or cluster_props.get("name_id"),
-                "description_id": props.get("description_id") or cluster_props.get("description_id"),
-                "sunlight":       props.get("sunlight") if props.get("sunlight") is not None else cluster_props.get("sunlight"),
-                "economy":        props.get("economy") if props.get("economy") is not None else cluster_props.get("economy"),
-                "security":       props.get("security") if props.get("security") is not None else cluster_props.get("security"),
-                "tags":           props.get("tags") or cluster_props.get("tags"),
-                "access_licence": props.get("access_licence") or cluster_props.get("access_licence"),
-                "x": pos.get("x"),
-                "y": pos.get("y"),
-                "z": pos.get("z"),
-                "qx": pos.get("qx"),
-                "qy": pos.get("qy"),
-                "qz": pos.get("qz"),
-                "qw": pos.get("qw"),
-            })
+            out.sectors.append(
+                {
+                    "sector_id": macro_id,
+                    "cluster_id": cluster_id,
+                    "name": macro_id,
+                    "owner_faction": None,
+                    "dlc": dlc,
+                    "name_id": props.get("name_id") or cluster_props.get("name_id"),
+                    "description_id": props.get("description_id")
+                    or cluster_props.get("description_id"),
+                    "sunlight": props.get("sunlight")
+                    if props.get("sunlight") is not None
+                    else cluster_props.get("sunlight"),
+                    "economy": props.get("economy")
+                    if props.get("economy") is not None
+                    else cluster_props.get("economy"),
+                    "security": props.get("security")
+                    if props.get("security") is not None
+                    else cluster_props.get("security"),
+                    "tags": props.get("tags") or cluster_props.get("tags"),
+                    "access_licence": props.get("access_licence")
+                    or cluster_props.get("access_licence"),
+                    "x": pos.get("x"),
+                    "y": pos.get("y"),
+                    "z": pos.get("z"),
+                    "qx": pos.get("qx"),
+                    "qy": pos.get("qy"),
+                    "qz": pos.get("qz"),
+                    "qw": pos.get("qw"),
+                }
+            )
 
         elif cls == "zone":
             sector_id = _derive_sector_id(macro_id)
-            out.zones.append({
-                "zone_id":   macro_id,
-                "sector_id": sector_id,
-                "x": pos.get("x"),
-                "y": pos.get("y"),
-                "z": pos.get("z"),
-                "qx": pos.get("qx"),
-                "qy": pos.get("qy"),
-                "qz": pos.get("qz"),
-                "qw": pos.get("qw"),
-            })
+            out.zones.append(
+                {
+                    "zone_id": macro_id,
+                    "sector_id": sector_id,
+                    "x": pos.get("x"),
+                    "y": pos.get("y"),
+                    "z": pos.get("z"),
+                    "qx": pos.get("qx"),
+                    "qy": pos.get("qy"),
+                    "qz": pos.get("qz"),
+                    "qw": pos.get("qw"),
+                }
+            )
 
             for conn_el in macro.findall(".//connection"):
                 m2 = conn_el.find("macro")
@@ -256,9 +273,11 @@ def _parse_gates(root: etree._Element, out: ExtractResult) -> None:
     for el in root.iterfind(".//connection"):
         # Test-fixture shorthand
         from_zone = el.get("from_zone_id")
-        to_zone   = el.get("to_zone_id")
+        to_zone = el.get("to_zone_id")
         if from_zone and to_zone:
-            out.gates.append({"from_zone_id": from_zone, "to_zone_id": to_zone, "kind": el.get("kind")})
+            out.gates.append(
+                {"from_zone_id": from_zone, "to_zone_id": to_zone, "kind": el.get("kind")}
+            )
             continue
 
         # Real game format: <connection ref="destination" path="..."><macro path="..."/></connection>
@@ -273,18 +292,23 @@ def _parse_gates(root: etree._Element, out: ExtractResult) -> None:
             continue
 
         m_from = re.search(r"([^/]+_connection)/connection_", from_path)
-        m_to   = re.search(r"([^/]+_connection)/connection_", to_path)
+        m_to = re.search(r"([^/]+_connection)/connection_", to_path)
         if m_from and m_to:
             from_zone = m_from.group(1).replace("_connection", "_macro")
             to_zone = m_to.group(1).replace("_connection", "_macro")
             kind = out.zone_gate_kinds.get(from_zone) or out.zone_gate_kinds.get(to_zone) or "gate"
-            out.gates.append({
-                "from_zone_id": from_zone,
-                "to_zone_id":   to_zone,
-                "kind":         kind,
-            })
+            out.gates.append(
+                {
+                    "from_zone_id": from_zone,
+                    "to_zone_id": to_zone,
+                    "kind": kind,
+                }
+            )
 
-def _parse_regions(root: etree._Element, out: ExtractResult, offsets: dict[str, dict[str, float]]) -> None:
+
+def _parse_regions(
+    root: etree._Element, out: ExtractResult, offsets: dict[str, dict[str, float]]
+) -> None:
     _RE_REGION_MACRO = re.compile(r"^C(\d+)S(\d+)_", re.IGNORECASE)
     for conn_el in root.iterfind('.//connection[@ref="regions"]'):
         inner_macro = conn_el.find("macro")
@@ -293,28 +317,31 @@ def _parse_regions(root: etree._Element, out: ExtractResult, offsets: dict[str, 
         region_macro_name = inner_macro.get("name")
         if not region_macro_name:
             continue
-            
+
         pos = offsets.get(region_macro_name, {})
         m = _RE_REGION_MACRO.match(region_macro_name)
-        
+
         cluster_id = None
         sector_id = None
         if m:
             cluster_id = f"Cluster_{int(m.group(1)):02d}_macro"
             sector_id = f"Cluster_{int(m.group(1)):02d}_Sector{int(m.group(2)):03d}_macro"
-            
-        out.regions.append({
-            "region_id": region_macro_name,
-            "cluster_id": cluster_id,
-            "sector_id": sector_id,
-            "x": pos.get("x"),
-            "y": pos.get("y"),
-            "z": pos.get("z"),
-            "qx": pos.get("qx"),
-            "qy": pos.get("qy"),
-            "qz": pos.get("qz"),
-            "qw": pos.get("qw"),
-        })
+
+        out.regions.append(
+            {
+                "region_id": region_macro_name,
+                "cluster_id": cluster_id,
+                "sector_id": sector_id,
+                "x": pos.get("x"),
+                "y": pos.get("y"),
+                "z": pos.get("z"),
+                "qx": pos.get("qx"),
+                "qy": pos.get("qy"),
+                "qz": pos.get("qz"),
+                "qw": pos.get("qw"),
+            }
+        )
+
 
 def _parse_superhighways(root: etree._Element, out: ExtractResult) -> None:
     # Handle superhighways in clusters.xml or sechighways.xml
@@ -329,12 +356,14 @@ def _parse_superhighways(root: etree._Element, out: ExtractResult) -> None:
             from_ref = entry.get("ref")
             to_ref = exit_.get("ref")
             if from_ref and to_ref:
-                out.superhighways.append({
-                    "from_zone_id": from_ref,
-                    "to_zone_id": to_ref,
-                    "kind": "superhighway",
-                })
-    
+                out.superhighways.append(
+                    {
+                        "from_zone_id": from_ref,
+                        "to_zone_id": to_ref,
+                        "kind": "superhighway",
+                    }
+                )
+
     # Handle zonehighways
     for conn_el in root.iterfind('.//connection[@ref="zonehighways"]'):
         mac = conn_el.find("macro")
@@ -348,25 +377,36 @@ def _parse_superhighways(root: etree._Element, out: ExtractResult) -> None:
             m_from = re.search(r"([^/]+_connection)", from_path)
             m_to = re.search(r"([^/]+_connection)", to_path)
             if m_from and m_to:
-                out.superhighways.append({
-                    "from_zone_id": m_from.group(1).replace("_connection", "_macro"),
-                    "to_zone_id": m_to.group(1).replace("_connection", "_macro"),
-                    "kind": "localhighway",
-                })
+                out.superhighways.append(
+                    {
+                        "from_zone_id": m_from.group(1).replace("_connection", "_macro"),
+                        "to_zone_id": m_to.group(1).replace("_connection", "_macro"),
+                        "kind": "localhighway",
+                    }
+                )
 
-def _compute_cluster_ownership(clusters: list[dict[str, Any]], sectors: list[dict[str, Any]]) -> None:
+
+def _compute_cluster_ownership(
+    clusters: list[dict[str, Any]], sectors: list[dict[str, Any]]
+) -> None:
     from collections import Counter
+
     cluster_owners = {}
     for c in clusters:
         cluster_id = c["cluster_id"]
-        owners = [s["owner_faction"] for s in sectors if s["cluster_id"] == cluster_id and s.get("owner_faction")]
+        owners = [
+            s["owner_faction"]
+            for s in sectors
+            if s["cluster_id"] == cluster_id and s.get("owner_faction")
+        ]
         if owners:
             # Predominant owner
             common = Counter(owners).most_common(1)
             cluster_owners[cluster_id] = common[0][0]
-            
+
     for c in clusters:
         c["owner_faction"] = cluster_owners.get(c["cluster_id"])
+
 
 def _parse_mapdefaults(root: etree._Element) -> dict[str, dict[str, Any]]:
     defaults = {}
@@ -375,13 +415,13 @@ def _parse_mapdefaults(root: etree._Element) -> dict[str, dict[str, Any]]:
         if not macro:
             continue
         macro = macro.lower()  # normalise; game XMLs use PascalCase, mapdefaults uses mixed case
-        
+
         props: dict[str, Any] = {}
         ident = ds.find(".//identification")
         if ident is not None:
             props["name_id"] = ident.get("name")
             props["description_id"] = ident.get("description")
-            
+
         area = ds.find(".//area")
         if area is not None:
             props["sunlight"] = _float(area, "sunlight")
@@ -393,15 +433,15 @@ def _parse_mapdefaults(root: etree._Element) -> dict[str, dict[str, Any]]:
         access = ds.find(".//access")
         if access is not None:
             props["access_licence"] = access.get("licence")
-            
+
         env = ds.find(".//space")
         if env is not None:
             props["environment"] = env.get("environment")
-            
+
         sun = ds.find(".//sun")
         if sun is not None:
             props["sun_class"] = sun.get("class")
-            
+
         pop_id = None
         max_population = 0
         for planet in ds.iter("planet"):
@@ -411,12 +451,12 @@ def _parse_mapdefaults(root: etree._Element) -> dict[str, dict[str, Any]]:
             maxpop = planet.get("maxpopulation")
             if maxpop and maxpop.isdigit():
                 max_population += int(maxpop)
-        
+
         if pop_id:
             props["population_id"] = pop_id
         if max_population > 0:
             props["max_population"] = max_population
-            
+
         defaults[macro] = props
     return defaults
 
@@ -432,6 +472,7 @@ def _derive_cluster_id(sector_id: str) -> str | None:
     m = _RE_CLUSTER_FROM_SECTOR.match(sector_id)
     return (m.group(1) + "_macro") if m else None
 
+
 def _derive_sector_id(zone_macro: str) -> str | None:
     # e.g., "Zone005_Cluster_108_Sector001_macro" -> "Cluster_108_Sector001_macro"
     # e.g., "tzoneCluster_108_Sector001SHCon6_GateZone_macro" -> "Cluster_108_Sector001_macro"
@@ -441,12 +482,13 @@ def _derive_sector_id(zone_macro: str) -> str | None:
     m = re.search(r"(Cluster_\d+)", zone_macro, re.IGNORECASE)
     if m:
         return f"{m.group(1)}_macro"
-    
+
     # Fallback to older regex
     m = re.search(r"^(t?zone|Zone\d+_)(.*)", zone_macro, re.IGNORECASE)
     if m:
         return m.group(2)
     return None
+
 
 def _float(el: etree._Element, attr: str) -> float | None:
     v = el.get(attr)

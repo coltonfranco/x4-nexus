@@ -6,7 +6,6 @@ only that dataset (instead of the full invalidate the save-refresh button trigge
 `/events` feed exposes the classified change log (combat alerts, ship losses, …).
 """
 
-
 import sqlite3
 from typing import Annotated
 
@@ -27,10 +26,10 @@ _META_TIERS = frozenset({"source", "source_mtime", "source_size", "ingest_ms", "
 
 class RefreshStatus(PublicModel):
     active_key: str
-    following_latest: bool         # True when tracking the newest save (no pin), else pinned
-    ingested_at: str | None        # most recent successful ingest (wall clock)
+    following_latest: bool  # True when tracking the newest save (no pin), else pinned
+    ingested_at: str | None  # most recent successful ingest (wall clock)
     source_fingerprint: str | None  # changes whenever the save file content changed
-    last_ingest_ms: int | None      # wall-clock cost of that ingest, for perf visibility
+    last_ingest_ms: int | None  # wall-clock cost of that ingest, for perf visibility
     last_event_id: int
     # entity_type → highest event id seen for it. The client remembers the previous map
     # and refetches the datasets whose marker advanced.
@@ -39,9 +38,9 @@ class RefreshStatus(PublicModel):
 
 class RefreshConfigOut(PublicModel):
     background_refresh: bool  # is the in-process watcher running at all (server-level switch)
-    interval_enabled: bool    # is the periodic backstop poll on (watchdog runs regardless)
+    interval_enabled: bool  # is the periodic backstop poll on (watchdog runs regardless)
     interval_sec: int
-    min_interval_sec: int     # floor the UI should enforce on interval_sec
+    min_interval_sec: int  # floor the UI should enforce on interval_sec
 
 
 class RefreshConfigIn(PublicModel):
@@ -84,7 +83,9 @@ def refresh_status(
         rows = conn.execute("SELECT tier, fingerprint, ingested_at FROM ingest_state").fetchall()
         # Several pseudo-tiers carry ingest metadata, not real tier fingerprints; exclude
         # them so the "most recent real ingest" timestamp reflects actual data rewrites only.
-        times = [r["ingested_at"] for r in rows if r["ingested_at"] and r["tier"] not in _META_TIERS]
+        times = [
+            r["ingested_at"] for r in rows if r["ingested_at"] and r["tier"] not in _META_TIERS
+        ]
         ingested_at = max(times) if times else None
         source_fp = next((r["fingerprint"] for r in rows if r["tier"] == "source"), None)
         ms_raw = next((r["fingerprint"] for r in rows if r["tier"] == "ingest_ms"), None)
@@ -185,7 +186,7 @@ def list_events(
         # Priorities are ordered; include this rank and anything more severe.
         order = ["info", "warn", "alert"]
         if min_priority in order:
-            allowed = order[order.index(min_priority):]
+            allowed = order[order.index(min_priority) :]
             clauses.append(f"priority IN ({','.join('?' * len(allowed))})")
             params.extend(allowed)
     params.append(limit)

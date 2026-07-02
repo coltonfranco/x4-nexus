@@ -3,10 +3,9 @@
 Exposes clusters, sectors, and gates.
 """
 
-
 import sqlite3
 from collections import defaultdict
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
@@ -19,9 +18,7 @@ router = APIRouter()
 
 def _faction_name_map(conn: sqlite3.Connection) -> dict[str, str]:
     """Return {faction_id: disambiguated_name} for every non-legacy faction."""
-    rows = conn.execute(
-        "SELECT faction_id, name FROM s.factions WHERE is_legacy = 0"
-    ).fetchall()
+    rows = conn.execute("SELECT faction_id, name FROM s.factions WHERE is_legacy = 0").fetchall()
     return {r["faction_id"]: r["name"] for r in disambiguate([dict(r) for r in rows])}
 
 
@@ -83,10 +80,12 @@ class GateSummary(PublicModel):
     to_zone_id: str
     kind: str | None
 
+
 class SuperhighwaySummary(PublicModel):
     from_zone_id: str
     to_zone_id: str
     kind: str
+
 
 class RegionSummary(PublicModel):
     region_id: str
@@ -170,7 +169,11 @@ def list_sectors(
     limit: int = Query(500, ge=1, le=2000),
     offset: int = Query(0, ge=0),
 ) -> list[SectorSummary]:
-    has_sector_state = bool(conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='sector_state'").fetchone())
+    has_sector_state = bool(
+        conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='sector_state'"
+        ).fetchone()
+    )
 
     # Build sector ownership map from live stations (most-stations-wins per sector).
     live_owner: dict[str, str] = {}
@@ -197,8 +200,16 @@ def list_sectors(
             seen.add(sid)
             live_owner[sid] = r["owner_faction"]
 
-    select_known = "COALESCE(ss.known_to_player, 0) AS known_to_player" if has_sector_state else "0 AS known_to_player"
-    join_live = "LEFT JOIN sector_state ss ON ss.sector_id = LOWER(sec.sector_id) " if has_sector_state else ""
+    select_known = (
+        "COALESCE(ss.known_to_player, 0) AS known_to_player"
+        if has_sector_state
+        else "0 AS known_to_player"
+    )
+    join_live = (
+        "LEFT JOIN sector_state ss ON ss.sector_id = LOWER(sec.sector_id) "
+        if has_sector_state
+        else ""
+    )
 
     sql = (
         f"SELECT sec.sector_id, sec.cluster_id, sec.name AS macro_id, sec.dlc, "
@@ -229,9 +240,21 @@ def get_sector(
     sector_id: str,
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
 ) -> SectorSummary:
-    has_sector_state = bool(conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='sector_state'").fetchone())
-    select_known = "COALESCE(ss.known_to_player, 0) AS known_to_player" if has_sector_state else "0 AS known_to_player"
-    join_live = "LEFT JOIN sector_state ss ON ss.sector_id = LOWER(sec.sector_id) " if has_sector_state else ""
+    has_sector_state = bool(
+        conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='sector_state'"
+        ).fetchone()
+    )
+    select_known = (
+        "COALESCE(ss.known_to_player, 0) AS known_to_player"
+        if has_sector_state
+        else "0 AS known_to_player"
+    )
+    join_live = (
+        "LEFT JOIN sector_state ss ON ss.sector_id = LOWER(sec.sector_id) "
+        if has_sector_state
+        else ""
+    )
 
     row = conn.execute(
         f"SELECT sec.sector_id, sec.cluster_id, sec.name AS macro_id, sec.dlc, "
@@ -300,7 +323,9 @@ def get_sector_zones(
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
 ) -> list[ZoneSummary]:
     """List all zones available in a specific sector."""
-    row = conn.execute("SELECT 1 FROM s.sectors WHERE sector_id = :id", {"id": sector_id}).fetchone()
+    row = conn.execute(
+        "SELECT 1 FROM s.sectors WHERE sector_id = :id", {"id": sector_id}
+    ).fetchone()
     if row is None:
         raise HTTPException(status_code=404, detail=f"Unknown sector_id: {sector_id}")
     rows = conn.execute(
@@ -431,7 +456,9 @@ def list_map_stations(
 @router.get("/map/resources", response_model=list[ResourceEntry])
 def list_resources(
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
-    ware: str | None = Query(None, description="Filter by ware (ore, silicon, nividium, hydrogen, helium, methane, ice)"),
+    ware: str | None = Query(
+        None, description="Filter by ware (ore, silicon, nividium, hydrogen, helium, methane, ice)"
+    ),
     sector_id: str | None = Query(None, description="Filter by sector macro ID"),
     limit: int = Query(500, ge=1, le=2000),
     offset: int = Query(0, ge=0),
@@ -460,7 +487,9 @@ def get_sector_resources(
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
 ) -> list[ResourceEntry]:
     """List all resources available in a specific sector."""
-    row = conn.execute("SELECT 1 FROM s.sectors WHERE sector_id = :id", {"id": sector_id}).fetchone()
+    row = conn.execute(
+        "SELECT 1 FROM s.sectors WHERE sector_id = :id", {"id": sector_id}
+    ).fetchone()
     if row is None:
         raise HTTPException(status_code=404, detail=f"Unknown sector_id: {sector_id}")
     rows = conn.execute(
@@ -489,9 +518,7 @@ def list_live_resources(
     ).fetchone()
     if table is None:  # dynamic DB predates the schema; treat as no data
         return []
-    sql = [
-        "SELECT sector_id, ware, current, max, yield_tier FROM sector_resources WHERE 1=1"
-    ]
+    sql = ["SELECT sector_id, ware, current, max, yield_tier FROM sector_resources WHERE 1=1"]
     params: dict[str, object] = {"limit": limit, "offset": offset}
     if ware is not None:
         sql.append("AND ware = :ware")
@@ -524,6 +551,7 @@ def list_regions(
 
     rows = conn.execute(" ".join(sql), params).fetchall()
     return [RegionSummary(**dict(r)) for r in rows]
+
 
 @router.get("/map/superhighways", response_model=list[SuperhighwaySummary])
 def list_superhighways(
@@ -628,6 +656,7 @@ class ConflictFaction(PublicModel):
     trader_count: int = 0
     other_count: int = 0
 
+
 class ConflictSide(PublicModel):
     factions: list[ConflictFaction]
     fighter_count: int
@@ -635,11 +664,12 @@ class ConflictSide(PublicModel):
     trader_count: int = 0
     other_count: int = 0
 
+
 class ConflictEntry(PublicModel):
     sector_id: str
     fighter_count: int
     hostile_pair_count: int
-    intensity: float  # 0.0–1.0 normalized across all sectors
+    intensity: float  # 0.0-1.0 normalized across all sectors
     type: str  # 'battle', 'invasion', or 'skirmish'
     invader_name: str | None = None
     sector_owner_name: str | None = None
@@ -693,6 +723,7 @@ class BorderTensionEntry(PublicModel):
     to_forces: list[ConflictFaction]
     intensity: float
 
+
 class SectorForceEntry(PublicModel):
     sector_id: str
     fighter_count: int
@@ -701,6 +732,7 @@ class SectorForceEntry(PublicModel):
     other_count: int = 0
     factions: list[ConflictFaction]
     sides: list[ConflictSide] | None = None
+
 
 @router.get("/map/cluster-resources", response_model=list[ClusterResourceEntry])
 def list_cluster_resources(
@@ -731,9 +763,9 @@ def list_forces(
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
 ) -> list[SectorForceEntry]:
     """Return total fighter counts per sector and breakdown by faction."""
-    has_ships = bool(conn.execute(
-        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='ships'"
-    ).fetchone())
+    has_ships = bool(
+        conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='ships'").fetchone()
+    )
     if not has_ships:
         return []
 
@@ -750,7 +782,9 @@ def list_forces(
     """).fetchall()
 
     conflict_name_map = _faction_name_map(conn)
-    by_sector: dict[str, dict[str, dict[str, int]]] = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
+    by_sector: dict[str, dict[str, dict[str, int]]] = defaultdict(
+        lambda: defaultdict(lambda: defaultdict(int))
+    )
     totals_fighter: dict[str, int] = defaultdict(int)
     totals_miner: dict[str, int] = defaultdict(int)
     totals_trader: dict[str, int] = defaultdict(int)
@@ -761,21 +795,23 @@ def list_forces(
         by_sector[sector_id][faction]["_seen"] = 1
         if fname and faction not in conflict_name_map:
             conflict_name_map[faction] = fname
-            
-        if role == 'fight':
+
+        if role == "fight":
             totals_fighter[sector_id] += cnt
-            by_sector[sector_id][faction]['fight'] += cnt
-        elif role == 'mine':
+            by_sector[sector_id][faction]["fight"] += cnt
+        elif role == "mine":
             totals_miner[sector_id] += cnt
-            by_sector[sector_id][faction]['mine'] += cnt
-        elif role == 'trade':
+            by_sector[sector_id][faction]["mine"] += cnt
+        elif role == "trade":
             totals_trader[sector_id] += cnt
-            by_sector[sector_id][faction]['trade'] += cnt
+            by_sector[sector_id][faction]["trade"] += cnt
         else:
             totals_other[sector_id] += cnt
-            by_sector[sector_id][faction]['other'] += cnt
+            by_sector[sector_id][faction]["other"] += cnt
 
-    hostile_rows = conn.execute("SELECT faction_id, other_faction_id FROM faction_relations_current WHERE relation < -0.1").fetchall()
+    hostile_rows = conn.execute(
+        "SELECT faction_id, other_faction_id FROM faction_relations_current WHERE relation < -0.1"
+    ).fetchall()
     hostile_set = set()
     for row in hostile_rows:
         hostile_set.add((row[0], row[1]))
@@ -783,22 +819,29 @@ def list_forces(
 
     results = []
     # Collect all sectors that have ANY forces (fighters, miners, or traders)
-    all_sectors = set(totals_fighter.keys()) | set(totals_miner.keys()) | set(totals_trader.keys()) | set(totals_other.keys())
+    all_sectors = (
+        set(totals_fighter.keys())
+        | set(totals_miner.keys())
+        | set(totals_trader.keys())
+        | set(totals_other.keys())
+    )
     for sector_id in all_sectors:
         factions = []
         for faction_id, counts in by_sector[sector_id].items():
-            factions.append(ConflictFaction(
-                faction_id=faction_id,
-                faction_name=conflict_name_map.get(faction_id, faction_id),
-                fighter_count=counts.get('fight', 0),
-                miner_count=counts.get('mine', 0),
-                trader_count=counts.get('trade', 0),
-                other_count=counts.get('other', 0),
-            ))
+            factions.append(
+                ConflictFaction(
+                    faction_id=faction_id,
+                    faction_name=conflict_name_map.get(faction_id, faction_id),
+                    fighter_count=counts.get("fight", 0),
+                    miner_count=counts.get("mine", 0),
+                    trader_count=counts.get("trade", 0),
+                    other_count=counts.get("other", 0),
+                )
+            )
         f_count = totals_fighter.get(sector_id, 0)
         m_count = totals_miner.get(sector_id, 0)
         t_count = totals_trader.get(sector_id, 0)
-        
+
         # group into sides
         sides: list[list[ConflictFaction]] = []
         for cf in factions:
@@ -815,27 +858,37 @@ def list_forces(
                     break
             if not placed:
                 sides.append([cf])
-        
+
         conflict_sides = []
         for side_factions in sides:
             side_fcnt = sum(f.fighter_count for f in side_factions)
             side_mcnt = sum(f.miner_count for f in side_factions)
             side_tcnt = sum(f.trader_count for f in side_factions)
             side_ocnt = sum(f.other_count for f in side_factions)
-            conflict_sides.append(ConflictSide(factions=side_factions, fighter_count=side_fcnt, miner_count=side_mcnt, trader_count=side_tcnt, other_count=side_ocnt))
+            conflict_sides.append(
+                ConflictSide(
+                    factions=side_factions,
+                    fighter_count=side_fcnt,
+                    miner_count=side_mcnt,
+                    trader_count=side_tcnt,
+                    other_count=side_ocnt,
+                )
+            )
         conflict_sides.sort(key=lambda s: -s.fighter_count)
         o_count = totals_other.get(sector_id, 0)
-        
-        results.append(SectorForceEntry(
-            sector_id=sector_id,
-            fighter_count=f_count,
-            miner_count=m_count,
-            trader_count=t_count,
-            other_count=o_count,
-            factions=factions,
-            sides=conflict_sides if conflict_sides else None,
-        ))
-    
+
+        results.append(
+            SectorForceEntry(
+                sector_id=sector_id,
+                fighter_count=f_count,
+                miner_count=m_count,
+                trader_count=t_count,
+                other_count=o_count,
+                factions=factions,
+                sides=conflict_sides if conflict_sides else None,
+            )
+        )
+
     return results
 
 
@@ -846,16 +899,18 @@ def list_conflicts(
     """Sectors with active fighter presence from mutually-hostile factions.
 
     Returns one row per sector with a conflict score.  ``intensity`` is
-    0.0–1.0 normalized across all sectors; ``fighter_count`` is the raw
+    0.0-1.0 normalized across all sectors; ``fighter_count`` is the raw
     number of combat-class ships from the hostile factions in that sector.
     Returns [] until a save is ingested.
     """
-    has_ships = bool(conn.execute(
-        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='ships'"
-    ).fetchone())
-    has_rels = bool(conn.execute(
-        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='faction_relations_current'"
-    ).fetchone())
+    has_ships = bool(
+        conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='ships'").fetchone()
+    )
+    has_rels = bool(
+        conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='faction_relations_current'"
+        ).fetchone()
+    )
     if not has_ships or not has_rels:
         return []
 
@@ -918,27 +973,27 @@ def list_conflicts(
     by_sector: dict[str, dict[str, tuple[int, str]]] = defaultdict(dict)
     totals: dict[str, int] = defaultdict(int)
     sector_owners_map: dict[str, tuple[str | None, str | None]] = {}
-    
+
     for sector, faction, cnt, fname, so_name, so_id in breakdown_rows:
         by_sector[sector][faction] = (cnt, fname)
         totals[sector] += cnt
         if sector not in sector_owners_map:
             sector_owners_map[sector] = (so_id, so_name)
 
-    hostile_rows = conn.execute("SELECT faction_id, other_faction_id FROM faction_relations_current WHERE relation < -0.1").fetchall()
+    hostile_rows = conn.execute(
+        "SELECT faction_id, other_faction_id FROM faction_relations_current WHERE relation < -0.1"
+    ).fetchall()
     hostile_set = set()
     for row in hostile_rows:
         hostile_set.add((row[0], row[1]))
         hostile_set.add((row[1], row[0]))
 
-    max_count = max(totals.values()) if totals else 0
-    
     name_map = _faction_name_map(conn)
 
     results = []
     for sector, factions in sorted(by_sector.items(), key=lambda x: -(totals[x[0]])):
         sorted_facs = sorted(factions.items(), key=lambda x: -(x[1][0]))
-        
+
         sides: list[list[ConflictFaction]] = []
         for fid, (fcnt, fname) in sorted_facs:
             display_name = name_map.get(fid, fname)
@@ -956,27 +1011,27 @@ def list_conflicts(
                     break
             if not placed:
                 sides.append([cf])
-        
+
         conflict_sides = []
         for side_factions in sides:
             side_fcnt = sum(f.fighter_count for f in side_factions)
             conflict_sides.append(ConflictSide(factions=side_factions, fighter_count=side_fcnt))
-            
+
         conflict_sides.sort(key=lambda s: -s.fighter_count)
-        
+
         largest_side = conflict_sides[0] if len(conflict_sides) > 0 else None
         second_largest_side = conflict_sides[1] if len(conflict_sides) > 1 else None
-        
+
         largest = largest_side.fighter_count if largest_side else 0
         second_largest = second_largest_side.fighter_count if second_largest_side else 0
         total_fighters = sum(s.fighter_count for s in conflict_sides)
 
         so_id, so_name = sector_owners_map.get(sector, (None, None))
         is_neutral = so_id is None or so_id == "ownerless"
-        
+
         ctype = "skirmish"
         invader_name = None
-        
+
         is_invasion = False
         if not is_neutral and largest_side:
             for f in largest_side.factions:
@@ -989,16 +1044,15 @@ def list_conflicts(
             # This is only a notable conflict if the LARGEST force is actively invading the sector.
             if not is_invasion or largest < 5:
                 continue
-                
+
             ctype = "invasion"
+            # is_invasion is only ever set True inside the `largest_side` truthy branch above.
+            assert largest_side is not None
             invader_faction = max(largest_side.factions, key=lambda x: x.fighter_count)
             invader_name = invader_faction.faction_name
         else:
             # A real fight with at least 5 ships on both sides.
-            if largest >= 10 and second_largest >= 10:
-                ctype = "battle"
-            else:
-                ctype = "skirmish"
+            ctype = "battle" if largest >= 10 and second_largest >= 10 else "skirmish"
 
         # Intensity scales depending on the type of conflict.
         # For battles, the second_largest force dictates how "massive" it really is.
@@ -1013,11 +1067,11 @@ def list_conflicts(
 
         # Scale intensity to make sure skirmishes are low, battles are high.
         if ctype == "skirmish":
-            intensity = 0.1 + intensity * 0.3 # 0.1 to 0.4
+            intensity = 0.1 + intensity * 0.3  # 0.1 to 0.4
         elif ctype == "invasion":
-            intensity = 0.4 + intensity * 0.4 # 0.4 to 0.8
+            intensity = 0.4 + intensity * 0.4  # 0.4 to 0.8
         elif ctype == "battle":
-            intensity = 0.6 + intensity * 0.4 # 0.6 to 1.0
+            intensity = 0.6 + intensity * 0.4  # 0.6 to 1.0
 
         results.append(
             ConflictEntry(
@@ -1028,11 +1082,14 @@ def list_conflicts(
                 type=ctype,
                 invader_name=invader_name,
                 sector_owner_name=so_name,
-                factions=[ConflictFaction(faction_id=f, faction_name=fn, fighter_count=fc) for f, (fc, fn) in sorted_facs],
+                factions=[
+                    ConflictFaction(faction_id=f, faction_name=fn, fighter_count=fc)
+                    for f, (fc, fn) in sorted_facs
+                ],
                 sides=conflict_sides,
             )
         )
-    
+
     # Re-sort results by intensity
     results.sort(key=lambda x: -x.intensity)
     return results
@@ -1043,12 +1100,14 @@ def list_tensions(
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
 ) -> list[BorderTensionEntry]:
     """Sectors with amassing hostile forces on adjacent borders."""
-    has_ships = bool(conn.execute(
-        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='ships'"
-    ).fetchone())
-    has_rels = bool(conn.execute(
-        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='faction_relations_current'"
-    ).fetchone())
+    has_ships = bool(
+        conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='ships'").fetchone()
+    )
+    has_rels = bool(
+        conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='faction_relations_current'"
+        ).fetchone()
+    )
     if not has_ships or not has_rels:
         return []
 
@@ -1087,15 +1146,17 @@ def list_tensions(
     """).fetchall()
 
     forces_name_map = _faction_name_map(conn)
-    sector_forces: dict[str, list[dict]] = defaultdict(list)
+    sector_forces: dict[str, list[dict[str, Any]]] = defaultdict(list)
     sector_owners_map: dict[str, str | None] = {}
-    
+
     for sector, faction, cnt, fname, so_id in breakdown_rows:
-        sector_forces[sector].append({
-            "faction_id": faction,
-            "faction_name": forces_name_map.get(faction, fname),
-            "cnt": cnt,
-        })
+        sector_forces[sector].append(
+            {
+                "faction_id": faction,
+                "faction_name": forces_name_map.get(faction, fname),
+                "cnt": cnt,
+            }
+        )
         if sector not in sector_owners_map:
             sector_owners_map[sector] = so_id
 
@@ -1117,7 +1178,9 @@ def list_tensions(
         WHERE z1.sector_id != z2.sector_id
     """).fetchall()
 
-    hostile_rows = conn.execute("SELECT faction_id, other_faction_id FROM faction_relations_current WHERE relation < -0.1").fetchall()
+    hostile_rows = conn.execute(
+        "SELECT faction_id, other_faction_id FROM faction_relations_current WHERE relation < -0.1"
+    ).fetchall()
     hostile_set = set()
     for f1, f2 in hostile_rows:
         hostile_set.add((f1, f2))
@@ -1128,10 +1191,10 @@ def list_tensions(
     for c_from, c_to in connections:
         c_from = c_from.lower()
         c_to = c_to.lower()
-        
+
         forces_a = sector_forces.get(c_from, [])
         forces_b = sector_forces.get(c_to, [])
-        
+
         if not forces_a or not forces_b:
             continue
 
@@ -1140,41 +1203,63 @@ def list_tensions(
 
         hostile_in_a = set()
         hostile_in_b = set()
-        
+
         for fa in forces_a:
             for fb in forces_b:
                 if (fa["faction_id"], fb["faction_id"]) in hostile_set:
                     # Condition 1: Mutual standoff. Both sides have 10+ ships.
                     mutual_standoff = fa["cnt"] >= 10 and fb["cnt"] >= 10
-                    
+
                     # Condition 2: Invasion threat. One side has 20+ ships and is hostile to the other side's SECTOR OWNER.
-                    a_invading_b = fa["cnt"] >= 20 and owner_b and (fa["faction_id"], owner_b) in hostile_set
-                    b_invading_a = fb["cnt"] >= 20 and owner_a and (fb["faction_id"], owner_a) in hostile_set
-                    
+                    a_invading_b = (
+                        fa["cnt"] >= 20 and owner_b and (fa["faction_id"], owner_b) in hostile_set
+                    )
+                    b_invading_a = (
+                        fb["cnt"] >= 20 and owner_a and (fb["faction_id"], owner_a) in hostile_set
+                    )
+
                     if mutual_standoff or a_invading_b or b_invading_a:
                         hostile_in_a.add(fa["faction_id"])
                         hostile_in_b.add(fb["faction_id"])
-                        
+
         if hostile_in_a and hostile_in_b:
             a_involved = [fa for fa in forces_a if fa["faction_id"] in hostile_in_a]
             b_involved = [fb for fb in forces_b if fb["faction_id"] in hostile_in_b]
-            
-            total_fighters = sum(fa["cnt"] for fa in a_involved) + sum(fb["cnt"] for fb in b_involved)
+
+            total_fighters = sum(fa["cnt"] for fa in a_involved) + sum(
+                fb["cnt"] for fb in b_involved
+            )
             intensity = min(1.0, total_fighters / 150.0)
-            
-            from_forces = [ConflictFaction(faction_id=f["faction_id"], faction_name=f["faction_name"], fighter_count=f["cnt"]) for f in a_involved]
-            to_forces = [ConflictFaction(faction_id=f["faction_id"], faction_name=f["faction_name"], fighter_count=f["cnt"]) for f in b_involved]
-            
+
+            from_forces = [
+                ConflictFaction(
+                    faction_id=f["faction_id"],
+                    faction_name=f["faction_name"],
+                    fighter_count=f["cnt"],
+                )
+                for f in a_involved
+            ]
+            to_forces = [
+                ConflictFaction(
+                    faction_id=f["faction_id"],
+                    faction_name=f["faction_name"],
+                    fighter_count=f["cnt"],
+                )
+                for f in b_involved
+            ]
+
             from_forces.sort(key=lambda x: -x.fighter_count)
             to_forces.sort(key=lambda x: -x.fighter_count)
-            
-            results.append(BorderTensionEntry(
-                from_sector_id=c_from,
-                to_sector_id=c_to,
-                from_forces=from_forces,
-                to_forces=to_forces,
-                intensity=round(intensity, 4)
-            ))
-            
+
+            results.append(
+                BorderTensionEntry(
+                    from_sector_id=c_from,
+                    to_sector_id=c_to,
+                    from_forces=from_forces,
+                    to_forces=to_forces,
+                    intensity=round(intensity, 4),
+                )
+            )
+
     results.sort(key=lambda x: -x.intensity)
     return results

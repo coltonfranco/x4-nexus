@@ -1,6 +1,5 @@
 """Equipment mod endpoints."""
 
-
 import sqlite3
 from typing import Annotated
 
@@ -35,9 +34,11 @@ class EquipModDetail(EquipModSummary):
 @router.get("/equipment-mods", response_model=list[EquipModSummary])
 def list_equip_mods(
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
-    category: str | None = Query(None, description="Filter by category: weapon, engine, shield, ship"),
+    category: str | None = Query(
+        None, description="Filter by category: weapon, engine, shield, ship"
+    ),
     stat: str | None = Query(None, description="Filter by stat type e.g. damage, cooling"),
-    quality: int | None = Query(None, description="Filter by quality tier 1–3"),
+    quality: int | None = Query(None, description="Filter by quality tier 1-3"),
     limit: int = Query(500, ge=1, le=2000),
     offset: int = Query(0, ge=0),
 ) -> list[EquipModSummary]:

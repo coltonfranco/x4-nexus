@@ -5,12 +5,11 @@ Optional `category` and `q` (title/text search) filters narrow the list.
 Faction references like {20203,3001} are resolved via the game's text database.
 """
 
-
 import json
 import sqlite3
 from functools import lru_cache
 from importlib import resources
-from typing import Annotated
+from typing import Annotated, Any, cast
 
 from fastapi import APIRouter, Depends, Query
 from x4_extract.i18n import Localizer
@@ -50,9 +49,7 @@ def _cached_faction_map(data_dir: str) -> dict[str, tuple[str, str]]:
     except sqlite3.OperationalError:
         return {}
     try:
-        rows = conn.execute(
-            "SELECT faction_id, name, color_hex FROM factions"
-        ).fetchall()
+        rows = conn.execute("SELECT faction_id, name, color_hex FROM factions").fetchall()
         return {r[1].lower(): (r[0], r[2]) for r in rows if r[1]}
     finally:
         conn.close()
@@ -60,7 +57,7 @@ def _cached_faction_map(data_dir: str) -> dict[str, tuple[str, str]]:
 
 def _resolve_faction_display(
     faction_ref: str | None,
-    localizer,
+    localizer: Localizer | None,
     faction_map: dict[str, tuple[str, str]],
 ) -> tuple[str | None, str | None]:
     """Resolve a faction reference to (display_name, color_hex).
@@ -85,7 +82,7 @@ def _resolve_faction_display(
     # 2. The generic "Player" reference ({20203,101} resolves to "Player").
     is_player = (
         (faction_ref and "{" not in str(faction_ref))  # raw string = player org
-        or (name and name.lower() == "player")           # generic fallback
+        or (name and name.lower() == "player")  # generic fallback
     )
 
     if is_player:
@@ -95,7 +92,6 @@ def _resolve_faction_display(
     # Look up in static faction map for color.
     color = faction_map.get(name.lower(), (None, None))[1] if name else None
     return name, color
-
 
 
 @lru_cache(maxsize=1)
@@ -115,7 +111,7 @@ def _cached_localizer(data_dir: str) -> Localizer | None:
 
 def _build_clause(
     category: list[str] | None, q: str | None, min_time: float | None
-) -> tuple[str, list[str | int]]:
+) -> tuple[str, list[str | int | float]]:
     """Build a WHERE clause for logbook filtering.
 
     Categories are now resolved at extraction time so filtering is a simple
@@ -125,7 +121,7 @@ def _build_clause(
     OR'ed together.
     """
     where: list[str] = []
-    params: list[str | int] = []
+    params: list[str | int | float] = []
     if category:
         clauses: list[str] = []
         for cat in category:
@@ -152,9 +148,13 @@ def _build_clause(
 def list_logbook(
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
     settings: Annotated[Settings, Depends(get_settings)],
-    category: Annotated[list[str] | None, Query(description="Filter by category (repeatable)")] = None,
+    category: Annotated[
+        list[str] | None, Query(description="Filter by category (repeatable)")
+    ] = None,
     q: Annotated[str | None, Query(description="Search in title and text")] = None,
-    min_time: Annotated[float | None, Query(description="Only entries at or after this in-game time (seconds)")] = None,
+    min_time: Annotated[
+        float | None, Query(description="Only entries at or after this in-game time (seconds)")
+    ] = None,
     limit: Annotated[int, Query(ge=1, le=500, description="Max entries")] = 200,
     offset: Annotated[int, Query(ge=0, description="Skip first N")] = 0,
 ) -> LogbookPage:
@@ -168,9 +168,7 @@ def list_logbook(
 
     clause, params = _build_clause(category, q, min_time)
 
-    total = conn.execute(
-        f"SELECT COUNT(*) FROM logbook {clause}", params
-    ).fetchone()[0]
+    total = conn.execute(f"SELECT COUNT(*) FROM logbook {clause}", params).fetchone()[0]
 
     rows = conn.execute(
         f"""
@@ -193,15 +191,19 @@ def list_logbook(
                     components.add(ej["component"])
             except Exception:
                 pass
-                
+
     component_names = {}
     if components:
         placeholders = ",".join("?" * len(components))
         args = list(components)
-        for row in conn.execute(f"SELECT station_id, name FROM stations WHERE station_id IN ({placeholders})", args).fetchall():
+        for row in conn.execute(
+            f"SELECT station_id, name FROM stations WHERE station_id IN ({placeholders})", args
+        ).fetchall():
             if row[1]:
                 component_names[row[0]] = row[1]
-        for row in conn.execute(f"SELECT ship_id, name FROM ships WHERE ship_id IN ({placeholders})", args).fetchall():
+        for row in conn.execute(
+            f"SELECT ship_id, name FROM ships WHERE ship_id IN ({placeholders})", args
+        ).fetchall():
             if row[1]:
                 component_names[row[0]] = row[1]
 
@@ -209,10 +211,8 @@ def list_logbook(
     for r in rows:
         d = dict(r)
         faction_ref = d.get("faction")
-        faction_name, faction_color = _resolve_faction_display(
-            faction_ref, localizer, faction_map
-        )
-        
+        faction_name, faction_color = _resolve_faction_display(faction_ref, localizer, faction_map)
+
         extra_json = d["extra_json"]
         if extra_json:
             try:
@@ -223,15 +223,20 @@ def list_logbook(
             except Exception:
                 pass
 
-        entries.append(LogbookEntry(
-            id=d["id"], time=d["time"], title=d["title"], text=d["text"],
-            category=d["category"] or "other",
-            subcategory=d["subcategory"] or "other",
-            faction=d["faction"],
-            faction_name=faction_name,
-            faction_color=faction_color,
-            extra_json=extra_json,
-        ))
+        entries.append(
+            LogbookEntry(
+                id=d["id"],
+                time=d["time"],
+                title=d["title"],
+                text=d["text"],
+                category=d["category"] or "other",
+                subcategory=d["subcategory"] or "other",
+                faction=d["faction"],
+                faction_name=faction_name,
+                faction_color=faction_color,
+                extra_json=extra_json,
+            )
+        )
 
     return LogbookPage(entries=entries, total=total)
 
@@ -242,7 +247,7 @@ class CategoryInfo(PublicModel):
     subcategories: list[dict[str, str]]  # [{key, label}, ...]
 
 
-def _load_rules() -> dict:
+def _load_rules() -> dict[str, Any]:
     """Load the logbook classification rules JSON."""
     try:
         raw = resources.files("x4_extract.data").joinpath("logbook_rules.json").read_text()
@@ -252,7 +257,7 @@ def _load_rules() -> dict:
             raw = resources.files("x4_api.data").joinpath("logbook_rules.json").read_text()
         except (FileNotFoundError, ModuleNotFoundError):
             return {}
-    return json.loads(raw)
+    return cast(dict[str, Any], json.loads(raw))
 
 
 @router.get("/logbook/categories", response_model=list[CategoryInfo])

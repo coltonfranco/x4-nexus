@@ -44,11 +44,11 @@ class InitStatus(PublicModel):
 
 
 class SetupStatus(PublicModel):
-    configured: bool          # is an install folder set?
+    configured: bool  # is an install folder set?
     install_path: str | None
     save_path: str | None
-    static_ready: bool        # is static.db populated? (the gate for the main app)
-    needs_setup: bool         # should the wizard be shown?
+    static_ready: bool  # is static.db populated? (the gate for the main app)
+    needs_setup: bool  # should the wizard be shown?
     init: InitStatus
 
 
@@ -77,7 +77,12 @@ class SetupConfigRequest(BaseModel):
 def _init_status() -> InitStatus:
     s = job.state()
     return InitStatus(
-        stage=s.stage, label=s.label, detail=s.detail, progress=s.progress, running=s.running, error=s.error
+        stage=s.stage,
+        label=s.label,
+        detail=s.detail,
+        progress=s.progress,
+        running=s.running,
+        error=s.error,
     )
 
 
@@ -88,7 +93,10 @@ def _status(settings: Settings) -> SetupStatus:
     paths_valid = False
     if settings.install_path and settings.save_path:
         install_valid = settings.install_path.is_dir() and _count_cats(settings.install_path) > 0
-        save_valid = settings.save_path.is_dir() and next(settings.save_path.glob("*.xml.gz"), None) is not None
+        save_valid = (
+            settings.save_path.is_dir()
+            and next(settings.save_path.glob("*.xml.gz"), None) is not None
+        )
         paths_valid = install_valid and save_valid
 
     return SetupStatus(
@@ -98,7 +106,10 @@ def _status(settings: Settings) -> SetupStatus:
         static_ready=ready,
         # The wizard is needed until the static DB exists AND the configured paths are still valid
         # AND there isn't a setup job currently running (like building icons) or failed.
-        needs_setup=not ready or not paths_valid or init_stat.running or init_stat.error is not None,
+        needs_setup=not ready
+        or not paths_valid
+        or init_stat.running
+        or init_stat.error is not None,
         init=init_stat,
     )
 

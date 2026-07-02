@@ -1,6 +1,5 @@
 """REST endpoints for the diplomacy system."""
 
-
 import sqlite3
 from typing import Annotated
 
@@ -51,13 +50,17 @@ class AgentRank(PublicModel):
 @router.get("/diplomacy/actions", response_model=list[DiploAction])
 def list_diplo_actions(
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
-    category: str | None = Query(None, description="Filter by category: negotiation | espionage | interference"),
+    category: str | None = Query(
+        None, description="Filter by category: negotiation | espionage | interference"
+    ),
     include_hidden: bool = Query(False),
 ) -> list[DiploAction]:
     """List all diplomatic agent actions."""
-    sql = ["SELECT action_id, category, name, description, hidden, cost_influence, cost_money,",
-           "success_chance, duration_sec, cooldown_sec, agent_type, agent_experience, risk",
-           "FROM s.diplo_actions WHERE 1=1"]
+    sql = [
+        "SELECT action_id, category, name, description, hidden, cost_influence, cost_money,",
+        "success_chance, duration_sec, cooldown_sec, agent_type, agent_experience, risk",
+        "FROM s.diplo_actions WHERE 1=1",
+    ]
     params: dict[str, object] = {}
     if category is not None:
         sql.append("AND category = :category")
@@ -78,8 +81,7 @@ def list_diplo_actions(
         )
 
     return [
-        DiploAction(**dict(r), bribe_wares=bribes_by_action.get(r["action_id"], []))
-        for r in rows
+        DiploAction(**dict(r), bribe_wares=bribes_by_action.get(r["action_id"], [])) for r in rows
     ]
 
 

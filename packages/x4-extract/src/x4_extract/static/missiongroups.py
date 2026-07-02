@@ -35,13 +35,15 @@ def extract(xml_bytes: bytes) -> ExtractResult:
         enemy = el.get("enemy")
         is_story = el.get("story") == "true" or False
 
-        out.groups.append({
-            "group_id": group_id,
-            "name": name,
-            "faction": faction or None,
-            "enemy": enemy or None,
-            "is_story": is_story,
-        })
+        out.groups.append(
+            {
+                "group_id": group_id,
+                "name": name,
+                "faction": faction or None,
+                "enemy": enemy or None,
+                "is_story": is_story,
+            }
+        )
 
     return out
 

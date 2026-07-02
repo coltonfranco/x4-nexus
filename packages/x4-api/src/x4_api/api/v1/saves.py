@@ -5,7 +5,6 @@ save drives which per-save dynamic DB the rest of the API reads; activating a sa
 selects it and builds its DB on the fly if needed.
 """
 
-
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException

@@ -20,12 +20,12 @@ from pathlib import Path
 class CatEntry:
     """One file inside a .dat, located by byte range."""
 
-    path: str            # POSIX-style virtual path, e.g. "libraries/wares.xml"
+    path: str  # POSIX-style virtual path, e.g. "libraries/wares.xml"
     size: int
-    offset: int          # absolute byte offset into the .dat
+    offset: int  # absolute byte offset into the .dat
     mtime: int
     md5: str
-    dat_path: Path       # the .dat file this entry's bytes live in
+    dat_path: Path  # the .dat file this entry's bytes live in
 
 
 def iter_cat(cat_path: Path) -> Iterator[CatEntry]:
@@ -77,9 +77,7 @@ def read_entry(entry: CatEntry, *, verify_hash: bool = False) -> bytes:
     if verify_hash and entry.md5:
         actual = hashlib.md5(data).hexdigest()
         if actual != entry.md5:
-            raise ValueError(
-                f"Hash mismatch for {entry.path}: cat={entry.md5} actual={actual}"
-            )
+            raise ValueError(f"Hash mismatch for {entry.path}: cat={entry.md5} actual={actual}")
     return data
 
 
@@ -104,8 +102,6 @@ def discover_cats(install_path: Path | None) -> list[Path]:
         if not p.stem.endswith("_sig")
     )
     workshop = sorted(
-        p
-        for p in install_path.glob("extensions/ws_*/ext_*.cat")
-        if not p.stem.endswith("_sig")
+        p for p in install_path.glob("extensions/ws_*/ext_*.cat") if not p.stem.endswith("_sig")
     )
     return [*base, *dlc, *workshop]

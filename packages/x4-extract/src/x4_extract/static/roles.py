@@ -15,26 +15,24 @@ class ExtractResult:
 
 def extract(roles_xml: bytes, posts_xml: bytes | None = None) -> ExtractResult:
     out = ExtractResult()
-    
+
     root = etree.fromstring(roles_xml)
     for r in root.iterfind("role"):
         rid = r.get("id")
         if not rid:
             continue
-        out.roles.append({
-            "role_id": rid,
-            "name": r.get("name"),
-            "tag": r.get("tag"),
-        })
+        out.roles.append(
+            {
+                "role_id": rid,
+                "name": r.get("name"),
+                "tag": r.get("tag"),
+            }
+        )
         for s in r.iterfind("skills/skill"):
             sref = s.get("ref")
             rel = s.get("relevance")
             if sref and rel:
-                out.skills.append({
-                    "role_id": rid,
-                    "skill_ref": sref,
-                    "relevance": int(rel)
-                })
+                out.skills.append({"role_id": rid, "skill_ref": sref, "relevance": int(rel)})
 
     if posts_xml:
         root_posts = etree.fromstring(posts_xml)
@@ -42,22 +40,21 @@ def extract(roles_xml: bytes, posts_xml: bytes | None = None) -> ExtractResult:
             pid = p.get("id")
             if not pid:
                 continue
-            out.roles.append({
-                "role_id": pid,
-                "name": p.get("name"),
-                "tag": p.get("tag"),
-            })
+            out.roles.append(
+                {
+                    "role_id": pid,
+                    "name": p.get("name"),
+                    "tag": p.get("tag"),
+                }
+            )
             for s in p.iterfind("skills/skill"):
                 sref = s.get("ref")
                 rel = s.get("relevance")
                 if sref and rel:
-                    out.skills.append({
-                        "role_id": pid,
-                        "skill_ref": sref,
-                        "relevance": int(rel)
-                    })
+                    out.skills.append({"role_id": pid, "skill_ref": sref, "relevance": int(rel)})
 
     return out
+
 
 def write(conn: sqlite3.Connection, result: ExtractResult) -> None:
     conn.execute("DELETE FROM role_skills")

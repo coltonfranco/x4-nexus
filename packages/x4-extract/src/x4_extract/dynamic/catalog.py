@@ -48,6 +48,7 @@ class SaveInfo:
 
 # --- header reading --------------------------------------------------------------
 
+
 def read_info_header(save_path: Path) -> dict[str, dict[str, str]]:
     """Return {save|game|player: {attr: value}} by streaming only up to `</info>`."""
     out: dict[str, dict[str, str]] = {}
@@ -87,6 +88,7 @@ def _file_is_quiescent(mtime: float, settle_sec: float) -> bool:
 
 
 # --- catalog cache ---------------------------------------------------------------
+
 
 def _open_catalog(settings: ExtractSettings) -> sqlite3.Connection:
     settings.data_dir.mkdir(parents=True, exist_ok=True)
@@ -152,9 +154,15 @@ def _refresh_cache(cat: sqlite3.Connection, path: Path, mtime: float, size: int)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
-            str(path), mtime, size,
-            save.get("name"), _int(game.get("time")), _real_time(save.get("date")),
-            game.get("version"), player.get("name"), _int(player.get("money")),
+            str(path),
+            mtime,
+            size,
+            save.get("name"),
+            _int(game.get("time")),
+            _real_time(save.get("date")),
+            game.get("version"),
+            player.get("name"),
+            _int(player.get("money")),
         ),
     )
     fetched: sqlite3.Row | None = cat.execute(
@@ -249,6 +257,7 @@ def _read_ingest_tiers(db_path: Path, tiers: tuple[str, ...]) -> dict[str, str]:
 
 
 # --- active-save selection -------------------------------------------------------
+
 
 def _active_file(settings: ExtractSettings) -> Path:
     return settings.data_dir / "active_save.txt"
@@ -388,8 +397,10 @@ def ensure_active_dynamic_db(settings: ExtractSettings) -> Path:
         save = resolve_serving_save(settings)
     except FileNotFoundError:
         save = None
-    db = dynamic_db_path(settings, save) if save is not None else settings.dynamic_dir / _FALLBACK_DB
-    
+    db = (
+        dynamic_db_path(settings, save) if save is not None else settings.dynamic_dir / _FALLBACK_DB
+    )
+
     if is_dynamic_initialized(db):
         return db
 
@@ -397,5 +408,3 @@ def ensure_active_dynamic_db(settings: ExtractSettings) -> Path:
         if not is_dynamic_initialized(db):
             apply_schema(settings.data_dir, "dynamic", db_path=db)
     return db
-
-

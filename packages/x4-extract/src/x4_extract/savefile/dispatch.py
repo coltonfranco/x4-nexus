@@ -43,8 +43,8 @@ class Target:
 
     tag: str
     depth: int | None = None
-    class_attr: str | None = None     # match <tag class="..."> when set
-    parent_tag: str | None = None     # additional guard: only match under this parent
+    class_attr: str | None = None  # match <tag class="..."> when set
+    parent_tag: str | None = None  # additional guard: only match under this parent
 
     def matches(self, elem: etree._Element, depth: int, parent_tag: str | None) -> bool:
         if self.depth is not None and depth != self.depth:
@@ -61,13 +61,14 @@ class Registration:
     target: Target
     visitor: Visitor
 
+
 class _ProgressReader:
     def __init__(self, f: BinaryIO, total: int, on_progress: Callable[[float], None] | None):
         self._f = f
         self._total = max(total, 1)
         self._on_progress = on_progress
         self._last_report_time = time.monotonic()
-        
+
     def read(self, size: int = -1) -> bytes:
         data = self._f.read(size)
         if self._on_progress:
@@ -80,14 +81,28 @@ class _ProgressReader:
                     pass
                 self._last_report_time = now
         return data
-        
-    def tell(self) -> int: return self._f.tell()
-    def seek(self, offset: int, whence: int = 0) -> int: return self._f.seek(offset, whence)
-    def close(self) -> None: self._f.close()
-    def readable(self) -> bool: return True
-    def seekable(self) -> bool: return True
 
-def stream_save(path: Path, registrations: Iterable[Registration], on_progress: Callable[[float], None] | None = None) -> None:
+    def tell(self) -> int:
+        return self._f.tell()
+
+    def seek(self, offset: int, whence: int = 0) -> int:
+        return self._f.seek(offset, whence)
+
+    def close(self) -> None:
+        self._f.close()
+
+    def readable(self) -> bool:
+        return True
+
+    def seekable(self) -> bool:
+        return True
+
+
+def stream_save(
+    path: Path,
+    registrations: Iterable[Registration],
+    on_progress: Callable[[float], None] | None = None,
+) -> None:
     """Open a gzipped save file and dispatch its elements to registered visitors.
 
     Memory note: peak working set is bounded by the largest subtree any visitor
@@ -105,7 +120,7 @@ def stream_save(path: Path, registrations: Iterable[Registration], on_progress: 
 
 def _dispatch(stream: IO[bytes], regs: list[Registration]) -> None:
     depth = 0
-    parent_stack: list[str] = []     # tag names at each depth, for parent_tag matching
+    parent_stack: list[str] = []  # tag names at each depth, for parent_tag matching
 
     # A real save has millions of elements but targets are sparse. Index registrations so
     # most elements are rejected by one dict lookup: fixed-depth targets by their depth,
@@ -118,8 +133,8 @@ def _dispatch(stream: IO[bytes], regs: list[Registration]) -> None:
     # millions of components" into a single dict lookup that misses for the classes we never
     # extract. Profiling attributed ~1.5s of the dispatch overhead to that redundant matching.
     by_depth: dict[int, list[Registration]] = {}
-    wc_plain: dict[str, list[Registration]] = {}                 # wildcard, no class filter
-    wc_class: dict[tuple[str, str], list[Registration]] = {}     # wildcard + class_attr
+    wc_plain: dict[str, list[Registration]] = {}  # wildcard, no class filter
+    wc_class: dict[tuple[str, str], list[Registration]] = {}  # wildcard + class_attr
     for reg in regs:
         t = reg.target
         if t.depth is not None:

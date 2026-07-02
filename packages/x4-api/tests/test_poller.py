@@ -20,7 +20,9 @@ def _settings(data_dir: Path, tmp_path: Path, fixtures_dir: Path) -> ExtractSett
     return ExtractSettings(data_dir=data_dir, save_path=folder)
 
 
-def test_poll_once_ingests_then_reports_unchanged(data_dir: Path, fixtures_dir: Path, tmp_path: Path) -> None:
+def test_poll_once_ingests_then_reports_unchanged(
+    data_dir: Path, fixtures_dir: Path, tmp_path: Path
+) -> None:
     settings = _settings(data_dir, tmp_path, fixtures_dir)
 
     first = poller.poll_once(settings)

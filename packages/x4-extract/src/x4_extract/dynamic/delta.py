@@ -96,9 +96,7 @@ def compute_and_record(
     return len(events)
 
 
-def _load_stored(
-    conn: sqlite3.Connection, entity_types: set[str]
-) -> dict[tuple[str, str], str]:
+def _load_stored(conn: sqlite3.Connection, entity_types: set[str]) -> dict[tuple[str, str], str]:
     placeholders = ",".join("?" * len(entity_types))
     rows = conn.execute(
         "SELECT entity_type, entity_key, row_hash FROM row_state "

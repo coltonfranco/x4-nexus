@@ -34,25 +34,80 @@ def _seed(conn: sqlite3.Connection) -> None:
         ":storage, :tags, :lic, :icon)",
         [
             # engine — equipment, has engine_stats
-            dict(ware_id="engine_arg_m_allround_01_mk1", name="ARG M Engine", group_id="engines",
-                 transport="equipment", volume=1, pmin=80, pavg=100, pmax=120,
-                 storage="container", tags="engine equipment", lic=None, icon=None),
+            dict(
+                ware_id="engine_arg_m_allround_01_mk1",
+                name="ARG M Engine",
+                group_id="engines",
+                transport="equipment",
+                volume=1,
+                pmin=80,
+                pavg=100,
+                pmax=120,
+                storage="container",
+                tags="engine equipment",
+                lic=None,
+                icon=None,
+            ),
             # turret — equipment, has weapon_stats + bullet
-            dict(ware_id="turret_arg_m_gat_01_mk1", name="ARG M Turret", group_id="turrets",
-                 transport="equipment", volume=1, pmin=40, pavg=50, pmax=60,
-                 storage="container", tags="equipment turret", lic=None, icon=None),
+            dict(
+                ware_id="turret_arg_m_gat_01_mk1",
+                name="ARG M Turret",
+                group_id="turrets",
+                transport="equipment",
+                volume=1,
+                pmin=40,
+                pavg=50,
+                pmax=60,
+                storage="container",
+                tags="equipment turret",
+                lic=None,
+                icon=None,
+            ),
             # missile — equipment, no stat table
-            dict(ware_id="missile_dumbfire_light_mk1", name="Light Missile", group_id="missiles",
-                 transport="equipment", volume=1, pmin=5, pavg=8, pmax=11,
-                 storage="container", tags="equipment missile", lic=None, icon=None),
+            dict(
+                ware_id="missile_dumbfire_light_mk1",
+                name="Light Missile",
+                group_id="missiles",
+                transport="equipment",
+                volume=1,
+                pmin=5,
+                pavg=8,
+                pmax=11,
+                storage="container",
+                tags="equipment missile",
+                lic=None,
+                icon=None,
+            ),
             # commodity
-            dict(ware_id="energycells", name="Energy Cells", group_id="energy",
-                 transport="container", volume=1, pmin=10, pavg=16, pmax=22,
-                 storage="container", tags="container economy", lic=None, icon=None),
+            dict(
+                ware_id="energycells",
+                name="Energy Cells",
+                group_id="energy",
+                transport="container",
+                volume=1,
+                pmin=10,
+                pavg=16,
+                pmax=22,
+                storage="container",
+                tags="container economy",
+                lic=None,
+                icon=None,
+            ),
             # inventory
-            dict(ware_id="paintmod_neon", name="Neon Paint", group_id=None,
-                 transport="inventory", volume=1, pmin=100, pavg=200, pmax=300,
-                 storage=None, tags="inventory paintmod", lic=None, icon=None),
+            dict(
+                ware_id="paintmod_neon",
+                name="Neon Paint",
+                group_id=None,
+                transport="inventory",
+                volume=1,
+                pmin=100,
+                pavg=200,
+                pmax=300,
+                storage=None,
+                tags="inventory paintmod",
+                lic=None,
+                icon=None,
+            ),
         ],
     )
     conn.execute(
@@ -85,7 +140,9 @@ def _seed(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
-def test_wares_category_filter_partitions_catalog(client: TestClient, static_conn: sqlite3.Connection) -> None:
+def test_wares_category_filter_partitions_catalog(
+    client: TestClient, static_conn: sqlite3.Connection
+) -> None:
     _seed(static_conn)
 
     equip = client.get("/api/v1/wares?category=equipment").json()
@@ -112,7 +169,9 @@ def test_wares_unknown_category_is_422(client: TestClient) -> None:
     assert client.get("/api/v1/wares?category=bogus").status_code == 422
 
 
-def test_equipment_list_inlines_metadata_and_stats(client: TestClient, static_conn: sqlite3.Connection) -> None:
+def test_equipment_list_inlines_metadata_and_stats(
+    client: TestClient, static_conn: sqlite3.Connection
+) -> None:
     _seed(static_conn)
 
     items = client.get("/api/v1/equipment").json()
@@ -155,7 +214,9 @@ def test_equipment_detail_engine_stats(client: TestClient, static_conn: sqlite3.
     assert detail["shield_stats"] is None and detail["weapon_stats"] is None
 
 
-def test_equipment_detail_weapon_resolves_bullet(client: TestClient, static_conn: sqlite3.Connection) -> None:
+def test_equipment_detail_weapon_resolves_bullet(
+    client: TestClient, static_conn: sqlite3.Connection
+) -> None:
     _seed(static_conn)
     detail = client.get("/api/v1/equipment/turret_arg_m_gat_01_mk1").json()
     ws = detail["weapon_stats"]
@@ -163,7 +224,9 @@ def test_equipment_detail_weapon_resolves_bullet(client: TestClient, static_conn
     assert ws["damage"] == 55 and ws["bullet_amount"] == 3
 
 
-def test_equipment_detail_404_for_non_equipment(client: TestClient, static_conn: sqlite3.Connection) -> None:
+def test_equipment_detail_404_for_non_equipment(
+    client: TestClient, static_conn: sqlite3.Connection
+) -> None:
     _seed(static_conn)
     assert client.get("/api/v1/equipment/energycells").status_code == 404
     assert client.get("/api/v1/equipment/nope").status_code == 404

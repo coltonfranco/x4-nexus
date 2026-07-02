@@ -5,9 +5,8 @@ war missions, and story plot chains. Enriches live mission data with
 human-readable group metadata.
 """
 
-
 import sqlite3
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Query
 
@@ -37,7 +36,7 @@ def list_mission_groups(
 ) -> list[MissionGroup]:
     """List all mission group definitions, optionally filtered by faction or story."""
     clauses = ["1=1"]
-    params: dict = {}
+    params: dict[str, Any] = {}
     if faction:
         clauses.append("faction = :faction")
         params["faction"] = faction
@@ -47,7 +46,7 @@ def list_mission_groups(
     rows = conn.execute(
         f"""SELECT {_COLUMNS}
             FROM s.mission_groups
-            WHERE {' AND '.join(clauses)}
+            WHERE {" AND ".join(clauses)}
             ORDER BY is_story DESC, group_id""",
         params,
     ).fetchall()

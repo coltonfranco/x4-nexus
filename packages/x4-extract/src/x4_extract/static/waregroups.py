@@ -26,17 +26,19 @@ def extract(xml_bytes: bytes) -> ExtractResult:
             continue
         tier_raw = el.get("tier")
         priority_raw = el.get("priority")
-        out.groups.append({
-            "group_id": group_id,
-            "name": el.get("name"),
-            "tags": el.get("tags"),
-            "factory_name": el.get("factoryname"),
-            "icon": el.get("icon"),
-            "factory_map_icon": el.get("factorymapicon"),
-            "factory_hud_icon": el.get("factoryhudicon"),
-            "tier": int(tier_raw) if tier_raw else None,
-            "priority": int(priority_raw) if priority_raw else None,
-        })
+        out.groups.append(
+            {
+                "group_id": group_id,
+                "name": el.get("name"),
+                "tags": el.get("tags"),
+                "factory_name": el.get("factoryname"),
+                "icon": el.get("icon"),
+                "factory_map_icon": el.get("factorymapicon"),
+                "factory_hud_icon": el.get("factoryhudicon"),
+                "tier": int(tier_raw) if tier_raw else None,
+                "priority": int(priority_raw) if priority_raw else None,
+            }
+        )
 
     return out
 

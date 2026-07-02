@@ -11,9 +11,8 @@ Add new public endpoints in the same shape:
     4. Empty result → empty list, never 404 for collection endpoints
 """
 
-
 import sqlite3
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
@@ -35,8 +34,11 @@ _FLAGS_SQL = (
 )
 
 # Fix for ambiguous columns when joining ware_groups
-_CAT_SQL = CATEGORY_SQL.replace("group_id", "w.group_id").replace("transport", "w.transport").replace("tags", "w.tags")
-
+_CAT_SQL = (
+    CATEGORY_SQL.replace("group_id", "w.group_id")
+    .replace("transport", "w.transport")
+    .replace("tags", "w.tags")
+)
 
 
 class WareSummary(PublicModel):
@@ -100,6 +102,7 @@ class WareDetail(WareSummary):
 
 # ── Live price enrichment (from dynamic station_offers, when available) ─────────
 
+
 def _market_price_sql(conn: sqlite3.Connection) -> tuple[str, bool]:
     """Return (sql_fragment, has_live_data) for enriching static prices with market data.
 
@@ -112,8 +115,8 @@ def _market_price_sql(conn: sqlite3.Connection) -> tuple[str, bool]:
         return (
             "w.price_min, w.price_avg, w.price_max, "
             "NULL AS market_min, NULL AS market_avg, NULL AS market_max, "
-            "NULL AS sell_qty, NULL AS buy_qty, NULL AS net_demand", 
-            False
+            "NULL AS sell_qty, NULL AS buy_qty, NULL AS net_demand",
+            False,
         )
 
     return (
@@ -141,7 +144,7 @@ def _market_join_sql() -> str:
     )
 
 
-def _ware_fields(r: sqlite3.Row) -> dict:
+def _ware_fields(r: sqlite3.Row) -> dict[str, Any]:
     """Common WareSummary/WareDetail field prep shared by list_wares and get_ware."""
     d = dict(r)
     icon_path = d.pop("icon_path", None)
@@ -247,13 +250,13 @@ def get_ware(
         {"id": ware_id},
     ).fetchall()
     used_for_rows = conn.execute(
-        '''
+        """
         SELECT u.use_type, u.use_value, w.name, w.icon_path, w.tags
         FROM s.ware_uses u
         LEFT JOIN s.wares w ON u.use_type = 'ware' AND u.use_value = w.ware_id
         WHERE u.ware_id = :id
         ORDER BY u.use_type ASC, u.use_value ASC
-        ''',
+        """,
         {"id": ware_id},
     ).fetchall()
 
@@ -262,8 +265,14 @@ def get_ware(
         if r["use_type"] == "category":
             used_for_list.append(WareUse(type="category", id=r["use_value"], name=r["use_value"]))
         else:
-            icon = get_ware_icon_url(r["use_value"], r["icon_path"], r["tags"]) if r["icon_path"] else None
-            used_for_list.append(WareUse(type="ware", id=r["use_value"], name=r["name"], icon_url=icon))
+            icon = (
+                get_ware_icon_url(r["use_value"], r["icon_path"], r["tags"])
+                if r["icon_path"]
+                else None
+            )
+            used_for_list.append(
+                WareUse(type="ware", id=r["use_value"], name=r["name"], icon_url=icon)
+            )
 
     inputs_by_method: dict[str, list[ProductionInput]] = {}
     for ir in input_rows:
@@ -288,6 +297,3 @@ def get_ware(
             for pr in prod_rows
         ],
     )
-
-
-

@@ -57,4 +57,3 @@ def get_appdata_db(s: Settings = Depends(get_settings)) -> Iterator[sqlite3.Conn
         yield conn
     finally:
         conn.close()
-

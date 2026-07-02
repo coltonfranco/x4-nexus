@@ -32,7 +32,9 @@ def _settings(data_dir: Path, folder: Path) -> ExtractSettings:
     return ExtractSettings(data_dir=data_dir, save_path=folder)
 
 
-def test_list_saves_reads_headers_and_db_status(data_dir: Path, fixtures_dir: Path, tmp_path: Path) -> None:
+def test_list_saves_reads_headers_and_db_status(
+    data_dir: Path, fixtures_dir: Path, tmp_path: Path
+) -> None:
     folder = _save_folder(tmp_path, fixtures_dir)
     settings = _settings(data_dir, folder)
 
@@ -53,7 +55,9 @@ def test_list_saves_reads_headers_and_db_status(data_dir: Path, fixtures_dir: Pa
     assert refreshed["save_001"].db_built is False
 
 
-def test_db_is_current_short_circuits_on_stat(data_dir: Path, fixtures_dir: Path, tmp_path: Path) -> None:
+def test_db_is_current_short_circuits_on_stat(
+    data_dir: Path, fixtures_dir: Path, tmp_path: Path
+) -> None:
     """The freshness check must answer from a pure stat() — without opening the save file —
     when mtime+size are unchanged. Proven by clobbering the stored content fingerprint: if the
     check still reports current, it never consulted (nor opened) the file for a fingerprint."""

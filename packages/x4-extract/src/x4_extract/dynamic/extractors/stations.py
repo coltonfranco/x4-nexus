@@ -68,8 +68,8 @@ _STATION_GRANDCHILD_DEPTH = _STATION_DEPTH + 2
 #   station(15)/construction(16)/sequence(17)/entry(18)/predecessor(19)
 #   station(15)/construction(16)/sequence(17)/entry(18)/offset(19)/position(20)
 # Fixed depths matter: a wildcard on <position> would fire on millions of elements.
-_ENTRY_PRED_DEPTH = _STATION_DEPTH + 4   # 19
-_ENTRY_POS_DEPTH = _STATION_DEPTH + 5    # 20
+_ENTRY_PRED_DEPTH = _STATION_DEPTH + 4  # 19
+_ENTRY_POS_DEPTH = _STATION_DEPTH + 5  # 20
 
 
 def _f(v: str | None) -> float | None:
@@ -517,9 +517,7 @@ class StationsCollector:
         rows: list[dict[str, object]] = []
         for sid, macros in by_station.items():
             for macro, count in macros.items():
-                rows.append(
-                    {"station_id": sid, "module_id": macro, "macro": macro, "count": count}
-                )
+                rows.append({"station_id": sid, "module_id": macro, "macro": macro, "count": count})
         return rows
 
     def _construction_entry_rows(self) -> list[dict[str, object]]:
@@ -553,13 +551,17 @@ class StationsCollector:
         if tier is not Tier.VOLATILE:
             return
         for r in self.offer_rows:
-            yield "station_offer", f"{r.station_id}|{r.ware_id}|{r.side}", {
-                "station_id": r.station_id,
-                "ware_id": r.ware_id,
-                "side": r.side,
-                "price": r.price,
-                "quantity": r.quantity,
-            }
+            yield (
+                "station_offer",
+                f"{r.station_id}|{r.ware_id}|{r.side}",
+                {
+                    "station_id": r.station_id,
+                    "ware_id": r.ware_id,
+                    "side": r.side,
+                    "price": r.price,
+                    "quantity": r.quantity,
+                },
+            )
 
     # --- tiered contract -------------------------------------------------------
     def tables(self, tier: Tier) -> tuple[str, ...]:

@@ -53,6 +53,7 @@ def _run(conn, rows):
 
 # ── delta engine ──────────────────────────────────────────────────────────────
 
+
 def test_first_run_is_silent_baseline() -> None:
     conn = _db()
     n = _run(conn, [("ship", "s1", {"state": "normal"}), ("ship", "s2", {"state": "normal"})])
@@ -66,11 +67,14 @@ def test_added_changed_removed() -> None:
     _run(conn, [("ship", "s1", {"state": "normal"}), ("ship", "s2", {"state": "normal"})])
 
     # s1 unchanged, s2 changed (state), s3 added, ... s2 also still present.
-    n = _run(conn, [
-        ("ship", "s1", {"state": "normal"}),
-        ("ship", "s2", {"state": "attacking"}),
-        ("ship", "s3", {"state": "normal"}),
-    ])
+    n = _run(
+        conn,
+        [
+            ("ship", "s1", {"state": "normal"}),
+            ("ship", "s2", {"state": "attacking"}),
+            ("ship", "s3", {"state": "normal"}),
+        ],
+    )
     kinds = {(e["entity_key"], e["change_kind"]) for e in _events(conn)}
     assert n == 2
     assert ("s2", "changed") in kinds
@@ -83,9 +87,9 @@ def test_added_changed_removed() -> None:
     rows = _events(conn)
     assert [(r["entity_key"], r["change_kind"]) for r in rows] == [("s2", "removed")]
     assert n == 1
-    assert conn.execute(
-        "SELECT COUNT(*) FROM row_state WHERE entity_key='s2'"
-    ).fetchone()[0] == 0  # removed rows are pruned from state
+    assert (
+        conn.execute("SELECT COUNT(*) FROM row_state WHERE entity_key='s2'").fetchone()[0] == 0
+    )  # removed rows are pruned from state
 
 
 def test_idempotent_no_events_on_identical_reingest() -> None:
@@ -125,17 +129,22 @@ def test_new_entity_type_baselines_independently() -> None:
     _run(conn, [("ship", "s1", {"state": "normal"})])
     conn.execute("DELETE FROM events")
     # 'message' is seen for the first time → silent baseline even though 'ship' is old.
-    n = _run(conn, [
-        ("ship", "s1", {"state": "normal"}),
-        ("message", "1", {"id": 1, "title": "Hi"}),
-    ])
+    n = _run(
+        conn,
+        [
+            ("ship", "s1", {"state": "normal"}),
+            ("message", "1", {"id": 1, "title": "Hi"}),
+        ],
+    )
     assert n == 0
-    assert conn.execute(
-        "SELECT COUNT(*) FROM row_state WHERE entity_type='message'"
-    ).fetchone()[0] == 1
+    assert (
+        conn.execute("SELECT COUNT(*) FROM row_state WHERE entity_type='message'").fetchone()[0]
+        == 1
+    )
 
 
 # ── alert classification ──────────────────────────────────────────────────────
+
 
 def test_combat_logbook_is_alert() -> None:
     c = alerts.classify("logbook", "added", {"title": "Ship under attack", "text": ""})
@@ -160,8 +169,11 @@ def test_highpriority_message_is_alert() -> None:
 
 
 def test_hostile_relation_is_warn() -> None:
-    c = alerts.classify("faction_relation", "changed",
-                        {"faction_id": "argon", "other_faction_id": "player", "relation": -0.8})
+    c = alerts.classify(
+        "faction_relation",
+        "changed",
+        {"faction_id": "argon", "other_faction_id": "player", "relation": -0.8},
+    )
     assert c.priority == alerts.WARN
     assert c.category == "diplomacy"
 

@@ -44,52 +44,58 @@ def extract(xml_bytes: bytes) -> ExtractResult:
         engine_el = race_el.find("engineeffect")
         chair_el = race_el.find("chair")
 
-        out.races.append({
-            "race_id": race_id,
-            "name": race_el.get("name"),
-            "description": race_el.get("description"),
-            "shortname": race_el.get("shortname"),
-            "spacename": race_el.get("spacename"),
-            "homespacename": race_el.get("homespacename"),
-            "names_table": _int(race_el, "names"),
-            "tags": race_el.get("tags"),
-            # Character
-            "char_height": _float(char_el, "height"),
-            "char_walk_speed": _float(speed_el, "walk"),
-            "char_run_speed": _float(speed_el, "run"),
-            "char_slow_walk": _float(speed_el, "slowwalk"),
-            "char_acceleration": _float(speed_el, "acceleration"),
-            "char_spacesuit_ref": suit_el.get("ref") if suit_el is not None else None,
-            "event_adjust_y": _float(event_el, "adjusty"),
-            "event_adjust_z": _float(event_el, "adjustz"),
-            "event_face_key": event_el.get("facecutscenekey") if event_el is not None else None,
-            # Icons
-            "icon_active": icon_el.get("active") if icon_el is not None else None,
-            "icon_inactive": icon_el.get("inactive") if icon_el is not None else None,
-            # Agent
-            "agent_icon_male": agent_icon_el.get("id") if agent_icon_el is not None else None,
-            "agent_icon_female": agent_icon_el.get("female") if agent_icon_el is not None else None,
-            # Engine trail
-            "trail_brightness": _float(trail_el, "brightness"),
-            "trail_contrast": _float(trail_el, "contrast"),
-            "trail_saturation": _float(trail_el, "saturation"),
-            "trail_hue": _int(trail_el, "hue"),
-            # Engine effect
-            "engine_color_index": _int(engine_el, "colorindex"),
-            # Chair
-            "chair_ref": chair_el.get("ref") if chair_el is not None else None,
-        })
+        out.races.append(
+            {
+                "race_id": race_id,
+                "name": race_el.get("name"),
+                "description": race_el.get("description"),
+                "shortname": race_el.get("shortname"),
+                "spacename": race_el.get("spacename"),
+                "homespacename": race_el.get("homespacename"),
+                "names_table": _int(race_el, "names"),
+                "tags": race_el.get("tags"),
+                # Character
+                "char_height": _float(char_el, "height"),
+                "char_walk_speed": _float(speed_el, "walk"),
+                "char_run_speed": _float(speed_el, "run"),
+                "char_slow_walk": _float(speed_el, "slowwalk"),
+                "char_acceleration": _float(speed_el, "acceleration"),
+                "char_spacesuit_ref": suit_el.get("ref") if suit_el is not None else None,
+                "event_adjust_y": _float(event_el, "adjusty"),
+                "event_adjust_z": _float(event_el, "adjustz"),
+                "event_face_key": event_el.get("facecutscenekey") if event_el is not None else None,
+                # Icons
+                "icon_active": icon_el.get("active") if icon_el is not None else None,
+                "icon_inactive": icon_el.get("inactive") if icon_el is not None else None,
+                # Agent
+                "agent_icon_male": agent_icon_el.get("id") if agent_icon_el is not None else None,
+                "agent_icon_female": agent_icon_el.get("female")
+                if agent_icon_el is not None
+                else None,
+                # Engine trail
+                "trail_brightness": _float(trail_el, "brightness"),
+                "trail_contrast": _float(trail_el, "contrast"),
+                "trail_saturation": _float(trail_el, "saturation"),
+                "trail_hue": _int(trail_el, "hue"),
+                # Engine effect
+                "engine_color_index": _int(engine_el, "colorindex"),
+                # Chair
+                "chair_ref": chair_el.get("ref") if chair_el is not None else None,
+            }
+        )
 
         for rel_el in race_el.iterfind("relations/relation"):
             other = rel_el.get("race")
             val = rel_el.get("relation")
             if other and val is not None:
                 with contextlib.suppress(ValueError):
-                    out.race_relations.append({
-                        "race_id": race_id,
-                        "other_race_id": other,
-                        "relation": float(val),
-                    })
+                    out.race_relations.append(
+                        {
+                            "race_id": race_id,
+                            "other_race_id": other,
+                            "relation": float(val),
+                        }
+                    )
 
     # Deduplicate (just in case DLC merges produce duplicates)
     deduped: dict[tuple[str, str], dict[str, Any]] = {}

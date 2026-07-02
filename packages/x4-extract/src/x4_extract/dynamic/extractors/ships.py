@@ -39,7 +39,9 @@ from x4_extract.parsing import str_float
 from x4_extract.savefile.dispatch import Registration, Target
 
 _SHIP_CLASSES = ("ship_xs", "ship_s", "ship_m", "ship_l", "ship_xl")
-_MAPPED_SHIP_ATTRS = frozenset({"id", "code", "name", "macro", "owner", "class", "state", "level", "thruster"})
+_MAPPED_SHIP_ATTRS = frozenset(
+    {"id", "code", "name", "macro", "owner", "class", "state", "level", "thruster"}
+)
 
 
 @dataclass(slots=True)
@@ -125,7 +127,7 @@ class ShipsCollector:
         sector_id, zone_id = enclosing_sector_zone(elem)
         owner = elem.get("owner")
         ox, oy, oz = self._resolve_position(elem, ship_id)
-        
+
         current_order = self._ship_orders.pop(ship_id, None)
         extra = {"current_order": current_order} if current_order else None
 
@@ -160,15 +162,19 @@ class ShipsCollector:
         if tier is not Tier.VOLATILE:
             return
         for r in self.rows:
-            yield "ship", r.ship_id, {
-                "ship_id": r.ship_id,
-                "name": r.name,
-                "owner_faction": r.owner_faction,
-                "class_id": r.class_id,
-                "sector_id": r.sector_id,
-                "state": r.state,
-                "is_player_owned": r.is_player_owned,
-            }
+            yield (
+                "ship",
+                r.ship_id,
+                {
+                    "ship_id": r.ship_id,
+                    "name": r.name,
+                    "owner_faction": r.owner_faction,
+                    "class_id": r.class_id,
+                    "sector_id": r.sector_id,
+                    "state": r.state,
+                    "is_player_owned": r.is_player_owned,
+                },
+            )
 
     # --- tiered contract -------------------------------------------------------
     def tables(self, tier: Tier) -> tuple[str, ...]:

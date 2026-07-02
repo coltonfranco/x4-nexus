@@ -34,7 +34,9 @@ log = logging.getLogger(__name__)
 EXCLUDE_DIRS = {"md", "cutscenes", "fx", "ui"}
 
 
-def run_crawler(settings: ExtractSettings, on_progress: Callable[[str, float], None] | None = None) -> None:
+def run_crawler(
+    settings: ExtractSettings, on_progress: Callable[[str, float], None] | None = None
+) -> None:
     """Crawl catalogs and dump patched/merged XMLs to the datalake."""
     cats = catdat.discover_cats(settings.install_path)
     if not cats:
@@ -42,7 +44,7 @@ def run_crawler(settings: ExtractSettings, on_progress: Callable[[str, float], N
         return
 
     base_cats = [c for c in cats if "extensions" not in c.as_posix()]
-    dlc_cats  = [c for c in cats if "extensions" in c.as_posix() and "ws_" not in c.as_posix()]
+    dlc_cats = [c for c in cats if "extensions" in c.as_posix() and "ws_" not in c.as_posix()]
     _log(f"Found {len(base_cats)} base + {len(dlc_cats)} DLC catalogs")
 
     # ------------------------------------------------------------------
@@ -52,11 +54,13 @@ def run_crawler(settings: ExtractSettings, on_progress: Callable[[str, float], N
     total_base_cats = len(base_cats)
     for i, cat in enumerate(base_cats):
         if on_progress:
-            on_progress(f"Reading base catalog: {cat.name}", 0.0 + (i / max(total_base_cats, 1)) * 0.1)
+            on_progress(
+                f"Reading base catalog: {cat.name}", 0.0 + (i / max(total_base_cats, 1)) * 0.1
+            )
         count = 0
         for entry in catdat.iter_cat(cat):
             if _keep(entry.path):
-                base_entries[entry.path] = entry   # last-wins
+                base_entries[entry.path] = entry  # last-wins
                 count += 1
         _log(f"  {cat.stem}.cat -> {count} XML entries")
 
@@ -74,7 +78,10 @@ def run_crawler(settings: ExtractSettings, on_progress: Callable[[str, float], N
     total_dlc_cats = len(dlc_cats)
     for i, cat in enumerate(dlc_cats):
         if on_progress:
-            on_progress(f"Merging DLC catalog: {cat.parent.name if cat.parent else cat.stem}", 0.1 + (i / max(total_dlc_cats, 1)) * 0.15)
+            on_progress(
+                f"Merging DLC catalog: {cat.parent.name if cat.parent else cat.stem}",
+                0.1 + (i / max(total_dlc_cats, 1)) * 0.15,
+            )
         dlc_name = cat.parent.name if cat.parent else cat.stem
         cat_patched = 0
         cat_new = 0
@@ -128,8 +135,11 @@ def run_crawler(settings: ExtractSettings, on_progress: Callable[[str, float], N
 
     for i, path in enumerate(all_paths):
         if i % 100 == 0 and on_progress:
-            on_progress(f"Writing to database: {i}/{total_paths} files", 0.25 + (i / max(total_paths, 1)) * 0.15)
-            
+            on_progress(
+                f"Writing to database: {i}/{total_paths} files",
+                0.25 + (i / max(total_paths, 1)) * 0.15,
+            )
+
         if path in resolved:
             content_bytes = resolved[path]
         else:
@@ -139,7 +149,7 @@ def run_crawler(settings: ExtractSettings, on_progress: Callable[[str, float], N
                 log.warning("Failed to read %s: %s", path, exc)
                 continue
 
-        top_dir  = path.split("/")[0] if "/" in path else ""
+        top_dir = path.split("/")[0] if "/" in path else ""
         filename = path.rsplit("/", 1)[-1]
 
         if top_dir == "aiscripts":
@@ -158,12 +168,14 @@ def run_crawler(settings: ExtractSettings, on_progress: Callable[[str, float], N
 
         content_str = content_bytes.decode("utf-8", errors="replace")
 
-        rows_to_insert.append({
-            "filepath":  path,
-            "directory": top_dir,
-            "filename":  filename,
-            "content":   content_str,
-        })
+        rows_to_insert.append(
+            {
+                "filepath": path,
+                "directory": top_dir,
+                "filename": filename,
+                "content": content_str,
+            }
+        )
 
         if len(rows_to_insert) >= 1000:
             _flush(db_conn, rows_to_insert)
@@ -181,6 +193,7 @@ def run_crawler(settings: ExtractSettings, on_progress: Callable[[str, float], N
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
 
 def _keep(path: str) -> bool:
     """Return True for XML files outside the excluded runtime directories."""
@@ -200,10 +213,10 @@ def _apply_diff(base_bytes: bytes, diff_bytes: bytes) -> bytes:
     diff_root = etree.fromstring(diff_bytes)
 
     for op in diff_root:
-        if callable(op.tag):   # lxml Comment / PI nodes
+        if callable(op.tag):  # lxml Comment / PI nodes
             continue
 
-        sel    = op.get("sel", "")
+        sel = op.get("sel", "")
         silent = op.get("silent") == "1"
 
         try:
@@ -322,7 +335,7 @@ def _merge_additive(base_bytes: bytes, dlc_bytes: bytes) -> bytes:
       detection possible).
     """
     base_root = etree.fromstring(base_bytes)
-    dlc_root  = etree.fromstring(dlc_bytes)
+    dlc_root = etree.fromstring(dlc_bytes)
 
     # Build an id → element lookup over the base root children
     base_by_id: dict[str, etree._Element] = {}

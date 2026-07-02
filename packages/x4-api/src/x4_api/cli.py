@@ -18,7 +18,7 @@ from x4_api import __version__
 app = typer.Typer(add_completion=False, help="X4: Foundations companion CLI.")
 
 
-def _load_settings() -> Settings:  # noqa: F821 — forward ref to deferred import
+def _load_settings() -> Settings:  # type: ignore[name-defined]  # noqa: F821
     from x4_api.config import Settings
 
     try:

@@ -100,13 +100,12 @@ MAPDEFAULTS_XML = b"""<?xml version="1.0" encoding="utf-8"?>
 """
 
 
-
 def test_extract_map_pure():
     xmls = {
         "clusters.xml": CLUSTERS_XML,
-        "sectors.xml":  SECTORS_XML,
-        "zones.xml":    ZONES_XML,
-        "galaxy.xml":   GALAXY_XML,
+        "sectors.xml": SECTORS_XML,
+        "zones.xml": ZONES_XML,
+        "galaxy.xml": GALAXY_XML,
         "mapdefaults.xml": MAPDEFAULTS_XML,
     }
     result = extract(xmls)
@@ -158,11 +157,11 @@ def test_extract_dlc_files_merged():
 </macros>
 """
     xmls = {
-        "clusters.xml":          CLUSTERS_XML,
+        "clusters.xml": CLUSTERS_XML,
         "dlc_boron_clusters.xml": dlc_clusters,
-        "sectors.xml":           SECTORS_XML,
-        "zones.xml":             ZONES_XML,
-        "galaxy.xml":            GALAXY_XML,
+        "sectors.xml": SECTORS_XML,
+        "zones.xml": ZONES_XML,
+        "galaxy.xml": GALAXY_XML,
     }
     result = extract(xmls)
 
@@ -199,9 +198,9 @@ def test_write_map(tmp_path):
 
     xmls = {
         "clusters.xml": CLUSTERS_XML,
-        "sectors.xml":  SECTORS_XML,
-        "zones.xml":    ZONES_XML,
-        "galaxy.xml":   GALAXY_XML,
+        "sectors.xml": SECTORS_XML,
+        "zones.xml": ZONES_XML,
+        "galaxy.xml": GALAXY_XML,
     }
     result = extract(xmls)
 

@@ -17,9 +17,9 @@ from __future__ import annotations
 import sqlite3
 from dataclasses import dataclass
 
-_SECTOR_HOP_M = 50_000.0   # rough per-sector traversal distance, metres
-_ROUND_TRIP = 2.0          # out laden, back empty
-_DEFAULT_HOPS = 8          # when sector_distance is unknown (static map not built / cross-DLC)
+_SECTOR_HOP_M = 50_000.0  # rough per-sector traversal distance, metres
+_ROUND_TRIP = 2.0  # out laden, back empty
+_DEFAULT_HOPS = 8  # when sector_distance is unknown (static map not built / cross-DLC)
 
 _QUERY = """
 SELECT t.ware_id, w.name AS ware_name, w.volume,
@@ -82,9 +82,11 @@ def rank_routes(
         fast_travel_time = r["fast_travel_time"]
 
         if manual_distance is not None and fast_travel_time is not None:
-            # We add one baseline SECTOR_HOP_M to represent the "last mile" flight 
+            # We add one baseline SECTOR_HOP_M to represent the "last mile" flight
             # from the gates to the exact stations.
-            one_way_seconds = (manual_distance + _SECTOR_HOP_M) / max(ship_speed, 1.0) + fast_travel_time
+            one_way_seconds = (manual_distance + _SECTOR_HOP_M) / max(
+                ship_speed, 1.0
+            ) + fast_travel_time
             trip_seconds = one_way_seconds * _ROUND_TRIP
         else:
             eff_hops = hops if hops is not None else _DEFAULT_HOPS

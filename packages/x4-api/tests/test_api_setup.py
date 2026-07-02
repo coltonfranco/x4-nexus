@@ -55,7 +55,7 @@ def test_status_ready_once_static_populated(
     saves = tmp_path / "save"
     saves.mkdir()
     (saves / "quicksave.xml.gz").touch()
-    
+
     settings.install_path = install
     settings.save_path = saves
 
@@ -147,7 +147,9 @@ def test_persisted_config_is_lowest_priority_source(
     assert from_env.install_path == Path("D:/other/x4").resolve()
 
 
-def test_wipe_game_data_clears_derived_keeps_user_content(data_dir: Path, settings: Settings) -> None:
+def test_wipe_game_data_clears_derived_keeps_user_content(
+    data_dir: Path, settings: Settings
+) -> None:
     """The reset wipe removes game-derived DBs/dirs but preserves user-authored content."""
     from x4_api.init_job import wipe_game_data
 

@@ -1,6 +1,5 @@
 """REST endpoint for ship loadouts (installed equipment)."""
 
-
 import sqlite3
 from typing import Annotated
 
