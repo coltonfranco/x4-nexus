@@ -18,35 +18,20 @@ from __future__ import annotations
 import copy
 import logging
 import sqlite3
-import time
+from collections.abc import Callable
 
 from lxml import etree
-from typing import Callable
 
 from x4_extract.config import ExtractSettings
 from x4_extract.db import apply_schema
 from x4_extract.static import catdat
+from x4_extract.static.progress import log_progress as _log
 
 log = logging.getLogger(__name__)
 
 # Top-level directories that are runtime-only and add no static data value.
 # aiscripts is handled specially: we only extract <order> definitions from it.
 EXCLUDE_DIRS = {"md", "cutscenes", "fx", "ui"}
-
-
-def _log(msg: str) -> None:
-    ts = time.strftime("%H:%M:%S")
-    print(f"\033[90m{ts}\033[0m  {msg}", flush=True)
-
-def _elapsed(start: float) -> str:
-    dt = time.monotonic() - start
-    if dt < 1.0:
-        c = "32"
-    elif dt < 10.0:
-        c = "33"
-    else:
-        c = "31"
-    return f"\033[{c}m{dt:.1f}s\033[0m"
 
 
 def run_crawler(settings: ExtractSettings, on_progress: Callable[[str, float], None] | None = None) -> None:
@@ -138,7 +123,7 @@ def run_crawler(settings: ExtractSettings, on_progress: Callable[[str, float], N
     db_conn.execute("DELETE FROM raw_files")
 
     all_paths = list(base_entries) + [p for p in resolved if p not in base_entries]
-    rows_to_insert: list[dict] = []
+    rows_to_insert: list[dict[str, object]] = []
     total_paths = len(all_paths)
 
     for i, path in enumerate(all_paths):
@@ -161,7 +146,7 @@ def run_crawler(settings: ExtractSettings, on_progress: Callable[[str, float], N
             try:
                 # We only want <order> elements to keep the database size down
                 root = etree.fromstring(content_bytes)
-                orders = root.xpath("//order")
+                orders = _xpath_elements(root, "//order")
                 if not orders:
                     continue
                 new_root = etree.Element("aiscript")
@@ -222,7 +207,7 @@ def _apply_diff(base_bytes: bytes, diff_bytes: bytes) -> bytes:
         silent = op.get("silent") == "1"
 
         try:
-            matches = base_root.xpath(sel)
+            matches = _xpath_elements(base_root, sel)
         except etree.XPathEvalError as exc:
             if not silent:
                 log.debug("XPath error sel=%r: %s", sel, exc)
@@ -376,9 +361,16 @@ def _merge_additive(base_bytes: bytes, dlc_bytes: bytes) -> bytes:
     return etree.tostring(base_root, encoding="unicode").encode("utf-8")
 
 
-def _flush(conn: sqlite3.Connection, rows: list[dict]) -> None:
+def _flush(conn: sqlite3.Connection, rows: list[dict[str, object]]) -> None:
     conn.executemany(
         "INSERT INTO raw_files (filepath, directory, filename, content) "
         "VALUES (:filepath, :directory, :filename, :content)",
         rows,
     )
+
+
+def _xpath_elements(node: etree._Element, query: str) -> list[etree._Element]:
+    result = node.xpath(query)
+    if not isinstance(result, list):
+        return []
+    return [item for item in result if isinstance(item, etree._Element)]

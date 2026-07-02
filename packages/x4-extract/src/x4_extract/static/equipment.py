@@ -9,6 +9,8 @@ from typing import Any
 
 from lxml import etree
 
+from x4_extract.parsing import xml_attr_float as _float
+from x4_extract.parsing import xml_attr_int as _int
 from x4_extract.static.constants import EQUIPMENT_CLASSES, dlc_from_path
 
 # Tags that appear on every component connection and don't restrict compatibility
@@ -103,12 +105,16 @@ def _parse_equipment_macro(macro_name: str, file_path: str, macro_el: etree._Ele
                 comp_node = comp_root.find(f".//component[@name='{comp_ref}']")
                 if comp_node is not None:
                     # Look for the root connection that identifies the component
-                    for conn in comp_node.xpath(".//connection[contains(@tags, 'component')]"):
+                    for conn in _xpath_elements(comp_node, ".//connection[contains(@tags, 'component')]"):
                         tags = conn.get("tags", "").split()
-                        if "extralarge" in tags: size = "xl"
-                        elif "large" in tags: size = "l"
-                        elif "medium" in tags: size = "m"
-                        elif "small" in tags: size = "s"
+                        if "extralarge" in tags:
+                            size = "xl"
+                        elif "large" in tags:
+                            size = "l"
+                        elif "medium" in tags:
+                            size = "m"
+                        elif "small" in tags:
+                            size = "s"
 
                         # Capture restrictive tags (non-generic) for compatibility matching
                         restrictive = [t for t in tags if t not in _GENERIC_TAGS]
@@ -363,31 +369,14 @@ def write(conn: sqlite3.Connection, result: ExtractResult) -> None:
     # Software
     if result.software:
         conn.executemany(
-        "INSERT INTO equip_software (software_id, name, file_path, is_legacy, class_id, scan_maxlevel, radar_range) "
-        "VALUES (:software_id, :name, :file_path, :is_legacy, :class_id, :scan_maxlevel, :radar_range)",
-        result.software,
-    )
+            "INSERT INTO equip_software (software_id, name, file_path, is_legacy, class_id, scan_maxlevel, radar_range) "
+            "VALUES (:software_id, :name, :file_path, :is_legacy, :class_id, :scan_maxlevel, :radar_range)",
+            result.software,
+        )
 
 
-def _int(el: etree._Element | None, attr: str) -> int | None:
-    if el is None:
-        return None
-    v = el.get(attr)
-    if v is None:
-        return None
-    try:
-        return int(v)
-    except ValueError:
-        return int(float(v))
-
-
-def _float(el: etree._Element | None, attr: str) -> float | None:
-    if el is None:
-        return None
-    v = el.get(attr)
-    if v is None:
-        return None
-    try:
-        return float(v)
-    except ValueError:
-        return None
+def _xpath_elements(node: etree._Element, query: str) -> list[etree._Element]:
+    result = node.xpath(query)
+    if not isinstance(result, list):
+        return []
+    return [item for item in result if isinstance(item, etree._Element)]

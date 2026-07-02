@@ -22,28 +22,23 @@ import struct
 import subprocess
 import tempfile
 import time
+from collections.abc import Callable
 from pathlib import Path
 
 from lxml import etree
 from PIL import Image
 
 from x4_extract.config import ExtractSettings
-from x4_extract.static.catdat import build_index, discover_cats, iter_cat, read_entry
+from x4_extract.static.catdat import CatEntry, build_index, discover_cats, iter_cat, read_entry
+from x4_extract.static.progress import log_progress as _log
 
 try:
-    import texture2ddecoder  # type: ignore[import-untyped, import-not-found]
+    import texture2ddecoder
 except ImportError:
     texture2ddecoder = None  # type: ignore[assignment]
 
 logger = logging.getLogger(__name__)
 
-
-def _log(msg: str) -> None:
-    ts = time.strftime("%H:%M:%S")
-    print(f"\033[90m{ts}\033[0m  {msg}", flush=True)
-
-
-from typing import Callable
 
 def run(settings: ExtractSettings, on_progress: Callable[[str, float], None] | None = None) -> None:
     """Extract all icons from game data to PNG files."""
@@ -57,7 +52,7 @@ def run(settings: ExtractSettings, on_progress: Callable[[str, float], None] | N
 
     index = build_index(cat_paths)
 
-    icons_xml_entries = []
+    icons_xml_entries: list[CatEntry] = []
     for cat in cat_paths:
         for entry in iter_cat(cat):
             if entry.path == "libraries/icons.xml":
@@ -134,38 +129,38 @@ def run(settings: ExtractSettings, on_progress: Callable[[str, float], None] | N
         stem_path = posix_path.rsplit(".", 1)[0]
 
         # Try finding the corresponding entry in index
-        entry = None
+        icon_entry: CatEntry | None = None
         for suffix in [".gz", ".dds", ".dds.gz", ".tga.gz", ".tga", ""]:
             # Check with extension replacement
             test_path = stem_path + suffix
             if test_path in index:
-                entry = index[test_path]
+                icon_entry = index[test_path]
                 break
 
             # Check if index path perfectly matches what was registered by wildcards
             if posix_path in index:
-                entry = index[posix_path]
+                icon_entry = index[posix_path]
                 break
 
             if "assets/" in test_path:
                 idx = test_path.find("assets/")
                 stripped = test_path[idx:]
                 if stripped in index:
-                    entry = index[stripped]
+                    icon_entry = index[stripped]
                     break
 
-        if not entry:
+        if not icon_entry:
             continue
 
         # Check hash against manifest to skip unchanged
-        if logical_id in manifest and manifest[logical_id].get("md5") == entry.md5:
+        if logical_id in manifest and manifest[logical_id].get("md5") == icon_entry.md5:
             new_manifest[logical_id] = manifest[logical_id]
             skipped_count += 1
             continue
 
         try:
-            raw_data = read_entry(entry)
-            dds_data = gzip.decompress(raw_data) if entry.path.endswith(".gz") else raw_data
+            raw_data = read_entry(icon_entry)
+            dds_data = gzip.decompress(raw_data) if icon_entry.path.endswith(".gz") else raw_data
 
             # Determine category subfolder using the texture path's directory
             directory = posix_path.rsplit("/", 1)[0] if "/" in posix_path else "misc"
@@ -194,12 +189,12 @@ def run(settings: ExtractSettings, on_progress: Callable[[str, float], None] | N
             out_png = cat_dir / f"{logical_id}.png"
             if _decode_dds_to_png(dds_data, out_png):
                 new_manifest[logical_id] = {
-                    "md5": entry.md5,
+                    "md5": icon_entry.md5,
                     "path": f"{category}/{logical_id}.png"
                 }
                 processed_count += 1
         except Exception as e:
-            logger.warning(f"Failed to process icon {logical_id} from {entry.path}: {e}")
+            logger.warning(f"Failed to process icon {logical_id} from {icon_entry.path}: {e}")
 
     with manifest_path.open("w", encoding="utf-8") as f:
         json.dump(new_manifest, f, indent=2)

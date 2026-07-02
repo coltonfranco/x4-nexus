@@ -35,6 +35,7 @@ import dataclasses
 import json
 import sqlite3
 from collections import Counter, defaultdict
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -44,6 +45,11 @@ if TYPE_CHECKING:
 from lxml import etree
 
 from x4_extract.dynamic.collector import Tier, hash_rows
+from x4_extract.dynamic.extractors.common import (
+    element_attrs,
+    enclosing_sector_zone,
+    extra_json_from_attrs,
+)
 from x4_extract.savefile.dispatch import Registration, Target
 
 # Depths confirmed against a real save; fragile only if Egosoft restructures the
@@ -366,19 +372,7 @@ class StationsCollector:
             self.station_offsets[sid] = (_f(elem.get("x")), _f(elem.get("y")), _f(elem.get("z")))
 
     def _on_station(self, elem: etree._Element) -> None:
-        sector_id: str | None = None
-        zone_id: str | None = None
-        ancestor: etree._Element | None = elem
-        for _ in range(9):
-            ancestor = ancestor.getparent() if ancestor is not None else None
-            if ancestor is None:
-                break
-            cls = ancestor.get("class", "")
-            if cls == "zone":
-                zone_id = ancestor.get("macro")
-            elif cls == "sector":
-                sector_id = ancestor.get("macro")
-                break  # sector is the deepest we need
+        sector_id, zone_id = enclosing_sector_zone(elem, limit=9)
 
         name = elem.get("name")
         basename = elem.get("basename")
@@ -395,7 +389,6 @@ class StationsCollector:
         nameindex_str = elem.get("nameindex")
         nameindex = int(nameindex_str) if nameindex_str and nameindex_str.isdigit() else None
 
-        extra = {k: v for k, v in elem.attrib.items() if k not in _MAPPED_STATION_ATTRS}
         ox, oy, oz = self.station_offsets.get(elem.get("id") or "", (None, None, None))
         sid = elem.get("id") or ""
         seed_id = self.station_sources.get(sid)
@@ -423,7 +416,7 @@ class StationsCollector:
                 known_to_player=known_to_player,
                 basename=basename,
                 nameindex=nameindex,
-                extra_json=json.dumps(extra, sort_keys=True) if extra else None,
+                extra_json=extra_json_from_attrs(element_attrs(elem), _MAPPED_STATION_ATTRS),
             )
         )
 
@@ -479,9 +472,8 @@ class StationsCollector:
             if "buildmodule" in mod and "equip" in mod:
                 if "equipmentdock" not in tags:
                     tags.append("equipmentdock")
-            elif "buildmodule" in mod:
-                if "shipyard" not in tags:
-                    tags.append("shipyard")
+            elif "buildmodule" in mod and "shipyard" not in tags:
+                tags.append("shipyard")
         return tags
 
     def _finalise_station_rows(self) -> None:
@@ -554,7 +546,7 @@ class StationsCollector:
         return rows
 
     # --- delta source ----------------------------------------------------------
-    def keyed_rows(self, tier: Tier):
+    def keyed_rows(self, tier: Tier) -> Iterable[tuple[str, str, Mapping[str, object]]]:
         """Trade offers (VOLATILE) keyed by station+ware+side; a moved price or quantity
         is a 'changed' economy event, a new/closed offer is 'added'/'removed'. Stations
         themselves are STRUCTURAL and not diffed here."""

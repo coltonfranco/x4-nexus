@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 import sqlite3
+from contextlib import suppress
 from dataclasses import dataclass, field
 from typing import Any
 
 from lxml import etree
+
+from x4_extract.parsing import xml_attr_float as _float
+from x4_extract.parsing import xml_attr_int_or_none as _int
 
 
 @dataclass(slots=True)
@@ -89,7 +93,7 @@ def extract(xml_bytes: bytes) -> ExtractResult:
             max_raw = effect_el.get("max")
             value_raw = effect_el.get("value")
             if stat and change_raw is not None:
-                try:
+                with suppress(ValueError):
                     out.effects.append({
                         "project_id": project_id,
                         "stat": stat,
@@ -98,22 +102,18 @@ def extract(xml_bytes: bytes) -> ExtractResult:
                         "max_val": int(max_raw) if max_raw else None,
                         "value": int(value_raw) if value_raw else None,
                     })
-                except ValueError:
-                    pass
 
         if resources_el is not None:
             for ware_el in resources_el.iterfind("ware"):
                 ware_id = ware_el.get("ware")
                 amount_raw = ware_el.get("amount")
                 if ware_id and amount_raw:
-                    try:
+                    with suppress(ValueError):
                         out.resources.append({
                             "project_id": project_id,
                             "ware_id": ware_id,
                             "amount": int(amount_raw),
                         })
-                    except ValueError:
-                        pass
 
         deliveries_el = proj_el.find("deliveries")
         if deliveries_el is not None:
@@ -122,15 +122,13 @@ def extract(xml_bytes: bytes) -> ExtractResult:
                 amount_raw = ship_el.get("amount")
                 build_raw = ship_el.get("buildduration")
                 if macro and amount_raw:
-                    try:
+                    with suppress(ValueError):
                         out.deliveries.append({
                             "project_id": project_id,
                             "ship_macro": macro,
                             "amount": int(amount_raw),
                             "build_duration": int(build_raw) if build_raw else None,
                         })
-                    except ValueError:
-                        pass
 
         for cond_el in proj_el.iterfind("conditions/condition"):
             stat = cond_el.get("stat")
@@ -238,27 +236,3 @@ def write(conn: sqlite3.Connection, result: ExtractResult) -> None:
             "VALUES (:project_id, :ware_id, :ware_group, :value)",
             result.rebates,
         )
-
-
-def _int(el: etree._Element | None, attr: str) -> int | None:
-    if el is None:
-        return None
-    v = el.get(attr)
-    if v is None:
-        return None
-    try:
-        return int(v)
-    except ValueError:
-        return None
-
-
-def _float(el: etree._Element | None, attr: str) -> float | None:
-    if el is None:
-        return None
-    v = el.get(attr)
-    if v is None:
-        return None
-    try:
-        return float(v)
-    except ValueError:
-        return None

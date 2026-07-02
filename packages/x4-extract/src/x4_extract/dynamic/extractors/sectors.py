@@ -11,13 +11,12 @@ Tier: VOLATILE — player knowledge of sectors expands continuously during play.
 from __future__ import annotations
 
 import dataclasses
-import json
 import sqlite3
 from dataclasses import dataclass, field
 
 from lxml import etree
 
-from x4_extract.dynamic.collector import Tier, hash_rows
+from x4_extract.dynamic.collector import Tier, fingerprint_for_tier, tables_for_tier
 from x4_extract.savefile.dispatch import Registration, Target
 
 _SECTOR_DEPTH = 9
@@ -67,12 +66,10 @@ class SectorsCollector:
 
     # --- tiered contract -------------------------------------------------------
     def tables(self, tier: Tier) -> tuple[str, ...]:
-        return ("sector_state",) if tier is Tier.VOLATILE else ()
+        return tables_for_tier(tier, Tier.VOLATILE, ("sector_state",))
 
     def fingerprint(self, tier: Tier) -> str:
-        if tier is not Tier.VOLATILE:
-            return ""
-        return hash_rows(dataclasses.asdict(r) for r in self.rows)
+        return fingerprint_for_tier(tier, Tier.VOLATILE, (dataclasses.asdict(r) for r in self.rows))
 
     def flush(self, conn: sqlite3.Connection, tier: Tier | None = None) -> None:
         if tier not in (None, Tier.VOLATILE) or not self.rows:

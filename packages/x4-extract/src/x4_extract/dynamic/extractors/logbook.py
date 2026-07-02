@@ -22,13 +22,15 @@ from __future__ import annotations
 import dataclasses
 import json
 import sqlite3
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from importlib import resources
-from typing import Any
+from typing import Any, cast
 
 from lxml import etree
 
-from x4_extract.dynamic.collector import Tier, hash_rows
+from x4_extract.dynamic.collector import Tier, fingerprint_for_tier, tables_for_tier
+from x4_extract.dynamic.extractors.common import element_attrs, extra_json_from_attrs
 from x4_extract.savefile.dispatch import Registration, Target
 
 _ENTRY_DEPTH = 3  # savegame(1) → log(2) → entry(3)
@@ -43,7 +45,8 @@ def _load_rules() -> dict[str, Any]:
         raw = resources.files("x4_extract.data").joinpath("logbook_rules.json").read_text()
     except (FileNotFoundError, ModuleNotFoundError):
         return {}
-    return json.loads(raw)
+    loaded: object = json.loads(raw)
+    return cast(dict[str, Any], loaded) if isinstance(loaded, dict) else {}
 
 
 def _build_matchers(rules: dict[str, Any]) -> list[tuple[str, str, list[str] | None, str]]:
@@ -136,10 +139,8 @@ class LogbookCollector:
         # Resolve semantic category + subcategory from classification rules.
         resolved_cat, resolved_sub = classify_entry(title, native_category)
 
-        extra = {k: v for k, v in elem.attrib.items() if k not in _MAPPED_ATTRS}
         # Preserve the game's original category for debugging / future re-runs.
-        if native_category:
-            extra["game_category"] = native_category
+        extra = {"game_category": native_category} if native_category else None
         self.rows.append(
             LogbookEntry(
                 time=float(time_raw),
@@ -148,12 +149,12 @@ class LogbookCollector:
                 category=resolved_cat,
                 subcategory=resolved_sub,
                 faction=faction,
-                extra_json=json.dumps(extra, sort_keys=True) if extra else None,
+                extra_json=extra_json_from_attrs(element_attrs(elem), _MAPPED_ATTRS, extra),
             )
         )
 
     # --- delta source ----------------------------------------------------------
-    def keyed_rows(self, tier: Tier):
+    def keyed_rows(self, tier: Tier) -> Iterable[tuple[str, str, Mapping[str, object]]]:
         """Logbook entries are append-only and immutable, so each is identified by its
         (time, title) — new entries surface as 'added', the source of combat alerts."""
         if tier is not Tier.VOLATILE:
@@ -163,12 +164,10 @@ class LogbookCollector:
 
     # --- tiered contract -------------------------------------------------------
     def tables(self, tier: Tier) -> tuple[str, ...]:
-        return ("logbook",) if tier is Tier.VOLATILE else ()
+        return tables_for_tier(tier, Tier.VOLATILE, ("logbook",))
 
     def fingerprint(self, tier: Tier) -> str:
-        if tier is not Tier.VOLATILE:
-            return ""
-        return hash_rows(dataclasses.asdict(r) for r in self.rows)
+        return fingerprint_for_tier(tier, Tier.VOLATILE, (dataclasses.asdict(r) for r in self.rows))
 
     def flush(self, conn: sqlite3.Connection, tier: Tier | None = None) -> None:
         if tier not in (None, Tier.VOLATILE) or not self.rows:

@@ -7,54 +7,41 @@ from __future__ import annotations
 
 import sqlite3
 import time
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from x4_extract.config import ExtractSettings
+from x4_extract.constants import DEFAULT_LANGUAGE_CODE
 from x4_extract.db import apply_schema
 from x4_extract.static import (
+    assignments,
+    behaviours,
     diplomacy,
     drops,
     equip_mods,
     equipment,
     factions,
     gamestarts,
-    icons,
     loadouts,
     map,
     missiongroups,
     modules,
+    orders,
     races,
     regions,
+    roles,
     ships,
     station_types,
     terraforming,
+    texts,
     waregroups,
     wares,
-    orders,
-    assignments,
-    behaviours,
-    roles,
-    texts,
 )
+from x4_extract.static.progress import elapsed as _elapsed
+from x4_extract.static.progress import log_progress as _log
+from x4_extract.static.raw import RawFileStore
 
 # ── Logging helpers ────────────────────────────────────────────────────────────
-
-def _log(msg: str) -> None:
-    """Print a timestamped progress message."""
-    ts = time.strftime("%H:%M:%S")
-    print(f"\033[90m{ts}\033[0m  {msg}", flush=True)
-
-def _elapsed(start: float) -> str:
-    """Return a color-coded duration string (green < 1s, yellow < 10s, red > 10s)."""
-    dt = time.monotonic() - start
-    if dt < 1.0:
-        c = "32"
-    elif dt < 10.0:
-        c = "33"
-    else:
-        c = "31"
-    return f"\033[{c}m{dt:.1f}s\033[0m"
-
 
 def run(settings: ExtractSettings, on_progress: Callable[[str, float], None] | None = None) -> None:
     _step = [0]
@@ -88,19 +75,14 @@ def run(settings: ExtractSettings, on_progress: Callable[[str, float], None] | N
     # references lowercase paths (e.g. props/engines/macros/…) while the crawler
     # preserves the archives' original casing (props/Engines/…). An exact match drops
     # most base-game equipment macros; NOCASE recovers them.
-    def get_raw_file(filepath: str) -> bytes | None:
-        row = conn.execute(
-            "SELECT content FROM raw.raw_files WHERE filepath = ? COLLATE NOCASE", (filepath,)
-        ).fetchone()
-        if row:
-            return row[0].encode('utf-8')
-        return None
+    raw_files = RawFileStore(conn, schema="raw")
+    get_raw_file = raw_files.get_path
 
     # Init localizer
     import dataclasses
 
     from x4_extract.i18n import Localizer
-    localizer = Localizer(conn, "044")
+    localizer = Localizer(conn, DEFAULT_LANGUAGE_CODE)
 
     def _localize_result(result: Any) -> Any:
         """Recursively translates {page,text} macros in all strings within ExtractResult dicts."""
@@ -122,26 +104,6 @@ def run(settings: ExtractSettings, on_progress: Callable[[str, float], None] | N
 
     try:
         with conn:
-            def resolver(path: str) -> bytes:
-                content = get_raw_file(path)
-                if content is None and path.startswith("extensions/"):
-                    # DLC macros index uses "extensions/<dlc>/assets/..." paths, but
-                    # raw.db stores the same files at "assets/..." (cat-relative paths).
-                    stripped = "/".join(path.split("/")[2:])
-                    content = get_raw_file(stripped)
-                if content is None:
-                    raise KeyError(path)
-                return content
-
-            def resolve_name(name: str) -> bytes:
-                filename = f"{name}.xml"
-                row = conn.execute(
-                    "SELECT content FROM raw.raw_files WHERE filename = ? COLLATE NOCASE", (filename,)
-                ).fetchone()
-                if row:
-                    return row[0].encode('utf-8')
-                raise KeyError(name)
-
             t0 = time.monotonic()
             _progress_log("Extracting: ware groups")
             waregroups_xml = get_raw_file("libraries/waregroups.xml")
@@ -204,7 +166,9 @@ def run(settings: ExtractSettings, on_progress: Callable[[str, float], None] | N
                 rows = conn.execute(
                     "SELECT filepath, content FROM raw.raw_files"
                 ).fetchall()
-                _all_raw = {r[0]: r[1].encode("utf-8") for r in rows}
+                _all_raw: dict[str, bytes] = {
+                    str(r[0]): str(r[1]).encode("utf-8") for r in rows
+                }
                 # Case-insensitive fallback: macro index uses lowercase paths
                 # (assets/props/engines/…) but the cat archives preserve the
                 # original casing (assets/props/Engines/…).
@@ -358,7 +322,7 @@ def run(settings: ExtractSettings, on_progress: Callable[[str, float], None] | N
 
             t0 = time.monotonic()
             _progress_log("Extracting: texts")
-            texts_xml = get_raw_file("t/0001-l044.xml")
+            texts_xml = get_raw_file(f"t/0001-l{DEFAULT_LANGUAGE_CODE}.xml")
             if texts_xml:
                 t_result = texts.extract(texts_xml)
                 texts.write(conn, t_result)

@@ -10,36 +10,24 @@ Tier: STRUCTURAL — deployables are placed/destroyed infrequently.
 from __future__ import annotations
 
 import dataclasses
-import json
 import sqlite3
 from dataclasses import dataclass, field
 
 from lxml import etree
 
-from x4_extract.dynamic.collector import Tier, hash_rows
+from x4_extract.dynamic.collector import Tier, fingerprint_for_tier, tables_for_tier
+from x4_extract.dynamic.extractors.common import (
+    component_class_registrations,
+    element_attrs,
+    enclosing_sector_zone,
+    extra_json_from_attrs,
+    walk_ancestors,
+)
 from x4_extract.dynamic.extractors.positions import position_cache
-from x4_extract.savefile.dispatch import Registration, Target
+from x4_extract.savefile.dispatch import Registration
 
 _DEPLOYABLE_CLASSES = ("satellite", "resourceprobe", "navbeacon", "mine", "lockbox")
-_ANCESTOR_WALK_LIMIT = 40
-
-
-def _enclosing_sector_zone(elem: etree._Element) -> tuple[str | None, str | None]:
-    """Walk ancestors to find the enclosing sector and zone macro names."""
-    sector_id: str | None = None
-    zone_id: str | None = None
-    ancestor: etree._Element | None = elem.getparent()
-    for _ in range(_ANCESTOR_WALK_LIMIT):
-        if ancestor is None:
-            break
-        cls = ancestor.get("class", "")
-        if cls == "zone" and zone_id is None:
-            zone_id = ancestor.get("macro")
-        elif cls == "sector":
-            sector_id = ancestor.get("macro")
-            break
-        ancestor = ancestor.getparent()
-    return sector_id, zone_id
+_MAPPED_DEPLOYABLE_ATTRS = frozenset({"id", "class", "code", "macro", "owner", "connection", "knownto"})
 
 
 @dataclass(slots=True)
@@ -63,13 +51,7 @@ class DeployablesCollector:
     rows: list[DeployableRow] = field(default_factory=list)
 
     def register(self) -> list[Registration]:
-        return [
-            Registration(
-                target=Target(tag="component", depth=None, class_attr=cls),
-                visitor=self._on_deployable,
-            )
-            for cls in _DEPLOYABLE_CLASSES
-        ]
+        return component_class_registrations(_DEPLOYABLE_CLASSES, self._on_deployable)
 
     @staticmethod
     def _resolve_position(
@@ -81,17 +63,13 @@ class DeployablesCollector:
         if own is not None:
             return own
 
-        ancestor: etree._Element | None = elem.getparent()
-        for _ in range(_ANCESTOR_WALK_LIMIT):
-            if ancestor is None:
-                break
+        for ancestor in walk_ancestors(elem):
             if ancestor.tag == "component":
                 aid = ancestor.get("id")
                 if aid:
                     pos = position_cache.get(aid)
                     if pos is not None:
                         return pos
-            ancestor = ancestor.getparent()
         return (None, None, None)
 
     def _on_deployable(self, elem: etree._Element) -> None:
@@ -99,12 +77,9 @@ class DeployablesCollector:
         if not obj_id:
             return
         cls = elem.get("class", "")
-        sector_id, zone_id = _enclosing_sector_zone(elem)
+        sector_id, zone_id = enclosing_sector_zone(elem)
         known = 1 if elem.get("knownto") == "player" else 0
         ox, oy, oz = self._resolve_position(elem, obj_id)
-
-        mapped = frozenset({"id", "class", "code", "macro", "owner", "connection", "knownto"})
-        extra = {k: v for k, v in elem.attrib.items() if k not in mapped}
 
         self.rows.append(
             DeployableRow(
@@ -119,18 +94,20 @@ class DeployablesCollector:
                 y=oy,
                 z=oz,
                 known_to_player=known,
-                extra_json=json.dumps(extra, sort_keys=True) if extra else None,
+                extra_json=extra_json_from_attrs(element_attrs(elem), _MAPPED_DEPLOYABLE_ATTRS),
             )
         )
 
     # --- tiered contract -------------------------------------------------------
     def tables(self, tier: Tier) -> tuple[str, ...]:
-        return ("deployables",) if tier is Tier.STRUCTURAL else ()
+        return tables_for_tier(tier, Tier.STRUCTURAL, ("deployables",))
 
     def fingerprint(self, tier: Tier) -> str:
-        if tier is not Tier.STRUCTURAL:
-            return ""
-        return hash_rows(dataclasses.asdict(r) for r in self.rows)
+        return fingerprint_for_tier(
+            tier,
+            Tier.STRUCTURAL,
+            (dataclasses.asdict(r) for r in self.rows),
+        )
 
     def flush(self, conn: sqlite3.Connection, tier: Tier | None = None) -> None:
         if tier not in (None, Tier.STRUCTURAL) or not self.rows:

@@ -95,6 +95,22 @@ def hash_rows(rows: Iterable[Mapping[str, object]]) -> str:
     return h.hexdigest()
 
 
+def tables_for_tier(tier: Tier, target: Tier, tables: tuple[str, ...]) -> tuple[str, ...]:
+    """Return owned tables only for the tier a collector contributes to."""
+    return tables if tier is target else ()
+
+
+def fingerprint_for_tier(
+    tier: Tier,
+    target: Tier,
+    rows: Iterable[Mapping[str, object]],
+) -> str:
+    """Hash rows only for the tier a collector contributes to."""
+    if tier is not target:
+        return ""
+    return hash_rows(rows)
+
+
 def combined_fingerprint(collectors: Iterable[Collector], tier: Tier) -> str:
     """Fold all collectors' fingerprints for a tier into one. "" when the tier is empty."""
     parts = [fp for c in collectors if (fp := c.fingerprint(tier))]

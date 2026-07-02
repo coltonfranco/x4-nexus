@@ -8,25 +8,31 @@ Tier: STRUCTURAL — loadouts change only when the player refits a ship.
 
 from __future__ import annotations
 
+import contextlib
 import dataclasses
-import json
 import sqlite3
 from dataclasses import dataclass, field
 
 from lxml import etree
 
-from x4_extract.dynamic.collector import Tier, hash_rows
-from x4_extract.savefile.dispatch import Registration, Target
+from x4_extract.dynamic.collector import Tier, fingerprint_for_tier, tables_for_tier
+from x4_extract.dynamic.extractors.common import (
+    ANCESTOR_WALK_LIMIT,
+    component_class_registrations,
+    element_attrs,
+    extra_json_from_attrs,
+)
+from x4_extract.savefile.dispatch import Registration
 
 _LOADOUT_CLASSES = ("engine", "weapon", "turret", "shieldgenerator", "missilelauncher")
-_ANCESTOR_WALK_LIMIT = 40
+_MAPPED_LOADOUT_ATTRS = frozenset({"id", "class", "macro", "connection", "ammunition", "owner"})
 
 
 def _parent_ship_id(elem: etree._Element) -> str | None:
     """Walk up from a loadout component to its owning <component class='ship_*'>, but
     only when that ship is player-owned."""
     ancestor: etree._Element | None = elem.getparent()
-    for _ in range(_ANCESTOR_WALK_LIMIT):
+    for _ in range(ANCESTOR_WALK_LIMIT):
         if ancestor is None:
             return None
         if ancestor.tag == "component":
@@ -54,13 +60,7 @@ class ShipLoadoutCollector:
     rows: list[LoadoutRow] = field(default_factory=list)
 
     def register(self) -> list[Registration]:
-        return [
-            Registration(
-                target=Target(tag="component", depth=None, class_attr=cls),
-                visitor=self._on_slot,
-            )
-            for cls in _LOADOUT_CLASSES
-        ]
+        return component_class_registrations(_LOADOUT_CLASSES, self._on_slot)
 
     def _on_slot(self, elem: etree._Element) -> None:
         ship_id = _parent_ship_id(elem)
@@ -75,13 +75,8 @@ class ShipLoadoutCollector:
         ammo_raw = elem.get("ammunition")
         ammunition: int | None = None
         if ammo_raw is not None:
-            try:
+            with contextlib.suppress(ValueError):
                 ammunition = int(ammo_raw)
-            except ValueError:
-                pass
-
-        mapped = frozenset({"id", "class", "macro", "connection", "ammunition", "owner"})
-        extra = {k: v for k, v in elem.attrib.items() if k not in mapped}
 
         self.rows.append(
             LoadoutRow(
@@ -90,18 +85,20 @@ class ShipLoadoutCollector:
                 slot_connection=conn,
                 macro=macro,
                 ammunition=ammunition,
-                extra_json=json.dumps(extra, sort_keys=True) if extra else None,
+                extra_json=extra_json_from_attrs(element_attrs(elem), _MAPPED_LOADOUT_ATTRS),
             )
         )
 
     # --- tiered contract -------------------------------------------------------
     def tables(self, tier: Tier) -> tuple[str, ...]:
-        return ("ship_loadouts",) if tier is Tier.STRUCTURAL else ()
+        return tables_for_tier(tier, Tier.STRUCTURAL, ("ship_loadouts",))
 
     def fingerprint(self, tier: Tier) -> str:
-        if tier is not Tier.STRUCTURAL:
-            return ""
-        return hash_rows(dataclasses.asdict(r) for r in self.rows)
+        return fingerprint_for_tier(
+            tier,
+            Tier.STRUCTURAL,
+            (dataclasses.asdict(r) for r in self.rows),
+        )
 
     def flush(self, conn: sqlite3.Connection, tier: Tier | None = None) -> None:
         if tier not in (None, Tier.STRUCTURAL) or not self.rows:

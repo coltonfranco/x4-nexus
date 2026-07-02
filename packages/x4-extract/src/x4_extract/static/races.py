@@ -7,11 +7,15 @@ diplomacy, and spacesuit references.
 
 from __future__ import annotations
 
+import contextlib
 import sqlite3
 from dataclasses import dataclass, field
 from typing import Any
 
 from lxml import etree
+
+from x4_extract.parsing import xml_attr_float as _float
+from x4_extract.parsing import xml_attr_int as _int
 
 
 @dataclass(slots=True)
@@ -80,14 +84,12 @@ def extract(xml_bytes: bytes) -> ExtractResult:
             other = rel_el.get("race")
             val = rel_el.get("relation")
             if other and val is not None:
-                try:
+                with contextlib.suppress(ValueError):
                     out.race_relations.append({
                         "race_id": race_id,
                         "other_race_id": other,
                         "relation": float(val),
                     })
-                except ValueError:
-                    pass
 
     # Deduplicate (just in case DLC merges produce duplicates)
     deduped: dict[tuple[str, str], dict[str, Any]] = {}
@@ -131,27 +133,3 @@ def write(conn: sqlite3.Connection, result: ExtractResult) -> None:
             "VALUES (:race_id, :other_race_id, :relation)",
             result.race_relations,
         )
-
-
-def _int(el: etree._Element | None, attr: str) -> int | None:
-    if el is None:
-        return None
-    v = el.get(attr)
-    if v is None:
-        return None
-    try:
-        return int(v)
-    except ValueError:
-        return int(float(v))
-
-
-def _float(el: etree._Element | None, attr: str) -> float | None:
-    if el is None:
-        return None
-    v = el.get(attr)
-    if v is None:
-        return None
-    try:
-        return float(v)
-    except ValueError:
-        return None

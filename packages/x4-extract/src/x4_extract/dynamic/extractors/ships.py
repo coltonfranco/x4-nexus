@@ -16,23 +16,30 @@ Tier: VOLATILE — positions and combat state change every tick.
 from __future__ import annotations
 
 import dataclasses
-import json
 import sqlite3
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 
 from lxml import etree
 
-from x4_extract.dynamic.collector import Tier, hash_rows
+from x4_extract.dynamic.collector import Tier, fingerprint_for_tier, tables_for_tier
+from x4_extract.dynamic.extractors.common import (
+    component_class_registrations,
+    element_attrs,
+    enclosing_sector_zone,
+    extra_json_from_attrs,
+    walk_ancestors,
+)
 from x4_extract.dynamic.extractors.positions import (
     position_cache,
     register_offset_handler,
     register_position_handler,
 )
+from x4_extract.parsing import str_float
 from x4_extract.savefile.dispatch import Registration, Target
 
 _SHIP_CLASSES = ("ship_xs", "ship_s", "ship_m", "ship_l", "ship_xl")
 _MAPPED_SHIP_ATTRS = frozenset({"id", "code", "name", "macro", "owner", "class", "state", "level", "thruster"})
-_ANCESTOR_WALK_LIMIT = 40  # docked/subordinate ships nest deeply
 
 
 @dataclass(slots=True)
@@ -63,12 +70,7 @@ class ShipsCollector:
 
     def register(self) -> list[Registration]:
         return [
-            Registration(
-                target=Target(tag="component", depth=None, class_attr=cls),
-                visitor=self._on_ship,
-            )
-            for cls in _SHIP_CLASSES
-        ] + [
+            *component_class_registrations(_SHIP_CLASSES, self._on_ship),
             Registration(
                 target=Target(tag="order", depth=None, parent_tag="orders"),
                 visitor=self._on_order,
@@ -79,13 +81,15 @@ class ShipsCollector:
 
     def _on_order(self, elem: etree._Element) -> None:
         parent = elem.getparent()
-        if parent is None: return
+        if parent is None:
+            return
         ship = parent.getparent()
         if ship is None or not ship.get("class", "").startswith("ship_"):
             return
         ship_id = ship.get("id")
-        if not ship_id: return
-        
+        if not ship_id:
+            return
+
         # Only keep the first order encountered per ship (usually the active one)
         if ship_id not in self._ship_orders:
             order_val = elem.get("order")
@@ -104,17 +108,13 @@ class ShipsCollector:
 
         # Walk ancestors: the first component with a stored offset is the ship's
         # position in space (the enclosing zone or sector).
-        ancestor: etree._Element | None = elem.getparent()
-        for _ in range(_ANCESTOR_WALK_LIMIT):
-            if ancestor is None:
-                break
+        for ancestor in walk_ancestors(elem):
             if ancestor.tag == "component":
                 aid = ancestor.get("id")
                 if aid:
                     pos = position_cache.get(aid)
                     if pos is not None:
                         return pos
-            ancestor = ancestor.getparent()
         return (None, None, None)
 
     def _on_ship(self, elem: etree._Element) -> None:
@@ -122,17 +122,12 @@ class ShipsCollector:
         if not ship_id:
             return
 
-        name = elem.get("name")
-        macro = elem.get("macro")
-
-        sector_id, zone_id = self._enclosing_sector_zone(elem)
+        sector_id, zone_id = enclosing_sector_zone(elem)
         owner = elem.get("owner")
         ox, oy, oz = self._resolve_position(elem, ship_id)
-        extra = {k: v for k, v in elem.attrib.items() if k not in _MAPPED_SHIP_ATTRS}
         
         current_order = self._ship_orders.pop(ship_id, None)
-        if current_order:
-            extra["current_order"] = current_order
+        extra = {"current_order": current_order} if current_order else None
 
         self.rows.append(
             ShipRow(
@@ -149,32 +144,15 @@ class ShipsCollector:
                 z=oz,
                 commander_id=None,
                 state=elem.get("state"),
-                level=_float(elem.get("level")),
+                level=str_float(elem.get("level")),
                 thruster=elem.get("thruster"),
                 is_player_owned=int(owner == "player"),
-                extra_json=json.dumps(extra, sort_keys=True) if extra else None,
+                extra_json=extra_json_from_attrs(element_attrs(elem), _MAPPED_SHIP_ATTRS, extra),
             )
         )
 
-    @staticmethod
-    def _enclosing_sector_zone(elem: etree._Element) -> tuple[str | None, str | None]:
-        sector_id: str | None = None
-        zone_id: str | None = None
-        ancestor: etree._Element | None = elem.getparent()
-        for _ in range(_ANCESTOR_WALK_LIMIT):
-            if ancestor is None:
-                break
-            cls = ancestor.get("class", "")
-            if cls == "zone" and zone_id is None:
-                zone_id = ancestor.get("macro")
-            elif cls == "sector":
-                sector_id = ancestor.get("macro")
-                break  # sector is the deepest containment we need
-            ancestor = ancestor.getparent()
-        return sector_id, zone_id
-
     # --- delta source ----------------------------------------------------------
-    def keyed_rows(self, tier: Tier):
+    def keyed_rows(self, tier: Tier) -> Iterable[tuple[str, str, Mapping[str, object]]]:
         """Keyed by ship_id. Content is the identity + state/location subset (not the
         noisy 3D fields) so a destroyed/sold ship surfaces as 'removed', a new ship as
         'added', and a state/sector move as 'changed'. Add hull here later to alert on
@@ -194,12 +172,10 @@ class ShipsCollector:
 
     # --- tiered contract -------------------------------------------------------
     def tables(self, tier: Tier) -> tuple[str, ...]:
-        return ("ships",) if tier is Tier.VOLATILE else ()
+        return tables_for_tier(tier, Tier.VOLATILE, ("ships",))
 
     def fingerprint(self, tier: Tier) -> str:
-        if tier is not Tier.VOLATILE:
-            return ""
-        return hash_rows(dataclasses.asdict(r) for r in self.rows)
+        return fingerprint_for_tier(tier, Tier.VOLATILE, (dataclasses.asdict(r) for r in self.rows))
 
     def flush(self, conn: sqlite3.Connection, tier: Tier | None = None) -> None:
         if tier not in (None, Tier.VOLATILE) or not self.rows:
@@ -215,12 +191,3 @@ class ShipsCollector:
             """,
             [dataclasses.asdict(r) for r in self.rows],
         )
-
-
-def _float(v: str | None) -> float | None:
-    if v is None:
-        return None
-    try:
-        return float(v)
-    except ValueError:
-        return None

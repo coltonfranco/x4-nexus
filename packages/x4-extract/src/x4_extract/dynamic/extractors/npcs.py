@@ -42,9 +42,9 @@ from dataclasses import dataclass, field
 from lxml import etree
 
 from x4_extract.dynamic.collector import Tier, hash_rows
+from x4_extract.dynamic.extractors.common import ANCESTOR_WALK_LIMIT
 from x4_extract.savefile.dispatch import Registration, Target
 
-_ANCESTOR_WALK_LIMIT = 40
 
 
 @dataclass(slots=True)
@@ -114,7 +114,7 @@ class NPCsCollector:
     def _npc_parent(self, elem: etree._Element) -> etree._Element | None:
         """Walk up from a child element to the enclosing <component class='npc'>."""
         ancestor: etree._Element | None = elem.getparent()
-        for _ in range(_ANCESTOR_WALK_LIMIT):
+        for _ in range(ANCESTOR_WALK_LIMIT):
             if ancestor is None:
                 return None
             if ancestor.tag == "component" and ancestor.get("class") == "npc":
@@ -130,7 +130,7 @@ class NPCsCollector:
         sector_id: str | None = None
         is_buildstorage = False
         ancestor: etree._Element | None = elem.getparent()
-        for _ in range(_ANCESTOR_WALK_LIMIT):
+        for _ in range(ANCESTOR_WALK_LIMIT):
             if ancestor is None:
                 break
             if ancestor.tag == "component":

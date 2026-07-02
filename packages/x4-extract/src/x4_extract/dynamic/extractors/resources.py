@@ -23,11 +23,11 @@ from dataclasses import dataclass, field
 
 from lxml import etree
 
-from x4_extract.dynamic.collector import Tier, hash_rows
+from x4_extract.dynamic.collector import Tier, fingerprint_for_tier, tables_for_tier
 from x4_extract.savefile.dispatch import Registration, Target
 
 
-def _parse_yieldid(yieldid: str) -> tuple[str, str] | None:
+def _parse_yieldid(yieldid: str) -> tuple[str, str | None] | None:
     """Parse 'sphere_large_ore_high_slow' → ('ore', 'high').  Returns None if unparseable."""
     parts = yieldid.split("_")
     # Known ware names to scan for (longest first to avoid partial matches)
@@ -109,12 +109,14 @@ class ResourceAreasCollector:
 
     # --- tiered contract -------------------------------------------------------
     def tables(self, tier: Tier) -> tuple[str, ...]:
-        return ("sector_resources",) if tier is Tier.VOLATILE else ()
+        return tables_for_tier(tier, Tier.VOLATILE, ("sector_resources",))
 
     def fingerprint(self, tier: Tier) -> str:
-        if tier is not Tier.VOLATILE:
-            return ""
-        return hash_rows(dataclasses.asdict(r) for r in self.rows_by_key.values())
+        return fingerprint_for_tier(
+            tier,
+            Tier.VOLATILE,
+            (dataclasses.asdict(r) for r in self.rows_by_key.values()),
+        )
 
     def flush(self, conn: sqlite3.Connection, tier: Tier | None = None) -> None:
         if tier not in (None, Tier.VOLATILE):

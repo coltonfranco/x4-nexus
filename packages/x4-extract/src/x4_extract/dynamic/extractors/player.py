@@ -16,13 +16,14 @@ Tier: VOLATILE — credits and holdings change during play.
 
 from __future__ import annotations
 
-import json
 import sqlite3
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 
 from lxml import etree
 
 from x4_extract.dynamic.collector import Tier, hash_rows
+from x4_extract.dynamic.extractors.common import extra_json_from_attrs
 from x4_extract.savefile.dispatch import Registration, Target
 
 _LICENCE_DEPTH = 6
@@ -101,7 +102,6 @@ class PlayerCollector:
     def _player_row(self) -> dict[str, object] | None:
         if not self._char and self._credits is None and self._current_ship is None:
             return None
-        extra = {k: v for k, v in self._char.items() if k not in _MAPPED_CHAR_ATTRS}
         return {
             "id": 1,
             "player_id": self._char.get("id"),
@@ -110,11 +110,11 @@ class PlayerCollector:
             "hq_station_id": None,
             "current_sector": None,
             "current_ship_id": self._char.get("lastcontrolled") or self._current_ship,
-            "extra_json": json.dumps(extra, sort_keys=True) if extra else None,
+            "extra_json": extra_json_from_attrs(self._char, _MAPPED_CHAR_ATTRS),
         }
 
     # --- delta source ----------------------------------------------------------
-    def keyed_rows(self, tier: Tier):
+    def keyed_rows(self, tier: Tier) -> Iterable[tuple[str, str, Mapping[str, object]]]:
         """Singleton 'player' row; credit/current-ship changes surface as 'changed'."""
         if tier is not Tier.VOLATILE:
             return

@@ -16,7 +16,11 @@ from typing import Any
 
 from lxml import etree
 
+from x4_extract.parsing import xml_attr_float as _float
+from x4_extract.parsing import xml_attr_int as _int
 from x4_extract.static.constants import SHIP_CLASSES, dlc_from_path
+
+CountCache = dict[tuple[str, bool], dict[str, int]]
 
 
 @dataclass(slots=True)
@@ -177,8 +181,8 @@ def _parse_ship_macro(macro_name: str, file_path: str, macro_el: etree._Element,
     # Recursively resolve components to count hardpoints.  Caches avoid
     # re-parsing and re-counting the same component macros (shared across
     # many ships — the biggest perf win in the entire extraction pipeline).
-    tree_cache: dict[str, etree._Element] = {}
-    count_cache: dict[str, dict[str, int]] = {}
+    tree_cache: dict[str, etree._Element | None] = {}
+    count_cache: CountCache = {}
     _resolve_and_count_hardpoints(macro_el, resolve_name, counts, tree_cache, count_cache)
 
     out.ships.append(
@@ -279,8 +283,8 @@ def _resolve_and_count_hardpoints(
     el: etree._Element,
     resolve_name: Callable[[str], bytes],
     counts: dict[str, int],
-    tree_cache: dict[str, etree._Element],
-    count_cache: dict[str, dict[str, int]],
+    tree_cache: dict[str, etree._Element | None],
+    count_cache: CountCache,
 ) -> None:
     """Resolve component macros recursively and count hardpoints.
 
@@ -311,7 +315,7 @@ def _resolve_and_count_hardpoints(
     # Resolve child macros — docks, hardpoints, and cargo.
     # Docks (dockarea, shipstorage) are defined in child macros, NOT the
     # main component, so they MUST be counted here.
-    for child_macro in el.xpath(".//macro[@ref]"):  # type: ignore
+    for child_macro in _xpath_elements(el, ".//macro[@ref]"):
         macro_ref = child_macro.get("ref")
         if macro_ref:
             _add_component_counts(macro_ref, resolve_name, counts, tree_cache, count_cache, count_docks=True)
@@ -321,8 +325,8 @@ def _add_component_counts(
     ref: str,
     resolve_name: Callable[[str], bytes],
     counts: dict[str, int],
-    tree_cache: dict[str, etree._Element],
-    count_cache: dict[str, dict[str, int]],
+    tree_cache: dict[str, etree._Element | None],
+    count_cache: CountCache,
     count_docks: bool = True,
 ) -> None:
     """Resolve *ref* (once) and merge its counts into *counts*.
@@ -341,10 +345,9 @@ def _add_component_counts(
     if ref not in tree_cache:
         try:
             raw = resolve_name(ref)
-            root = etree.fromstring(raw)
-            tree_cache[ref] = root
+            tree_cache[ref] = etree.fromstring(raw)
         except (KeyError, etree.XMLSyntaxError):
-            tree_cache[ref] = None  # type: ignore[assignment]
+            tree_cache[ref] = None
     root = tree_cache[ref]
     if root is None:
         return
@@ -407,7 +410,7 @@ def _add_component_counts(
     _count_connections(node, local)
 
     # Recurse into child macro refs on this component.
-    for child_macro in node.xpath(".//macro[@ref]"):  # type: ignore
+    for child_macro in _xpath_elements(node, ".//macro[@ref]"):
         child_ref = child_macro.get("ref")
         if child_ref:
             _add_component_counts(child_ref, resolve_name, local, tree_cache, count_cache, count_docks)
@@ -419,7 +422,7 @@ def _add_component_counts(
 
 
 def _count_connections(comp_node: etree._Element, counts: dict[str, int]) -> None:
-    for conn in comp_node.xpath(".//connection[@tags]"):  # type: ignore
+    for conn in _xpath_elements(comp_node, ".//connection[@tags]"):
         tags_str = conn.get("tags", "")
         if not tags_str:
             continue
@@ -454,6 +457,13 @@ def _count_connections(comp_node: etree._Element, counts: dict[str, int]) -> Non
             size = "m"
 
         counts[f"{kind}_{size}"] += 1
+
+
+def _xpath_elements(node: etree._Element, query: str) -> list[etree._Element]:
+    result = node.xpath(query)
+    if not isinstance(result, list):
+        return []
+    return [item for item in result if isinstance(item, etree._Element)]
 
 
 def write(conn: sqlite3.Connection, result: ExtractResult) -> None:
@@ -632,7 +642,7 @@ def update_derived_stats(conn: sqlite3.Connection) -> None:
         " GROUP BY s.ship_id"
     )
 
-    # ── Per-size best weapon range (bullet_speed × lifetime / 1000) ─────
+    # ── Per-size best weapon range (bullet_speed x lifetime / 1000) ─────
     def _range_agg() -> dict[str, float]:
         rows = conn.execute(
             "SELECT w.size, MAX(b.speed * b.lifetime / 1000.0)"
@@ -681,27 +691,3 @@ def update_derived_stats(conn: sqlite3.Connection) -> None:
         WHERE mass > 0 AND drag_forward > 0
     """)
     conn.execute("DROP TABLE IF EXISTS _ship_radar")
-
-
-def _int(el: etree._Element | None, attr: str) -> int | None:
-    if el is None:
-        return None
-    v = el.get(attr)
-    if v is None:
-        return None
-    try:
-        return int(v)
-    except ValueError:
-        return int(float(v))
-
-
-def _float(el: etree._Element | None, attr: str) -> float | None:
-    if el is None:
-        return None
-    v = el.get(attr)
-    if v is None:
-        return None
-    try:
-        return float(v)
-    except ValueError:
-        return None

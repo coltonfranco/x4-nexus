@@ -15,14 +15,14 @@ Tier: VOLATILE — new messages can arrive during play.
 
 from __future__ import annotations
 
-import dataclasses
-import json
 import sqlite3
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 
 from lxml import etree
 
-from x4_extract.dynamic.collector import Tier, hash_rows
+from x4_extract.dynamic.collector import Tier, fingerprint_for_tier, tables_for_tier
+from x4_extract.dynamic.extractors.common import element_attrs, extra_json_from_attrs
 from x4_extract.savefile.dispatch import Registration, Target
 
 # Attributes promoted to typed columns. Anything else → extra_json.
@@ -45,10 +45,10 @@ class MessagesCollector:
         ]
 
     def _on_entry(self, elem: etree._Element) -> None:
-        self.rows.append(dict(elem.attrib))
+        self.rows.append(element_attrs(elem))
 
     # --- delta source ----------------------------------------------------------
-    def keyed_rows(self, tier: Tier):
+    def keyed_rows(self, tier: Tier) -> Iterable[tuple[str, str, Mapping[str, object]]]:
         """Keyed by message id; a flipped `read`/`highpriority` flag shows up as
         'changed', a brand-new inbox entry as 'added'."""
         if tier is not Tier.VOLATILE:
@@ -61,12 +61,10 @@ class MessagesCollector:
 
     # --- tiered contract -------------------------------------------------------
     def tables(self, tier: Tier) -> tuple[str, ...]:
-        return ("player_messages",) if tier is Tier.VOLATILE else ()
+        return tables_for_tier(tier, Tier.VOLATILE, ("player_messages",))
 
     def fingerprint(self, tier: Tier) -> str:
-        if tier is not Tier.VOLATILE or not self.rows:
-            return ""
-        return hash_rows(self.rows)
+        return fingerprint_for_tier(tier, Tier.VOLATILE, self.rows)
 
     def flush(self, conn: sqlite3.Connection, tier: Tier | None = None) -> None:
         if tier not in (None, Tier.VOLATILE) or not self.rows:
@@ -84,7 +82,6 @@ class MessagesCollector:
 
 
 def _row_with_extra(attrs: dict[str, str]) -> dict[str, object]:
-    extra = {k: v for k, v in attrs.items() if k not in _MAPPED_ATTRS}
     return {
         "id": int(attrs.get("id", 0)),
         "time": float(attrs.get("time", 0)),
@@ -95,5 +92,5 @@ def _row_with_extra(attrs: dict[str, str]) -> dict[str, object]:
         "interact": attrs.get("interact"),
         "component": attrs.get("component"),
         "read": int(attrs["read"]) if "read" in attrs else None,
-        "extra_json": json.dumps(extra, sort_keys=True) if extra else None,
+        "extra_json": extra_json_from_attrs(attrs, _MAPPED_ATTRS),
     }

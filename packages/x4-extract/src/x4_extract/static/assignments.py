@@ -3,25 +3,22 @@ from __future__ import annotations
 import sqlite3
 from dataclasses import dataclass, field
 
-from lxml import etree
+from x4_extract.static.id_name import append_id_name_rows
 
 
 @dataclass(slots=True)
 class ExtractResult:
-    assignments: list[dict[str, str]] = field(default_factory=list)
+    assignments: list[dict[str, str | None]] = field(default_factory=list)
 
 
 def extract(xml_bytes: bytes) -> ExtractResult:
-    root = etree.fromstring(xml_bytes)
     out = ExtractResult()
-    for a in root.iterfind("assignment"):
-        aid = a.get("id")
-        name = a.get("name")
-        if aid:
-            out.assignments.append({
-                "assignment_id": aid,
-                "name": name,
-            })
+    append_id_name_rows(
+        xml_bytes,
+        item_tag="assignment",
+        id_column="assignment_id",
+        rows=out.assignments,
+    )
     return out
 
 

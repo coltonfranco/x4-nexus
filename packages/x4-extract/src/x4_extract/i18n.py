@@ -5,11 +5,13 @@ import sqlite3
 
 from lxml import etree
 
+from x4_extract.constants import DEFAULT_LANGUAGE_CODE
+
 
 class Localizer:
     """Handles parsing X4 localization files and resolving {page,text} macros."""
 
-    def __init__(self, raw_conn: sqlite3.Connection, language_code: str = "044"):
+    def __init__(self, raw_conn: sqlite3.Connection, language_code: str = DEFAULT_LANGUAGE_CODE):
         self._map: dict[tuple[str, str], str] = {}
         # Matches {page_id, text_id} or {page_id,text_id} or {page_id,text_id}
         self._pattern = re.compile(r"\{(\d+),\s*(\d+)\}")

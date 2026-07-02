@@ -25,13 +25,14 @@ keeps only a rolling window, so accumulation is how history outlives a single sa
 from __future__ import annotations
 
 import dataclasses
-import json
 import sqlite3
 from dataclasses import dataclass, field
 
 from lxml import etree
 
 from x4_extract.dynamic.collector import Tier, hash_rows
+from x4_extract.dynamic.extractors.common import element_attrs, extra_json_from_attrs
+from x4_extract.parsing import str_int
 from x4_extract.savefile.dispatch import Registration, Target
 
 _LOG_DEPTH = 4  # savegame(1) → economylog(2) → entries(3) → log(4)
@@ -94,20 +95,19 @@ class EconomyLogCollector:
         time_raw = elem.get("time")
         if time_raw is None:
             return
-        extra = {k: v for k, v in elem.attrib.items() if k not in _TRADE_MAPPED}
         self.trades.append(
             TradeRow(
                 time=float(time_raw),
                 ware=elem.get("ware"),
                 buyer=elem.get("buyer"),
                 seller=elem.get("seller"),
-                price=_int(elem.get("price")),
-                v=_int(elem.get("v")),
-                b=_int(elem.get("b")),
-                bmax=_int(elem.get("bmax")),
-                s=_int(elem.get("s")),
-                smax=_int(elem.get("smax")),
-                extra_json=json.dumps(extra, sort_keys=True) if extra else None,
+                price=str_int(elem.get("price")),
+                v=str_int(elem.get("v")),
+                b=str_int(elem.get("b")),
+                bmax=str_int(elem.get("bmax")),
+                s=str_int(elem.get("s")),
+                smax=str_int(elem.get("smax")),
+                extra_json=extra_json_from_attrs(element_attrs(elem), _TRADE_MAPPED),
             )
         )
 
@@ -116,16 +116,15 @@ class EconomyLogCollector:
         time_raw = elem.get("time")
         if owner is None or time_raw is None:
             return
-        extra = {k: v for k, v in elem.attrib.items() if k not in _MONEY_MAPPED}
         self.money.append(
             MoneyRow(
                 owner=owner,
                 time=float(time_raw),
                 type=elem.get("type"),
-                v=_int(elem.get("v")),
-                v2=_int(elem.get("v2")),
+                v=str_int(elem.get("v")),
+                v2=str_int(elem.get("v2")),
                 partner=elem.get("partner"),
-                extra_json=json.dumps(extra, sort_keys=True) if extra else None,
+                extra_json=extra_json_from_attrs(element_attrs(elem), _MONEY_MAPPED),
             )
         )
 
@@ -166,13 +165,3 @@ class EconomyLogCollector:
                 """,
                 [dataclasses.asdict(r) for r in self.money],
             )
-
-
-def _int(value: str | None) -> int | None:
-    """Coerce an attribute to int, tolerating float-formatted strings ("880", "5.0")."""
-    if value is None or value == "":
-        return None
-    try:
-        return int(float(value))
-    except ValueError:
-        return None

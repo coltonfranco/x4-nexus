@@ -10,6 +10,9 @@ from typing import Any
 
 from lxml import etree
 
+from x4_extract.parsing import xml_attr_bool as _bool_attr
+from x4_extract.parsing import xml_attr_float as _float
+from x4_extract.parsing import xml_attr_int as _int
 from x4_extract.static.constants import MODULE_CLASSES, dlc_from_path
 
 _RE_SIZE_FROM_NAME = re.compile(r"_([smlx]{1,2})_", re.IGNORECASE)
@@ -369,42 +372,9 @@ def write(conn: sqlite3.Connection, result: ExtractResult) -> None:
         )
 
 
-def _int(el: etree._Element | None, attr: str) -> int | None:
-    if el is None:
-        return None
-    v = el.get(attr)
-    if v is None:
-        return None
-    try:
-        return int(v)
-    except ValueError:
-        return int(float(v))
-
-
-def _float(el: etree._Element | None, attr: str) -> float | None:
-    if el is None:
-        return None
-    v = el.get(attr)
-    if v is None:
-        return None
-    try:
-        return float(v)
-    except ValueError:
-        return None
-
-
-def _bool_attr(el: etree._Element | None, attr: str) -> bool | None:
-    if el is None:
-        return None
-    v = el.get(attr)
-    if v is None:
-        return None
-    return v == "1"
-
-
 def _build_sets(el: etree._Element | None) -> str | None:
     """Extract space-separated build set refs from <sets><set ref="..."/>."""
     if el is None:
         return None
-    refs = [s.get("ref") for s in el.iterfind("set") if s.get("ref")]
+    refs = [ref for s in el.iterfind("set") if (ref := s.get("ref")) is not None]
     return " ".join(refs) if refs else None

@@ -18,6 +18,9 @@ from typing import Any
 
 from lxml import etree
 
+from x4_extract.parsing import xml_attr_bool as _bool_attr
+from x4_extract.parsing import xml_attr_int as _int
+
 
 @dataclass(slots=True)
 class ExtractResult:
@@ -128,24 +131,3 @@ def write(conn: sqlite3.Connection, result: ExtractResult) -> None:
             "  :secrecy_level, :ownership_claim, :build_sets)",
             result.stations,
         )
-
-
-def _int(el: etree._Element | None, attr: str) -> int | None:
-    if el is None:
-        return None
-    v = el.get(attr)
-    if v is None:
-        return None
-    try:
-        return int(v)
-    except ValueError:
-        return int(float(v))
-
-
-def _bool_attr(el: etree._Element | None, attr: str) -> bool | None:
-    if el is None:
-        return None
-    v = el.get(attr)
-    if v is None:
-        return None
-    return v == "1"

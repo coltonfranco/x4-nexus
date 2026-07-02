@@ -17,10 +17,12 @@ import logging
 import os
 import sqlite3
 import time
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
 from x4_extract.config import ExtractSettings, save_key
+from x4_extract.constants import DEFAULT_LANGUAGE_CODE
 from x4_extract.db import apply_schema, open_db
 from x4_extract.dynamic import delta
 from x4_extract.dynamic.collector import TIERS, Collector, Tier, combined_fingerprint
@@ -72,7 +74,7 @@ def build_collectors(settings: ExtractSettings, save_path: Path) -> list[Collect
     from x4_extract.i18n import Localizer
 
     with sqlite3.connect(settings.data_dir / "raw.db") as raw_conn:
-        localizer = Localizer(raw_conn, "044")
+        localizer = Localizer(raw_conn, DEFAULT_LANGUAGE_CODE)
 
     return [
         MetaCollector(save_path=save_path),

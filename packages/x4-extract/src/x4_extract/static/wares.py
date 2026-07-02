@@ -21,6 +21,9 @@ from typing import Any
 
 from lxml import etree
 
+from x4_extract.parsing import xml_attr_float as _float
+from x4_extract.parsing import xml_attr_int as _int
+
 
 @dataclass(slots=True)
 class ExtractResult:
@@ -217,30 +220,6 @@ def write(conn: sqlite3.Connection, result: ExtractResult) -> None:
         "INSERT INTO ware_illegal (ware_id, faction_id) VALUES (:ware_id, :faction_id)",
         result.illegal,
     )
-
-
-def _int(el: etree._Element | None, attr: str) -> int | None:
-    if el is None:
-        return None
-    v = el.get(attr)
-    if v is None:
-        return None
-    try:
-        return int(v)
-    except ValueError:
-        return int(float(v))
-
-
-def _float(el: etree._Element | None, attr: str) -> float | None:
-    if el is None:
-        return None
-    v = el.get(attr)
-    if v is None:
-        return None
-    try:
-        return float(v)
-    except ValueError:
-        return None
 
 
 def _icon_path(ware_el: etree._Element) -> str | None:

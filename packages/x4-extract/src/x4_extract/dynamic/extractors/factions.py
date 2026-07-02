@@ -19,13 +19,14 @@ Tier: VOLATILE — relations shift continuously during play.
 from __future__ import annotations
 
 import dataclasses
-import json
 import sqlite3
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 
 from lxml import etree
 
-from x4_extract.dynamic.collector import Tier, hash_rows
+from x4_extract.dynamic.collector import Tier, fingerprint_for_tier, tables_for_tier
+from x4_extract.dynamic.extractors.common import element_attrs, extra_json_from_attrs
 from x4_extract.savefile.dispatch import Registration, Target
 
 _RELATION_DEPTH = 6
@@ -71,13 +72,12 @@ class FactionsCollector:
         if owner is None:
             return
 
-        extra = {k: v for k, v in elem.attrib.items() if k not in _MAPPED_RELATION_ATTRS}
         key = (owner, other)
         self._rows[key] = RelationRow(
             faction_id=owner,
             other_faction_id=other,
             relation=float(value),
-            extra_json=json.dumps(extra, sort_keys=True) if extra else None,
+            extra_json=extra_json_from_attrs(element_attrs(elem), _MAPPED_RELATION_ATTRS),
         )
 
     @property
@@ -85,7 +85,7 @@ class FactionsCollector:
         return list(self._rows.values())
 
     # --- delta source ----------------------------------------------------------
-    def keyed_rows(self, tier: Tier):
+    def keyed_rows(self, tier: Tier) -> Iterable[tuple[str, str, Mapping[str, object]]]:
         """Keyed by the ordered faction pair; a shifted relation value is a 'changed'
         diplomacy event (turning hostile is flagged WARN by the alert rules)."""
         if tier is not Tier.VOLATILE:
@@ -99,12 +99,10 @@ class FactionsCollector:
 
     # --- tiered contract -------------------------------------------------------
     def tables(self, tier: Tier) -> tuple[str, ...]:
-        return ("faction_relations_current",) if tier is Tier.VOLATILE else ()
+        return tables_for_tier(tier, Tier.VOLATILE, ("faction_relations_current",))
 
     def fingerprint(self, tier: Tier) -> str:
-        if tier is not Tier.VOLATILE:
-            return ""
-        return hash_rows(dataclasses.asdict(r) for r in self.rows)
+        return fingerprint_for_tier(tier, Tier.VOLATILE, (dataclasses.asdict(r) for r in self.rows))
 
     def flush(self, conn: sqlite3.Connection, tier: Tier | None = None) -> None:
         if tier not in (None, Tier.VOLATILE) or not self._rows:
